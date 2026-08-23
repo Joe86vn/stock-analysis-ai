@@ -11,6 +11,7 @@ Hệ thống được thiết kế theo kiến trúc **Decoupled Client-Server &
 graph TD
     subgraph Client Layer [Frontend - Next.js 15 App Router]
         UI[User Dashboard & Form Upload]
+        RefCatalog[Reference Document Catalog UI]
         Editor[Interactive Report Editor & Valuation Calculator]
         ExportUI[PDF/Word Exporter UI]
     end
@@ -18,8 +19,19 @@ graph TD
     subgraph API & Gateway Layer [Backend - Python FastAPI]
         API[FastAPI Router & Auth]
         DocManager[Document Ingestion & File Storage]
-        Crawler[Vietnamese Stock Market Data Fetcher]
+        CrawlService[Reference Document Crawler Service]
+        MarketCrawler[Market Data Fetcher - PE/PB]
         ExportEngine[PDF / DOCX Generator]
+    end
+
+    subgraph Cache Layer
+        Redis[(Redis Cache - TTL 24h)]
+    end
+
+    subgraph External Sources
+        Cafef[cafef.vn - BCTN]
+        Vietstock[vietstock.vn - BCTC + DHCD]
+        Simplize[simplize.vn - Broker Reports]
     end
 
     subgraph AI Core Layer [Gemini AI Agent & Orchestrator]
@@ -35,10 +47,16 @@ graph TD
     end
 
     UI --> API
+    RefCatalog --> API
     Editor --> API
     ExportUI --> ExportEngine
     API --> DocManager
-    API --> Crawler
+    API --> CrawlService
+    API --> MarketCrawler
+    CrawlService --> Redis
+    CrawlService --> Cafef
+    CrawlService --> Vietstock
+    CrawlService --> Simplize
     DocManager --> ObjectStorage
     DocManager --> GeminiFlash
     API --> Orchestrator
@@ -59,9 +77,11 @@ graph TD
 | **State & Charts** | Zustand + Recharts | Quản lý state nháp báo cáo & vẽ biểu đồ định giá 3 kịch bản thời gian thực. |
 | **Backend Framework** | Python FastAPI (AsyncIO) | Xử lý tài liệu PDF/Excel vượt trội, hệ sinh thái AI/Data phong phú (PyPDF, pandas, Gemini SDK). |
 | **Database & ORM** | PostgreSQL + SQLAlchemy / Alembic | Quản lý dữ liệu quan hệ chặt chẽ (mã cổ phiếu, báo cáo, giả định, lịch sử định giá). |
+| **Cache Layer** | **Redis** (redis-py asyncio) | Cache kết quả crawl danh mục tài liệu tham khảo với TTL 24h. Tránh tải lặp và bot detection. |
 | **AI Engine** | Google Gemini 1.5 Pro & Flash | **Gemini 1.5 Pro** có Context Window 1M-2M tokens (đọc trọn gói BCTN 100 trang mà không bị trôi ngữ cảnh). **Flash** để parse bảng biểu tài chính nhanh. |
 | **PDF/Doc Parser** | `pdfplumber` + `PyMuPDF (fitz)` + `pandas` | Trích xuất chính xác bảng BCTC, thuyết minh BCTC và văn bản tiếng Việt từ PDF. |
 | **Export Service** | `WeasyPrint` / `python-docx` | Xuất file PDF chuẩn in ấn CSS & file Word editable. |
+| **Crawler HTTP** | `httpx` (async) | HTTP client async cho crawl song song BCTN/BCTC/NQ ĐHCĐ/Broker Report. |
 
 ---
 
@@ -137,12 +157,31 @@ CREATE TABLE analysis_sessions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Bảng Danh Mục Tài Liệu Tham Khảo Crawl Tự Động
+CREATE TABLE reference_document_catalogs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ticker VARCHAR(10) REFERENCES stocks(ticker),
+    exchange VARCHAR(10) NOT NULL DEFAULT 'HOSE', -- HOSE | HNX | UPCOM
+    crawled_at TIMESTAMP NOT NULL,
+    cache_expires_at TIMESTAMP NOT NULL,           -- crawled_at + 24h
+    annual_reports JSONB,                          -- BCTN 3 năm từ cafef.vn
+    quarterly_financials JSONB,                    -- BCTC 8 quý từ vietstock.vn
+    agm_resolution JSONB,                          -- NQ ĐHCĐ từ vietstock.vn
+    broker_reports JSONB,                          -- Broker reports từ simplize.vn
+    summary JSONB,                                 -- {totalFound, annualReportsFound, ...}
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(ticker)                                 -- 1 bản ghi mỗi ticker, update khi crawl lại
+);
+
 -- Bảng Tài Liệu Upload (Uploaded Documents)
 CREATE TABLE session_documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id UUID REFERENCES analysis_sessions(id) ON DELETE CASCADE,
     file_name VARCHAR(255) NOT NULL,
-    file_type VARCHAR(50), -- BCTC, BCTN, BROKER_REPORT
+    file_type VARCHAR(50), -- BCTC, BCTN, BROKER_REPORT, NGHI_QUYET_DHCD
+    source_url VARCHAR(1024),                      -- URL nguồn nếu tự động tải từ crawl
+    is_auto_fetched BOOLEAN DEFAULT FALSE,         -- true nếu tải qua Reference Catalog
     file_path VARCHAR(512) NOT NULL,
     extracted_text_path VARCHAR(512),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -205,3 +244,38 @@ CREATE TABLE valuation_models (
 - **Xử lý file song song (Async Processing)**: Sử dụng FastAPI Background Tasks / CeleryWorker giúp người dùng không bị treo màn hình khi upload tài liệu lớn.
 - **Tối ưu Token AI**: Sử dụng Gemini 1.5 Flash cho các tác vụ trích xuất sơ bộ và Gemini 1.5 Pro cho tác vụ tổng hợp lập luận chuyên sâu.
 - **An Toàn Dữ Liệu**: Mã hóa file PDF được upload, kiểm tra định dạng an toàn tránh RCE/Malware injection.
+
+---
+
+## 7. Reference Document Crawler Service (crawl-report skill)
+
+Dịch vụ tự động thu thập danh mục tài liệu tham khảo theo skill `@crawl-report`.
+
+### 7.1 Phân Công Nguồn Dữ Liệu
+
+| Loại Tài Liệu | Nguồn | URL Pattern Đã Xác Nhận |
+|---|---|---|
+| **BCTN** (3 năm) | cafef.vn | `cafefnew.mediacdn.vn/Images/Uploaded/DuLieuDownload/BCTC/{ticker}_{YY}CN_BCTN.pdf` |
+| **BCTC hợp nhất** (8 quý) | vietstock.vn | `static2.vietstock.vn/data/{exchange}/{year}/BCTC/VN/QUY%20{Q}/{ticker}_Baocaotaichinh_Q{Q}_{year}_Hopnhat.pdf` |
+| **NQ ĐHCĐ thường niên** | vietstock.vn | `static2.vietstock.vn/data/{exchange}/{year}/NGHI%20QUYET%20DHCD/VN/{ticker}_Nghiquyet_DHDCD%20thuong%20nien_{year}.pdf` |
+| **Broker Reports** | simplize.vn | `api2.simplize.vn/api/company/analysis-report/list?ticker={ticker}&isWl=false&page=0&size=10` |
+
+### 7.2 Chiến Lược Cache (Hybrid On-Demand + TTL 24h)
+
+```
+GET /api/v1/stocks/{ticker}/reference-documents
+   |
+   +-- Redis HIT (key: crawl:{ticker}) --> Return cached JSON
+   |
+   +-- Redis MISS --> asyncio.gather() crawl 4 nguồn song song
+                  --> Validate (HEAD request)
+                  --> SETEX Redis TTL=86400
+                  --> Return & lưu DB (reference_document_catalogs)
+```
+
+### 7.3 UX Flow — Danh Mục Link + Nút Tự Động Tải
+
+1. User nhập ticker → Hệ thống tự động gọi crawl service
+2. Hiển thị danh mục tài liệu theo accordion (BCTN / BCTC / NQ ĐHCĐ / Broker Reports)
+3. Mỗi tài liệu có: **link tải trực tiếp** (⬇) + nút **"+ Thêm vào phân tích"**
+4. Nút **"🚀 Tải tất cả đã chọn & Bắt đầu Phân Tích AI"** — trigger download → nạp vào session → chạy AI pipeline

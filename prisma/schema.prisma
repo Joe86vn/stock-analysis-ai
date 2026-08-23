@@ -1,0 +1,108 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Stock {
+  ticker                      String                     @id @db.VarChar(10)
+  companyName                 String                     @map("company_name") @db.VarChar(255)
+  industry                    String?                    @db.VarChar(100)
+  currentPrice                Decimal?                   @map("current_price") @db.Decimal(12, 2)
+  peIndustry                  Decimal?                   @map("pe_industry") @db.Decimal(8, 2)
+  pbIndustry                  Decimal?                   @map("pb_industry") @db.Decimal(8, 2)
+  pe5yrMin                    Decimal?                   @map("pe_5yr_min") @db.Decimal(8, 2)
+  pe5yrMax                    Decimal?                   @map("pe_5yr_max") @db.Decimal(8, 2)
+  pe5yrAvg                    Decimal?                   @map("pe_5yr_avg") @db.Decimal(8, 2)
+  updatedAt                   DateTime                   @default(now()) @updatedAt @map("updated_at")
+  analysisSessions            AnalysisSession[]
+  referenceDocumentCatalog    ReferenceDocumentCatalog?
+
+  @@map("stocks")
+}
+
+model AnalysisSession {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticker           String            @db.VarChar(10)
+  title            String            @db.VarChar(255)
+  status           String            @default("PROCESSING") @db.VarChar(20) // PENDING, PROCESSING, COMPLETED, FAILED
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
+  stock            Stock             @relation(fields: [ticker], references: [ticker], onDelete: Cascade)
+  documents        SessionDocument[]
+  reports          AnalysisReport[]
+  valuationModels  ValuationModel[]
+
+  @@map("analysis_sessions")
+}
+
+model ReferenceDocumentCatalog {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticker              String   @unique @db.VarChar(10)
+  exchange            String   @default("HOSE") @db.VarChar(10)
+  crawledAt           DateTime @map("crawled_at")
+  cacheExpiresAt      DateTime @map("cache_expires_at")
+  annualReports       Json?    @map("annual_reports") // Array of AnnualReport
+  quarterlyFinancials Json?    @map("quarterly_financials") // Array of QuarterlyBCTC
+  agmResolution       Json?    @map("agm_resolution") // AGMResolution | null
+  brokerReports       Json?    @map("broker_reports") // Array of BrokerReport
+  summary             Json?    // {totalFound, annualReportsFound, ...}
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
+  stock               Stock    @relation(fields: [ticker], references: [ticker], onDelete: Cascade)
+
+  @@map("reference_document_catalogs")
+}
+
+model SessionDocument {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId         String          @map("session_id") @db.Uuid
+  fileName          String          @map("file_name") @db.VarChar(255)
+  fileType          String?         @map("file_type") @db.VarChar(50) // BCTC, BCTN, BROKER_REPORT, NGHI_QUYET_DHCD
+  sourceUrl         String?         @map("source_url") @db.VarChar(1024)
+  isAutoFetched     Boolean         @default(false) @map("is_auto_fetched")
+  filePath          String          @map("file_path") @db.VarChar(512)
+  extractedTextPath String?         @map("extracted_text_path") @db.VarChar(512)
+  createdAt         DateTime        @default(now()) @map("created_at")
+  session           AnalysisSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("session_documents")
+}
+
+model AnalysisReport {
+  id                   String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId            String          @map("session_id") @db.Uuid
+  sectionAOverview     Json?           @map("section_a_overview") // Lịch sử, Cổ đông, Ban lãnh đạo, Công ty liên kết
+  sectionBValueChain   Json?           @map("section_b_value_chain") // Mô hình KD, Đầu vào, Quy trình sản xuất, Đầu ra
+  sectionCFinancials   Json?           @map("section_c_financials") // Doanh thu 3 năm, Tỷ suất LN, Sức khỏe tài chính D/E
+  sectionDOutlook      Json?           @map("section_d_outlook") // Yếu tố tăng trưởng, Dự báo 4 quý tiếp theo
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @default(now()) @updatedAt @map("updated_at")
+  session              AnalysisSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("analysis_reports")
+}
+
+model ValuationModel {
+  id                   String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId            String          @map("session_id") @db.Uuid
+  forecastNetProfitQ1  Decimal?        @map("forecast_net_profit_q1") @db.Decimal(15, 2)
+  forecastNetProfitQ2  Decimal?        @map("forecast_net_profit_q2") @db.Decimal(15, 2)
+  forecastNetProfitQ3  Decimal?        @map("forecast_net_profit_q3") @db.Decimal(15, 2)
+  forecastNetProfitQ4  Decimal?        @map("forecast_net_profit_q4") @db.Decimal(15, 2)
+  forecastEpsForward   Decimal?        @map("forecast_eps_forward") @db.Decimal(10, 2)
+  peBase               Decimal?        @map("pe_base") @db.Decimal(8, 2)
+  peBull               Decimal?        @map("pe_bull") @db.Decimal(8, 2)
+  peBear               Decimal?        @map("pe_bear") @db.Decimal(8, 2)
+  targetPriceBase      Decimal?        @map("target_price_base") @db.Decimal(12, 2)
+  targetPriceBull      Decimal?        @map("target_price_bull") @db.Decimal(12, 2)
+  targetPriceBear      Decimal?        @map("target_price_bear") @db.Decimal(12, 2)
+  notes                String?         @db.Text
+  updatedAt            DateTime        @default(now()) @updatedAt @map("updated_at")
+  session              AnalysisSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("valuation_models")
+}

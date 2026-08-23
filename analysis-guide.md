@@ -9,8 +9,8 @@ Tùy thuộc vào mô hình hoạt động của doanh nghiệp: sản xuất, t
 - Quy trình sản xuất: Đánh giá công suất và năng lực sản xuất hiện tại. Khả năng duy trì và mở rộng công suất trong tương lai. Đánh giá công nghệ hoặc năng lực cạnh tranh so với các đối thủ.
 - Đầu ra: Nêu rõ sản phẩm đầu ra và tỷ trọng cơ cấu doanh thu hiện tại. Phân tích chi tiết các sản phẩm đầu ra chiếm tỷ trọng lớn (Nhu cầu, sản lượng, giá bán, đối thủ). Phân tích yếu tố ảnh hưởng đến sản lượng và giá bán trong tương lai.
 C. Tình hình tài chính
-1. Doanh thu: Phân tích doanh thu 3 năm gần nhất. Tiềm năng tăng trưởng doanh thu trong tương lai, các yếu tố tác động đến doanh thu. 
-2. phân tích tỷ suất lợi nhuận: phân tích tỷ suất lợi nhuận gộp và tỷ suất lợi nhuận ròng, ROE
+1. Doanh thu: Phân tích tăng trưởng doanh thu 3 năm gần nhất, tăng trưởng doanh thu của quý gần nhất so với quý cùng kỳ năm trước. Tiềm năng tăng trưởng doanh thu trong tương lai, các yếu tố tác động đến doanh thu. 
+2. phân tích tỷ suất lợi nhuận: phân tích tỷ suất lợi nhuận gộp và tỷ suất lợi nhuận ròng, ROE của quý hiện tại so với cùng kỳ năm trước
 3. Sức khỏe tài chính: Xem xét tỷ lệ nợ vay tài chính/ vốn chủ sở hữu. Tỷ lệ này càng cao thì rủi ro doanh nghiệp càng lớn. Đặc biệt cần chú ý trong môi trường lãi suất cao.
 D. Triển vọng kinh doanh
 1. Phân tích các yếu tố ảnh hưởng đến tăng trưởng của doanh nghiệp: 

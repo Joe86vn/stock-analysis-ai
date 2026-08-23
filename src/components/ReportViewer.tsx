@@ -1,23 +1,323 @@
 'use client';
 
-import React, { useState } from 'react';
-import { AnalysisReport, SectionA, SectionB, SectionC, SectionD } from '@/types/analysis';
-import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AnalysisReport, SectionA, SectionB, SectionC, SectionD, SectorType } from '@/types/analysis';
+import { ValuationCalculator } from './ValuationCalculator';
+import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  BarChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  LabelList,
+} from 'recharts';
 
 interface ReportViewerProps {
   report: AnalysisReport;
   onUpdateReport: (updatedReport: AnalysisReport) => void;
 }
 
+
+// Sector-aware Supply Chain / Value Chain Flowchart
+function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorType?: SectorType }) {
+  const t = ticker.toUpperCase();
+  const sector = sectorType || 'general';
+
+  // --- Build sector-specific node data ---
+  type FlowNode = { label: string; items: { left: string; right?: string }[] };
+
+  const SECTOR_FLOWS: Record<SectorType, { title: string; inputHeader: string; processHeader: string; outputHeader: string; inputItems: FlowNode['items']; processDesc: string; processDetail: string; outputItems: FlowNode['items'] }> = {
+    manufacturing: {
+      title: 'Sơ đồ chuỗi giá trị: Sản xuất Công nghiệp',
+      inputHeader: 'ĐẦU VÀO (Inputs)',
+      processHeader: 'QUY TRÌNH (Production)',
+      outputHeader: 'ĐẦU RA (Outputs)',
+      inputItems: [
+        { left: 'Nguyên liệu thô', right: 'Nhà cung cấp quốc tế' },
+        { left: 'Năng lượng (KWh, Khí, Dầu)', right: 'EVN / Tự cấp' },
+        { left: 'Vận chuyển đầu vào', right: 'Logistics' },
+      ],
+      processDesc: 'Sản xuất / Chế biến',
+      processDetail: 'Kiểm soát chất lượng chặt chẽ, tối ưu hóa năng suất và hạ chi phí giá vốn.',
+      outputItems: [
+        { left: 'Sản phẩm hòan thiện', right: 'Thị trường nội địa' },
+        { left: 'Xuất khẩu', right: 'Đông Nam Á / Quốc tế' },
+      ],
+    },
+    logistics_port: {
+      title: 'Sơ đồ chuỗi giá trị: Dịch vụ Cảng biển & Logistics',
+      inputHeader: 'ĐẦU VÀO DỊCH VỤ',
+      processHeader: 'VẬN HÀNH (Operations)',
+      outputHeader: 'GIÁ TRỊ ĐẦU RA',
+      inputItems: [
+        { left: 'Hàng container xuất khẩu (TEU)', right: 'Chủ hàng / Forwarder' },
+        { left: 'Hàng container nhập khẩu (TEU)', right: 'Doanh nghiệp FDI' },
+        { left: 'Nhân công cầu cảng & thiết bị', right: 'Tuyển dụng & Mua sắm' },
+        { left: 'Năng lượng (EVN + Dầu diesel)', right: 'Chi phí biến đổi' },
+      ],
+      processDesc: 'Xếp dỡ & Lưu kho (Stevedoring)',
+      processDetail: 'Hệ thống cầu bờ STS / Tukan → Cầu giàn RTG → Xe nâng → Yard Depot. Tự động hóa tăng công suất xếp dỡ và giảm chi phí nhân công.',
+      outputItems: [
+        { left: 'Phí xếp dỡ container', right: '~60-70% doanh thu' },
+        { left: 'Dịch vụ kho bãi & lưu bãi', right: '~20-25% doanh thu' },
+        { left: 'Dịch vụ cảng cạn (ICD) & vận chuyển', right: '~10-15% doanh thu' },
+      ],
+    },
+    technology: {
+      title: 'Sơ đồ chuỗi giá trị: Công nghệ & Phần mềm',
+      inputHeader: 'NGUỒN LỰC ĐẦU VÀO',
+      processHeader: 'QUY TRÌNH TẠO GIÁ TRỊ',
+      outputHeader: 'SẢN PHẨM / DỊCH VỤ',
+      inputItems: [
+        { left: 'Kỹ sư Phần mềm', right: 'Đại học & Chiêu mộ tài năng' },
+        { left: 'Hạ tầng Cloud & AI', right: 'AWS, Azure, NVIDIA' },
+        { left: 'Sở hữu trí tuệ (IP)', right: 'R&D nội bộ' },
+      ],
+      processDesc: 'Phát triển & Tư vấn',
+      processDetail: 'Mô hình phát triển toàn cầu (Global Delivery Model): kết hợp talent Việt Nam với tinh hoa công nghệ quốc tế.',
+      outputItems: [
+        { left: 'Xuất khẩu phần mềm', right: '~55% doanh thu' },
+        { left: 'Viễn thông & Internet', right: '~35% doanh thu' },
+        { left: 'Giáo dục & Bán lẻ CNTT', right: '~10% doanh thu' },
+      ],
+    },
+    retail: {
+      title: 'Sơ đồ chuỗi giá trị: Bán lẻ Tiêu dùng',
+      inputHeader: 'NGUỒN CUNG ỨNG',
+      processHeader: 'VẬN HÀNH CHUỒI BÁN LẺ',
+      outputHeader: 'KÊnh phÂn phỐi',
+      inputItems: [
+        { left: 'Hàng hóa từ nhà sản xuất', right: 'Năng lực thương lượng giá' },
+        { left: 'Hệ thống kho vận', right: 'Quản lý tồn kho (WMS)' },
+        { left: 'Nhân sự bán hàng', right: 'Đào tạo nội bộ' },
+      ],
+      processDesc: 'Quản lý chuỗi cửa hàng',
+      processDetail: 'Hệ thống ERP tích hợp, tối ưu kho từ ng đầu - hết ngày (sell-through) và giảm tối đa hàng tồn chết.',
+      outputItems: [
+        { left: 'Cửa hàng trực tiếp (Offline)', right: 'Hệ thống cả nước' },
+        { left: 'Kênh online / E-commerce', right: 'Tăng trưởng nhanh' },
+        { left: 'Omni-channel', right: 'Tích hợp đa kênh' },
+      ],
+    },
+    consumer_goods: {
+      title: 'Sơ đồ chuỗi giá trị: Hàng Tiêu dùng (FMCG)',
+      inputHeader: 'NGUYÊN LIỆU ĐẦU VÀO',
+      processHeader: 'SẢN XUẤT & ĐÓNG GÓI',
+      outputHeader: 'PHÂN PHỐI',
+      inputItems: [
+        { left: 'Nguyên liệu thô (sữa tươi, đường...)', right: 'Nông dân & Nhà cung cấp' },
+        { left: 'Bao bì & Đóng gói', right: 'Nhà cung cấp đa dạng' },
+        { left: 'Năng lượng sản xuất', right: 'Chi phí ổn định' },
+      ],
+      processDesc: 'Sản xuất khoa học & Kiểm định chất lượng',
+      processDetail: 'Công đoạn chế biến đạt chuẩn an toàn thực phẩm cao nhất, kiểm soát vi sinh và chất lượng theo tiêu chuẩn quốc tế (ISO, FSSC 22000).',
+      outputItems: [
+        { left: 'Siêu thị / Convenience', right: '~60% doanh thu' },
+        { left: 'Kênh truyền thống (GT)', right: '~30% doanh thu' },
+        { left: 'Xuất khẩu', right: '~10% doanh thu' },
+      ],
+    },
+    real_estate: {
+      title: 'Sơ đồ chuỗi giá trị: Bất động sản & Xây dựng',
+      inputHeader: 'NGUỒN LỰC DỰ ÁN',
+      processHeader: 'PHÁT TRIỂN & XÂY DỰNG',
+      outputHeader: 'BAN HÀNG & BIÀN DỤNG',
+      inputItems: [
+        { left: 'Quỹ đất (Land bank)', right: 'Nền tảng tài sản' },
+        { left: 'Vốn vự tài trợ (vay ngân hàng)', right: 'Đòn bẩy tài chính' },
+        { left: 'Nhà thầu & Vật tư xây dựng', right: 'Chi phí xây dựng' },
+      ],
+      processDesc: 'Phát triển và Thi công dự án',
+      processDetail: 'Phép dự án → Thiết kế → Thi công → PCCC & nghiệm thu. Tốc độ câu dóng phan phối tác động trực tiếp đến dòng tiền.',
+      outputItems: [
+        { left: 'Bán căn hộ / nền đất', right: 'Doanh thu chính' },
+        { left: 'Cho thuê BDS thương mại', right: 'Thu nhập ổn định' },
+        { left: 'Dịch vụ quản lý tòa nhà', right: 'Thu phí dịch vụ' },
+      ],
+    },
+    finance: {
+      title: 'Sơ đồ chuỗi giá trị: Dịch vụ Tài chính',
+      inputHeader: 'NGUỒN VỐN & KHÁCH HÀNG',
+      processHeader: 'DỊCH VỤ TÀI CHÍNH',
+      outputHeader: 'LOẠI HÌNH DOANH THU',
+      inputItems: [
+        { left: 'Vốn chủ sở hữu (Equity)', right: 'Nền tảng vốn' },
+        { left: 'Khách hàng cá nhân & tổ chức', right: 'Hồ khách hàng' },
+        { left: 'Công nghệ Fintech & nền tảng GD', right: 'Hạ tầng công nghệ' },
+      ],
+      processDesc: 'Quản lý rủi ro & tạo lợi nhuận',
+      processDetail: 'Mô hình kiếm tiền từ chech-lệch lãi suất (NIM), phí giao dịch và tự doanh (proprietary trading). Kiểm soát NPL và quản trị rủi ro tín dụng.',
+      outputItems: [
+        { left: 'Phí môi giới & tư vấn', right: 'Mảng tạo phí' },
+        { left: 'Lãi vay mác-jin', right: 'Thu nhập lãi' },
+        { left: 'Tự doanh chứng khoán (Prop trading)', right: 'Thu nhập biến động' },
+      ],
+    },
+    energy: {
+      title: 'Sơ đồ chuỗi giá trị: Năng lượng & Tài nguyên',
+      inputHeader: 'THU HAI TÀI NGUYÊN',
+      processHeader: 'CHỦ BIẾN & PHÂN PHỐI',
+      outputHeader: 'SẢN PHẨM & DỊCH VỤ',
+      inputItems: [
+        { left: 'Khai thác khoáng sản / dầu khí', right: 'Mỏ và giéng khai thác' },
+        { left: 'Nhập khẩu nguyên liệu', right: 'Nhà cung cấp quốc tế' },
+        { left: 'Hạ tầng sản xuất điện', right: 'Nhiệt điện / Điện mặt trời' },
+      ],
+      processDesc: 'Chế biến & Tạo ra năng lượng',
+      processDetail: 'Chuỗi giá trị từ thượng nguồn (Upstream: khai thác) → trung nguồn (Midstream: chế biến) → hạ nguồn (Downstream: phân phối).',
+      outputItems: [
+        { left: 'Bán điện (EVN / thuọ nhàn)', right: 'Doanh thu chính' },
+        { left: 'Chế phẩm dầu khí (LPG, Xing)', right: 'Thị trường bán lẻ' },
+        { left: 'Dịch vụ vận tải năng lượng', right: 'Hợp đồng dài hạn' },
+      ],
+    },
+    general: {
+      title: 'Sơ đồ chuỗi giá trị Hoạt động',
+      inputHeader: 'ĐẦU VÀO (Inputs)',
+      processHeader: 'QUY TRÌNH VẬN HÀNH',
+      outputHeader: 'ĐẦU RA (Outputs)',
+      inputItems: [
+        { left: 'Nguyên vật liệu cốt lõi', right: 'Nhà cung cấp chính' },
+        { left: 'Nguồn nhân lực', right: 'Tuyển dụng & Đào tạo' },
+        { left: 'Công nghệ & Hạ tầng', right: 'Mua sắm đầu tư' },
+      ],
+      processDesc: 'Quản lý hoạt động',
+      processDetail: 'Tối ưu hóa năng suất hoạt động và kiểm soát chi phí giá vốn cạnh tranh.',
+      outputItems: [
+        { left: 'Sản phẩm / Dịch vụ chính', right: 'Khách hàng cốt lõi' },
+        { left: 'Mảng kiến tạo giá trị khác', right: 'Tăng trưởng mới' },
+      ],
+    },
+  };
+
+  // HPG gets its dedicated manufacturing flowchart with specific data
+  const isHPG = t === 'HPG';
+  const flow = isHPG ? {
+    ...SECTOR_FLOWS.manufacturing,
+    title: 'Sơ đồ chuỗi giá trị: Tập đoàn Hòa Phát (HPG)',
+    inputItems: [
+      { left: 'Quặng sắt (Iron Ore)', right: 'Úc / Brazil' },
+      { left: 'Than mỡ (Coking Coal)', right: 'Úc / Mỹ' },
+      { left: 'Thép phế & Phụ gia', right: 'Trong nước' },
+    ],
+    processDesc: 'Lò Cao Khép Kín (BF — Blast Furnace)',
+    processDetail: 'Quy trình sản xuất khép kín từ quặng sắt đầu vào đến thép thành phẩm, tiết kiệm 10-15% chi phí năng lượng và tối đa hóa biên gộp.',
+    outputItems: [
+      { left: 'Thép xây dựng', right: '62% doanh thu' },
+      { left: 'Thép HRC', right: '28% doanh thu' },
+      { left: 'Ống thép & Tôn mạ', right: '8% doanh thu' },
+    ],
+  } : SECTOR_FLOWS[sector];
+
+  return (
+    <div className="rounded-xl border border-gray-800 bg-[#1e293b]/20 p-5 mb-2">
+      <h4 className="text-xs font-bold uppercase tracking-wider text-sky-400 mb-4 flex items-center gap-1.5">
+        <Factory className="h-4 w-4 text-emerald-400" />
+        {flow.title}
+      </h4>
+
+      {/* Desktop: 3-column grid với mũi tên cố định; Mobile: dạng dọc */}
+      <div className="hidden md:grid text-xs gap-2" style={{ gridTemplateColumns: '1fr 32px 1.4fr 32px 1fr' }}>
+        {/* Inputs */}
+        <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2.5 overflow-hidden">
+          <div className="font-bold border-b border-gray-800 pb-1.5 mb-1 uppercase text-[10px] tracking-wider text-sky-400">{flow.inputHeader}</div>
+          {flow.inputItems.map((item, i) => (
+            <div key={i} className="space-y-0.5">
+              <div className="text-gray-300 font-medium leading-snug">{item.left}</div>
+              {item.right && <div className="text-gray-500 text-[10px]">{item.right}</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* Arrow 1 */}
+        <div className="flex items-center justify-center text-gray-600 font-bold text-xl">&#10132;</div>
+
+        {/* Process */}
+        <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/25 space-y-1.5 overflow-hidden">
+          <div className="font-bold text-emerald-400 border-b border-emerald-500/15 pb-1.5 mb-1 uppercase text-[10px] tracking-wider">{flow.processHeader}</div>
+          <div className="font-semibold text-gray-200 text-[11px] leading-snug">{flow.processDesc}</div>
+          <p className="text-[10px] text-gray-400 leading-relaxed">{flow.processDetail}</p>
+        </div>
+
+        {/* Arrow 2 */}
+        <div className="flex items-center justify-center text-gray-600 font-bold text-xl">&#10132;</div>
+
+        {/* Outputs */}
+        <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2.5 overflow-hidden">
+          <div className="font-bold border-b border-gray-800 pb-1.5 mb-1 uppercase text-[10px] tracking-wider text-purple-400">{flow.outputHeader}</div>
+          {flow.outputItems.map((item, i) => (
+            <div key={i} className="space-y-0.5">
+              <div className="text-gray-300 leading-snug">{item.left}</div>
+              {item.right && <div className="text-emerald-400 font-bold text-[10px]">{item.right}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Mobile: stack dọc */}
+      <div className="md:hidden flex flex-col gap-3 text-xs">
+        <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2">
+          <div className="font-bold border-b border-gray-800 pb-1.5 uppercase text-[10px] tracking-wider text-sky-400">{flow.inputHeader}</div>
+          {flow.inputItems.map((item, i) => (
+            <div key={i}>
+              <div className="text-gray-300 font-medium">{item.left}</div>
+              {item.right && <div className="text-gray-500 text-[10px]">{item.right}</div>}
+            </div>
+          ))}
+        </div>
+        <div className="text-center text-gray-600 text-xl">&#11015;</div>
+        <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/25 space-y-1.5">
+          <div className="font-bold text-emerald-400 border-b border-emerald-500/15 pb-1.5 uppercase text-[10px] tracking-wider">{flow.processHeader}</div>
+          <div className="font-semibold text-gray-200 text-[11px]">{flow.processDesc}</div>
+          <p className="text-[10px] text-gray-400 leading-relaxed">{flow.processDetail}</p>
+        </div>
+        <div className="text-center text-gray-600 text-xl">&#11015;</div>
+        <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2">
+          <div className="font-bold border-b border-gray-800 pb-1.5 uppercase text-[10px] tracking-wider text-purple-400">{flow.outputHeader}</div>
+          {flow.outputItems.map((item, i) => (
+            <div key={i}>
+              <div className="text-gray-300">{item.left}</div>
+              {item.right && <div className="text-emerald-400 font-bold text-[10px]">{item.right}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
   const [activeTab, setActiveTab] = useState<'A' | 'B' | 'C' | 'D'>('A');
   const [isEditing, setIsEditing] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Editable states
   const [secA, setSecA] = useState<SectionA>(report.sectionA);
   const [secB, setSecB] = useState<SectionB>(report.sectionB);
   const [secC, setSecC] = useState<SectionC>(report.sectionC);
   const [secDGrowth, setSecDGrowth] = useState<string>(report.sectionD.growthDriversRevenueAndCost);
+
+  // Sync internal states when report prop updates
+  useEffect(() => {
+    setSecA(report.sectionA);
+    setSecB(report.sectionB);
+    setSecC(report.sectionC);
+    setSecDGrowth(report.sectionD.growthDriversRevenueAndCost);
+    setIsEditing(false);
+  }, [report]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleSaveEdits = () => {
     onUpdateReport({
@@ -31,6 +331,519 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
       },
     });
     setIsEditing(false);
+  };
+
+  // Helper: Custom Table renderer with Grouped Year/Quarter Headers & Hierarchy Styling
+  const renderTable = (headers: string[], rows: string[][], key: string) => {
+    const isYear = (h: string) => /^\d{4}$/.test(h.replace(/[A-Za-z]/g, '').trim());
+    const isQuarter = (h: string) => h.includes('Q') || h.includes('6T') || h.includes('9T') || h.includes('Tháng') || h.includes('Quý');
+
+    const yearCols = headers.filter(isYear);
+    const quarterCols = headers.filter(isQuarter);
+
+    const hasYearAndQuarter = yearCols.length > 0 && quarterCols.length > 0;
+
+    return (
+      <div key={key} className="overflow-x-auto my-4 border border-gray-800/80 rounded-xl bg-gray-950/20">
+        <table className="min-w-full divide-y divide-gray-850 text-xs">
+          <thead className="bg-[#0b1329]/80">
+            {hasYearAndQuarter && (
+              <tr className="border-b border-gray-800/60 text-[9px] uppercase tracking-wider text-gray-400">
+                <th className="px-4 py-2 text-left font-bold bg-[#070d1a]/50 text-gray-500">Chỉ số kỳ báo cáo</th>
+                <th colSpan={yearCols.length} className="px-4 py-2 text-center font-bold bg-sky-950/15 text-sky-400 border-l border-r border-gray-800/60">
+                  Dữ liệu theo Năm
+                </th>
+                <th colSpan={quarterCols.length} className="px-4 py-2 text-center font-bold bg-emerald-950/10 text-emerald-400">
+                  Dữ liệu theo Quý (5 Quý gần nhất)
+                </th>
+              </tr>
+            )}
+            <tr className="border-b border-gray-800/50">
+              {headers.map((h, idx) => {
+                let headerColor = "text-gray-300";
+                if (idx > 0) {
+                  if (isYear(h)) headerColor = "text-sky-400 font-semibold";
+                  else if (isQuarter(h)) headerColor = "text-emerald-400 font-semibold";
+                }
+                return (
+                  <th
+                    key={idx}
+                    className={`px-4 py-2.5 text-left font-bold uppercase tracking-wider ${headerColor}`}
+                  >
+                    {h}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800/60 bg-gray-950/5">
+            {rows.map((row, rIdx) => (
+              <tr key={rIdx} className="hover:bg-gray-800/20 transition">
+                {row.map((cell, cIdx) => {
+                  const isIndicatorCol = cIdx === 0;
+                  const cellText = cell.trim();
+                  
+                  // Nhận diện xem dòng này có phải là chỉ tiêu tăng trưởng không
+                  const isGrowthRow = cellText.startsWith('+') || cellText.toLowerCase().includes('tăng trưởng') || cellText.includes('%');
+                  
+                  let tdClass = "px-4 py-2.5 text-gray-300 whitespace-nowrap";
+                  if (isIndicatorCol) {
+                    if (isGrowthRow) {
+                      tdClass = "px-4 py-2 text-gray-400/90 italic font-medium whitespace-nowrap pl-6 bg-gray-950/10";
+                    } else {
+                      tdClass = "px-4 py-2.5 text-white font-bold whitespace-nowrap bg-[#0b1329]/10";
+                    }
+                  } else {
+                    if (isGrowthRow) {
+                      tdClass = "px-4 py-2 text-gray-355 whitespace-nowrap font-medium";
+                    }
+                  }
+                  
+                  return (
+                    <td key={cIdx} className={tdClass}>
+                      {renderInlineStyles(cell)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // Helper: Custom Markdown + Tables + ASCII Flowcharts parser
+  const renderMarkdown = (text: string) => {
+    if (!text) return null;
+
+    const parts: React.ReactNode[] = [];
+    const lines = text.split('\n');
+    let inCodeBlock = false;
+    let codeBlockLines: string[] = [];
+    let inTable = false;
+    let tableHeaders: string[] = [];
+    let tableRows: string[][] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Code block check (for ASCII diagrams)
+      if (line.trim().startsWith('```')) {
+        if (inCodeBlock) {
+          parts.push(
+            <pre
+              key={`code-${i}`}
+              className="font-mono bg-[#030712] p-4 rounded-xl border border-gray-800 text-sky-400 overflow-x-auto text-[11px] my-3 leading-relaxed"
+            >
+              {codeBlockLines.join('\n')}
+            </pre>
+          );
+          codeBlockLines = [];
+          inCodeBlock = false;
+        } else {
+          inCodeBlock = true;
+        }
+        continue;
+      }
+
+      if (inCodeBlock) {
+        codeBlockLines.push(line);
+        continue;
+      }
+
+      // Markdown Table check
+      const isTableLine = line.trim().startsWith('|') && line.trim().endsWith('|');
+      if (isTableLine) {
+        if (!inTable) {
+          inTable = true;
+          tableHeaders = line
+            .split('|')
+            .map((s) => s.trim())
+            .filter((s) => s);
+          // Skip separator row (like |---|---|)
+          if (
+            i + 1 < lines.length &&
+            (lines[i + 1].includes('-|-') || lines[i + 1].includes('---'))
+          ) {
+            i++;
+          }
+        } else {
+          const rawRow = line.split('|').map((s) => s.trim());
+          // Remove empty elements from ends of split row
+          const row = rawRow.slice(1, rawRow.length - 1);
+          tableRows.push(row);
+        }
+        continue;
+      } else if (inTable) {
+        parts.push(renderTable(tableHeaders, tableRows, `table-${i}`));
+        inTable = false;
+        tableHeaders = [];
+        tableRows = [];
+      }
+
+      // General content formatting
+      const trimmed = line.trim();
+      if (trimmed.startsWith('###')) {
+        parts.push(
+          <h4 key={i} className="text-xs font-bold text-sky-400 mt-4 mb-2">
+            {trimmed.replace('###', '').trim()}
+          </h4>
+        );
+      } else if (trimmed.startsWith('##')) {
+        parts.push(
+          <h3 key={i} className="text-sm font-bold text-white mt-5 mb-2.5">
+            {trimmed.replace('##', '').trim()}
+          </h3>
+        );
+      } else if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+        const bulletText = trimmed.substring(1).trim();
+        parts.push(
+          <ul key={i} className="list-disc pl-5 text-xs text-gray-300 space-y-1 my-1">
+            <li>{renderInlineStyles(bulletText)}</li>
+          </ul>
+        );
+      } else if (trimmed.length > 0) {
+        parts.push(
+          <p key={i} className="text-xs text-gray-300 leading-relaxed my-2">
+            {renderInlineStyles(trimmed)}
+          </p>
+        );
+      }
+    }
+
+    if (inTable) {
+      parts.push(renderTable(tableHeaders, tableRows, "table-end"));
+    }
+
+    return parts;
+  };
+
+  const renderInlineStyles = (text: string) => {
+    if (!text) return text;
+
+    // 1. Kiểm tra và định dạng màu cho số tăng trưởng phần trăm dương/âm (sau khi dọn dẹp dấu *)
+    const cleanText = text.replace(/\*/g, '').trim();
+    
+    // Tăng trưởng dương bắt đầu bằng dấu '+' và kết thúc bằng '%' (ví dụ: +15.0% hoặc +44.2%)
+    if (cleanText.startsWith('+') && cleanText.endsWith('%')) {
+      return (
+        <span className="text-emerald-400 font-semibold tabular-nums">
+          {cleanText}
+        </span>
+      );
+    }
+    // Tăng trưởng âm bắt đầu bằng dấu '-' và kết thúc bằng '%' (ví dụ: -8.3%)
+    if (cleanText.startsWith('-') && cleanText.endsWith('%')) {
+      return (
+        <span className="text-red-400 font-semibold tabular-nums">
+          {cleanText}
+        </span>
+      );
+    }
+
+    // 2. Parse Bold **text** và Italic *text*
+    const boldRegex = /\*\*(.*?)\*\*/g;
+    const processedText: React.ReactNode[] = [];
+    let lastIndex = 0;
+    
+    const parseItalicAndNormal = (str: string, baseKey: string) => {
+      const parts: React.ReactNode[] = [];
+      let last = 0;
+      let match;
+      const italicRegex = /\*(.*?)\*/g;
+      
+      while ((match = italicRegex.exec(str)) !== null) {
+        if (match.index > last) {
+          parts.push(str.substring(last, match.index));
+        }
+        parts.push(
+          <em key={`${baseKey}-it-${match.index}`} className="italic text-gray-400 not-italic style-italic">
+            {match[1]}
+          </em>
+        );
+        last = italicRegex.lastIndex;
+      }
+      if (last < str.length) {
+        parts.push(str.substring(last));
+      }
+      return parts.length > 0 ? parts : str;
+    };
+
+    let boldMatch;
+    let keyIdx = 0;
+    while ((boldMatch = boldRegex.exec(text)) !== null) {
+      if (boldMatch.index > lastIndex) {
+        const normalPart = text.substring(lastIndex, boldMatch.index);
+        const parsed = parseItalicAndNormal(normalPart, `norm-${keyIdx}`);
+        if (Array.isArray(parsed)) {
+          processedText.push(...parsed);
+        } else {
+          processedText.push(parsed);
+        }
+      }
+      processedText.push(
+        <strong key={`bold-${boldMatch.index}`} className="font-bold text-white">
+          {boldMatch[1]}
+        </strong>
+      );
+      lastIndex = boldRegex.lastIndex;
+      keyIdx++;
+    }
+
+    if (lastIndex < text.length) {
+      const remaining = text.substring(lastIndex);
+      const parsed = parseItalicAndNormal(remaining, `rem`);
+      if (Array.isArray(parsed)) {
+        processedText.push(...parsed);
+      } else {
+        processedText.push(parsed);
+      }
+    }
+
+    return processedText.length > 0 ? processedText : text;
+  };
+
+  // Chart Data: AI-generated revenueBreakdown takes priority, then known ticker hardcodes
+  const PALETTE = ['#38bdf8', '#10b981', '#a855f7', '#f59e0b', '#ef4444'];
+  const getProductMixData = (ticker: string) => {
+    // 1. Use AI-provided breakdown if present
+    if (report.sectionB.revenueBreakdown && report.sectionB.revenueBreakdown.length > 0) {
+      return report.sectionB.revenueBreakdown.map((seg, i) => ({
+        name: seg.name,
+        value: seg.value,
+        color: seg.color || PALETTE[i % PALETTE.length],
+      }));
+    }
+    // 2. Fall back to known ticker hardcodes
+    const t = ticker.toUpperCase();
+    if (t === 'HPG') {
+      return [
+        { name: 'Thép xây dựng', value: 62, color: '#38bdf8' },
+        { name: 'Thép HRC', value: 28, color: '#10b981' },
+        { name: 'Ống thép & Tôn', value: 8, color: '#a855f7' },
+        { name: 'Khác', value: 2, color: '#f59e0b' },
+      ];
+    }
+    if (t === 'FPT') {
+      return [
+        { name: 'CNTT Nước Ngoài', value: 55, color: '#38bdf8' },
+        { name: 'Viễn Thông', value: 35, color: '#10b981' },
+        { name: 'Giáo Dục & Khác', value: 10, color: '#a855f7' },
+      ];
+    }
+    if (t === 'VNM') {
+      return [
+        { name: 'Sữa Nước', value: 45, color: '#38bdf8' },
+        { name: 'Sữa Bột', value: 25, color: '#10b981' },
+        { name: 'Sữa Chua', value: 18, color: '#a855f7' },
+        { name: 'Khác', value: 12, color: '#f59e0b' },
+      ];
+    }
+    if (t === 'MWG') {
+      return [
+        { name: 'Điện Máy Xanh', value: 48, color: '#38bdf8' },
+        { name: 'Bách Hóa Xanh', value: 28, color: '#10b981' },
+        { name: 'Thế Giới Di Động', value: 20, color: '#a855f7' },
+        { name: 'Khác', value: 4, color: '#f59e0b' },
+      ];
+    }
+    if (t === 'PHP') {
+      return [
+        { name: 'Phí xếp dỡ container', value: 65, color: '#38bdf8' },
+        { name: 'Dịch vụ kho bãi', value: 22, color: '#10b981' },
+        { name: 'Cảng cạn (ICD) & vận chuyển', value: 13, color: '#a855f7' },
+      ];
+    }
+    // 3. Generic fallback — labels are intentionally informative
+    return [
+      { name: 'Mảng dịch vụ chính', value: 60, color: '#38bdf8' },
+      { name: 'Mảng phụ', value: 30, color: '#10b981' },
+      { name: 'Khác', value: 10, color: '#a855f7' },
+    ];
+  };
+
+  const getFinancialsAnnualData = (ticker: string) => {
+    const t = ticker.toUpperCase();
+    if (t === 'HPG') {
+      return [
+        { period: '2023', 'Doanh thu': 120.3, 'LNST': 6.8, 'Biên gộp (%)': 10.5, 'ROE (%)': 7.8 },
+        { period: '2024', 'Doanh thu': 127.1, 'LNST': 9.2, 'Biên gộp (%)': 12.2, 'ROE (%)': 9.8 },
+        { period: '2025', 'Doanh thu': 142.5, 'LNST': 11.7, 'Biên gộp (%)': 14.5, 'ROE (%)': 12.8 },
+      ];
+    }
+    if (t === 'FPT') {
+      return [
+        { period: '2023', 'Doanh thu': 52.6, 'LNST': 6.5, 'Biên gộp (%)': 37.8, 'ROE (%)': 23.5 },
+        { period: '2024', 'Doanh thu': 61.4, 'LNST': 7.85, 'Biên gộp (%)': 38.2, 'ROE (%)': 24.8 },
+        { period: '2025', 'Doanh thu': 74.8, 'LNST': 9.56, 'Biên gộp (%)': 38.5, 'ROE (%)': 25.8 },
+      ];
+    }
+    if (t === 'PHP') {
+      return [
+        { period: '2023', 'Doanh thu': 2.156, 'LNST': 0.612, 'Biên gộp (%)': 34.2, 'ROE (%)': 10.5 },
+        { period: '2024', 'Doanh thu': 2.480, 'LNST': 0.745, 'Biên gộp (%)': 36.8, 'ROE (%)': 12.2 },
+        { period: '2025', 'Doanh thu': 2.750, 'LNST': 0.880, 'Biên gộp (%)': 38.5, 'ROE (%)': 13.8 },
+      ];
+    }
+    return [
+      { period: '2023', 'Doanh thu': 80.0, 'LNST': 6.0, 'Biên gộp (%)': 15.0, 'ROE (%)': 10.0 },
+      { period: '2024', 'Doanh thu': 88.0, 'LNST': 7.2, 'Biên gộp (%)': 16.5, 'ROE (%)': 12.0 },
+      { period: '2025', 'Doanh thu': 100.0, 'LNST': 8.5, 'Biên gộp (%)': 18.0, 'ROE (%)': 13.5 },
+    ];
+  };
+
+  const getFinancialsQuarterlyData = (ticker: string) => {
+    const t = ticker.toUpperCase();
+    if (t === 'HPG') {
+      return [
+        { period: 'Q2/2025', 'Doanh thu': 34.0, 'LNST': 2.7, 'Biên gộp (%)': 13.2, 'ROE (%)': 11.5 },
+        { period: 'Q3/2025', 'Doanh thu': 35.1, 'LNST': 2.9, 'Biên gộp (%)': 13.8, 'ROE (%)': 12.2 },
+        { period: 'Q4/2025', 'Doanh thu': 37.8, 'LNST': 3.1, 'Biên gộp (%)': 14.2, 'ROE (%)': 12.5 },
+        { period: 'Q1/2026', 'Doanh thu': 36.2, 'LNST': 2.8, 'Biên gộp (%)': 14.0, 'ROE (%)': 12.6 },
+        { period: 'Q2/2026', 'Doanh thu': 39.5, 'LNST': 3.4, 'Biên gộp (%)': 15.2, 'ROE (%)': 13.5 },
+      ];
+    }
+    if (t === 'FPT') {
+      return [
+        { period: 'Q2/2025', 'Doanh thu': 17.2, 'LNST': 2.15, 'Biên gộp (%)': 38.0, 'ROE (%)': 24.5 },
+        { period: 'Q3/2025', 'Doanh thu': 18.5, 'LNST': 2.35, 'Biên gộp (%)': 38.3, 'ROE (%)': 25.2 },
+        { period: 'Q4/2025', 'Doanh thu': 20.8, 'LNST': 2.58, 'Biên gộp (%)': 38.6, 'ROE (%)': 25.5 },
+        { period: 'Q1/2026', 'Doanh thu': 19.6, 'LNST': 2.40, 'Biên gộp (%)': 38.8, 'ROE (%)': 25.9 },
+        { period: 'Q2/2026', 'Doanh thu': 20.2, 'LNST': 2.65, 'Biên gộp (%)': 39.1, 'ROE (%)': 26.2 },
+      ];
+    }
+    if (t === 'PHP') {
+      return [
+        { period: 'Q2/2025', 'Doanh thu': 0.659, 'LNST': 0.231, 'Biên gộp (%)': 37.4, 'ROE (%)': 13.0 },
+        { period: 'Q3/2025', 'Doanh thu': 0.680, 'LNST': 0.220, 'Biên gộp (%)': 37.8, 'ROE (%)': 13.2 },
+        { period: 'Q4/2025', 'Doanh thu': 0.740, 'LNST': 0.245, 'Biên gộp (%)': 38.1, 'ROE (%)': 13.5 },
+        { period: 'Q1/2026', 'Doanh thu': 0.710, 'LNST': 0.230, 'Biên gộp (%)': 38.9, 'ROE (%)': 13.9 },
+        { period: 'Q2/2026', 'Doanh thu': 0.765, 'LNST': 0.255, 'Biên gộp (%)': 40.2, 'ROE (%)': 14.5 },
+      ];
+    }
+    return [
+      { period: 'Q2/2025', 'Doanh thu': 20.5, 'LNST': 1.6, 'Biên gộp (%)': 15.5, 'ROE (%)': 10.8 },
+      { period: 'Q3/2025', 'Doanh thu': 22.0, 'LNST': 1.8, 'Biên gộp (%)': 16.2, 'ROE (%)': 11.5 },
+      { period: 'Q4/2025', 'Doanh thu': 24.5, 'LNST': 2.1, 'Biên gộp (%)': 16.8, 'ROE (%)': 11.8 },
+      { period: 'Q1/2026', 'Doanh thu': 25.0, 'LNST': 2.0, 'Biên gộp (%)': 17.5, 'ROE (%)': 12.2 },
+      { period: 'Q2/2026', 'Doanh thu': 28.5, 'LNST': 2.5, 'Biên gộp (%)': 19.2, 'ROE (%)': 14.2 },
+    ];
+  };
+
+  const getDebtEquityData = (ticker: string) => {
+    const t = ticker.toUpperCase();
+    if (t === 'HPG') {
+      return [
+        { name: 'Vốn chủ sở hữu', value: 131.22, color: '#10b981' },
+        { name: 'Nợ ngắn hạn', value: 55.08, color: '#f59e0b' },
+        { name: 'Nợ dài hạn', value: 36.72, color: '#a855f7' },
+      ];
+    }
+    if (t === 'FPT') {
+      return [
+        { name: 'Vốn chủ sở hữu', value: 34.0, color: '#10b981' },
+        { name: 'Nợ ngắn hạn', value: 10.5, color: '#f59e0b' },
+        { name: 'Nợ dài hạn', value: 2.0, color: '#a855f7' },
+      ];
+    }
+    if (t === 'PHP') {
+      return [
+        { name: 'Vốn chủ sở hữu', value: 6.45, color: '#10b981' },
+        { name: 'Nợ ngắn hạn', value: 1.25, color: '#f59e0b' },
+        { name: 'Nợ dài hạn', value: 1.85, color: '#a855f7' },
+      ];
+    }
+    if (t === 'VNM') {
+      return [
+        { name: 'Vốn chủ sở hữu', value: 32.5, color: '#10b981' },
+        { name: 'Nợ ngắn hạn', value: 8.2, color: '#f59e0b' },
+        { name: 'Nợ dài hạn', value: 1.6, color: '#a855f7' },
+      ];
+    }
+    if (t === 'MWG') {
+      return [
+        { name: 'Vốn chủ sở hữu', value: 29.8, color: '#10b981' },
+        { name: 'Nợ ngắn hạn', value: 18.0, color: '#f59e0b' },
+        { name: 'Nợ dài hạn', value: 5.2, color: '#a855f7' },
+      ];
+    }
+    return [
+      { name: 'Vốn chủ sở hữu', value: 50.0, color: '#10b981' },
+      { name: 'Nợ ngắn hạn', value: 25.0, color: '#f59e0b' },
+      { name: 'Nợ dài hạn', value: 10.0, color: '#a855f7' },
+    ];
+  };
+
+  const getForecastAnnualData = (ticker: string) => {
+    const t = ticker.toUpperCase();
+    const val = report.sectionD.valuation;
+    const p2026 = val.forecastNetProfitQ1 ? val.forecastNetProfitQ1 / 1000000000 : (t === 'HPG' ? 13.5 : t === 'FPT' ? 10.5 : t === 'PHP' ? 0.920 : 8.5);
+    const p2027 = val.forecastNetProfitQ2 ? val.forecastNetProfitQ2 / 1000000000 : (t === 'HPG' ? 16.5 : t === 'FPT' ? 12.8 : t === 'PHP' ? 1.050 : 9.8);
+    
+    const shares = val.sharesOutstanding || (t === 'HPG' ? 5815 : t === 'FPT' ? 1460 : t === 'PHP' ? 326 : 2089);
+    const eps2026 = Math.round((p2026 * 1000000000) / (shares * 1000000));
+    const eps2027 = Math.round((p2027 * 1000000000) / (shares * 1000000));
+
+    if (t === 'HPG') {
+      return [
+        { period: 'Năm 2026', 'Doanh thu': 150.0, 'LNST': p2026, 'Biên gộp (%)': 15.5, 'EPS (k VNĐ)': eps2026 / 1000, 'PE (lần)': val.peBase },
+        { period: 'Năm 2027', 'Doanh thu': 175.0, 'LNST': p2027, 'Biên gộp (%)': 16.8, 'EPS (k VNĐ)': eps2027 / 1000, 'PE (lần)': val.peBase },
+      ];
+    }
+    if (t === 'FPT') {
+      return [
+        { period: 'Năm 2026', 'Doanh thu': 88.5, 'LNST': p2026, 'Biên gộp (%)': 39.2, 'EPS (k VNĐ)': eps2026 / 1000, 'PE (lần)': val.peBase },
+        { period: 'Năm 2027', 'Doanh thu': 105.0, 'LNST': p2027, 'Biên gộp (%)': 39.8, 'EPS (k VNĐ)': eps2027 / 1000, 'PE (lần)': val.peBase },
+      ];
+    }
+    if (t === 'PHP') {
+      return [
+        { period: 'Năm 2026', 'Doanh thu': 3.200, 'LNST': p2026, 'Biên gộp (%)': 41.5, 'EPS (k VNĐ)': eps2026 / 1000, 'PE (lần)': val.peBase },
+        { period: 'Năm 2027', 'Doanh thu': 3.800, 'LNST': p2027, 'Biên gộp (%)': 42.8, 'EPS (k VNĐ)': eps2027 / 1000, 'PE (lần)': val.peBase },
+      ];
+    }
+    return [
+      { period: 'Năm 2026', 'Doanh thu': 105.0, 'LNST': p2026, 'Biên gộp (%)': 18.5, 'EPS (k VNĐ)': eps2026 / 1000, 'PE (lần)': val.peBase },
+      { period: 'Năm 2027', 'Doanh thu': 120.0, 'LNST': p2027, 'Biên gộp (%)': 20.0, 'EPS (k VNĐ)': eps2027 / 1000, 'PE (lần)': val.peBase },
+    ];
+  };
+
+  const getForecastQuarterlyData = (ticker: string) => {
+    const t = ticker.toUpperCase();
+    const val = report.sectionD.valuation;
+    const shares = val.sharesOutstanding || (t === 'HPG' ? 5815 : t === 'FPT' ? 1460 : t === 'PHP' ? 326 : 2089);
+    
+    if (t === 'HPG') {
+      return [
+        { period: 'Q3/2026', 'Doanh thu': 36.5, 'LNST': 3.2, 'Biên gộp (%)': 15.2, 'EPS (k VNĐ)': Math.round((3.2 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+        { period: 'Q4/2026', 'Doanh thu': 38.0, 'LNST': 3.4, 'Biên gộp (%)': 15.5, 'EPS (k VNĐ)': Math.round((3.4 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+        { period: 'Q1/2027', 'Doanh thu': 37.2, 'LNST': 3.3, 'Biên gộp (%)': 15.6, 'EPS (k VNĐ)': Math.round((3.3 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+        { period: 'Q2/2027', 'Doanh thu': 41.5, 'LNST': 3.9, 'Biên gộp (%)': 16.0, 'EPS (k VNĐ)': Math.round((3.9 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+      ];
+    }
+    if (t === 'FPT') {
+      return [
+        { period: 'Q3/2026', 'Doanh thu': 21.2, 'LNST': 2.5, 'Biên gộp (%)': 39.0, 'EPS (k VNĐ)': Math.round((2.5 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+        { period: 'Q4/2026', 'Doanh thu': 23.5, 'LNST': 2.8, 'Biên gộp (%)': 39.3, 'EPS (k VNĐ)': Math.round((2.8 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+        { period: 'Q1/2027', 'Doanh thu': 22.8, 'LNST': 2.65, 'Biên gộp (%)': 39.5, 'EPS (k VNĐ)': Math.round((2.65 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+        { period: 'Q2/2027', 'Doanh thu': 24.5, 'LNST': 2.95, 'Biên gộp (%)': 39.7, 'EPS (k VNĐ)': Math.round((2.95 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+      ];
+    }
+    if (t === 'PHP') {
+      return [
+        { period: 'Q3/2026', 'Doanh thu': 0.790, 'LNST': 0.225, 'Biên gộp (%)': 41.0, 'EPS (k VNĐ)': Math.round((0.225 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+        { period: 'Q4/2026', 'Doanh thu': 0.850, 'LNST': 0.245, 'Biên gộp (%)': 41.2, 'EPS (k VNĐ)': Math.round((0.245 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+        { period: 'Q1/2027', 'Doanh thu': 0.810, 'LNST': 0.235, 'Biên gộp (%)': 41.5, 'EPS (k VNĐ)': Math.round((0.235 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+        { period: 'Q2/2027', 'Doanh thu': 0.890, 'LNST': 0.265, 'Biên gộp (%)': 42.2, 'EPS (k VNĐ)': Math.round((0.265 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+      ];
+    }
+    return [
+      { period: 'Q3/2026', 'Doanh thu': 24.5, 'LNST': 2.0, 'Biên gộp (%)': 18.0, 'EPS (k VNĐ)': Math.round((2.0 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+      { period: 'Q4/2026', 'Doanh thu': 26.8, 'LNST': 2.3, 'Biên gộp (%)': 18.5, 'EPS (k VNĐ)': Math.round((2.3 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+      { period: 'Q1/2027', 'Doanh thu': 25.5, 'LNST': 2.1, 'Biên gộp (%)': 18.2, 'EPS (k VNĐ)': Math.round((2.1 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+      { period: 'Q2/2027', 'Doanh thu': 28.2, 'LNST': 2.6, 'Biên gộp (%)': 19.5, 'EPS (k VNĐ)': Math.round((2.6 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+    ];
   };
 
   return (
@@ -117,22 +930,22 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
       </div>
 
       {/* Tab Content Display / Edit */}
-      <div className="mt-5 space-y-6">
+      <div className="mt-5">
         {/* TAB A: TỔNG QUAN DOANH NGHIỆP */}
         {activeTab === 'A' && (
           <div className="space-y-5">
             <SectionCard title="1. Tổng quan doanh nghiệp" isEditing={isEditing}>
               {isEditing ? (
                 <textarea
-                  rows={4}
+                  rows={6}
                   value={secA.historyAndOverview}
                   onChange={(e) => setSecA({ ...secA, historyAndOverview: e.target.value })}
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secA.historyAndOverview}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed animate-fade-in">
+                  {renderMarkdown(secA.historyAndOverview)}
+                </div>
               )}
             </SectionCard>
 
@@ -145,9 +958,9 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secA.shareholdersAndManagement}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed">
+                  {renderMarkdown(secA.shareholdersAndManagement)}
+                </div>
               )}
             </SectionCard>
 
@@ -160,9 +973,9 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secA.subsidiariesAndAffiliates}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed">
+                  {renderMarkdown(secA.subsidiariesAndAffiliates)}
+                </div>
               )}
             </SectionCard>
           </div>
@@ -171,6 +984,8 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
         {/* TAB B: HOẠT ĐỘNG KINH DOANH & CHUỖI GIÁ TRỊ */}
         {activeTab === 'B' && (
           <div className="space-y-5">
+            <SupplyChainFlowchart ticker={report.ticker} sectorType={report.marketData.sectorType} />
+
             <SectionCard title="1. Chuỗi giá trị: Đầu vào (Yếu tố chi phí & Nhà cung cấp)" isEditing={isEditing}>
               {isEditing ? (
                 <textarea
@@ -180,13 +995,13 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secB.valueChainInput}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed">
+                  {renderMarkdown(secB.valueChainInput)}
+                </div>
               )}
             </SectionCard>
 
-            <SectionCard title="2. Quy trình sản xuất & Năng lực công suất" isEditing={isEditing}>
+            <SectionCard title="2. Quy trình vận hành & Năng lực công suất" isEditing={isEditing}>
               {isEditing ? (
                 <textarea
                   rows={5}
@@ -195,12 +1010,13 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secB.valueChainProduction}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed">
+                  {renderMarkdown(secB.valueChainProduction)}
+                </div>
               )}
             </SectionCard>
 
+            {/* Section 3: Đầu ra + Pie Chart tích hợp bên dưới */}
             <SectionCard title="3. Đầu ra (Cơ cấu doanh thu & Phân tích sản phẩm chính)" isEditing={isEditing}>
               {isEditing ? (
                 <textarea
@@ -210,63 +1026,263 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secB.valueChainOutput}
-                </p>
+                <div className="space-y-4">
+                  <div className="text-xs text-gray-300 leading-relaxed">
+                    {renderMarkdown(secB.valueChainOutput)}
+                  </div>
+
+                  {/* Pie Chart nhúng ngay dưới phân tích đầu ra */}
+                  <div className="border-t border-gray-800 pt-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3 flex items-center gap-1.5">
+                      <BarChart2 className="h-4 w-4" />
+                      Biểu đồ Cơ cấu Doanh thu Đầu ra (%)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                      {/* Legend list bên trái */}
+                      <div className="space-y-2">
+                        {getProductMixData(report.ticker).map((entry, i) => (
+                          <div key={i} className="flex items-center gap-2.5">
+                            <span
+                              className="inline-block h-3 w-3 rounded-full shrink-0"
+                              style={{ backgroundColor: entry.color }}
+                            />
+                            <span className="text-xs text-gray-300 flex-1">{entry.name}</span>
+                            <span
+                              className="text-xs font-bold tabular-nums"
+                              style={{ color: entry.color }}
+                            >
+                              {entry.value}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Pie chart bên phải */}
+                      {isMounted ? (
+                        <div className="h-52 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={getProductMixData(report.ticker)}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={50}
+                                outerRadius={85}
+                                paddingAngle={3}
+                                dataKey="value"
+                                label={({ cx, cy, midAngle, outerRadius, value, name }) => {
+                                  const RADIAN = Math.PI / 180;
+                                  const radius = outerRadius + 16;
+                                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                  return (
+                                    <text
+                                      x={x}
+                                      y={y}
+                                      fill="#9ca3af"
+                                      textAnchor={x > cx ? 'start' : 'end'}
+                                      dominantBaseline="central"
+                                      style={{ fontSize: '10px', fontWeight: '600' }}
+                                    >
+                                      {`${value}%`}
+                                    </text>
+                                  );
+                                }}
+                                labelLine={{ stroke: '#4b5563', strokeWidth: 1 }}
+                              >
+                                {getProductMixData(report.ticker).map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151' }}
+                                itemStyle={{ color: '#fff', fontSize: '11px' }}
+                                formatter={(value: number, name: string) => [`${value}%`, name]}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-52 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                      )}
+                    </div>
+                  </div>
+                </div>
               )}
             </SectionCard>
           </div>
         )}
 
+
         {/* TAB C: TÌNH HÌNH TÀI CHÍNH */}
         {activeTab === 'C' && (
           <div className="space-y-5">
-            <SectionCard title="1. Phân tích doanh thu 3 năm gần nhất" isEditing={isEditing}>
+            {/* Section 1: Phân tích doanh thu + Biểu đồ Doanh thu & Lợi nhuận */}
+            <SectionCard title="1. Phân tích doanh thu (3 năm gần nhất & So sánh Quý mới nhất YoY)" isEditing={isEditing}>
               {isEditing ? (
                 <textarea
-                  rows={4}
+                  rows={5}
                   value={secC.revenueHistory3Years}
                   onChange={(e) => setSecC({ ...secC, revenueHistory3Years: e.target.value })}
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secC.revenueHistory3Years}
-                </p>
+                <div className="space-y-4">
+                  <div className="text-xs text-gray-300 leading-relaxed">
+                    {renderMarkdown(secC.revenueHistory3Years)}
+                  </div>
+
+                  {/* Tách thành 2 biểu đồ riêng biệt: Biểu đồ Năm và Biểu đồ Quý */}
+                  <div className="border-t border-gray-800 pt-4 space-y-6">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      {/* Biểu đồ 1: Dữ liệu năm */}
+                      <div className="bg-gray-950/20 p-4 rounded-xl border border-gray-800/60">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5">
+                          <BarChart2 className="h-4 w-4 text-sky-400" />
+                          Doanh thu & Lợi nhuận qua các năm (Tỷ VNĐ)
+                        </h4>
+                        {isMounted ? (
+                          <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <ComposedChart data={getFinancialsAnnualData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                                <XAxis dataKey="period" stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                                <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                                <YAxis yAxisId="right" orientation="right" stroke="#a855f7" style={{ fontSize: '10px' }} />
+                                <Tooltip
+                                  contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151' }}
+                                  itemStyle={{ color: '#fff', fontSize: '11px' }}
+                                />
+                                <Legend
+                                  iconSize={8}
+                                  formatter={(value) => <span className="text-[10px] text-gray-300 font-medium">{value}</span>}
+                                />
+                                <Bar dataKey="Doanh thu" yAxisId="left" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={24}>
+                                  <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#38bdf8', fontSize: '9px', fontWeight: 'bold' }} />
+                                </Bar>
+                                <Bar dataKey="LNST" yAxisId="left" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24}>
+                                  <LabelList dataKey="LNST" position="top" style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }} />
+                                </Bar>
+                                <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#f59e0b" strokeWidth={2} activeDot={{ r: 4 }} />
+                                <Line dataKey="ROE (%)" yAxisId="right" type="monotone" stroke="#a855f7" strokeWidth={2} activeDot={{ r: 4 }} />
+                              </ComposedChart>
+                            </ResponsiveContainer>
+                          </div>
+                        ) : (
+                          <div className="h-64 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                        )}
+                      </div>
+
+                      {/* Biểu đồ 2: Dữ liệu quý */}
+                      <div className="bg-gray-950/20 p-4 rounded-xl border border-gray-800/60">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5">
+                          <BarChart2 className="h-4 w-4 text-emerald-400" />
+                          Doanh thu & Lợi nhuận 4 quý gần nhất (Tỷ VNĐ)
+                        </h4>
+                        {isMounted ? (
+                          <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <ComposedChart data={getFinancialsQuarterlyData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                                <XAxis dataKey="period" stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                                <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                                <YAxis yAxisId="right" orientation="right" stroke="#a855f7" style={{ fontSize: '10px' }} />
+                                <Tooltip
+                                  contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151' }}
+                                  itemStyle={{ color: '#fff', fontSize: '11px' }}
+                                />
+                                <Legend
+                                  iconSize={8}
+                                  formatter={(value) => <span className="text-[10px] text-gray-300 font-medium">{value}</span>}
+                                />
+                                <Bar dataKey="Doanh thu" yAxisId="left" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={24}>
+                                  <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#38bdf8', fontSize: '9px', fontWeight: 'bold' }} />
+                                </Bar>
+                                <Bar dataKey="LNST" yAxisId="left" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24}>
+                                  <LabelList dataKey="LNST" position="top" style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }} />
+                                </Bar>
+                                <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#f59e0b" strokeWidth={2} activeDot={{ r: 4 }} />
+                                <Line dataKey="ROE (%)" yAxisId="right" type="monotone" stroke="#a855f7" strokeWidth={2} activeDot={{ r: 4 }} />
+                              </ComposedChart>
+                            </ResponsiveContainer>
+                          </div>
+                        ) : (
+                          <div className="h-64 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </SectionCard>
 
-            <SectionCard title="2. Phân tích tỷ suất lợi nhuận (Gross/Net Margin & ROE)" isEditing={isEditing}>
+            {/* Section 2: Phân tích Tỷ suất lợi nhuận */}
+            <SectionCard title="2. Phân tích tỷ suất lợi nhuận (Gross/Net Margin & ROE - Cập nhật Q2/2026 YoY)" isEditing={isEditing}>
               {isEditing ? (
                 <textarea
-                  rows={4}
+                  rows={5}
                   value={secC.profitabilityMargins}
                   onChange={(e) => setSecC({ ...secC, profitabilityMargins: e.target.value })}
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secC.profitabilityMargins}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed">
+                  {renderMarkdown(secC.profitabilityMargins)}
+                </div>
               )}
             </SectionCard>
 
+            {/* Section 3: Sức khỏe tài chính + Biểu đồ Cơ cấu nợ */}
             <SectionCard title="3. Sức khỏe tài chính & Tỷ lệ nợ vay/VCSH (D/E)" isEditing={isEditing}>
               {isEditing ? (
                 <textarea
-                  rows={4}
+                  rows={5}
                   value={secC.financialHealthAndDebt}
                   onChange={(e) => setSecC({ ...secC, financialHealthAndDebt: e.target.value })}
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secC.financialHealthAndDebt}
-                </p>
+                <div className="space-y-4">
+                  <div className="text-xs text-gray-300 leading-relaxed">
+                    {renderMarkdown(secC.financialHealthAndDebt)}
+                  </div>
+
+                  {/* Biểu đồ Cơ cấu nợ nhúng trực tiếp */}
+                  <div className="border-t border-gray-800 pt-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5">
+                      <BarChart2 className="h-4 w-4 text-emerald-400" />
+                      Biểu đồ Cơ cấu Nợ Vay & Vốn Chủ Sở Hữu (Tỷ VNĐ)
+                    </h4>
+                    {isMounted ? (
+                      <div className="h-56 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={getDebtEquityData(report.ticker)} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                            <XAxis dataKey="name" stroke="#9ca3af" style={{ fontSize: '10px', fontWeight: '500' }} />
+                            <YAxis stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                            <Tooltip
+                              contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151' }}
+                              itemStyle={{ color: '#fff', fontSize: '11px' }}
+                            />
+                            <Bar dataKey="value" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={40}>
+                              {getDebtEquityData(report.ticker).map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                              <LabelList dataKey="value" position="top" style={{ fill: '#e5e7eb', fontSize: '10px', fontWeight: 'bold' }} />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-56 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                    )}
+                  </div>
+                </div>
               )}
             </SectionCard>
           </div>
         )}
+
 
         {/* TAB D: TRIỂN VỌNG KINH DOANH & ĐỊNH GIÁ */}
         {activeTab === 'D' && (
@@ -280,16 +1296,121 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
                 />
               ) : (
-                <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                  {secDGrowth}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed">
+                  {renderMarkdown(secDGrowth)}
+                </div>
               )}
             </SectionCard>
 
-            <SectionCard title="2. Luận điểm ước lượng KQKD 4 quý tiếp theo" isEditing={false}>
-              <p className="whitespace-pre-line text-xs text-gray-300 leading-relaxed">
-                {report.sectionD.quarterlyForecastReasoning}
-              </p>
+            <SectionCard title="2. Luận điểm ước lượng KQKD & Bộ tính toán định giá" isEditing={false}>
+              <div className="space-y-6">
+                <div className="text-xs text-gray-300 leading-relaxed">
+                  {renderMarkdown(report.sectionD.quarterlyForecastReasoning)}
+                </div>
+                
+                <div className="border-t border-gray-800 pt-5">
+                  <ValuationCalculator
+                    valuation={report.sectionD.valuation}
+                    currentPrice={report.marketData.currentPrice}
+                    ticker={report.ticker}
+                    historicalQuarters={getFinancialsQuarterlyData(report.ticker)}
+                    onUpdateValuation={(newVal) => {
+                      onUpdateReport({
+                        ...report,
+                        sectionD: {
+                          ...report.sectionD,
+                          valuation: newVal,
+                        },
+                      });
+                    }}
+                  />
+                </div>
+
+                {/* 2 Biểu đồ Dự phóng độc lập (Năm và Quý) hiển thị đầy đủ tiêu chí */}
+                <div className="border-t border-gray-800 pt-5 space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-2 flex items-center gap-1.5">
+                    <BarChart2 className="h-4 w-4 text-sky-400" />
+                    Biểu đồ Dự phóng Tài chính & Chỉ số Định giá (2026 - 2027)
+                  </h4>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    {/* Biểu đồ 1: Dự phóng theo Năm */}
+                    <div className="bg-[#0b1324]/40 p-4 rounded-xl border border-gray-850">
+                      <h5 className="text-[11px] font-bold text-gray-400 mb-3 flex items-center gap-1">
+                        Doanh thu, LNST & Chỉ số Định giá theo Năm
+                      </h5>
+                      {isMounted ? (
+                        <div className="h-64 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={getForecastAnnualData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                              <XAxis dataKey="period" stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" style={{ fontSize: '10px' }} />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: '#111827', borderColor: '#374151' }}
+                                itemStyle={{ color: '#fff', fontSize: '11px' }}
+                              />
+                              <Legend
+                                iconSize={8}
+                                formatter={(value) => <span className="text-[10px] text-gray-300 font-medium">{value}</span>}
+                              />
+                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={24}>
+                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#38bdf8', fontSize: '9px', fontWeight: 'bold' }} />
+                              </Bar>
+                              <Bar dataKey="LNST" yAxisId="left" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24}>
+                                <LabelList dataKey="LNST" position="top" style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }} />
+                              </Bar>
+                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#f59e0b" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#a855f7" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#ef4444" strokeWidth={2} activeDot={{ r: 4 }} />
+                            </ComposedChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-64 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                      )}
+                    </div>
+
+                    {/* Biểu đồ 2: Dự phóng theo Quý */}
+                    <div className="bg-[#0b1324]/40 p-4 rounded-xl border border-gray-850">
+                      <h5 className="text-[11px] font-bold text-gray-400 mb-3 flex items-center gap-1">
+                        Doanh thu, LNST & Chỉ số Định giá theo Quý (2026 - 2027)
+                      </h5>
+                      {isMounted ? (
+                        <div className="h-64 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={getForecastQuarterlyData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                              <XAxis dataKey="period" stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" style={{ fontSize: '10px' }} />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: '#111827', borderColor: '#374151' }}
+                                itemStyle={{ color: '#fff', fontSize: '11px' }}
+                              />
+                              <Legend
+                                iconSize={8}
+                                formatter={(value) => <span className="text-[10px] text-gray-300 font-medium">{value}</span>}
+                              />
+                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={20}>
+                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#38bdf8', fontSize: '9px', fontWeight: 'bold' }} />
+                              </Bar>
+                              <Bar dataKey="LNST" yAxisId="left" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
+                                <LabelList dataKey="LNST" position="top" style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }} />
+                              </Bar>
+                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#f59e0b" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#a855f7" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#ef4444" strokeWidth={2} activeDot={{ r: 4 }} />
+                            </ComposedChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-64 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </SectionCard>
           </div>
         )}
@@ -308,7 +1429,11 @@ function SectionCard({
   isEditing: boolean;
 }) {
   return (
-    <div className={`rounded-xl border p-4 transition ${isEditing ? 'border-sky-500/50 bg-gray-900/90' : 'border-gray-800 bg-gray-900/60'}`}>
+    <div
+      className={`rounded-xl border p-4 transition ${
+        isEditing ? 'border-sky-500/50 bg-gray-900/90' : 'border-gray-800 bg-gray-900/60'
+      }`}
+    >
       <h3 className="text-xs font-bold uppercase tracking-wider text-sky-400 mb-2.5">
         {title}
       </h3>

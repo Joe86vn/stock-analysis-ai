@@ -36,12 +36,26 @@
 
 ## 3. Yêu Cầu Chức Năng Chi Tiết (Detailed Functional Requirements)
 
-### 3.1 Module 1: Quản Lý Dự Án Phân Tích & Upload Tài Liệu (Ingestion Engine)
+### 3.0 Module 0: Tự Động Thu Thập Danh Mục Tài Liệu Tham Khảo (Reference Document Catalog Engine)
+- **Crawl Tự Động Từ 3 Nguồn Chuyên Biệt**:
+  - **Báo cáo thường niên (BCTN)**: 3 năm gần nhất từ `cafef.vn`.
+  - **Báo cáo tài chính (BCTC) hợp nhất**: 8 quý gần nhất từ `vietstock.vn`.
+  - **Nghị quyết Đại hội cổ đông (NQ ĐHCĐ) thường niên**: Năm gần nhất từ `vietstock.vn`.
+  - **Báo cáo phân tích (Broker Reports)**: Thu thập danh sách từ `simplize.vn` (có thông tin CTCK, ngày phát hành, khuyến nghị MUA/BÁN/TRUNG LẬP, giá mục tiêu).
+- **Mô Hình Hybrid & Caching**:
+  - Crawl on-demand khi người dùng nhập Mã cổ phiếu (Ticker).
+  - Đóng gói Redis TTL cache 24 giờ (86400s) cho mỗi mã cổ phiếu để tránh quá tải server nguồn & tăng tốc độ phản hồi.
+- **Trải Nghiệm Người Dùng (UX)**:
+  - Hiển thị danh mục tài liệu trực quan với link tải trực tiếp (PDF CDN).
+  - Cung cấp nút **"Tự động tải & phân tích"** cho phép chọn tài liệu và nạp thẳng vào phiên phân tích AI mà không cần người dùng tìm kiếm và upload thủ công.
+
+### 3.1 Module 1: Quản Lý Dự Án Phân Tích & Ingestion Engine
 - **Tạo mới Session phân tích**: Người dùng nhập **Mã Cổ Phiếu (Ticker)** (Ví dụ: HPG, FPT, VNM, MWG...).
-- **Upload File Tài Liệu**:
-  - Hỗ trợ định dạng: PDF, DOCX, XLSX.
+- **Tự động đề xuất & Upload File Tài Liệu**:
+  - Tự động hiển thị Danh mục tài liệu tham khảo tìm thấy từ Module 0.
+  - Cho phép Upload thủ công thêm các file PDF, DOCX, XLSX ngoài danh mục tự động.
   - Phân loại tài liệu: Báo cáo tài chính (BCTC), Báo cáo thường niên (BCTN), Báo cáo phân tích CTCK (Broker Report), Tài liệu ĐHCĐ / IR presentation.
-  - Hỗ trợ tải nhiều file cùng lúc (tối đa 50MB/file, tổng 200MB/mã).
+  - Hỗ trợ nạp nhiều file cùng lúc (tối đa 50MB/file, tổng 200MB/mã).
 - **Trích xuất văn bản & Bảng biểu**: Sử dụng kỹ thuật OCR & PDF Table Parser để trích xuất chính xác dữ liệu bảng biểu tài chính.
 
 ### 3.2 Module 2: Tích Hợp Dữ Liệu Thị Trường (Market Data Integration)
