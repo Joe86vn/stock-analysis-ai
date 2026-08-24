@@ -1,27 +1,19 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AnalysisReport, StockMarketData, UploadedFile } from '@/types/analysis';
-import { parseSimplizeItem, ParsedSimplizeQuarter } from '@/lib/simplize-field-mapping';
+import { fetchFullSimplizeData, ParsedSimplizeQuarter } from '@/lib/simplize-field-mapping';
 
 async function fetchSimplizeFinancialContext(ticker: string): Promise<string> {
   try {
     const cleanTicker = ticker.trim().toUpperCase();
-    const url = `https://api2.simplize.vn/api/company/fi/ratio/${cleanTicker}?period=Q&size=12`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-    if (!res.ok) return '';
-    const json = await res.json();
-    if (!json || !json.data || !Array.isArray(json.data.items)) return '';
+    const items = await fetchFullSimplizeData(cleanTicker, 12);
+    if (!items || items.length === 0) return '';
 
-    const items: ParsedSimplizeQuarter[] = json.data.items.map(parseSimplizeItem);
     let text = `\n--- DỮ LIỆU BÁO CÁO TÀI CHÍNH THỰC TẾ CÁC QUÝ GẦN NHẤT TỪ SIMPLIZE/CAFEF/VIETSTOCK CHO ${cleanTicker} ---\n`;
-    text += `| Quý | Doanh Thu Thuần (Tỷ VNĐ) | Lợi Nhuận Gộp (Tỷ VNĐ) | Lợi Nhuận Sau Thuế (Tỷ VNĐ) | Biên Gộp (%) | ROE (%) |\n`;
-    text += `|---|---|---|---|---|---|\n`;
+    text += `| Quý | Doanh Thu Thuần (Tỷ VNĐ) | Lợi Nhuận Gộp (Tỷ VNĐ) | Lợi Nhuận Sau Thuế (Tỷ VNĐ) | Biên Gộp (%) | ROE (%) | LCT từ HĐKD (Tỷ VNĐ) |\n`;
+    text += `|---|---|---|---|---|---|---|\n`;
 
     items.forEach((it: ParsedSimplizeQuarter) => {
-      text += `| ${it.period} | ${it.revenue.toFixed(1)} | ${it.grossProfit.toFixed(1)} | ${it.netProfit.toFixed(1)} | ${it.grossMargin.toFixed(1)}% | ${it.roe.toFixed(1)}% |\n`;
+      text += `| ${it.period} | ${it.revenue.toFixed(1)} | ${it.grossProfit.toFixed(1)} | ${it.netProfit.toFixed(1)} | ${it.grossMargin.toFixed(1)}% | ${it.roe.toFixed(1)}% | ${it.netOperatingCashFlow.toFixed(1)} |\n`;
     });
 
     text += `\nHÃY SỬ DỤNG CHÍNH XÁC CÁC CON SỐ THỰC TẾ TRÊN CHO CÁC QUÝ ĐÃ CÓ BCTC (VÍ DỤ: Q1/2026, Q2/2026) KHI VIẾT PHẦN C VÀ PHẦN D.\n`;
