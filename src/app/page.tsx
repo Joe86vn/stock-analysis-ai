@@ -118,7 +118,6 @@ export default function Home() {
 
   const handleSelectDocumentsForAnalysis = (files: UploadedFile[]) => {
     setUploadedFiles(files);
-    runAnalysis(selectedStock, files);
   };
 
   const runAnalysis = async (stock: StockMarketData, files: UploadedFile[]) => {

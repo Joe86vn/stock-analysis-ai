@@ -450,16 +450,16 @@ export function ReferenceDocumentCatalog({
           {/* Action Footer CTA */}
           <div className="flex flex-col sm:flex-row items-center justify-between rounded-xl bg-gradient-to-r from-sky-950/60 to-emerald-950/60 border border-sky-500/30 p-3 gap-2">
             <div className="text-xs text-gray-300">
-              Đã chọn <span className="font-bold text-sky-400">{countSelected}</span> tài liệu tham khảo cho AI đọc.
+              Đã chọn <span className="font-bold text-sky-400">{countSelected}</span> tài liệu tham khảo từ Cafef / Vietstock / Simplize.
             </div>
 
             <button
               onClick={handleApplyToAnalysis}
               disabled={countSelected === 0 || isDownloading}
-              className="w-full sm:w-auto flex items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-emerald-400 transition disabled:opacity-50"
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 rounded-xl bg-gray-900 border border-sky-500/40 hover:bg-sky-950 px-4 py-2 text-xs font-bold text-sky-300 transition disabled:opacity-50"
             >
               <Sparkles className={`h-4 w-4 ${isDownloading ? 'animate-spin' : ''}`} />
-              <span>{isDownloading ? downloadProgress : `📥 Tải ${countSelected} tài liệu đã chọn cho AI`}</span>
+              <span>{isDownloading ? downloadProgress : `📥 Nạp ${countSelected} tài liệu vào danh sách phân tích`}</span>
             </button>
           </div>
         </div>
