@@ -144,15 +144,19 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
 }
       `;
 
-    // Chuỗi Fallback Models ưu tiên các model khả dụng của Google AI Studio
+    // Chuỗi Fallback Models thử lần lượt từ phiên bản mới nhất/cao nhất xuống thấp dần
     const modelsToTry = [
-      process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-      'gemini-2.5-flash',
+      process.env.GEMINI_MODEL || 'gemini-3.7-flash',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-3.1-pro',
+      'gemini-3-flash',
       'gemini-2.5-pro',
+      'gemini-2.5-flash',
       'gemini-2.0-flash',
       'gemini-1.5-flash',
       'gemini-1.5-pro',
-      'gemini-2.0-flash-lite',
     ];
 
     const uniqueModels = Array.from(new Set(modelsToTry));
