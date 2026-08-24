@@ -459,7 +459,7 @@ export function ReferenceDocumentCatalog({
               className="w-full sm:w-auto flex items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-emerald-400 transition disabled:opacity-50"
             >
               <Sparkles className={`h-4 w-4 ${isDownloading ? 'animate-spin' : ''}`} />
-              <span>{isDownloading ? downloadProgress : '🚀 Tải tất cả đã chọn & Bắt đầu Phân Tích AI'}</span>
+              <span>{isDownloading ? downloadProgress : `📥 Tải ${countSelected} tài liệu đã chọn cho AI`}</span>
             </button>
           </div>
         </div>

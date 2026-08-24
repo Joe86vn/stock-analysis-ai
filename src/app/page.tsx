@@ -229,10 +229,16 @@ export default function Home() {
             <button
               onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current)}
               disabled={isGenerating}
-              className="flex items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-emerald-400 transition disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-sky-500 via-emerald-500 to-teal-500 px-6 py-2.5 text-xs font-extrabold text-white shadow-xl shadow-sky-500/25 hover:from-sky-400 hover:to-teal-400 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>{isGenerating ? 'Đang Phân Tích AI...' : 'Tái Tạo Báo Cáo AI'}</span>
+              <span>
+                {isGenerating
+                  ? 'Đang Phân Tích AI...'
+                  : report?.generationModel
+                  ? '🔄 Phân Tích Lại Với AI'
+                  : '🚀 Bắt Đầu Phân Tích AI'}
+              </span>
             </button>
 
             {report && (

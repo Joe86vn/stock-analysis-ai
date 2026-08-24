@@ -1027,17 +1027,6 @@ export function ReportViewer({
             {report.generationModel || 'gemini-3.6-flash'}
           </span>
         </div>
-
-        {onRegenerate && (
-          <button
-            onClick={onRegenerate}
-            disabled={isGenerating}
-            className="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-500 text-white hover:bg-emerald-400 transition flex items-center gap-1 shadow-md disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-            <span>Tái Tạo Báo Cáo</span>
-          </button>
-        )}
       </div>
 
       {/* Navigation Tabs for A, B, C, D (Screen view only) */}
