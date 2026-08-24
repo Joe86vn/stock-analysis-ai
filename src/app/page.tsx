@@ -11,7 +11,7 @@ import { ReportViewer } from '@/components/ReportViewer';
 import { ExportModal } from '@/components/ExportModal';
 
 import { getStockData } from '@/lib/stock-data';
-import { generateAnalysisReport } from '@/lib/ai-analyzer';
+import { generateAnalysisReport, generateDefaultExpertReport } from '@/lib/ai-analyzer';
 import { AnalysisReport, StockMarketData, UploadedFile, ValuationAssumptions } from '@/types/analysis';
 
 import { Sparkles, Download, RefreshCw, FileText, CheckCircle2, ChevronDown, ChevronUp, Cpu, AlertTriangle } from 'lucide-react';
@@ -66,7 +66,7 @@ export default function Home() {
     return null;
   };
 
-  // Auto generate initial report when page loads and fetch latest close price & Simplize P/E stats
+  // Initial load: fetch prices & financial stats and display initial default report without calling AI automatically
   useEffect(() => {
     const init = async () => {
       let priceUpdatedStock = { ...selectedStock };
@@ -83,7 +83,7 @@ export default function Home() {
         priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
       }
       setSelectedStock(priceUpdatedStock);
-      runAnalysis(priceUpdatedStock, uploadedFiles);
+      setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFiles));
     };
     init();
   }, []);
@@ -103,7 +103,7 @@ export default function Home() {
       priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
     }
     setSelectedStock(priceUpdatedStock);
-    runAnalysis(priceUpdatedStock, uploadedFilesRef.current);
+    setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFilesRef.current));
   };
 
   const handleAddFiles = (files: UploadedFile[]) => {

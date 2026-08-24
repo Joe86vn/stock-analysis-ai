@@ -386,7 +386,7 @@ function buildReportFromParsed(
   };
 }
 
-function generateDefaultExpertReport(
+export function generateDefaultExpertReport(
   ticker: string,
   marketData: StockMarketData,
   uploadedFiles: UploadedFile[]
