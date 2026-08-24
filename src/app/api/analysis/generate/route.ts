@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateAnalysisReport } from '@/lib/ai-analyzer';
 
+export const maxDuration = 60; // Vercel Serverless Function timeout (60 seconds)
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
-    const { ticker, marketData, uploadedFiles } = await request.json();
+    const { ticker, marketData, uploadedFiles, preferredModel } = await request.json();
     
     // Call the server-side single-stage analysis
-    const report = await generateAnalysisReport(ticker, marketData, uploadedFiles);
+    const report = await generateAnalysisReport(ticker, marketData, uploadedFiles, preferredModel);
     
     return NextResponse.json(report);
   } catch (error: any) {

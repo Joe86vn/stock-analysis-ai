@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnalysisReport, SectionA, SectionB, SectionC, SectionD, SectorType } from '@/types/analysis';
 import { ValuationCalculator } from './ValuationCalculator';
-import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2 } from 'lucide-react';
+import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw } from 'lucide-react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -24,6 +24,8 @@ import {
 interface ReportViewerProps {
   report: AnalysisReport;
   onUpdateReport: (updatedReport: AnalysisReport) => void;
+  onRegenerate?: () => void;
+  isGenerating?: boolean;
 }
 
 
@@ -49,7 +51,7 @@ function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorTy
       processDesc: 'Sản xuất / Chế biến',
       processDetail: 'Kiểm soát chất lượng chặt chẽ, tối ưu hóa năng suất và hạ chi phí giá vốn.',
       outputItems: [
-        { left: 'Sản phẩm hòan thiện', right: 'Thị trường nội địa' },
+        { left: 'Sản phẩm hoàn thiện', right: 'Thị trường nội địa' },
         { left: 'Xuất khẩu', right: 'Đông Nam Á / Quốc tế' },
       ],
     },
@@ -93,15 +95,15 @@ function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorTy
     retail: {
       title: 'Sơ đồ chuỗi giá trị: Bán lẻ Tiêu dùng',
       inputHeader: 'NGUỒN CUNG ỨNG',
-      processHeader: 'VẬN HÀNH CHUỒI BÁN LẺ',
-      outputHeader: 'KÊnh phÂn phỐi',
+      processHeader: 'VẬN HÀNH CHUỖI BÁN LẺ',
+      outputHeader: 'KÊNH PHÂN PHỐI',
       inputItems: [
         { left: 'Hàng hóa từ nhà sản xuất', right: 'Năng lực thương lượng giá' },
         { left: 'Hệ thống kho vận', right: 'Quản lý tồn kho (WMS)' },
         { left: 'Nhân sự bán hàng', right: 'Đào tạo nội bộ' },
       ],
       processDesc: 'Quản lý chuỗi cửa hàng',
-      processDetail: 'Hệ thống ERP tích hợp, tối ưu kho từ ng đầu - hết ngày (sell-through) và giảm tối đa hàng tồn chết.',
+      processDetail: 'Hệ thống ERP tích hợp, tối ưu kho từ đầu đến hết ngày (sell-through) và giảm tối đa hàng tồn chết.',
       outputItems: [
         { left: 'Cửa hàng trực tiếp (Offline)', right: 'Hệ thống cả nước' },
         { left: 'Kênh online / E-commerce', right: 'Tăng trưởng nhanh' },
@@ -130,17 +132,17 @@ function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorTy
       title: 'Sơ đồ chuỗi giá trị: Bất động sản & Xây dựng',
       inputHeader: 'NGUỒN LỰC DỰ ÁN',
       processHeader: 'PHÁT TRIỂN & XÂY DỰNG',
-      outputHeader: 'BAN HÀNG & BIÀN DỤNG',
+      outputHeader: 'BÁN HÀNG & BÀN GIAO',
       inputItems: [
         { left: 'Quỹ đất (Land bank)', right: 'Nền tảng tài sản' },
-        { left: 'Vốn vự tài trợ (vay ngân hàng)', right: 'Đòn bẩy tài chính' },
+        { left: 'Vốn tài trợ (vay ngân hàng)', right: 'Đòn bẩy tài chính' },
         { left: 'Nhà thầu & Vật tư xây dựng', right: 'Chi phí xây dựng' },
       ],
       processDesc: 'Phát triển và Thi công dự án',
-      processDetail: 'Phép dự án → Thiết kế → Thi công → PCCC & nghiệm thu. Tốc độ câu dóng phan phối tác động trực tiếp đến dòng tiền.',
+      processDetail: 'Pháp lý dự án → Thiết kế → Thi công → PCCC & nghiệm thu. Tốc độ bàn giao tác động trực tiếp đến dòng tiền.',
       outputItems: [
         { left: 'Bán căn hộ / nền đất', right: 'Doanh thu chính' },
-        { left: 'Cho thuê BDS thương mại', right: 'Thu nhập ổn định' },
+        { left: 'Cho thuê BĐS thương mại', right: 'Thu nhập ổn định' },
         { left: 'Dịch vụ quản lý tòa nhà', right: 'Thu phí dịch vụ' },
       ],
     },
@@ -155,28 +157,28 @@ function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorTy
         { left: 'Công nghệ Fintech & nền tảng GD', right: 'Hạ tầng công nghệ' },
       ],
       processDesc: 'Quản lý rủi ro & tạo lợi nhuận',
-      processDetail: 'Mô hình kiếm tiền từ chech-lệch lãi suất (NIM), phí giao dịch và tự doanh (proprietary trading). Kiểm soát NPL và quản trị rủi ro tín dụng.',
+      processDetail: 'Mô hình kiếm tiền từ chênh lệch lãi suất (NIM), phí giao dịch và tự doanh (proprietary trading). Kiểm soát NPL và quản trị rủi ro tín dụng.',
       outputItems: [
         { left: 'Phí môi giới & tư vấn', right: 'Mảng tạo phí' },
-        { left: 'Lãi vay mác-jin', right: 'Thu nhập lãi' },
+        { left: 'Lãi vay margin', right: 'Thu nhập lãi' },
         { left: 'Tự doanh chứng khoán (Prop trading)', right: 'Thu nhập biến động' },
       ],
     },
     energy: {
       title: 'Sơ đồ chuỗi giá trị: Năng lượng & Tài nguyên',
-      inputHeader: 'THU HAI TÀI NGUYÊN',
-      processHeader: 'CHỦ BIẾN & PHÂN PHỐI',
+      inputHeader: 'THU HÁI TÀI NGUYÊN',
+      processHeader: 'CHẾ BIẾN & PHÂN PHỐI',
       outputHeader: 'SẢN PHẨM & DỊCH VỤ',
       inputItems: [
-        { left: 'Khai thác khoáng sản / dầu khí', right: 'Mỏ và giéng khai thác' },
+        { left: 'Khai thác khoáng sản / dầu khí', right: 'Mỏ và giếng khai thác' },
         { left: 'Nhập khẩu nguyên liệu', right: 'Nhà cung cấp quốc tế' },
         { left: 'Hạ tầng sản xuất điện', right: 'Nhiệt điện / Điện mặt trời' },
       ],
       processDesc: 'Chế biến & Tạo ra năng lượng',
       processDetail: 'Chuỗi giá trị từ thượng nguồn (Upstream: khai thác) → trung nguồn (Midstream: chế biến) → hạ nguồn (Downstream: phân phối).',
       outputItems: [
-        { left: 'Bán điện (EVN / thuọ nhàn)', right: 'Doanh thu chính' },
-        { left: 'Chế phẩm dầu khí (LPG, Xing)', right: 'Thị trường bán lẻ' },
+        { left: 'Bán điện (EVN / mua bán)', right: 'Doanh thu chính' },
+        { left: 'Chế phẩm dầu khí (LPG, Xăng)', right: 'Thị trường bán lẻ' },
         { left: 'Dịch vụ vận tải năng lượng', right: 'Hợp đồng dài hạn' },
       ],
     },
@@ -202,54 +204,62 @@ function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorTy
   // HPG gets its dedicated manufacturing flowchart with specific data
   const isHPG = t === 'HPG';
   const flow = isHPG ? {
-    ...SECTOR_FLOWS.manufacturing,
-    title: 'Sơ đồ chuỗi giá trị: Tập đoàn Hòa Phát (HPG)',
+    title: 'Sơ đồ chuỗi giá trị tích hợp chiều sâu: HPG (Hòa Phát)',
+    inputHeader: '1. ĐẦU VÀO KHÉP KÍN (INPUTS)',
+    processHeader: '2. SẢN XUẤT ĐỒNG BỘ (PRODUCTION)',
+    outputHeader: '3. ĐẦU RA THỊ TRƯỜNG (OUTPUTS)',
     inputItems: [
-      { left: 'Quặng sắt (Iron Ore)', right: 'Úc / Brazil' },
-      { left: 'Than mỡ (Coking Coal)', right: 'Úc / Mỹ' },
-      { left: 'Thép phế & Phụ gia', right: 'Trong nước' },
+      { left: 'Quặng sắt (Úc / Brazil):', right: 'Hợp đồng dài hạn' },
+      { left: 'Than mỡ luyện cốc:', right: 'Chi phí biến đổi chính' },
+      { left: 'Thạch cao & Đá vôi:', right: 'Phụ gia luyện kim' },
+      { left: 'Cảng biển nước sâu:', right: 'Tàu 200.000 tấn cập bến' },
     ],
-    processDesc: 'Lò Cao Khép Kín (BF — Blast Furnace)',
-    processDetail: 'Quy trình sản xuất khép kín từ quặng sắt đầu vào đến thép thành phẩm, tiết kiệm 10-15% chi phí năng lượng và tối đa hóa biên gộp.',
+    processDesc: 'Lò cao BOF & Dung Quất 1 + 2',
+    processDetail: 'Công nghệ lò cao khép kín từ quặng đến thép. Tái sử dụng 100% khí dư để phát điện (tự đáp ứng 80% điện nhà máy, tiết kiệm hàng nghìn tỷ/năm).',
     outputItems: [
-      { left: 'Thép xây dựng', right: '62% doanh thu' },
-      { left: 'Thép HRC', right: '28% doanh thu' },
-      { left: 'Ống thép & Tôn mạ', right: '8% doanh thu' },
+      { left: 'Thép xây dựng & Phôi thép:', right: 'Thị phần #1 Việt Nam (~35%)' },
+      { left: 'Thép cuộn cán nóng HRC:', right: 'Cung cấp cho ống thép & tôn mạ' },
+      { left: 'Ống thép & Tôn mạ Hòa Phát:', right: 'Thị phần #1 ống thép (~28%)' },
+      { left: 'Xuất khẩu (>30 quốc gia):', right: 'Mỹ, EU, Đông Nam Á' },
     ],
-  } : SECTOR_FLOWS[sector];
+  } : (SECTOR_FLOWS[sector] || SECTOR_FLOWS.general);
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-[#1e293b]/20 p-5 mb-2">
-      <h4 className="text-xs font-bold uppercase tracking-wider text-sky-400 mb-4 flex items-center gap-1.5">
-        <Factory className="h-4 w-4 text-emerald-400" />
-        {flow.title}
-      </h4>
+    <div className="rounded-xl border border-sky-500/20 bg-gray-950/60 p-4 shadow-lg space-y-3 my-4">
+      <div className="flex items-center justify-between border-b border-gray-800 pb-2">
+        <h4 className="text-xs font-bold text-sky-400 flex items-center gap-1.5 uppercase tracking-wide">
+          <Factory className="h-4 w-4 text-sky-400" />
+          <span>{flow.title}</span>
+        </h4>
+        <span className="text-[10px] text-gray-400 bg-gray-900 border border-gray-800 px-2 py-0.5 rounded font-mono">
+          Sector: {sector}
+        </span>
+      </div>
 
-      {/* Desktop: 3-column grid với mũi tên cố định; Mobile: dạng dọc */}
-      <div className="hidden md:grid text-xs gap-2" style={{ gridTemplateColumns: '1fr 32px 1.4fr 32px 1fr' }}>
+      {/* Desktop & Tablet: Flow 3 cột */}
+      <div className="hidden md:grid grid-cols-3 gap-3 text-xs">
         {/* Inputs */}
         <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2.5 overflow-hidden">
           <div className="font-bold border-b border-gray-800 pb-1.5 mb-1 uppercase text-[10px] tracking-wider text-sky-400">{flow.inputHeader}</div>
           {flow.inputItems.map((item, i) => (
             <div key={i} className="space-y-0.5">
               <div className="text-gray-300 font-medium leading-snug">{item.left}</div>
-              {item.right && <div className="text-gray-500 text-[10px]">{item.right}</div>}
+              {item.right && <div className="text-sky-400 font-semibold text-[10px]">{item.right}</div>}
             </div>
           ))}
         </div>
 
-        {/* Arrow 1 */}
-        <div className="flex items-center justify-center text-gray-600 font-bold text-xl">&#10132;</div>
-
         {/* Process */}
-        <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/25 space-y-1.5 overflow-hidden">
-          <div className="font-bold text-emerald-400 border-b border-emerald-500/15 pb-1.5 mb-1 uppercase text-[10px] tracking-wider">{flow.processHeader}</div>
-          <div className="font-semibold text-gray-200 text-[11px] leading-snug">{flow.processDesc}</div>
-          <p className="text-[10px] text-gray-400 leading-relaxed">{flow.processDetail}</p>
+        <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/25 space-y-2 flex flex-col justify-between overflow-hidden">
+          <div>
+            <div className="font-bold text-emerald-400 border-b border-emerald-500/15 pb-1.5 mb-2 uppercase text-[10px] tracking-wider">{flow.processHeader}</div>
+            <div className="font-bold text-gray-100 text-xs mb-1">{flow.processDesc}</div>
+            <p className="text-[11px] text-gray-300 leading-relaxed">{flow.processDetail}</p>
+          </div>
+          <div className="pt-2 text-[10px] text-emerald-400/80 font-mono text-right font-bold border-t border-emerald-500/10">
+            ► Tối ưu chi phí &amp; Biên lợi nhuận
+          </div>
         </div>
-
-        {/* Arrow 2 */}
-        <div className="flex items-center justify-center text-gray-600 font-bold text-xl">&#10132;</div>
 
         {/* Outputs */}
         <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2.5 overflow-hidden">
@@ -295,7 +305,12 @@ function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorTy
   );
 }
 
-export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
+export function ReportViewer({
+  report,
+  onUpdateReport,
+  onRegenerate,
+  isGenerating,
+}: ReportViewerProps) {
   const [activeTab, setActiveTab] = useState<'A' | 'B' | 'C' | 'D'>('A');
   const [isEditing, setIsEditing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -924,73 +939,40 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
   };
 
   const getForecastAnnualData = (ticker: string) => {
-    const t = ticker.toUpperCase();
     const val = report.sectionD.valuation;
-    const p2026 = val.forecastNetProfitQ1 ? val.forecastNetProfitQ1 / 1000000000 : (t === 'HPG' ? 13.5 : t === 'FPT' ? 10.5 : t === 'PHP' ? 0.920 : 8.5);
-    const p2027 = val.forecastNetProfitQ2 ? val.forecastNetProfitQ2 / 1000000000 : (t === 'HPG' ? 16.5 : t === 'FPT' ? 12.8 : t === 'PHP' ? 1.050 : 9.8);
+    const p2026 = val.forecastNetProfitQ1 ? val.forecastNetProfitQ1 / 1000000000 : 0;
+    const p2027 = val.forecastNetProfitQ2 ? val.forecastNetProfitQ2 / 1000000000 : 0;
 
-    const shares = val.sharesOutstanding || (t === 'HPG' ? 5815 : t === 'FPT' ? 1460 : t === 'PHP' ? 326 : 2089);
-    const eps2026 = Math.round((p2026 * 1000000000) / (shares * 1000000));
-    const eps2027 = Math.round((p2027 * 1000000000) / (shares * 1000000));
+    const shares = val.sharesOutstanding || 0;
+    const eps2026 = (shares > 0 && p2026 > 0) ? Math.round((p2026 * 1000000000) / (shares * 1000000)) : 0;
+    const eps2027 = (shares > 0 && p2027 > 0) ? Math.round((p2027 * 1000000000) / (shares * 1000000)) : 0;
 
-    if (t === 'HPG') {
-      return [
-        { period: 'Năm 2026', 'Doanh thu': 150.0, 'LNST': p2026, 'Biên gộp (%)': 15.5, 'EPS (k VNĐ)': eps2026 / 1000, 'PE (lần)': val.peBase },
-        { period: 'Năm 2027', 'Doanh thu': 175.0, 'LNST': p2027, 'Biên gộp (%)': 16.8, 'EPS (k VNĐ)': eps2027 / 1000, 'PE (lần)': val.peBase },
-      ];
-    }
-    if (t === 'FPT') {
-      return [
-        { period: 'Năm 2026', 'Doanh thu': 88.5, 'LNST': p2026, 'Biên gộp (%)': 39.2, 'EPS (k VNĐ)': eps2026 / 1000, 'PE (lần)': val.peBase },
-        { period: 'Năm 2027', 'Doanh thu': 105.0, 'LNST': p2027, 'Biên gộp (%)': 39.8, 'EPS (k VNĐ)': eps2027 / 1000, 'PE (lần)': val.peBase },
-      ];
-    }
-    if (t === 'PHP') {
-      return [
-        { period: 'Năm 2026', 'Doanh thu': 3.200, 'LNST': p2026, 'Biên gộp (%)': 41.5, 'EPS (k VNĐ)': eps2026 / 1000, 'PE (lần)': val.peBase },
-        { period: 'Năm 2027', 'Doanh thu': 3.800, 'LNST': p2027, 'Biên gộp (%)': 42.8, 'EPS (k VNĐ)': eps2027 / 1000, 'PE (lần)': val.peBase },
-      ];
-    }
     return [
-      { period: 'Năm 2026', 'Doanh thu': 105.0, 'LNST': p2026, 'Biên gộp (%)': 18.5, 'EPS (k VNĐ)': eps2026 / 1000, 'PE (lần)': val.peBase },
-      { period: 'Năm 2027', 'Doanh thu': 120.0, 'LNST': p2027, 'Biên gộp (%)': 20.0, 'EPS (k VNĐ)': eps2027 / 1000, 'PE (lần)': val.peBase },
+      { period: 'Năm 2026 (Dự phóng)', 'LNST (Tỷ VNĐ)': p2026 > 0 ? p2026 : 'Đang tính...', 'EPS (k VNĐ)': eps2026 > 0 ? (eps2026 / 1000).toFixed(2) : '---', 'PE (lần)': val.peBase },
+      { period: 'Năm 2027 (Dự phóng)', 'LNST (Tỷ VNĐ)': p2027 > 0 ? p2027 : 'Đang tính...', 'EPS (k VNĐ)': eps2027 > 0 ? (eps2027 / 1000).toFixed(2) : '---', 'PE (lần)': val.peBase },
     ];
   };
 
   const getForecastQuarterlyData = (ticker: string) => {
-    const t = ticker.toUpperCase();
     const val = report.sectionD.valuation;
-    const shares = val.sharesOutstanding || (t === 'HPG' ? 5815 : t === 'FPT' ? 1460 : t === 'PHP' ? 326 : 2089);
+    const shares = val.sharesOutstanding || 0;
 
-    if (t === 'HPG') {
-      return [
-        { period: 'Q3/2026', 'Doanh thu': 36.5, 'LNST': 3.2, 'Biên gộp (%)': 15.2, 'EPS (k VNĐ)': Math.round((3.2 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-        { period: 'Q4/2026', 'Doanh thu': 38.0, 'LNST': 3.4, 'Biên gộp (%)': 15.5, 'EPS (k VNĐ)': Math.round((3.4 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-        { period: 'Q1/2027', 'Doanh thu': 37.2, 'LNST': 3.3, 'Biên gộp (%)': 15.6, 'EPS (k VNĐ)': Math.round((3.3 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-        { period: 'Q2/2027', 'Doanh thu': 41.5, 'LNST': 3.9, 'Biên gộp (%)': 16.0, 'EPS (k VNĐ)': Math.round((3.9 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-      ];
-    }
-    if (t === 'FPT') {
-      return [
-        { period: 'Q3/2026', 'Doanh thu': 21.2, 'LNST': 2.5, 'Biên gộp (%)': 39.0, 'EPS (k VNĐ)': Math.round((2.5 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-        { period: 'Q4/2026', 'Doanh thu': 23.5, 'LNST': 2.8, 'Biên gộp (%)': 39.3, 'EPS (k VNĐ)': Math.round((2.8 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-        { period: 'Q1/2027', 'Doanh thu': 22.8, 'LNST': 2.65, 'Biên gộp (%)': 39.5, 'EPS (k VNĐ)': Math.round((2.65 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-        { period: 'Q2/2027', 'Doanh thu': 24.5, 'LNST': 2.95, 'Biên gộp (%)': 39.7, 'EPS (k VNĐ)': Math.round((2.95 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-      ];
-    }
-    if (t === 'PHP') {
-      return [
-        { period: 'Q3/2026', 'Doanh thu': 0.790, 'LNST': 0.225, 'Biên gộp (%)': 41.0, 'EPS (k VNĐ)': Math.round((0.225 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-        { period: 'Q4/2026', 'Doanh thu': 0.850, 'LNST': 0.245, 'Biên gộp (%)': 41.2, 'EPS (k VNĐ)': Math.round((0.245 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-        { period: 'Q1/2027', 'Doanh thu': 0.810, 'LNST': 0.235, 'Biên gộp (%)': 41.5, 'EPS (k VNĐ)': Math.round((0.235 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-        { period: 'Q2/2027', 'Doanh thu': 0.890, 'LNST': 0.265, 'Biên gộp (%)': 42.2, 'EPS (k VNĐ)': Math.round((0.265 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-      ];
-    }
+    // Build quarterly rows if specific quarter profits exist in valuation
+    const q1Profit = val.forecastNetProfitQ1 ? val.forecastNetProfitQ1 / 1000000000 : 0;
+    const q2Profit = val.forecastNetProfitQ2 ? val.forecastNetProfitQ2 / 1000000000 : 0;
+    const q3Profit = val.forecastNetProfitQ3 ? val.forecastNetProfitQ3 / 1000000000 : 0;
+    const q4Profit = val.forecastNetProfitQ4 ? val.forecastNetProfitQ4 / 1000000000 : 0;
+
+    const calcEps = (profitBillions: number) => {
+      if (shares <= 0 || profitBillions <= 0) return '---';
+      return (Math.round((profitBillions * 1000000000) / (shares * 1000000)) / 1000).toFixed(2);
+    };
+
     return [
-      { period: 'Q3/2026', 'Doanh thu': 24.5, 'LNST': 2.0, 'Biên gộp (%)': 18.0, 'EPS (k VNĐ)': Math.round((2.0 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-      { period: 'Q4/2026', 'Doanh thu': 26.8, 'LNST': 2.3, 'Biên gộp (%)': 18.5, 'EPS (k VNĐ)': Math.round((2.3 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-      { period: 'Q1/2027', 'Doanh thu': 25.5, 'LNST': 2.1, 'Biên gộp (%)': 18.2, 'EPS (k VNĐ)': Math.round((2.1 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
-      { period: 'Q2/2027', 'Doanh thu': 28.2, 'LNST': 2.6, 'Biên gộp (%)': 19.5, 'EPS (k VNĐ)': Math.round((2.6 * 1000000000) / (shares * 1000000)) / 1000, 'PE (lần)': val.peBase },
+      { period: 'Q1 (Dự phóng)', 'LNST (Tỷ VNĐ)': q1Profit > 0 ? q1Profit : '---', 'EPS (k VNĐ)': calcEps(q1Profit), 'PE (lần)': val.peBase },
+      { period: 'Q2 (Dự phóng)', 'LNST (Tỷ VNĐ)': q2Profit > 0 ? q2Profit : '---', 'EPS (k VNĐ)': calcEps(q2Profit), 'PE (lần)': val.peBase },
+      { period: 'Q3 (Dự phóng)', 'LNST (Tỷ VNĐ)': q3Profit > 0 ? q3Profit : '---', 'EPS (k VNĐ)': calcEps(q3Profit), 'PE (lần)': val.peBase },
+      { period: 'Q4 (Dự phóng)', 'LNST (Tỷ VNĐ)': q4Profit > 0 ? q4Profit : '---', 'EPS (k VNĐ)': calcEps(q4Profit), 'PE (lần)': val.peBase },
     ];
   };
 
@@ -1034,6 +1016,28 @@ export function ReportViewer({ report, onUpdateReport }: ReportViewerProps) {
             </button>
           )}
         </div>
+      </div>
+
+      {/* AI Model Indicator Bar */}
+      <div className="mt-3 flex flex-col sm:flex-row items-center justify-between rounded-xl border border-sky-500/30 bg-sky-950/20 px-4 py-2.5 gap-3 print:hidden">
+        <div className="flex items-center space-x-2 text-xs">
+          <Cpu className="h-4 w-4 text-sky-400 shrink-0 animate-pulse" />
+          <span className="text-gray-400 font-medium">Model AI Phân Tích Cố Định:</span>
+          <span className="font-extrabold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-lg shadow-sm">
+            {report.generationModel || 'gemini-3.6-flash'}
+          </span>
+        </div>
+
+        {onRegenerate && (
+          <button
+            onClick={onRegenerate}
+            disabled={isGenerating}
+            className="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-500 text-white hover:bg-emerald-400 transition flex items-center gap-1 shadow-md disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+            <span>Tái Tạo Báo Cáo</span>
+          </button>
+        )}
       </div>
 
       {/* Navigation Tabs for A, B, C, D (Screen view only) */}

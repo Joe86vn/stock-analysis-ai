@@ -87,6 +87,7 @@ export interface StockMarketData {
   industry: string;
   sectorType?: SectorType;
   currentPrice: number;
+  sharesOutstanding?: number;
   pe5YearMin: number;
   pe5YearMax: number;
   pe5YearAvg: number;
@@ -122,7 +123,40 @@ export interface SectionC {
   financialHealthAndDebt: string;
 }
 
+export interface ForecastQuarterData {
+  revenue: number;      // Tỷ VNĐ
+  grossMargin: number;  // %
+  netProfit: number;    // Tỷ VNĐ
+  isActual?: boolean;   // Đánh dấu số thực tế từ Simplize API
+}
+
 export interface ValuationAssumptions {
+  year1?: number; // e.g. 2026 or 2027
+  year2?: number; // e.g. 2027 or 2028
+  forecastYear1Data?: {
+    q1?: ForecastQuarterData;
+    q2?: ForecastQuarterData;
+    q3?: ForecastQuarterData;
+    q4?: ForecastQuarterData;
+  };
+  forecastYear2Data?: {
+    q1?: ForecastQuarterData;
+    q2?: ForecastQuarterData;
+    q3?: ForecastQuarterData;
+    q4?: ForecastQuarterData;
+  };
+  forecast2026?: {
+    q1?: ForecastQuarterData;
+    q2?: ForecastQuarterData;
+    q3?: ForecastQuarterData;
+    q4?: ForecastQuarterData;
+  };
+  forecast2027?: {
+    q1?: ForecastQuarterData;
+    q2?: ForecastQuarterData;
+    q3?: ForecastQuarterData;
+    q4?: ForecastQuarterData;
+  };
   forecastNetProfitQ1: number;
   forecastNetProfitQ2: number;
   forecastNetProfitQ3: number;

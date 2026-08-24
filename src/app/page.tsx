@@ -14,7 +14,7 @@ import { getStockData } from '@/lib/stock-data';
 import { generateAnalysisReport } from '@/lib/ai-analyzer';
 import { AnalysisReport, StockMarketData, UploadedFile, ValuationAssumptions } from '@/types/analysis';
 
-import { Sparkles, Download, RefreshCw, FileText, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, Download, RefreshCw, FileText, CheckCircle2, ChevronDown, ChevronUp, Cpu, AlertTriangle } from 'lucide-react';
 
 export default function Home() {
   const [selectedStock, setSelectedStock] = useState<StockMarketData>(getStockData('HPG'));
@@ -22,6 +22,7 @@ export default function Home() {
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingMsg, setGeneratingMsg] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   // useRef to always have fresh uploadedFiles in closures
@@ -44,15 +45,44 @@ export default function Home() {
     return null;
   };
 
-  // Auto generate initial report when page loads and fetch latest close price
+  const fetchSimplizeRatios = async (ticker: string) => {
+    try {
+      const response = await fetch(`/api/stocks/${ticker}/financials`);
+      if (response.ok) {
+        const data = await response.json();
+        const quarters = data.quarters || [];
+        const peValues = quarters.map((q: any) => q.pe).filter((pe: any) => typeof pe === 'number' && pe > 0);
+        if (peValues.length > 0) {
+          return {
+            pe5YearMin: Math.round(Math.min(...peValues) * 10) / 10,
+            pe5YearMax: Math.round(Math.max(...peValues) * 10) / 10,
+            pe5YearAvg: Math.round((peValues.reduce((s: number, c: number) => s + c, 0) / peValues.length) * 10) / 10,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`Failed to fetch Simplize ratios for ${ticker}:`, err);
+    }
+    return null;
+  };
+
+  // Auto generate initial report when page loads and fetch latest close price & Simplize P/E stats
   useEffect(() => {
     const init = async () => {
       let priceUpdatedStock = { ...selectedStock };
-      const latestPrice = await fetchLatestPrice(selectedStock.ticker);
+      const [latestPrice, ratios] = await Promise.all([
+        fetchLatestPrice(selectedStock.ticker),
+        fetchSimplizeRatios(selectedStock.ticker),
+      ]);
       if (latestPrice !== null) {
         priceUpdatedStock.currentPrice = latestPrice;
-        setSelectedStock(priceUpdatedStock);
       }
+      if (ratios !== null) {
+        priceUpdatedStock.pe5YearMin = ratios.pe5YearMin;
+        priceUpdatedStock.pe5YearMax = ratios.pe5YearMax;
+        priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
+      }
+      setSelectedStock(priceUpdatedStock);
       runAnalysis(priceUpdatedStock, uploadedFiles);
     };
     init();
@@ -60,9 +90,17 @@ export default function Home() {
 
   const handleSelectStock = async (stock: StockMarketData) => {
     let priceUpdatedStock = { ...stock };
-    const latestPrice = await fetchLatestPrice(stock.ticker);
+    const [latestPrice, ratios] = await Promise.all([
+      fetchLatestPrice(stock.ticker),
+      fetchSimplizeRatios(stock.ticker),
+    ]);
     if (latestPrice !== null) {
       priceUpdatedStock.currentPrice = latestPrice;
+    }
+    if (ratios !== null) {
+      priceUpdatedStock.pe5YearMin = ratios.pe5YearMin;
+      priceUpdatedStock.pe5YearMax = ratios.pe5YearMax;
+      priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
     }
     setSelectedStock(priceUpdatedStock);
     runAnalysis(priceUpdatedStock, uploadedFilesRef.current);
@@ -84,22 +122,26 @@ export default function Home() {
   };
 
   const runAnalysis = async (stock: StockMarketData, files: UploadedFile[]) => {
+    const fixedModel = 'gemini-3.6-flash';
     setIsGenerating(true);
+    setErrorMessage('');
     const fileCount = files.length;
     setGeneratingMsg(
       fileCount > 0
-        ? `Đang phân tích ${fileCount} tài liệu tham khảo cho ${stock.ticker}...`
-        : `Đang tổng hợp dữ liệu thị trường cho ${stock.ticker}...`
+        ? `Đang phân tích ${fileCount} tài liệu bằng ${fixedModel} cho ${stock.ticker}...`
+        : `Đang kết nối ${fixedModel} lập báo cáo cho ${stock.ticker}...`
     );
     try {
-      const generated = await generateAnalysisReport(stock.ticker, stock, files);
+      const generated = await generateAnalysisReport(stock.ticker, stock, files, fixedModel);
       setReport(generated);
+      setErrorMessage('');
       // Scroll to report section after generation
       setTimeout(() => {
         reportSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error generating report:', err);
+      setErrorMessage(err.message || 'Lỗi khi gọi Google AI Studio Gemini 3.6 Flash.');
     } finally {
       setIsGenerating(false);
       setGeneratingMsg('');
@@ -154,32 +196,40 @@ export default function Home() {
         </div>
 
         {/* AI Trigger Action Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between rounded-2xl border border-sky-500/20 bg-gradient-to-r from-sky-950/40 via-gray-900 to-emerald-950/40 p-4 shadow-xl gap-3 print:hidden">
-          <div className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/20 text-sky-400">
+        <div className="flex flex-col lg:flex-row items-center justify-between rounded-2xl border border-sky-500/20 bg-gradient-to-r from-sky-950/40 via-gray-900 to-emerald-950/40 p-4 shadow-xl gap-4 print:hidden">
+          <div className="flex items-center space-x-3 w-full lg:w-auto">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 text-sky-400">
               <Sparkles className={`h-5 w-5 ${isGenerating ? 'animate-spin' : 'animate-pulse'}`} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">
-                {report?.generationModel 
-                  ? `Google AI Studio: ${report.generationModel}` 
-                  : 'Gemini Multi-Model Fallback Engine'
-                }
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>Google AI Studio:</span>
+                <span className="text-emerald-400 font-extrabold">
+                  {report?.generationModel || 'gemini-3.6-flash'}
+                </span>
               </h3>
               <p className="text-xs text-gray-400">
                 {isGenerating
                   ? <span className="text-sky-300 font-semibold animate-pulse">{generatingMsg}</span>
-                  : <>Tự động failover &amp; lập báo cáo 4 phần A-B-C-D cho <span className="font-bold text-sky-400">{selectedStock.ticker}</span></>
+                  : <>Lập báo cáo 4 phần A-B-C-D cho <span className="font-bold text-sky-400">{selectedStock.ticker}</span></>
                 }
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
+            {/* Fixed Model Badge */}
+            <div className="flex items-center space-x-2 bg-gray-950/80 border border-sky-500/30 rounded-xl px-3.5 py-2 shadow-inner">
+              <Cpu className="h-4 w-4 text-sky-400" />
+              <span className="text-xs font-bold text-sky-300">
+                ⚡ Gemini 3.6 Flash (Cố định)
+              </span>
+            </div>
+
             <button
               onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current)}
               disabled={isGenerating}
-              className="flex-1 sm:flex-initial flex items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-emerald-400 transition disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-emerald-400 transition disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
               <span>{isGenerating ? 'Đang Phân Tích AI...' : 'Tái Tạo Báo Cáo AI'}</span>
@@ -197,6 +247,21 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Error Banner */}
+        {errorMessage && (
+          <div className="rounded-2xl border border-rose-500/40 bg-rose-950/30 p-4 shadow-xl text-rose-200 space-y-3 print:hidden">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-rose-400">
+                  Lỗi Kết Nối Google AI Studio (gemini-3.6-flash)
+                </h4>
+                <p className="text-xs text-gray-300 mt-1">{errorMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Analyzing Progress Banner */}
         {isGenerating && (
           <div className="flex items-center space-x-3 rounded-2xl border border-sky-500/30 bg-sky-950/60 px-5 py-3 shadow-lg print:hidden">
@@ -209,7 +274,12 @@ export default function Home() {
         {/* 4-Section Report Viewer (A, B, C, D) */}
         <div ref={reportSectionRef}>
           {report && (
-            <ReportViewer report={report} onUpdateReport={handleUpdateReport} />
+            <ReportViewer
+              report={report}
+              onUpdateReport={handleUpdateReport}
+              onRegenerate={() => runAnalysis(selectedStock, uploadedFilesRef.current)}
+              isGenerating={isGenerating}
+            />
           )}
         </div>
 

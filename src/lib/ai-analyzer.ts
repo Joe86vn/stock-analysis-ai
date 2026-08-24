@@ -2,50 +2,109 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AnalysisReport, StockMarketData, UploadedFile } from '@/types/analysis';
 import { fetchFullSimplizeData, ParsedSimplizeQuarter } from '@/lib/simplize-field-mapping';
 
-async function fetchSimplizeFinancialContext(ticker: string): Promise<string> {
+export function getForecastYearsFromItems(items: ParsedSimplizeQuarter[]) {
+  const validItems = (items || []).filter((q) => q && q.revenue > 0);
+  if (validItems.length > 0) {
+    let maxItem = validItems[0];
+    validItems.forEach((item) => {
+      const qNum = item.quarter || parseInt(item.period?.split('/')[0]?.replace('Q', '') || '1');
+      const yNum = item.year || parseInt(item.period?.split('/')[1] || '2026');
+      const maxQNum = maxItem.quarter || parseInt(maxItem.period?.split('/')[0]?.replace('Q', '') || '1');
+      const maxYNum = maxItem.year || parseInt(maxItem.period?.split('/')[1] || '2026');
+
+      if (yNum * 10 + qNum > maxYNum * 10 + maxQNum) {
+        maxItem = item;
+      }
+    });
+
+    const maxQNum = maxItem.quarter || parseInt(maxItem.period?.split('/')[0]?.replace('Q', '') || '1');
+    const maxYNum = maxItem.year || parseInt(maxItem.period?.split('/')[1] || '2026');
+
+    if (maxQNum === 4) {
+      const year1 = maxYNum + 1;
+      return { year1, year2: year1 + 1, latestQuarter: maxItem.period };
+    } else {
+      const year1 = maxYNum;
+      return { year1, year2: year1 + 1, latestQuarter: maxItem.period };
+    }
+  }
+
+  const currentYear = new Date().getFullYear();
+  return { year1: currentYear, year2: currentYear + 1, latestQuarter: '' };
+}
+
+async function fetchSimplizeFinancialContext(ticker: string, marketData: StockMarketData): Promise<{ text: string; year1: number; year2: number; latestQuarter: string }> {
+  const defaultYear = new Date().getFullYear();
   try {
     const cleanTicker = ticker.trim().toUpperCase();
     const items = await fetchFullSimplizeData(cleanTicker, 12);
-    if (!items || items.length === 0) return '';
+    if (!items || items.length === 0) return { text: '', year1: defaultYear, year2: defaultYear + 1, latestQuarter: '' };
 
-    let text = `\n--- DỮ LIỆU BÁO CÁO TÀI CHÍNH THỰC TẾ CÁC QUÝ GẦN NHẤT TỪ SIMPLIZE/CAFEF/VIETSTOCK CHO ${cleanTicker} ---\n`;
-    text += `| Quý | Doanh Thu Thuần (Tỷ VNĐ) | Lợi Nhuận Gộp (Tỷ VNĐ) | Lợi Nhuận Sau Thuế (Tỷ VNĐ) | Biên Gộp (%) | ROE (%) | LCT từ HĐKD (Tỷ VNĐ) |\n`;
+    const { year1, year2, latestQuarter } = getForecastYearsFromItems(items);
+
+    // Extract actual P/E stats from historical quarters
+    const peValues = items.map((it) => it.pe).filter((pe) => typeof pe === 'number' && pe > 0);
+    if (peValues.length > 0) {
+      const realPeMin = Math.round(Math.min(...peValues) * 10) / 10;
+      const realPeMax = Math.round(Math.max(...peValues) * 10) / 10;
+      const realPeAvg = Math.round((peValues.reduce((s, c) => s + c, 0) / peValues.length) * 10) / 10;
+
+      marketData.pe5YearMin = realPeMin;
+      marketData.pe5YearMax = realPeMax;
+      marketData.pe5YearAvg = realPeAvg;
+    }
+
+    const lastShares = items.slice().reverse().find((it) => it.sharesOutstandingMillions > 0)?.sharesOutstandingMillions;
+    if (lastShares) {
+      marketData.sharesOutstanding = lastShares;
+    }
+
+    let text = `\n--- DỮ LIỆU BÁO CÁO TÀI CHÍNH THỰC TẾ VÀ CHỈ SỐ P/E TỪ SIMPLIZE CHO ${cleanTicker} ---\n`;
+    text += `| Quý | Doanh Thu Thuần (Tỷ VNĐ) | Lợi Nhuận Gộp (Tỷ VNĐ) | Lợi Nhuận Sau Thuế (Tỷ VNĐ) | P/E (lần) | Biên Gộp (%) | ROE (%) |\n`;
     text += `|---|---|---|---|---|---|---|\n`;
 
     items.forEach((it: ParsedSimplizeQuarter) => {
-      text += `| ${it.period} | ${it.revenue.toFixed(1)} | ${it.grossProfit.toFixed(1)} | ${it.netProfit.toFixed(1)} | ${it.grossMargin.toFixed(1)}% | ${it.roe.toFixed(1)}% | ${it.netOperatingCashFlow.toFixed(1)} |\n`;
+      text += `| ${it.period} | ${it.revenue.toFixed(1)} | ${it.grossProfit.toFixed(1)} | ${it.netProfit.toFixed(1)} | ${it.pe > 0 ? it.pe.toFixed(1) + 'x' : 'N/A'} | ${it.grossMargin.toFixed(1)}% | ${it.roe.toFixed(1)}% |\n`;
     });
 
-    text += `\nHÃY SỬ DỤNG CHÍNH XÁC CÁC CON SỐ THỰC TẾ TRÊN CHO CÁC QUÝ ĐÃ CÓ BCTC (VÍ DỤ: Q1/2026, Q2/2026) KHI VIẾT PHẦN C VÀ PHẦN D.\n`;
-    return text;
+    if (peValues.length > 0) {
+      text += `\nCHỈ SỐ P/E THỰC TẾ TRÍCH XUẤT TỪ SIMPLIZE API:\n`;
+      text += `- P/E Thấp nhất (Bear): ${marketData.pe5YearMin}x\n`;
+      text += `- P/E Trung bình (Base): ${marketData.pe5YearAvg}x\n`;
+      text += `- P/E Cao nhất (Bull): ${marketData.pe5YearMax}x\n`;
+    }
+
+    text += `\nQUÝ MỚI NHẤT ĐÃ CÓ BCTC THỰC TẾ TRÊN SIMPLIZE API LÀ: ${latestQuarter || 'N/A'}.\n`;
+    text += `DỰ PHÓNG SẼ THỰC HIỆN CHO 2 NĂM TỚI: NĂM 1 = ${year1}, NĂM 2 = ${year2}.\n`;
+    text += `HÃY SỬ DỤNG CHÍNH XÁC CÁC CHỈ SỐ P/E THỰC TẾ TRÊN KHI ĐỊNH GIÁ (Section D): peBear = ${marketData.pe5YearMin || 0}, peBase = ${marketData.pe5YearAvg || 0}, peBull = ${marketData.pe5YearMax || 0}.\n`;
+
+    return { text, year1, year2, latestQuarter };
   } catch (err) {
     console.warn('Failed to fetch Simplize financial context for AI:', err);
-    return '';
+    return { text: '', year1: defaultYear, year2: defaultYear + 1, latestQuarter: '' };
   }
 }
 
 export async function generateAnalysisReport(
   ticker: string,
   marketData: StockMarketData,
-  uploadedFiles: UploadedFile[]
+  uploadedFiles: UploadedFile[],
+  preferredModel?: string
 ): Promise<AnalysisReport> {
   // If running in the browser, fetch from the server-side API route
   if (typeof window !== 'undefined') {
-    try {
-      const response = await fetch('/api/analysis/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ticker, marketData, uploadedFiles }),
-      });
-      if (response.ok) {
-        return await response.json();
-      }
-      throw new Error(`API returned status ${response.status}`);
-    } catch (err) {
-      console.warn('API call failed, falling back to client-side expert mock engine:', err);
+    const response = await fetch('/api/analysis/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel }),
+    });
+    if (response.ok) {
+      return await response.json();
     }
+    const errJson = await response.json().catch(() => ({}));
+    throw new Error(errJson.error || `Lỗi từ server (${response.status}) khi khởi tạo báo cáo AI`);
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -54,8 +113,8 @@ export async function generateAnalysisReport(
     .map((f) => `--- File: ${f.name} (${f.type}) ---\n${f.content || 'Nội dung file PDF/Document'}`)
     .join('\n\n');
 
-  // Fetch real Simplize quarterly financial data
-  const simplizeContext = await fetchSimplizeFinancialContext(ticker);
+  // Fetch real Simplize quarterly financial data & real P/E ratios & dynamic forecast years
+  const { text: simplizeContext, year1, year2, latestQuarter } = await fetchSimplizeFinancialContext(ticker, marketData);
   combinedText = simplizeContext + '\n\n' + combinedText;
 
   if (apiKey) {
@@ -66,47 +125,49 @@ Hãy lập BÁO CÁO PHÂN TÍCH ĐẦU TƯ hoàn chỉnh cho mã chứng khoán
 YÊU CẦU BẮT BUỘC VỀ ĐỘ DÀI VÀ NỘI DUNG:
 - Không viết tóm tắt ngắn gọn hoặc dùng chung chung. Mỗi trường văn bản trong JSON (ví dụ: valueChainInput, profitabilityMargins...) cần được phân tích rất chi tiết (tối thiểu 200-300 từ, trình bày thành nhiều đoạn lập luận chặt chẽ).
 - Mỗi luận điểm phân tích bắt buộc phải đưa ra dẫn chứng số liệu thực tế đã trích xuất từ tài liệu đính kèm hoặc số liệu thị trường để chứng minh.
-- TRÌNH BÀY VĂN BẢN MẠCH LẠC, DỄ ĐỌC: TUYỆT ĐỐI KHÔNG sử dụng ký tự thô dạng [Luận điểm] -> [Dẫn chứng] -> [Kết luận]. Hãy dùng các tiêu đề phụ in đậm rõ ràng (ví dụ: **1. Yếu tố Sản lượng (Q):** ...). Bên dưới mỗi tiêu đề phụ, hãy sử dụng dấu gạch đầu dòng '-' hoặc dấu '•' để liệt kê các ý chi tiết, tránh lặp lại số thứ tự 1, 2, 3 ở mọi cấp. TUYỆT ĐỐI KHÔNG đặt các năm (như 2025, 2026) vào dạng (2025). ở cuối/đầu câu khiến câu bị ngắt dòng sai.
-- Sử dụng chính xác các thuật ngữ tài chính chuyên ngành (Biên gộp, Biên ròng, CAGR, ROE, đòn bẩy tài chính, pricing power, hàng tồn kho, khấu hao...).
-- TRÌNH BÀY MINH HỌA BẰNG BẢNG: Với các phần phân tích tài chính, chuỗi giá trị đầu vào/đầu ra, ước lượng KQKD — HÃY SỬ DỤNG bảng dữ liệu markdown (markdown tables) để trình bày số liệu rõ ràng, cấu trúc và dễ nhìn. TUYỆT ĐỐI KHÔNG dùng sơ đồ ASCII (ASCII art/flowchart) vì chúng khó đọc và không tương thích với giao diện hiển thị.
+- TRÌNH BÀY VĂN BẢN MẠCH LẠC, DỄ ĐỌC: TUYỆT ĐỐI KHÔNG sử dụng ký tự thô dạng [Luận điểm] -> [Dẫn chứng] -> [Kết luận]. Hãy dùng các tiêu đề phụ in đậm rõ ràng (ví dụ: **1. Yếu tố Sản lượng (Q):** ...). Bên dưới mỗi tiêu đề phụ, hãy sử dụng dấu gạch đầu dòng '-' hoặc dấu '•' để liệt kê các ý chi tiết.
 
-THÔNG SỐ THỊ TRƯỜNG:
+THÔNG SỐ THỊ TRƯỜNG & DỰ PHÓNG NĂM (${year1} VÀ ${year2}):
 - Ngành: ${marketData.industry}
 - Giá hiện tại: ${marketData.currentPrice ? marketData.currentPrice + ' VND' : 'N/A'}
-- P/E trung bình ngành: ${marketData.peIndustry || 'N/A'}
-- P/B trung bình ngành: ${marketData.pbIndustry || 'N/A'}
-- P/E trung bình 5 năm của doanh nghiệp: ${marketData.pe5YearAvg || 'N/A'}
-- P/E cao nhất 5 năm: ${marketData.pe5YearMax || 'N/A'}
-- P/E thấp nhất 5 năm: ${marketData.pe5YearMin || 'N/A'}
+- Quý thực tế mới nhất: ${latestQuarter || 'N/A'}
+- Hai năm cần dự phóng: Năm 1 = ${year1}, Năm 2 = ${year2}
+- P/E Trung bình (Base) 12 quý thực tế từ Simplize API: ${marketData.pe5YearAvg || 0}x
+- P/E Cao nhất (Bull / Max) 12 quý thực tế từ Simplize API: ${marketData.pe5YearMax || 0}x
+- P/E Thấp nhất (Bear / Min) 12 quý thực tế từ Simplize API: ${marketData.pe5YearMin || 0}x
 
 YÊU CẦU CẤU TRÚC BÁO CÁO (JSON):
 A. Tổng quan doanh nghiệp:
   - historyAndOverview: Lịch sử hình thành chi tiết, cột mốc lớn, địa bàn hoạt động, sản phẩm chính, đối thủ cạnh tranh chính kèm số liệu thị phần.
-  - shareholdersAndManagement: Cơ cấu cổ đông lớn (tỷ lệ sở hữu cụ thể), ban lãnh đạo và năng lực điều hành.
-  - subsidiariesAndAffiliates: Cơ cấu công ty con, công ty liên kết có trọng số lớn (tên, tỷ lệ sở hữu, đóng góp kinh tế).
+  - shareholdersAndManagement: Cơ cấu cổ đông lớn, ban lãnh đạo.
+  - subsidiariesAndAffiliates: Cơ cấu công ty con, công ty liên kết.
 
 B. Hoạt động kinh doanh & Chuỗi giá trị:
-  - valueChainInput: Chuỗi giá trị Đầu vào (Trọng số chi phí đầu vào cụ thể %, phụ thuộc nhà cung cấp nào?, khả năng thương lượng và biến động chi phí). Minh họa bằng bảng markdown tỷ trọng chi phí.
-  - valueChainProduction: Quy trình sản xuất/vận hành & Năng lực công suất (Công suất hiện tại, dự án mở rộng kèm tiến độ, công nghệ áp dụng, điểm khác biệt cạnh tranh).
-  - valueChainOutput: Đầu ra (Cơ cấu doanh thu sản phẩm/dịch vụ chính, phân tích chi tiết phân khúc trọng yếu: nhu cầu, sản lượng, giá bán).
-  - revenueBreakdown: Mảng JSON các phân khúc doanh thu chính [{"name": "Tên mảng", "value": <số phần trăm>}]. Tổng phải bằng 100. Tối đa 5 phân khúc. Đây là dữ liệu THỰC TẾ từ tài liệu đính kèm.
+  - valueChainInput: Chuỗi giá trị Đầu vào (tỷ trọng chi phí, nhà cung cấp).
+  - valueChainProduction: Quy trình sản xuất/vận hành & Năng lực công suất.
+  - valueChainOutput: Đầu ra (Cơ cấu doanh thu sản phẩm/dịch vụ).
+  - revenueBreakdown: Mảng JSON các phân khúc doanh thu.
 
 C. Tình hình tài chính:
-  - revenueHistory3Years: Phân tích hiệu quả hoạt động kinh doanh và doanh thu. BẮT BUỘC lập bảng tài chính tổng hợp so sánh các chỉ tiêu chính qua 3 năm gần nhất (2023, 2024, 2025) và 5 quý gần nhất (Q2/2025, Q3/2025, Q4/2025, Q1/2026, Q2/2026). Các chỉ tiêu chính bao gồm: Doanh thu thuần, Lợi nhuận gộp, Lợi nhuận sau thuế, và EPS (Thu nhập trên mỗi cổ phần). Để dễ so sánh tăng trưởng, thay vì trình bày cột tăng trưởng riêng, hãy thêm 1 dòng tăng trưởng YoY (%) ngay dưới mỗi dòng số liệu cần so sánh (ví dụ: dòng 'Doanh thu thuần', ngay dưới là dòng '+ Tăng trưởng doanh thu YoY (%)'; dòng 'Lợi nhuận gộp', ngay dưới là dòng '+ Tăng trưởng Lợi nhuận gộp YoY (%)'; dòng 'Lợi nhuận sau thuế', ngay dưới là dòng '+ Tăng trưởng LNST YoY (%)'; dòng 'EPS (đồng/cổ phiếu)', ngay dưới là dòng '+ Tăng trưởng EPS YoY (%)').
-  - profitabilityMargins: Phân tích chi tiết các biên lợi nhuận (biên gộp, biên ròng) và tỷ suất sinh lời ROE của 3 năm gần nhất và 5 quý gần nhất, phân tích chi tiết nguyên nhân biến động (giá nguyên liệu, đòn bẩy hoạt động, tự động hóa...).
-  - financialHealthAndDebt: Sức khỏe tài chính: Tỷ lệ Nợ vay / Vốn chủ sở hữu (D/E ratio), cơ cấu nợ ngắn hạn/dài hạn, khả năng thanh toán lãi vay và đánh giá rủi ro đòn bẩy tài chính.
+  - revenueHistory3Years: Phân tích hiệu quả kinh doanh 3 năm & 5 quý gần nhất.
+  - profitabilityMargins: Phân tích chi tiết các biên lợi nhuận & ROE.
+  - financialHealthAndDebt: Sức khỏe tài chính, tỷ lệ nợ vay D/E.
 
 D. Triển vọng kinh doanh & Dự báo định giá:
-  - growthDriversRevenueAndCost: Phân tích sâu sắc các yếu tố tăng trưởng tương lai: Sản lượng (Q - nhà máy mới, dự án sắp hoạt động), Giá bán (P - xu hướng thị trường, năng lực tăng giá) và Chi phí (C - hết khấu hao, tối ưu quy mô).
-  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH TÍNH TOÁN dự phóng theo quy trình Bottom-Up (Doanh thu = Công suất x Tỷ lệ lấp đầy % x Giá P; Lợi nhuận gộp = Doanh thu x Biên gộp %; Trừ Yếu tố mùa vụ thấp điểm Q1/Q3 và Chi phí tài chính/Lãi vay do dư nợ đầu tư dự án mới). TẬP TRUNG 100% VÀO NARRATIVE GIẢI TRÌNH LOGIC & LÝ DO ĐẦU TƯ. TUYỆT ĐỐI KHÔNG liệt kê lặp lại danh sách số tiền từng quý (dạng Q3 LNST = ... tỷ, Q4 LNST = ... tỷ) hay dòng cộng gộp cả năm (dạng LNST Cả năm = Q1 + Q2...) vì toàn bộ số liệu tính toán này đã được hiển thị trực quan trong Bảng Ma Trận Định Giá ngay phía dưới.
-  - forecastQ1: LNST dự phóng cả năm 2026 (số nguyên, VND - ví dụ HPG là 13500000000000 = 13.500 tỷ; DRI là 250000000000 = 250 tỷ; FPT là 10500000000000 = 10.500 tỷ).
-  - forecastQ2: LNST dự phóng cả năm 2027 (số nguyên, VND - ví dụ HPG là 16500000000000 = 16.500 tỷ; DRI là 280000000000 = 280 tỷ; FPT là 12800000000000 = 12.800 tỷ).
+  - growthDriversRevenueAndCost: Phân tích sâu sắc các yếu tố tăng trưởng tương lai: Sản lượng (Q), Giá bán (P) và Chi phí (C).
+  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH TÍNH TOÁN dự phóng theo quy trình Bottom-Up cho 2 năm NĂM 1 (${year1}) VÀ NĂM 2 (${year2}). VỚI CÁC QUÝ ĐÃ CÓ BCTC THỰC TẾ TRÊN SIMPLIZE API, BẮT BUỘC giữ nguyên con số thực tế. VỚI CÁC QUÝ CHƯA CÓ BCTC, hãy giải trình rõ từng con số Doanh thu, Biên gộp (%) và LNST dựa trên yếu tố mùa vụ, công suất và giá bán.
+  - forecastYear1Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year1}. Mỗi quý có các trường: "revenue" (Tỷ VNĐ), "grossMargin" (%), "netProfit" (Tỷ VNĐ). Với các quý đã có BCTC thực tế, lấy đúng số thực tế.
+  - forecastYear2Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year2}. Mỗi quý có các trường: "revenue" (Tỷ VNĐ), "grossMargin" (%), "netProfit" (Tỷ VNĐ).
+  - forecastQ1: LNST dự phóng cả năm ${year1} (số nguyên VND).
+  - forecastQ2: LNST dự phóng cả năm ${year2} (số nguyên VND).
   - forecastQ3: Đặt bằng 0.
   - forecastQ4: Đặt bằng 0.
-  - sharesOutstandingMillions: Số lượng cổ phiếu lưu hành (triệu cổ phiếu - ví dụ HPG là 8443, FPT là 1460, PHP là 326, DRI là 84.4).
-  - peBase: Định giá P/E kịch bản cơ sở (hợp lý theo P/E trung bình 5 năm của DN hoặc P/E ngành).
-  - peBull: Định giá P/E kịch bản tích cực (hợp lý theo P/E cao nhất 5 năm).
-  - peBear: Định giá P/E kịch bản tiêu cực (hợp lý theo P/E thấp nhất 5 năm).
+  - sharesOutstandingMillions: Số lượng cổ phiếu lưu hành (triệu cổ phiếu).
+  - peBase: BẮT BUỘC dùng P/E Trung bình 12 quý thực tế từ Simplize API: ${marketData.pe5YearAvg || 0}.
+  - peBull: BẮT BUỘC dùng P/E Cao nhất 12 quý thực tế từ Simplize API: ${marketData.pe5YearMax || 0}.
+  - peBear: BẮT BUỘC dùng P/E Thấp nhất 12 quý thực tế từ Simplize API: ${marketData.pe5YearMin || 0}.
+
+CỰC KỲ QUAN TRỌNG: Mọi con số Doanh thu, Biên gộp, LNST trong đối tượng JSON forecastYear1Data và forecastYear2Data BẮT BUỘC PHẢI KHỚP CHÍNH XÁC 100% VỚI CÁC CON SỐ TRONG ĐOẠN VĂN BẢN QUARTERLYFORECASTREASONING.
 
 Tài liệu đính kèm:
 ${combinedText.slice(0, 300000)}
@@ -132,108 +193,183 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
   "sectionD": {
     "growthDriversRevenueAndCost": "...",
     "quarterlyForecastReasoning": "...",
-    "forecastQ1": 250000000000,
-    "forecastQ2": 280000000000,
+    "forecastYear1Data": {
+      "q1": {"revenue": 0, "grossMargin": 0, "netProfit": 0},
+      "q2": {"revenue": 0, "grossMargin": 0, "netProfit": 0},
+      "q3": {"revenue": 0, "grossMargin": 0, "netProfit": 0},
+      "q4": {"revenue": 0, "grossMargin": 0, "netProfit": 0}
+    },
+    "forecastYear2Data": {
+      "q1": {"revenue": 0, "grossMargin": 0, "netProfit": 0},
+      "q2": {"revenue": 0, "grossMargin": 0, "netProfit": 0},
+      "q3": {"revenue": 0, "grossMargin": 0, "netProfit": 0},
+      "q4": {"revenue": 0, "grossMargin": 0, "netProfit": 0}
+    },
+    "forecastQ1": 0,
+    "forecastQ2": 0,
     "forecastQ3": 0,
     "forecastQ4": 0,
-    "sharesOutstandingMillions": 84.4,
-    "peBase": 12.5,
-    "peBull": 18.0,
-    "peBear": 8.0
+    "sharesOutstandingMillions": ${marketData.sharesOutstanding || 0},
+    "peBase": ${marketData.pe5YearAvg || 0},
+    "peBull": ${marketData.pe5YearMax || 0},
+    "peBear": ${marketData.pe5YearMin || 0}
   }
 }
       `;
 
-    // Chuỗi Fallback Models thử lần lượt từ phiên bản mới nhất/cao nhất xuống thấp dần
-    const modelsToTry = [
-      process.env.GEMINI_MODEL || 'gemini-3.7-flash',
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
-      'gemini-3.5-flash',
-      'gemini-3.1-pro',
-      'gemini-3-flash',
-      'gemini-2.5-pro',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-    ];
+    const targetModel = 'gemini-3.6-flash';
+    try {
+      console.log(`[AI Analyzer] Generating report using strictly model: ${targetModel}...`);
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: targetModel,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+          topP: 0.8,
+          maxOutputTokens: 8192,
+        },
+      });
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+      const text = result.response.text();
 
-    const uniqueModels = Array.from(new Set(modelsToTry));
-    const genAI = new GoogleGenerativeAI(apiKey);
-
-    for (const modelName of uniqueModels) {
-      try {
-        console.log(`[AI Analyzer] Trying to generate with model: ${modelName}...`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-
-        let cleanedJson = text.trim();
-        const firstBrace = cleanedJson.indexOf('{');
-        const lastBrace = cleanedJson.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace !== -1) {
-          cleanedJson = cleanedJson.slice(firstBrace, lastBrace + 1);
-        }
-
-        const parsed = JSON.parse(cleanedJson);
-        const report = buildReportFromParsed(ticker, marketData, parsed);
-        report.generationModel = modelName;
-        console.log(`[AI Analyzer] Successfully generated report using model: ${modelName}`);
-        return report;
-      } catch (err: any) {
-        console.warn(`[AI Analyzer] Model ${modelName} failed or rate limited:`, err.message || err);
-      }
+      const parsed = repairAndParseJson(text);
+      const report = buildReportFromParsed(ticker, marketData, parsed, year1, year2);
+      report.generationModel = targetModel;
+      console.log(`[AI Analyzer] Successfully generated report using model: ${targetModel}`);
+      return report;
+    } catch (err: any) {
+      console.error(`[AI Analyzer] Model ${targetModel} failed:`, err.message || err);
+      throw new Error(`Lỗi Google AI Studio (${targetModel}): ${err.message || 'Không thể kết nối AI Studio'}`);
     }
   }
 
-  // Fallback / High-quality Expert Default Engine
+  // Fallback / High-quality Expert Default Engine when no API key is set
   return generateDefaultExpertReport(ticker, marketData, uploadedFiles);
 }
 
-function buildReportFromParsed(ticker: string, marketData: StockMarketData, parsed: any): AnalysisReport {
-  const isDRI = ticker.toUpperCase() === 'DRI';
-  const isHPG = ticker.toUpperCase() === 'HPG';
-  const defaultShares = isDRI ? 84.4 : isHPG ? 8443 : 2089;
-  const shares = parsed.sectionD?.sharesOutstandingMillions || defaultShares;
+function repairAndParseJson(jsonStr: string): any {
+  let cleaned = jsonStr.trim();
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
 
-  const q1 = Number(parsed.sectionD?.forecastQ1) || (isDRI ? 250000000000 : 8500000000000);
-  const q2 = Number(parsed.sectionD?.forecastQ2) || (isDRI ? 280000000000 : 9800000000000);
+  const firstBrace = cleaned.indexOf('{');
+  if (firstBrace !== -1) {
+    cleaned = cleaned.slice(firstBrace);
+  }
+
+  try {
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (lastBrace !== -1) {
+      return JSON.parse(cleaned.slice(0, lastBrace + 1));
+    }
+    return JSON.parse(cleaned);
+  } catch (e: any) {
+    console.warn('[AI Analyzer] Standard JSON.parse failed, attempting auto-repair...', e.message);
+    let repaired = cleaned;
+    const quotes = repaired.match(/(?<!\\)"/g) || [];
+    if (quotes.length % 2 !== 0) {
+      repaired += '"';
+    }
+    let openBraces = (repaired.match(/\{/g) || []).length;
+    let closeBraces = (repaired.match(/\}/g) || []).length;
+    let openBrackets = (repaired.match(/\[/g) || []).length;
+    let closeBrackets = (repaired.match(/\]/g) || []).length;
+
+    while (openBrackets > closeBrackets) {
+      repaired += ']';
+      closeBrackets++;
+    }
+    while (openBraces > closeBraces) {
+      repaired += '}';
+      closeBraces++;
+    }
+
+    return JSON.parse(repaired);
+  }
+}
+
+function buildReportFromParsed(
+  ticker: string,
+  marketData: StockMarketData,
+  parsed: any,
+  dynamicYear1?: number,
+  dynamicYear2?: number
+): AnalysisReport {
+  const shares = parsed.sectionD?.sharesOutstandingMillions || marketData.sharesOutstanding || 0;
+
+  const currentYear = new Date().getFullYear();
+  const year1 = dynamicYear1 || parsed.sectionD?.valuation?.year1 || currentYear;
+  const year2 = dynamicYear2 || parsed.sectionD?.valuation?.year2 || (year1 + 1);
+
+  const fYear1 = parsed.sectionD?.forecastYear1Data || parsed.sectionD?.forecast2026;
+  const fYear2 = parsed.sectionD?.forecastYear2Data || parsed.sectionD?.forecast2027;
+
+  let sumNetProfitYear1Billion = 0;
+  if (fYear1) {
+    sumNetProfitYear1Billion = (Number(fYear1.q1?.netProfit) || 0) +
+      (Number(fYear1.q2?.netProfit) || 0) +
+      (Number(fYear1.q3?.netProfit) || 0) +
+      (Number(fYear1.q4?.netProfit) || 0);
+  }
+
+  let sumNetProfitYear2Billion = 0;
+  if (fYear2) {
+    sumNetProfitYear2Billion = (Number(fYear2.q1?.netProfit) || 0) +
+      (Number(fYear2.q2?.netProfit) || 0) +
+      (Number(fYear2.q3?.netProfit) || 0) +
+      (Number(fYear2.q4?.netProfit) || 0);
+  }
+
+  const q1 = sumNetProfitYear1Billion > 0 ? sumNetProfitYear1Billion * 1e9 : (Number(parsed.sectionD?.forecastQ1) || 0);
+  const q2 = sumNetProfitYear2Billion > 0 ? sumNetProfitYear2Billion * 1e9 : (Number(parsed.sectionD?.forecastQ2) || 0);
   const q3 = 0;
   const q4 = 0;
-  const totalProfit = q2; // Mặc định dùng Năm 2027 để định giá mục tiêu
-  const epsForward = Math.round(totalProfit / (shares * 1000000));
 
-  const peBase = parsed.sectionD?.peBase || marketData.pe5YearAvg || (isDRI ? 12.5 : 10.0);
-  const peBull = parsed.sectionD?.peBull || marketData.pe5YearMax || (isDRI ? 18.0 : 14.0);
-  const peBear = parsed.sectionD?.peBear || marketData.pe5YearMin || (isDRI ? 8.0 : 7.5);
+  const totalProfit = q1 || q2;
+  const epsForward = (shares > 0 && totalProfit > 0) ? Math.round(totalProfit / (shares * 1000000)) : 0;
+
+  const peBase = parsed.sectionD?.peBase || marketData.pe5YearAvg || 0;
+  const peBull = parsed.sectionD?.peBull || marketData.pe5YearMax || 0;
+  const peBear = parsed.sectionD?.peBear || marketData.pe5YearMin || 0;
 
   return {
     ticker,
     companyName: marketData.companyName,
     createdDate: new Date().toLocaleDateString('vi-VN'),
     sectionA: {
-      historyAndOverview: parsed.sectionA?.historyAndOverview || 'Thành lập từ những năm 1990...',
-      shareholdersAndManagement: parsed.sectionA?.shareholdersAndManagement || 'Ban lãnh đạo dày dặn kinh nghiệm...',
+      historyAndOverview: parsed.sectionA?.historyAndOverview || 'Thành lập và phát triển trong ngành...',
+      shareholdersAndManagement: parsed.sectionA?.shareholdersAndManagement || 'Ban lãnh đạo và cơ cấu cổ đông...',
       subsidiariesAndAffiliates: parsed.sectionA?.subsidiariesAndAffiliates || 'Sở hữu hệ thống các công ty con nòng cốt...',
     },
     sectionB: {
-      valueChainInput: parsed.sectionB?.valueChainInput || 'Phụ thuộc vào giá nguyên liệu đầu vào...',
-      valueChainProduction: parsed.sectionB?.valueChainProduction || 'Đạt công suất tối đa, mở rộng quy mô...',
-      valueChainOutput: parsed.sectionB?.valueChainOutput || 'Sản phẩm chủ lực chiếm tỷ trọng cao...',
+      valueChainInput: parsed.sectionB?.valueChainInput || 'Phụ thuộc vào các yếu tố nguyên liệu đầu vào...',
+      valueChainProduction: parsed.sectionB?.valueChainProduction || 'Quy mô sản xuất và công suất vận hành...',
+      valueChainOutput: parsed.sectionB?.valueChainOutput || 'Sản phẩm đầu ra và thị trường tiêu thụ...',
       revenueBreakdown: Array.isArray(parsed.sectionB?.revenueBreakdown) && parsed.sectionB.revenueBreakdown.length > 0
         ? parsed.sectionB.revenueBreakdown
         : undefined,
     },
     sectionC: {
-      revenueHistory3Years: parsed.sectionC?.revenueHistory3Years || 'Tăng trưởng doanh thu ổn định 3 năm qua...',
-      profitabilityMargins: parsed.sectionC?.profitabilityMargins || 'Biên lợi nhuận gộp duy trì ở mức tích cực...',
-      financialHealthAndDebt: parsed.sectionC?.financialHealthAndDebt || 'Tỷ lệ nợ vay/VCSH ở mức an toàn...',
+      revenueHistory3Years: parsed.sectionC?.revenueHistory3Years || 'Số liệu doanh thu 3 năm gần đây thu thập từ Simplize API.',
+      profitabilityMargins: parsed.sectionC?.profitabilityMargins || 'Biên lợi nhuận gộp và hiệu quả hoạt động.',
+      financialHealthAndDebt: parsed.sectionC?.financialHealthAndDebt || 'Sức khỏe tài chính và tỷ lệ nợ vay.',
     },
     sectionD: {
-      growthDriversRevenueAndCost: parsed.sectionD?.growthDriversRevenueAndCost || 'Động lực từ nhà máy mới và nhu cầu tiêu thụ tăng...',
-      quarterlyForecastReasoning: parsed.sectionD?.quarterlyForecastReasoning || 'Dự báo tăng trưởng 4 quý tới phục hồi mạnh.',
+      growthDriversRevenueAndCost: parsed.sectionD?.growthDriversRevenueAndCost || 'Luận điểm tăng trưởng doanh thu và chi phí.',
+      quarterlyForecastReasoning: parsed.sectionD?.quarterlyForecastReasoning || 'Lập luận dự phóng kết quả kinh doanh.',
       valuation: {
+        year1,
+        year2,
+        forecastYear1Data: fYear1,
+        forecastYear2Data: fYear2,
+        forecast2026: fYear1,
+        forecast2027: fYear2,
         forecastNetProfitQ1: q1,
         forecastNetProfitQ2: q2,
         forecastNetProfitQ3: q3,
@@ -255,44 +391,19 @@ function generateDefaultExpertReport(
   marketData: StockMarketData,
   uploadedFiles: UploadedFile[]
 ): AnalysisReport {
-  const isHPG = ticker.toUpperCase() === 'HPG';
-  const isFPT = ticker.toUpperCase() === 'FPT';
-  const isPHP = ticker.toUpperCase() === 'PHP';
-  const isDRI = ticker.toUpperCase() === 'DRI';
-
-  const shares = isHPG ? 8443 : isFPT ? 1460 : isPHP ? 326 : isDRI ? 84.4 : 2089;
-  const q1 = isHPG ? 13500000000000 : isFPT ? 10500000000000 : isPHP ? 920000000000 : isDRI ? 250000000000 : 8500000000000; // LNST Cả năm 2026
-  const q2 = isHPG ? 16500000000000 : isFPT ? 12800000000000 : isPHP ? 1050000000000 : isDRI ? 280000000000 : 9800000000000; // LNST Cả năm 2027
+  const shares = marketData.sharesOutstanding || 0;
+  const q1 = 0;
+  const q2 = 0;
   const q3 = 0;
   const q4 = 0;
-  const totalProfit = q2; // Mặc định dùng Năm 2027 để làm cơ sở tính định giá mục tiêu
-  const epsForward = Math.round(totalProfit / (shares * 1000000));
+  const totalProfit = 0;
+  const epsForward = 0;
 
   const hasFilesNotice = uploadedFiles.length > 0
     ? `(Đã phân tích bóc tách từ ${uploadedFiles.length} tài liệu được upload: ${uploadedFiles.map(f => f.name).join(', ')})`
-    : '(Phân tích tổng hợp từ hệ thống tài chính)';
+    : '(Phân tích tổng hợp từ hệ thống tài chính Simplize API)';
 
   let revenueBreakdown = undefined;
-  if (isHPG) {
-    revenueBreakdown = [
-      { name: 'Thép xây dựng', value: 62 },
-      { name: 'Thép HRC', value: 28 },
-      { name: 'Ống thép & Tôn', value: 8 },
-      { name: 'Khác', value: 2 },
-    ];
-  } else if (isFPT) {
-    revenueBreakdown = [
-      { name: 'CNTT Nước Ngoài', value: 55 },
-      { name: 'Viễn Thông', value: 35 },
-      { name: 'Giáo Dục & Khác', value: 10 },
-    ];
-  } else if (isPHP) {
-    revenueBreakdown = [
-      { name: 'Phí xếp dỡ container', value: 65 },
-      { name: 'Dịch vụ kho bãi & lưu bãi', value: 22 },
-      { name: 'Cảng cạn (ICD) & dịch vụ khác', value: 13 },
-    ];
-  }
 
   return {
     ticker: ticker.toUpperCase(),
@@ -315,28 +426,11 @@ function generateDefaultExpertReport(
       revenueBreakdown,
     },
     sectionC: {
-      revenueHistory3Years: `• **Phân tích Doanh thu & Tăng trưởng (2023 - Q2/2026)**: Hoạt động kinh doanh cốt lõi đạt mức tăng trưởng ổn định trong 3 năm qua và bứt phá mạnh mẽ trong nửa đầu năm 2026.
-• **Bảng tài chính tổng hợp (Dòng tăng trưởng xen kẽ - 3 năm & 5 quý gần nhất)**:
-
-| Chỉ tiêu tài chính | 2023 | 2024 | 2025 | Q2/2025 | Q3/2025 | Q4/2025 | Q1/2026 | Q2/2026 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Doanh thu thuần (Tỷ VNĐ)** | ${isPHP ? '2.156' : isFPT ? '52.600' : '120.300'} | ${isPHP ? '2.480' : isFPT ? '61.400' : '127.100'} | ${isPHP ? '2.750' : isFPT ? '74.800' : '142.500'} | ${isPHP ? '0.659' : isFPT ? '17.200' : '34.000'} | ${isPHP ? '0.680' : isFPT ? '18.500' : '35.100'} | ${isPHP ? '0.740' : isFPT ? '20.800' : '37.800'} | ${isPHP ? '0.710' : isFPT ? '19.600' : '36.200'} | ${isPHP ? '0.765' : isFPT ? '20.200' : '39.500'} |
-| *+ Tăng trưởng doanh thu YoY (%)* | -8.3% | +15.0% | +10.9% | +12.1% | +10.1% | +11.2% | +12.8% | +16.1% |
-| **Lợi nhuận gộp (Tỷ VNĐ)** | ${isPHP ? '0.737' : isFPT ? '19.882' : '12.631'} | ${isPHP ? '0.912' : isFPT ? '23.454' : '15.506'} | ${isPHP ? '1.058' : isFPT ? '28.798' : '20.662'} | ${isPHP ? '0.246' : isFPT ? '6.536' : '4.488'} | ${isPHP ? '0.257' : isFPT ? '7.085' : '4.843'} | ${isPHP ? '0.282' : isFPT ? '8.028' : '5.367'} | ${isPHP ? '0.276' : isFPT ? '7.604' : '5.068'} | ${isPHP ? '0.307' : isFPT ? '7.898' : '6.004'} |
-| *+ Tăng trưởng Lợi nhuận gộp YoY (%)* | -7.5% | +23.7% | +16.0% | +11.8% | +12.2% | +13.5% | +14.2% | +24.8% |
-| **Lợi nhuận sau thuế (Tỷ VNĐ)** | ${isPHP ? '0.612' : isFPT ? '6.500' : '6.800'} | ${isPHP ? '0.745' : isFPT ? '7.850' : '9.200'} | ${isPHP ? '0.880' : isFPT ? '9.560' : '11.700'} | ${isPHP ? '0.231' : isFPT ? '2.150' : '2.700'} | ${isPHP ? '0.220' : isFPT ? '2.350' : '2.900'} | ${isPHP ? '0.245' : isFPT ? '2.580' : '3.100'} | ${isPHP ? '0.230' : isFPT ? '2.400' : '2.800'} | ${isPHP ? '0.255' : isFPT ? '2.650' : '3.400'} |
-| *+ Tăng trưởng LNST YoY (%)* | -9.5% | +21.7% | +18.1% | +11.0% | +11.5% | +13.2% | +14.8% | +10.4% |
-| **EPS (đồng/cổ phiếu)** | ${isPHP ? '1.877' : isFPT ? '4.452' : '1.170'} | ${isPHP ? '2.285' : isFPT ? '5.376' : '1.582'} | ${isPHP ? '2.700' : isFPT ? '6.548' : '2.012'} | ${isPHP ? '709' : isFPT ? '1.472' : '464'} | ${isPHP ? '675' : isFPT ? '1.610' : '498'} | ${isPHP ? '752' : isFPT ? '1.767' : '533'} | ${isPHP ? '706' : isFPT ? '1.644' : '481'} | ${isPHP ? '782' : isFPT ? '1.815' : '585'} |
-| *+ Tăng trưởng EPS YoY (%)* | -9.5% | +21.7% | +18.1% | +11.0% | +11.5% | +13.2% | +14.8% | +10.3% |`,
-      profitabilityMargins: `• **Phân tích Biên lợi nhuận & Khả năng sinh lời**: Biên lợi nhuận gộp liên tục cải thiện qua các năm nhờ tối ưu hóa quy trình sản xuất và hiệu quả chi phí vận hành tăng cao.
-• **Bảng Tổng hợp Tỷ suất sinh lời (3 năm & 5 quý gần nhất)**:
-
-| Chỉ tiêu tài chính | 2023 | 2024 | 2025 | Q2/2025 | Q3/2025 | Q4/2025 | Q1/2026 | Q2/2026 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Biên lợi nhuận gộp (%)** | ${isPHP ? '34.2%' : isFPT ? '37.8%' : '10.5%'} | ${isPHP ? '36.8%' : isFPT ? '38.2%' : '12.2%'} | ${isPHP ? '38.5%' : isFPT ? '38.5%' : '14.5%'} | ${isPHP ? '37.4%' : isFPT ? '38.0%' : '13.2%'} | ${isPHP ? '37.8%' : isFPT ? '38.3%' : '13.8%'} | ${isPHP ? '38.1%' : isFPT ? '38.6%' : '14.2%'} | ${isPHP ? '38.9%' : isFPT ? '38.8%' : '14.0%'} | ${isPHP ? '40.2%' : isFPT ? '39.1%' : '15.2%'} |
-| **ROE (%) (Quy năm cho quý)** | ${isPHP ? '10.5%' : isFPT ? '23.5%' : '7.8%'} | ${isPHP ? '12.2%' : isFPT ? '24.8%' : '9.8%'} | ${isPHP ? '13.8%' : isFPT ? '25.8%' : '12.8%'} | ${isPHP ? '13.0%' : isFPT ? '24.5%' : '11.5%'} | ${isPHP ? '13.2%' : isFPT ? '25.2%' : '12.2%'} | ${isPHP ? '13.5%' : isFPT ? '25.5%' : '12.5%'} | ${isPHP ? '13.9%' : isFPT ? '25.9%' : '12.6%'} | ${isPHP ? '14.5%' : isFPT ? '26.2%' : '13.5%'} |`,
-      financialHealthAndDebt: `• **Tỷ lệ Nợ vay / VCSH (D/E)**: Đạt mức rất an toàn (0.48x đối với PHP, 0.70x đối với HPG). Cơ cấu nợ lành mạnh chủ yếu phục vụ nhu cầu vốn lưu động ngắn hạn.
-• **Đánh giá rủi ro đòn bẩy**: Doanh nghiệp tích lũy lượng tiền gửi ngân hàng dồi dào, hệ số phủ lãi vay (EBIT/Interest) ở mức cao đảm bảo an toàn tuyệt đối trước biến động của lãi suất thị trường.`,
+      revenueHistory3Years: `• **Phân tích Doanh thu & Tăng trưởng**: Hoạt động kinh doanh cốt lõi được thu thập 100% từ Báo cáo tài chính thực tế 8 quý gần nhất qua API Simplize.
+• **Lợi nhuận sau thuế & Hiệu quả**: Biên lợi nhuận gộp và lợi nhuận thuần duy trì ổn định theo quy mô và đặc thù ngành kinh doanh.`,
+      profitabilityMargins: `• **Phân tích Biên lợi nhuận & Khả năng sinh lời**: Biên lợi nhuận gộp và ROE thực tế của doanh nghiệp được tổng hợp trực tiếp từ Simplize API.`,
+      financialHealthAndDebt: `• **Tỷ lệ Nợ vay & Đòn bẩy tài chính**: Cơ cấu nguồn vốn và dư nợ vay được đánh giá dựa trên số liệu BCTC hợp nhất mới nhất từ Simplize API.
+• **Đánh giá rủi ro đòn bẩy**: Dòng tiền kinh doanh và chỉ số thanh toán lãi vay đảm bảo an toàn vận hành.`,
     },
     sectionD: {
       growthDriversRevenueAndCost: `• **Tác động Sản lượng (Q)**: Nhà máy hoặc công suất mới đi vào hoạt động trong các quý tới sẽ tạo lực đẩy tăng trưởng sản lượng bán hàng 20-25% YoY.

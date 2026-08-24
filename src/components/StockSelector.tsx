@@ -25,20 +25,25 @@ export function StockSelector({ selectedStock, onSelectStock }: StockSelectorPro
     e.preventDefault();
     if (!customInput.trim()) return;
     const ticker = customInput.trim().toUpperCase();
-    const mockData: StockMarketData = {
-      ticker,
-      companyName: `Công ty Cổ phần ${ticker}`,
-      industry: 'Doanh nghiệp sản xuất / Niêm yết',
-      currentPrice: 28000,
-      pe5YearMin: 8.0,
-      pe5YearMax: 18.0,
-      pe5YearAvg: 12.5,
-      peIndustry: 14.0,
-      pbIndustry: 1.6,
-      peCompetitors: [{ name: 'Ngành', pe: 14.0 }],
-      pbCompetitors: [{ name: 'Ngành', pb: 1.6 }],
-    };
-    onSelectStock(mockData);
+    const existing = POPULAR_STOCKS.find((s) => s.ticker === ticker);
+    if (existing) {
+      onSelectStock(existing);
+    } else {
+      const initialStockData: StockMarketData = {
+        ticker,
+        companyName: `Công ty Cổ phần ${ticker}`,
+        industry: 'Doanh nghiệp Niêm yết',
+        currentPrice: 0,
+        pe5YearMin: 0,
+        pe5YearMax: 0,
+        pe5YearAvg: 0,
+        peIndustry: 0,
+        pbIndustry: 0,
+        peCompetitors: [],
+        pbCompetitors: [],
+      };
+      onSelectStock(initialStockData);
+    }
     setCustomInput('');
   };
 

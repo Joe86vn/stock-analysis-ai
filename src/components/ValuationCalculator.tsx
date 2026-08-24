@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ValuationAssumptions } from '@/types/analysis';
+import { ValuationAssumptions, ForecastQuarterData } from '@/types/analysis';
 import { Calculator, Calendar, TrendingUp, Layers } from 'lucide-react';
 import {
   BarChart,
@@ -55,75 +55,119 @@ const parseForecastNetProfitFromText = (text?: string): Record<string, number> =
   return result;
 };
 
-// Fallback revenue & gross margin defaults per ticker & quarter
+// Calculate revenue & gross margin based strictly on real historical data or parsed AI text
 const getDefaultQuarterFinancials = (
   ticker: string,
   periodStr: string,
   parsedTextProfits: Record<string, number>,
   realQuarterlyFinancials: any[] = []
 ) => {
-  const t = ticker.toUpperCase();
-  const q = periodStr.split('/')[0];
-  const year = periodStr.split('/')[1] || '2026';
-
-  // 1. If exact parsed profit from text exists
+  // 1. If exact parsed profit from AI text exists for this quarter
   const parsedNetProfit = parsedTextProfits[periodStr];
 
-  // 2. Compute averages from real historical quarterly data if present
+  // 2. Compute averages strictly from real historical quarterly data from Simplize API
   const validReal = (realQuarterlyFinancials || []).filter((item) => item && item.revenue > 0);
-  let avgRevenue = 250;
-  let avgGrossMargin = 20.0;
-  let avgNetProfit = 50;
+  let avgRevenue = 0;
+  let avgGrossMargin = 0;
+  let avgNetProfit = 0;
 
   if (validReal.length > 0) {
     avgRevenue = Math.round(validReal.reduce((s, c) => s + (c.revenue || 0), 0) / validReal.length);
     avgNetProfit = Math.round(validReal.reduce((s, c) => s + (c.netProfit || 0), 0) / validReal.length);
     avgGrossMargin = Math.round((validReal.reduce((s, c) => s + (c.grossMargin || 0), 0) / validReal.length) * 10) / 10;
-  } else {
-    // Ticker specific defaults if no real data is loaded yet
-    if (t === 'HPG') { avgRevenue = 40000; avgGrossMargin = 16.5; avgNetProfit = 6000; }
-    else if (t === 'FPT') { avgRevenue = 18000; avgGrossMargin = 39.0; avgNetProfit = 2800; }
-    else if (t === 'PHP') { avgRevenue = 700; avgGrossMargin = 41.5; avgNetProfit = 300; }
-    else if (t === 'DRI') { avgRevenue = 245; avgGrossMargin = 42.0; avgNetProfit = 73; }
   }
 
-  let netProfit = parsedNetProfit || avgNetProfit;
-  if (!parsedNetProfit) {
-    if (t === 'HPG') {
-      netProfit = year === '2026' ? (q === 'Q1' ? 8994 : q === 'Q2' ? 6371 : q === 'Q3' ? 5600 : 5800) : (q === 'Q1' ? 6100 : q === 'Q2' ? 6400 : q === 'Q3' ? 6200 : 6500);
-    } else if (t === 'FPT') {
-      netProfit = year === '2026' ? (q === 'Q1' ? 2487 : q === 'Q2' ? 2568 : q === 'Q3' ? 2800 : 3100) : (q === 'Q1' ? 3200 : q === 'Q2' ? 3400 : q === 'Q3' ? 3600 : 3800);
-    } else if (t === 'PHP') {
-      netProfit = year === '2026' ? (q === 'Q1' ? 311 : q === 'Q2' ? 425 : q === 'Q3' ? 265 : 290) : (q === 'Q1' ? 280 : q === 'Q2' ? 300 : q === 'Q3' ? 310 : 330);
-    } else if (t === 'DRI') {
-      netProfit = year === '2026' ? (q === 'Q1' ? 78 : q === 'Q2' ? 68 : q === 'Q3' ? 73 : 73) : (q === 'Q1' ? 75 : q === 'Q2' ? 75 : q === 'Q3' ? 75 : 75);
-    }
-  }
-
-  // Compute revenue dynamically based on actual net margin ratio
-  const netMarginRatio = avgRevenue > 0 ? (avgNetProfit / avgRevenue) : 0.20;
-  const revenue = Math.round(netProfit / (netMarginRatio > 0 ? netMarginRatio : 0.20));
+  const netProfit = parsedNetProfit || avgNetProfit;
+  const netMarginRatio = (avgRevenue > 0 && avgNetProfit > 0) ? (avgNetProfit / avgRevenue) : 0;
+  const revenue = netMarginRatio > 0 ? Math.round(netProfit / netMarginRatio) : avgRevenue;
   const grossMargin = avgGrossMargin;
 
   return { revenue, grossMargin, netProfit };
 };
 
+export function getForecastYears(realQuarterlyFinancials: any[] = [], valuation?: ValuationAssumptions) {
+  if (valuation?.year1 && valuation?.year2) {
+    return { year1: valuation.year1, year2: valuation.year2 };
+  }
+
+  const validReal = (realQuarterlyFinancials || []).filter((q) => q && q.revenue > 0);
+  if (validReal.length > 0) {
+    let maxItem = validReal[0];
+    validReal.forEach((item) => {
+      const qNum = item.quarter || parseInt(item.period?.split('/')[0]?.replace('Q', '') || '1');
+      const yNum = item.year || parseInt(item.period?.split('/')[1] || '2026');
+      const maxQNum = maxItem.quarter || parseInt(maxItem.period?.split('/')[0]?.replace('Q', '') || '1');
+      const maxYNum = maxItem.year || parseInt(maxItem.period?.split('/')[1] || '2026');
+
+      if (yNum * 10 + qNum > maxYNum * 10 + maxQNum) {
+        maxItem = item;
+      }
+    });
+
+    const maxQNum = maxItem.quarter || parseInt(maxItem.period?.split('/')[0]?.replace('Q', '') || '1');
+    const maxYNum = maxItem.year || parseInt(maxItem.period?.split('/')[1] || '2026');
+
+    if (maxQNum === 4) {
+      const year1 = maxYNum + 1;
+      return { year1, year2: year1 + 1 };
+    } else {
+      const year1 = maxYNum;
+      return { year1, year2: year1 + 1 };
+    }
+  }
+
+  const currentYear = new Date().getFullYear();
+  return { year1: currentYear, year2: currentYear + 1 };
+}
+
 const getQuarterFinancialsWithRealData = (
   ticker: string,
   periodStr: string,
   parsedTextProfits: Record<string, number>,
-  realQuarterlyFinancials: any[] = []
+  realQuarterlyFinancials: any[] = [],
+  valuation?: ValuationAssumptions
 ) => {
+  // 1. Priority 1: Check if quarter exists in actual Simplize API historical data
   if (realQuarterlyFinancials && realQuarterlyFinancials.length > 0) {
     const found = realQuarterlyFinancials.find((q) => q.period === periodStr);
     if (found && found.revenue > 0) {
       return {
         revenue: Math.round(found.revenue),
-        grossMargin: found.grossMargin || 18.5,
+        grossMargin: found.grossMargin || 0,
         netProfit: Math.round(found.netProfit),
       };
     }
   }
+
+  // 2. Priority 2: Check structured AI 8-quarter forecast data
+  if (valuation) {
+    const { year1: y1, year2: y2 } = getForecastYears(realQuarterlyFinancials, valuation);
+    const fY1 = valuation.forecastYear1Data || valuation.forecast2026;
+    const fY2 = valuation.forecastYear2Data || valuation.forecast2027;
+
+    let qData: ForecastQuarterData | undefined;
+    if (periodStr.endsWith(y1.toString()) && fY1) {
+      if (periodStr.startsWith('Q1')) qData = fY1.q1;
+      else if (periodStr.startsWith('Q2')) qData = fY1.q2;
+      else if (periodStr.startsWith('Q3')) qData = fY1.q3;
+      else if (periodStr.startsWith('Q4')) qData = fY1.q4;
+    } else if (periodStr.endsWith(y2.toString()) && fY2) {
+      if (periodStr.startsWith('Q1')) qData = fY2.q1;
+      else if (periodStr.startsWith('Q2')) qData = fY2.q2;
+      else if (periodStr.startsWith('Q3')) qData = fY2.q3;
+      else if (periodStr.startsWith('Q4')) qData = fY2.q4;
+    }
+
+    if (qData && (qData.revenue > 0 || qData.netProfit > 0)) {
+      return {
+        revenue: Math.round(qData.revenue),
+        grossMargin: qData.grossMargin || 0,
+        netProfit: Math.round(qData.netProfit),
+      };
+    }
+  }
+
+  // 3. Fallback: Use parsed text profits or historical averages
   return getDefaultQuarterFinancials(ticker, periodStr, parsedTextProfits, realQuarterlyFinancials);
 };
 
@@ -136,9 +180,7 @@ export function ValuationCalculator({
   realQuarterlyFinancials = [],
   onUpdateValuation,
 }: ValuationCalculatorProps) {
-  const latestYear = 2026;
-  const year1 = latestYear;
-  const year2 = latestYear + 1;
+  const { year1, year2 } = getForecastYears(realQuarterlyFinancials, valuation);
 
   const [selectedYear, setSelectedYear] = useState<string>(year2.toString());
 
@@ -153,21 +195,21 @@ export function ValuationCalculator({
   const [financials, setFinancials] = useState<Record<string, { revenue: number; grossMargin: number; netProfit: number }>>(() => {
     const initial: Record<string, { revenue: number; grossMargin: number; netProfit: number }> = {};
     [...quartersYear1, ...quartersYear2].forEach((period) => {
-      initial[period] = getQuarterFinancialsWithRealData(ticker, period, parsedTextProfits, realQuarterlyFinancials);
+      initial[period] = getQuarterFinancialsWithRealData(ticker, period, parsedTextProfits, realQuarterlyFinancials, valuation);
     });
     return initial;
   });
 
-  // Re-sync when ticker, forecast reasoning text, or realQuarterlyFinancials change
+  // Re-sync when ticker, forecast reasoning text, realQuarterlyFinancials, or valuation change
   useEffect(() => {
     setSelectedYear(year2.toString());
     const parsed = parseForecastNetProfitFromText(forecastReasoningText);
     const initial: Record<string, { revenue: number; grossMargin: number; netProfit: number }> = {};
     [...quartersYear1, ...quartersYear2].forEach((period) => {
-      initial[period] = getQuarterFinancialsWithRealData(ticker, period, parsed, realQuarterlyFinancials);
+      initial[period] = getQuarterFinancialsWithRealData(ticker, period, parsed, realQuarterlyFinancials, valuation);
     });
     setFinancials(initial);
-  }, [ticker, forecastReasoningText, realQuarterlyFinancials]);
+  }, [ticker, forecastReasoningText, realQuarterlyFinancials, valuation]);
 
   // Update specific field (revenue, grossMargin, netProfit) for a quarter
   const handleFinancialChange = (
@@ -182,9 +224,16 @@ export function ValuationCalculator({
       // Auto-recalculate Gross Profit & Net Profit if revenue or grossMargin changes (Bottom-Up Model)
       if (field === 'revenue' || field === 'grossMargin') {
         const grossProfit = updated.revenue * (updated.grossMargin / 100);
-        const t = ticker.toUpperCase();
-        // Dynamic Net-to-Gross conversion ratio after SG&A, interest expense & seasonal adjustments
-        const netToGrossRatio = t === 'HPG' ? 0.84 : t === 'FPT' ? 0.86 : t === 'PHP' ? 0.75 : 0.80;
+        // Calculate Net-to-Gross conversion ratio dynamically from real quarterly financials
+        const validReal = (realQuarterlyFinancials || []).filter((item) => item && item.revenue > 0 && item.grossMargin > 0);
+        let netToGrossRatio = 0.80;
+        if (validReal.length > 0) {
+          const avgGrossProfit = validReal.reduce((s, c) => s + (c.revenue * (c.grossMargin / 100)), 0) / validReal.length;
+          const avgNetProfit = validReal.reduce((s, c) => s + (c.netProfit || 0), 0) / validReal.length;
+          if (avgGrossProfit > 0) {
+            netToGrossRatio = Math.min(1.0, Math.max(0.1, avgNetProfit / avgGrossProfit));
+          }
+        }
         updated.netProfit = Math.round(grossProfit * netToGrossRatio);
       }
 
