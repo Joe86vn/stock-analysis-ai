@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AnalysisReport, StockMarketData, UploadedFile } from '@/types/analysis';
-import { parseSimplizeItem } from '@/lib/simplize-field-mapping';
+import { parseSimplizeItem, ParsedSimplizeQuarter } from '@/lib/simplize-field-mapping';
 
 async function fetchSimplizeFinancialContext(ticker: string): Promise<string> {
   try {
@@ -15,12 +15,12 @@ async function fetchSimplizeFinancialContext(ticker: string): Promise<string> {
     const json = await res.json();
     if (!json || !json.data || !Array.isArray(json.data.items)) return '';
 
-    const items = json.data.items.map(parseSimplizeItem);
+    const items: ParsedSimplizeQuarter[] = json.data.items.map(parseSimplizeItem);
     let text = `\n--- DỮ LIỆU BÁO CÁO TÀI CHÍNH THỰC TẾ CÁC QUÝ GẦN NHẤT TỪ SIMPLIZE/CAFEF/VIETSTOCK CHO ${cleanTicker} ---\n`;
     text += `| Quý | Doanh Thu Thuần (Tỷ VNĐ) | Lợi Nhuận Gộp (Tỷ VNĐ) | Lợi Nhuận Sau Thuế (Tỷ VNĐ) | Biên Gộp (%) | ROE (%) |\n`;
     text += `|---|---|---|---|---|---|\n`;
 
-    items.forEach((it) => {
+    items.forEach((it: ParsedSimplizeQuarter) => {
       text += `| ${it.period} | ${it.revenue.toFixed(1)} | ${it.grossProfit.toFixed(1)} | ${it.netProfit.toFixed(1)} | ${it.grossMargin.toFixed(1)}% | ${it.roe.toFixed(1)}% |\n`;
     });
 
