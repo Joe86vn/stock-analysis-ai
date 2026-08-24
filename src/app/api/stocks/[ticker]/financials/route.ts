@@ -1,15 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-export interface QuarterlyFinancialData {
-  period: string; // e.g. 'Q2/2026'
-  year: number;
-  quarter: number;
-  revenue: number; // Tỷ VNĐ
-  grossProfit: number; // Tỷ VNĐ
-  netProfit: number; // Tỷ VNĐ
-  grossMargin: number; // %
-  roe?: number; // %
-}
+import { parseSimplizeItem, ParsedSimplizeQuarter } from '@/lib/simplize-field-mapping';
 
 export async function GET(
   request: NextRequest,
@@ -49,34 +39,7 @@ export async function GET(
 
     // Process & transform raw Simplize items into clean quarterly metrics
     const rawItems = json.data.items;
-    const quarters: QuarterlyFinancialData[] = rawItems.map((item: any) => {
-      const periodName = item.periodDateName || ''; // e.g. 'Q2/2026'
-      const match = periodName.match(/^Q([1-4])\/(\d{4})$/);
-      const quarter = match ? parseInt(match[1], 10) : 1;
-      const year = match ? parseInt(match[2], 10) : 2026;
-
-      const revVnd = Number(item.is1) || 0;
-      const grossProfitVnd = Number(item.is2) || 0;
-      const netProfitVnd = Number(item.is14) || 0;
-
-      const revenue = Math.round((revVnd / 1000000000) * 10) / 10; // Tỷ VNĐ
-      const grossProfit = Math.round((grossProfitVnd / 1000000000) * 10) / 10; // Tỷ VNĐ
-      const netProfit = Math.round((netProfitVnd / 1000000000) * 10) / 10; // Tỷ VNĐ
-
-      const grossMargin = revenue > 0 ? Math.round(((grossProfit / revenue) * 100) * 10) / 10 : (Number(item.op1) || 0);
-      const roe = Number(item.op3) ? Math.round(Number(item.op3) * 10) / 10 : undefined;
-
-      return {
-        period: periodName,
-        year,
-        quarter,
-        revenue,
-        grossProfit,
-        netProfit,
-        grossMargin,
-        roe,
-      };
-    });
+    const quarters: ParsedSimplizeQuarter[] = rawItems.map(parseSimplizeItem);
 
     // Sort chronologically (oldest to newest)
     quarters.sort((a, b) => {

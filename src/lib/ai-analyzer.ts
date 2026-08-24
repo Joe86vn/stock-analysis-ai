@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AnalysisReport, StockMarketData, UploadedFile } from '@/types/analysis';
+import { parseSimplizeItem } from '@/lib/simplize-field-mapping';
 
 async function fetchSimplizeFinancialContext(ticker: string): Promise<string> {
   try {
@@ -14,19 +15,13 @@ async function fetchSimplizeFinancialContext(ticker: string): Promise<string> {
     const json = await res.json();
     if (!json || !json.data || !Array.isArray(json.data.items)) return '';
 
-    const items = json.data.items;
+    const items = json.data.items.map(parseSimplizeItem);
     let text = `\n--- DỮ LIỆU BÁO CÁO TÀI CHÍNH THỰC TẾ CÁC QUÝ GẦN NHẤT TỪ SIMPLIZE/CAFEF/VIETSTOCK CHO ${cleanTicker} ---\n`;
     text += `| Quý | Doanh Thu Thuần (Tỷ VNĐ) | Lợi Nhuận Gộp (Tỷ VNĐ) | Lợi Nhuận Sau Thuế (Tỷ VNĐ) | Biên Gộp (%) | ROE (%) |\n`;
     text += `|---|---|---|---|---|---|\n`;
 
-    items.forEach((it: any) => {
-      const p = it.periodDateName || '';
-      const rev = (Number(it.is1 || 0) / 1e9).toFixed(1);
-      const gp = (Number(it.is2 || 0) / 1e9).toFixed(1);
-      const np = (Number(it.is14 || 0) / 1e9).toFixed(1);
-      const margin = (Number(it.op1 || 0)).toFixed(1);
-      const roe = (Number(it.op3 || 0)).toFixed(1);
-      text += `| ${p} | ${rev} | ${gp} | ${np} | ${margin}% | ${roe}% |\n`;
+    items.forEach((it) => {
+      text += `| ${it.period} | ${it.revenue.toFixed(1)} | ${it.grossProfit.toFixed(1)} | ${it.netProfit.toFixed(1)} | ${it.grossMargin.toFixed(1)}% | ${it.roe.toFixed(1)}% |\n`;
     });
 
     text += `\nHÃY SỬ DỤNG CHÍNH XÁC CÁC CON SỐ THỰC TẾ TRÊN CHO CÁC QUÝ ĐÃ CÓ BCTC (VÍ DỤ: Q1/2026, Q2/2026) KHI VIẾT PHẦN C VÀ PHẦN D.\n`;
