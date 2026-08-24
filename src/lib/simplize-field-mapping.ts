@@ -1,12 +1,12 @@
 /**
  * Bản đồ ánh xạ dữ liệu toàn diện (Comprehensive Data Field Mapping Dictionary) cho Simplize API.
- * Chuẩn hóa 100% theo Báo cáo Tài chính VAS thực tế của mã HPG và các doanh nghiệp niêm yết trên thị trường chứng khoán Việt Nam.
+ * Chuẩn hóa 100% theo Báo cáo Tài chính VAS và Chỉ số Tỷ lệ Ratio thực tế của mã HPG (gồm ratio_sample.md, balance_sheet_sample.md, income_statement_sample.md, cash_flow_sample.md).
  * 
- * Hỗ trợ 3 Endpoint chuyên biệt của Simplize:
+ * Hỗ trợ 4 Endpoint chuyên biệt của Simplize:
  * 1. Balance Sheet (/api/company/fi/bs/)
  * 2. Income Statement (/api/company/fi/is/)
  * 3. Cash Flow (/api/company/fi/cf/)
- * 4. Financial Ratios (/api/company/fi/ratio/)
+ * 4. Financial Ratios & Valuation (/api/company/fi/ratio/)
  */
 
 export interface SimplizeFieldMeta {
@@ -113,7 +113,7 @@ export const SIMPLIZE_CASH_FLOW_MAP: Record<string, SimplizeFieldMeta> = {
   cf19: { code: 'cf19', nameVi: 'Thuế thu nhập doanh nghiệp đã nộp', nameEn: 'Income Tax Paid', unit: 'VND' },
   cf21: { code: 'cf21', nameVi: 'Tiền chi khác từ hoạt động kinh doanh', nameEn: 'Other Cash Outflows from Operating Activities', unit: 'VND' },
   cf22: { code: 'cf22', nameVi: 'Lưu chuyển tiền thuần từ hoạt động đầu tư', nameEn: 'Net Cash Flow from Investing Activities', unit: 'VND' },
-  cf23: { code: 'cf23', nameVi: 'Tiền chi mua sắm, xây dựng TSCĐ', nameEn: 'CAPEX (Purchase of Fixed Assets)', unit: 'VND' },
+  cf23: { code: 'cf23', nameVi: 'Tiền chi mua sắm, xây dựng TSCĐ (CAPEX)', nameEn: 'CAPEX (Purchase of Fixed Assets)', unit: 'VND' },
   cf24: { code: 'cf24', nameVi: 'Tiền thu từ thanh lý, nhượng bán TSCĐ', nameEn: 'Proceeds from Sales of Fixed Assets', unit: 'VND' },
   cf25: { code: 'cf25', nameVi: 'Tiền chi cho vay, mua các công cụ nợ', nameEn: 'Lending and Debt Purchase Outflows', unit: 'VND' },
   cf26: { code: 'cf26', nameVi: 'Tiền thu hồi cho vay, bán lại công cụ nợ', nameEn: 'Loan Repayments & Debt Collection Inflows', unit: 'VND' },
@@ -134,17 +134,37 @@ export const SIMPLIZE_CASH_FLOW_MAP: Record<string, SimplizeFieldMeta> = {
 
 /**
  * 4. CHỈ SỐ TÀI CHÍNH & TỶ SỐ HIỆU QUẢ (RATIO METRICS - '/fi/ratio/')
+ * Đối chiếu khớp 100% với ratio_sample.md
  */
 export const SIMPLIZE_RATIO_MAP: Record<string, SimplizeFieldMeta> = {
-  op1: { code: 'op1', nameVi: 'Biên lợi nhuận gộp (%)', nameEn: 'Gross Profit Margin (%)', unit: '%' },
-  op2: { code: 'op2', nameVi: 'Biên lợi nhuận ròng (%)', nameEn: 'Net Profit Margin (%)', unit: '%' },
-  op3: { code: 'op3', nameVi: 'Tỷ suất sinh lời trên vốn chủ sở hữu ROE (%)', nameEn: 'Return on Equity ROE (%)', unit: '%' },
-  op4: { code: 'op4', nameVi: 'Tỷ suất sinh lời trên tổng tài sản ROA (%)', nameEn: 'Return on Assets ROA (%)', unit: '%' },
-  op5: { code: 'op5', nameVi: 'Tỷ lệ Nợ / Vốn chủ sở hữu (D/E ratio)', nameEn: 'Debt-to-Equity Ratio', unit: 'lần' },
-  op6: { code: 'op6', nameVi: 'Thu nhập trên mỗi cổ phần (EPS)', nameEn: 'Earnings Per Share (EPS)', unit: 'VND/cp' },
-  op7: { code: 'op7', nameVi: 'Giá trị sổ sách trên mỗi cổ phần (BVPS)', nameEn: 'Book Value Per Share (BVPS)', unit: 'VND/cp' },
-  op8: { code: 'op8', nameVi: 'Chỉ số P/E', nameEn: 'Price to Earnings (P/E)', unit: 'lần' },
-  op9: { code: 'op9', nameVi: 'Chỉ số P/B', nameEn: 'Price to Book (P/B)', unit: 'lần' },
+  op1: { code: 'op1', nameVi: 'Chỉ số P/E', nameEn: 'Price to Earnings (P/E)', unit: 'lần' },
+  op2: { code: 'op2', nameVi: 'Chỉ số P/B', nameEn: 'Price to Book (P/B)', unit: 'lần' },
+  op3: { code: 'op3', nameVi: 'Chỉ số EV/EBITDA', nameEn: 'EV/EBITDA', unit: 'lần' },
+  op4: { code: 'op4', nameVi: 'Thu nhập trên mỗi cổ phần (EPS)', nameEn: 'Earnings Per Share (EPS)', unit: 'VND/cp' },
+  op5: { code: 'op5', nameVi: 'Tăng trưởng EPS (%)', nameEn: 'EPS Growth (%)', unit: '%' },
+  op6: { code: 'op6', nameVi: 'Giá trị sổ sách trên mỗi cổ phần (BVPS)', nameEn: 'Book Value Per Share (BVPS)', unit: 'VND/cp' },
+  op7: { code: 'op7', nameVi: 'Biên lợi nhuận gộp (%)', nameEn: 'Gross Profit Margin (%)', unit: '%' },
+  op8: { code: 'op8', nameVi: 'Biên EBIT (%)', nameEn: 'EBIT Margin (%)', unit: '%' },
+  op9: { code: 'op9', nameVi: 'Biên EBITDA (%)', nameEn: 'EBITDA Margin (%)', unit: '%' },
+  op16: { code: 'op16', nameVi: 'Biên lợi nhuận ròng (%)', nameEn: 'Net Profit Margin (%)', unit: '%' },
+  op17: { code: 'op17', nameVi: 'Tỷ suất sinh lời trên vốn chủ sở hữu ROE LTM (%)', nameEn: 'Return on Equity ROE LTM (%)', unit: '%' },
+  op18: { code: 'op18', nameVi: 'Tỷ suất sinh lời trên tổng tài sản ROA LTM (%)', nameEn: 'Return on Assets ROA LTM (%)', unit: '%' },
+  op19: { code: 'op19', nameVi: 'Vòng quay tài sản (vòng)', nameEn: 'Asset Turnover', unit: 'vòng' },
+  op20: { code: 'op20', nameVi: 'Hiệu suất sử dụng tài sản cố định', nameEn: 'Fixed Asset Turnover', unit: 'vòng' },
+  op21: { code: 'op21', nameVi: 'Số ngày thu tiền khách hàng (ngày)', nameEn: 'Days Sales Outstanding (DSO)', unit: 'ngày' },
+  op22: { code: 'op22', nameVi: 'Số ngày xử lý hàng tồn kho (ngày)', nameEn: 'Days Inventory Outstanding (DIO)', unit: 'ngày' },
+  op23: { code: 'op23', nameVi: 'Số ngày phải trả nhà cung cấp (ngày)', nameEn: 'Days Payable Outstanding (DPO)', unit: 'ngày' },
+  op24: { code: 'op24', nameVi: 'Vòng quay tiền mặt (ngày)', nameEn: 'Cash Conversion Cycle (CCC)', unit: 'ngày' },
+  op34: { code: 'op34', nameVi: 'Nợ phải trả / Vốn chủ sở hữu (%)', nameEn: 'Total Liabilities to Equity (%)', unit: '%' },
+  op35: { code: 'op35', nameVi: 'Vay và nợ thuê tài chính (ngắn+dài) / Vốn chủ sở hữu (%)', nameEn: 'Total Debt to Equity (%)', unit: '%' },
+  op36: { code: 'op36', nameVi: 'Nợ vay ròng / Vốn chủ sở hữu (%)', nameEn: 'Net Debt to Equity (%)', unit: '%' },
+  op37: { code: 'op37', nameVi: 'Tổng tài sản / Vốn chủ sở hữu (Đòn bẩy tài chính)', nameEn: 'Financial Leverage (Assets/Equity)', unit: 'lần' },
+  op44: { code: 'op44', nameVi: 'Khả năng thanh toán tổng quát', nameEn: 'Current Ratio', unit: 'lần' },
+  op45: { code: 'op45', nameVi: 'Khả năng thanh toán nhanh', nameEn: 'Quick Ratio', unit: 'lần' },
+  op46: { code: 'op46', nameVi: 'Khả năng thanh toán tức thời (Tiền)', nameEn: 'Cash Ratio', unit: 'lần' },
+  op47: { code: 'op47', nameVi: 'Khả năng thanh toán lãi vay', nameEn: 'Interest Coverage Ratio', unit: 'lần' },
+  op48: { code: 'op48', nameVi: 'Vốn hóa thị trường (VNĐ)', nameEn: 'Market Capitalization', unit: 'VND' },
+  op49: { code: 'op49', nameVi: 'Số lượng cổ phiếu lưu hành (Cổ phiếu)', nameEn: 'Shares Outstanding', unit: 'Cổ phiếu' },
 };
 
 /**
@@ -169,14 +189,24 @@ export function getSimplizeFieldLabel(code: string): string {
 }
 
 /**
- * Interface cho dữ liệu tài chính một quý đã trích xuất & chuẩn hóa
+ * Interface cho dữ liệu tài chính một quý đã trích xuất & chuẩn hóa đầy đủ
  */
 export interface ParsedSimplizeQuarter {
   period: string; // e.g. 'Q2/2026'
   year: number;
   quarter: number;
   
-  // Báo cáo KQKD (Income Statement) - Đơn vị: Tỷ VNĐ
+  // 1. Thông tin Doanh nghiệp & Cổ phiếu (từ Ratio API)
+  sharesOutstandingMillions: number; // Số lượng cổ phiếu lưu hành (Triệu CP) - op49
+  marketCapBillion: number; // Vốn hóa (Tỷ VNĐ) - op48
+  eps: number; // EPS (VNĐ/CP) - op4
+  epsGrowth: number; // Tăng trưởng EPS (%) - op5
+  bvps: number; // BVPS (VNĐ/CP) - op6
+  pe: number; // P/E - op1
+  pb: number; // P/B - op2
+  evEbitda: number; // EV/EBITDA - op3
+
+  // 2. Báo cáo KQKD (Income Statement) - Đơn vị: Tỷ VNĐ
   revenue: number; // Doanh thu thuần (is1)
   grossProfit: number; // Lợi nhuận gộp (is2)
   operatingProfit: number; // Lợi nhuận thuần từ HĐKD (is3)
@@ -184,10 +214,10 @@ export interface ParsedSimplizeQuarter {
   netProfit: number; // Lợi nhuận sau thuế của cổ đông công ty mẹ (is14)
   financialIncome: number; // Doanh thu tài chính (is37)
   financialExpenses: number; // Chi phí tài chính (is38)
-  sellingExpenses: number; // Chi phí bán hàng (is52)
+  sellingExpenses: number; // Chi phí bán hàng (is52/is45)
   adminExpenses: number; // Chi phí quản lý doanh nghiệp (is39/is46)
 
-  // Bảng Cân đối Kế toán (Balance Sheet) - Đơn vị: Tỷ VNĐ
+  // 3. Bảng Cân đối Kế toán (Balance Sheet) - Đơn vị: Tỷ VNĐ
   totalAssets: number; // Tổng tài sản (bs1)
   currentAssets: number; // Tài sản ngắn hạn (bs2)
   cashAndEquivalents: number; // Tiền & tương đương tiền (bs13)
@@ -205,18 +235,36 @@ export interface ParsedSimplizeQuarter {
   ownerEquity: number; // Vốn chủ sở hữu (bs10/bs12)
   charterCapital: number; // Vốn điều lệ (bs11/bs102)
 
-  // Báo cáo Lưu chuyển tiền tệ (Cash Flow) - Đơn vị: Tỷ VNĐ
+  // 4. Báo cáo Lưu chuyển tiền tệ (Cash Flow) - Đơn vị: Tỷ VNĐ
   netOperatingCashFlow: number; // LCT thuần từ HĐKD (cf1)
   netInvestingCashFlow: number; // LCT thuần từ HĐ đầu tư (cf22)
   netFinancingCashFlow: number; // LCT thuần từ HĐ tài chính (cf30)
   netCashFlowPeriod: number; // LCT thuần trong kỳ (cf37)
 
-  // Chỉ số hiệu quả (Ratios)
-  grossMargin: number; // Biên gộp % (op1 hoặc tự tính)
-  netMargin: number; // Biên ròng % (op2)
-  roe: number; // ROE % (op3)
-  roa: number; // ROA % (op4)
-  eps: number; // EPS (op6)
+  // 5. Các Chỉ số Hiệu quả, Cơ cấu Nguồn vốn & Thanh toán (từ Ratio API)
+  grossMargin: number; // Biên gộp % (op7 hoặc tự tính)
+  ebitMargin: number; // Biên EBIT % (op8)
+  ebitdaMargin: number; // Biên EBITDA % (op9)
+  netMargin: number; // Biên ròng % (op16)
+  roe: number; // ROE LTM % (op17)
+  roa: number; // ROA LTM % (op18)
+  
+  assetTurnover: number; // Vòng quay tài sản (op19)
+  fixedAssetTurnover: number; // Hiệu suất sử dụng TSCĐ (op20)
+  receivableDays: number; // Số ngày thu tiền KH (op21)
+  inventoryDays: number; // Số ngày xử lý HTK (op22)
+  payableDays: number; // Số ngày trả NCC (op23)
+  cashCycle: number; // Vòng quay tiền mặt (op24)
+
+  debtToEquity: number; // Nợ phải trả / Vốn CSH % (op34)
+  borrowingsToEquity: number; // Vay ngắn+dài / Vốn CSH % (op35)
+  netDebtToEquity: number; // Nợ vay ròng / Vốn CSH % (op36)
+  financialLeverage: number; // Tổng TS / Vốn CSH (op37)
+
+  currentRatio: number; // Khả năng thanh toán tổng quát (op44)
+  quickRatio: number; // Khả năng thanh toán nhanh (op45)
+  cashRatio: number; // Khả năng thanh toán tức thời (op46)
+  interestCoverage: number; // Khả năng thanh toán lãi vay (op47)
 }
 
 /**
@@ -230,6 +278,17 @@ export function parseSimplizeItem(item: any): ParsedSimplizeQuarter {
 
   const toBillion = (val: any) => Math.round(((Number(val) || 0) / 1e9) * 10) / 10;
 
+  // 1. Ratio Info & Shares
+  const sharesOutstandingMillions = Number(item.op49) ? Math.round((Number(item.op49) / 1e6) * 100) / 100 : 0;
+  const marketCapBillion = Number(item.op48) ? Math.round((Number(item.op48) / 1e9) * 10) / 10 : 0;
+  const eps = Math.round(Number(item.op4) || 0);
+  const epsGrowth = Number(item.op5) ? Math.round(Number(item.op5) * 10) / 10 : 0;
+  const bvps = Math.round(Number(item.op6) || 0);
+  const pe = Number(item.op1) ? Math.round(Number(item.op1) * 100) / 100 : 0;
+  const pb = Number(item.op2) ? Math.round(Number(item.op2) * 100) / 100 : 0;
+  const evEbitda = Number(item.op3) ? Math.round(Number(item.op3) * 100) / 100 : 0;
+
+  // 2. Income Statement
   const revenue = toBillion(item.is1);
   const grossProfit = toBillion(item.is2);
   const operatingProfit = toBillion(item.is3);
@@ -240,6 +299,7 @@ export function parseSimplizeItem(item: any): ParsedSimplizeQuarter {
   const sellingExpenses = toBillion(item.is52 || item.is45);
   const adminExpenses = toBillion(item.is39 || item.is46);
 
+  // 3. Balance Sheet
   const totalAssets = toBillion(item.bs1 || item.bs117);
   const currentAssets = toBillion(item.bs2);
   const cashAndEquivalents = toBillion(item.bs13 || item.bs3);
@@ -257,21 +317,49 @@ export function parseSimplizeItem(item: any): ParsedSimplizeQuarter {
   const ownerEquity = toBillion(item.bs10 || item.bs12 || item.bs113);
   const charterCapital = toBillion(item.bs11 || item.bs102);
 
+  // 4. Cash Flow
   const netOperatingCashFlow = toBillion(item.cf1);
   const netInvestingCashFlow = toBillion(item.cf22);
   const netFinancingCashFlow = toBillion(item.cf30);
   const netCashFlowPeriod = toBillion(item.cf37);
 
-  const grossMargin = revenue > 0 ? Math.round(((grossProfit / revenue) * 100) * 10) / 10 : (Number(item.op1) || 0);
-  const netMargin = revenue > 0 ? Math.round(((netProfit / revenue) * 100) * 10) / 10 : (Number(item.op2) || 0);
-  const roe = Number(item.op3) ? Math.round(Number(item.op3) * 10) / 10 : 0;
-  const roa = Number(item.op4) ? Math.round(Number(item.op4) * 10) / 10 : 0;
-  const eps = Math.round(Number(item.op6) || 0);
+  // 5. Operating & Financial Ratios
+  const grossMargin = revenue > 0 ? Math.round(((grossProfit / revenue) * 100) * 10) / 10 : (Number(item.op7) || 0);
+  const ebitMargin = Number(item.op8) ? Math.round(Number(item.op8) * 10) / 10 : 0;
+  const ebitdaMargin = Number(item.op9) ? Math.round(Number(item.op9) * 10) / 10 : 0;
+  const netMargin = revenue > 0 ? Math.round(((netProfit / revenue) * 100) * 10) / 10 : (Number(item.op16) || 0);
+  const roe = Number(item.op17) ? Math.round(Number(item.op17) * 10) / 10 : 0;
+  const roa = Number(item.op18) ? Math.round(Number(item.op18) * 10) / 10 : 0;
+
+  const assetTurnover = Number(item.op19) ? Math.round(Number(item.op19) * 100) / 100 : 0;
+  const fixedAssetTurnover = Number(item.op20) ? Math.round(Number(item.op20) * 100) / 100 : 0;
+  const receivableDays = Number(item.op21) ? Math.round(Number(item.op21) * 10) / 10 : 0;
+  const inventoryDays = Number(item.op22) ? Math.round(Number(item.op22) * 10) / 10 : 0;
+  const payableDays = Number(item.op23) ? Math.round(Number(item.op23) * 10) / 10 : 0;
+  const cashCycle = Number(item.op24) ? Math.round(Number(item.op24) * 10) / 10 : 0;
+
+  const debtToEquity = Number(item.op34) ? Math.round(Number(item.op34) * 10) / 10 : 0;
+  const borrowingsToEquity = Number(item.op35) ? Math.round(Number(item.op35) * 10) / 10 : 0;
+  const netDebtToEquity = Number(item.op36) ? Math.round(Number(item.op36) * 10) / 10 : 0;
+  const financialLeverage = Number(item.op37) ? Math.round(Number(item.op37) * 100) / 100 : 0;
+
+  const currentRatio = Number(item.op44) ? Math.round(Number(item.op44) * 100) / 100 : 0;
+  const quickRatio = Number(item.op45) ? Math.round(Number(item.op45) * 100) / 100 : 0;
+  const cashRatio = Number(item.op46) ? Math.round(Number(item.op46) * 100) / 100 : 0;
+  const interestCoverage = Number(item.op47) ? Math.round(Number(item.op47) * 10) / 10 : 0;
 
   return {
     period: periodName,
     year,
     quarter,
+    sharesOutstandingMillions,
+    marketCapBillion,
+    eps,
+    epsGrowth,
+    bvps,
+    pe,
+    pb,
+    evEbitda,
     revenue,
     grossProfit,
     operatingProfit,
@@ -302,15 +390,30 @@ export function parseSimplizeItem(item: any): ParsedSimplizeQuarter {
     netFinancingCashFlow,
     netCashFlowPeriod,
     grossMargin,
+    ebitMargin,
+    ebitdaMargin,
     netMargin,
     roe,
     roa,
-    eps,
+    assetTurnover,
+    fixedAssetTurnover,
+    receivableDays,
+    inventoryDays,
+    payableDays,
+    cashCycle,
+    debtToEquity,
+    borrowingsToEquity,
+    netDebtToEquity,
+    financialLeverage,
+    currentRatio,
+    quickRatio,
+    cashRatio,
+    interestCoverage,
   };
 }
 
 /**
- * Hàm gọi API tổng hợp từ 3/4 endpoint của Simplize cho 1 mã chứng khoán (VD: HPG)
+ * Hàm gọi API tổng hợp từ 4 endpoint của Simplize cho 1 mã chứng khoán (VD: HPG)
  */
 export async function fetchFullSimplizeData(ticker: string, size = 12): Promise<ParsedSimplizeQuarter[]> {
   const cleanTicker = ticker.trim().toUpperCase();
