@@ -144,21 +144,15 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
 }
       `;
 
-    // Chuỗi Fallback Models ưu tiên các model text-out khả dụng của Google AI Studio
+    // Chuỗi Fallback Models ưu tiên các model khả dụng của Google AI Studio
     const modelsToTry = [
-      process.env.GEMINI_MODEL || 'gemini-3.7-flash',
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
-      'gemini-3.5-flash',
-      'gemini-3-flash',
-      'gemini-3.1-pro',
-      'gemini-2.5-pro',
+      process.env.GEMINI_MODEL || 'gemini-2.5-flash',
       'gemini-2.5-flash',
-      'gemini-3.1-flash-lite',
-      'gemini-2-flash',
-      'gemini-2-flash-lite',
-      'gemini-2.5-flash-lite',
-      'gemini-3.5-flash-lite',
+      'gemini-2.5-pro',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-2.0-flash-lite',
     ];
 
     const uniqueModels = Array.from(new Set(modelsToTry));
@@ -257,7 +251,7 @@ function generateDefaultExpertReport(
   const isFPT = ticker.toUpperCase() === 'FPT';
   const isPHP = ticker.toUpperCase() === 'PHP';
 
-  const shares = isHPG ? 5815 : isFPT ? 1460 : isPHP ? 326 : 2089;
+  const shares = isHPG ? 8443 : isFPT ? 1460 : isPHP ? 326 : 2089;
   const q1 = isHPG ? 13500000000000 : isFPT ? 10500000000000 : isPHP ? 920000000000 : 8500000000000; // LNST Cả năm 2026
   const q2 = isHPG ? 16500000000000 : isFPT ? 12800000000000 : isPHP ? 1050000000000 : 9800000000000; // LNST Cả năm 2027
   const q3 = 0;
