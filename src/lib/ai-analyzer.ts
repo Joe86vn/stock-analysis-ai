@@ -22,7 +22,7 @@ async function fetchSimplizeFinancialContext(ticker: string): Promise<string> {
     items.forEach((it: any) => {
       const p = it.periodDateName || '';
       const rev = (Number(it.is1 || 0) / 1e9).toFixed(1);
-      const gp = (Number(it.is3 || 0) / 1e9).toFixed(1);
+      const gp = (Number(it.is2 || 0) / 1e9).toFixed(1);
       const np = (Number(it.is14 || 0) / 1e9).toFixed(1);
       const margin = (Number(it.op1 || 0)).toFixed(1);
       const roe = (Number(it.op3 || 0)).toFixed(1);

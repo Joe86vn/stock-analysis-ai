@@ -56,7 +56,7 @@ export async function GET(
       const year = match ? parseInt(match[2], 10) : 2026;
 
       const revVnd = Number(item.is1) || 0;
-      const grossProfitVnd = Number(item.is3) || 0;
+      const grossProfitVnd = Number(item.is2) || 0;
       const netProfitVnd = Number(item.is14) || 0;
 
       const revenue = Math.round((revVnd / 1000000000) * 10) / 10; // Tỷ VNĐ
