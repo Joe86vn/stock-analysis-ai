@@ -99,11 +99,11 @@ C. Tình hình tài chính:
 D. Triển vọng kinh doanh & Dự báo định giá:
   - growthDriversRevenueAndCost: Phân tích sâu sắc các yếu tố tăng trưởng tương lai: Sản lượng (Q - nhà máy mới, dự án sắp hoạt động), Giá bán (P - xu hướng thị trường, năng lực tăng giá) và Chi phí (C - hết khấu hao, tối ưu quy mô).
   - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH TÍNH TOÁN dự phóng theo quy trình Bottom-Up (Doanh thu = Công suất x Tỷ lệ lấp đầy % x Giá P; Lợi nhuận gộp = Doanh thu x Biên gộp %; Trừ Yếu tố mùa vụ thấp điểm Q1/Q3 và Chi phí tài chính/Lãi vay do dư nợ đầu tư dự án mới). TẬP TRUNG 100% VÀO NARRATIVE GIẢI TRÌNH LOGIC & LÝ DO ĐẦU TƯ. TUYỆT ĐỐI KHÔNG liệt kê lặp lại danh sách số tiền từng quý (dạng Q3 LNST = ... tỷ, Q4 LNST = ... tỷ) hay dòng cộng gộp cả năm (dạng LNST Cả năm = Q1 + Q2...) vì toàn bộ số liệu tính toán này đã được hiển thị trực quan trong Bảng Ma Trận Định Giá ngay phía dưới.
-  - forecastQ1: LNST dự phóng cả năm 2026 (số nguyên, VND).
-  - forecastQ2: LNST dự phóng cả năm 2027 (số nguyên, VND).
+  - forecastQ1: LNST dự phóng cả năm 2026 (số nguyên, VND - ví dụ HPG là 13500000000000 = 13.500 tỷ; DRI là 250000000000 = 250 tỷ; FPT là 10500000000000 = 10.500 tỷ).
+  - forecastQ2: LNST dự phóng cả năm 2027 (số nguyên, VND - ví dụ HPG là 16500000000000 = 16.500 tỷ; DRI là 280000000000 = 280 tỷ; FPT là 12800000000000 = 12.800 tỷ).
   - forecastQ3: Đặt bằng 0.
   - forecastQ4: Đặt bằng 0.
-  - sharesOutstandingMillions: Số lượng cổ phiếu lưu hành (triệu cổ phiếu). Nếu tài liệu đính kèm không có, hãy dùng giá trị hợp lý (ví dụ: HPG là 5815, FPT là 1460, PHP là 326).
+  - sharesOutstandingMillions: Số lượng cổ phiếu lưu hành (triệu cổ phiếu - ví dụ HPG là 8443, FPT là 1460, PHP là 326, DRI là 84.4).
   - peBase: Định giá P/E kịch bản cơ sở (hợp lý theo P/E trung bình 5 năm của DN hoặc P/E ngành).
   - peBull: Định giá P/E kịch bản tích cực (hợp lý theo P/E cao nhất 5 năm).
   - peBear: Định giá P/E kịch bản tiêu cực (hợp lý theo P/E thấp nhất 5 năm).
@@ -132,14 +132,14 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
   "sectionD": {
     "growthDriversRevenueAndCost": "...",
     "quarterlyForecastReasoning": "...",
-    "forecastQ1": 2500000000000,
-    "forecastQ2": 2800000000000,
+    "forecastQ1": 250000000000,
+    "forecastQ2": 280000000000,
     "forecastQ3": 0,
     "forecastQ4": 0,
-    "sharesOutstandingMillions": 5815,
-    "peBase": 10.0,
-    "peBull": 14.0,
-    "peBear": 7.5
+    "sharesOutstandingMillions": 84.4,
+    "peBase": 12.5,
+    "peBull": 18.0,
+    "peBear": 8.0
   }
 }
       `;
@@ -192,17 +192,21 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
 }
 
 function buildReportFromParsed(ticker: string, marketData: StockMarketData, parsed: any): AnalysisReport {
-  const shares = parsed.sectionD?.sharesOutstandingMillions || (ticker.toUpperCase() === 'HPG' ? 5815 : ticker.toUpperCase() === 'FPT' ? 1460 : ticker.toUpperCase() === 'PHP' ? 326 : 2089);
-  const q1 = parsed.sectionD?.forecastQ1 || (ticker.toUpperCase() === 'HPG' ? 13500000000000 : ticker.toUpperCase() === 'FPT' ? 10500000000000 : ticker.toUpperCase() === 'PHP' ? 920000000000 : 8500000000000); // Cả năm 2026
-  const q2 = parsed.sectionD?.forecastQ2 || (ticker.toUpperCase() === 'HPG' ? 16500000000000 : ticker.toUpperCase() === 'FPT' ? 12800000000000 : ticker.toUpperCase() === 'PHP' ? 1050000000000 : 9800000000000); // Cả năm 2027
+  const isDRI = ticker.toUpperCase() === 'DRI';
+  const isHPG = ticker.toUpperCase() === 'HPG';
+  const defaultShares = isDRI ? 84.4 : isHPG ? 8443 : 2089;
+  const shares = parsed.sectionD?.sharesOutstandingMillions || defaultShares;
+
+  const q1 = Number(parsed.sectionD?.forecastQ1) || (isDRI ? 250000000000 : 8500000000000);
+  const q2 = Number(parsed.sectionD?.forecastQ2) || (isDRI ? 280000000000 : 9800000000000);
   const q3 = 0;
   const q4 = 0;
   const totalProfit = q2; // Mặc định dùng Năm 2027 để định giá mục tiêu
   const epsForward = Math.round(totalProfit / (shares * 1000000));
 
-  const peBase = parsed.sectionD?.peBase || marketData.pe5YearAvg;
-  const peBull = parsed.sectionD?.peBull || marketData.pe5YearMax;
-  const peBear = parsed.sectionD?.peBear || marketData.pe5YearMin;
+  const peBase = parsed.sectionD?.peBase || marketData.pe5YearAvg || (isDRI ? 12.5 : 10.0);
+  const peBull = parsed.sectionD?.peBull || marketData.pe5YearMax || (isDRI ? 18.0 : 14.0);
+  const peBear = parsed.sectionD?.peBear || marketData.pe5YearMin || (isDRI ? 8.0 : 7.5);
 
   return {
     ticker,
@@ -254,10 +258,11 @@ function generateDefaultExpertReport(
   const isHPG = ticker.toUpperCase() === 'HPG';
   const isFPT = ticker.toUpperCase() === 'FPT';
   const isPHP = ticker.toUpperCase() === 'PHP';
+  const isDRI = ticker.toUpperCase() === 'DRI';
 
-  const shares = isHPG ? 8443 : isFPT ? 1460 : isPHP ? 326 : 2089;
-  const q1 = isHPG ? 13500000000000 : isFPT ? 10500000000000 : isPHP ? 920000000000 : 8500000000000; // LNST Cả năm 2026
-  const q2 = isHPG ? 16500000000000 : isFPT ? 12800000000000 : isPHP ? 1050000000000 : 9800000000000; // LNST Cả năm 2027
+  const shares = isHPG ? 8443 : isFPT ? 1460 : isPHP ? 326 : isDRI ? 84.4 : 2089;
+  const q1 = isHPG ? 13500000000000 : isFPT ? 10500000000000 : isPHP ? 920000000000 : isDRI ? 250000000000 : 8500000000000; // LNST Cả năm 2026
+  const q2 = isHPG ? 16500000000000 : isFPT ? 12800000000000 : isPHP ? 1050000000000 : isDRI ? 280000000000 : 9800000000000; // LNST Cả năm 2027
   const q3 = 0;
   const q4 = 0;
   const totalProfit = q2; // Mặc định dùng Năm 2027 để làm cơ sở tính định giá mục tiêu
