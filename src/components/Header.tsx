@@ -3,7 +3,7 @@ import { TrendingUp, FileText, Sparkles, ShieldCheck } from 'lucide-react';
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-800 bg-[#0B0F19]/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-gray-800 bg-[#0B0F19]/90 backdrop-blur-md print:hidden">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
         <div className="flex items-center space-x-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-500 shadow-lg shadow-sky-500/20">

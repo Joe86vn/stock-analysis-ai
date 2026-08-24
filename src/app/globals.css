@@ -44,3 +44,91 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #4b5563;
 }
+
+/* Print Styles for PDF & Hardcopy Reports */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+  }
+
+  /* Reset dark theme container styles for clean white PDF output */
+  body *,
+  div,
+  main,
+  section {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .border,
+  .border-b,
+  .border-t,
+  .border-l,
+  .border-r,
+  .border-gray-800,
+  .border-gray-700 {
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Ensure text elements have clear dark contrast on white paper */
+  p, span, li, td, th, h1, h2, h3, h4, h5, h6, pre {
+    color: #0f172a !important;
+  }
+
+  .text-gray-200, .text-gray-300, .text-gray-400, .text-gray-500 {
+    color: #334155 !important;
+  }
+
+  .text-white {
+    color: #0f172a !important;
+  }
+
+  .text-sky-400, .text-sky-500 {
+    color: #0284c7 !important;
+  }
+
+  .text-emerald-400, .text-emerald-500 {
+    color: #059669 !important;
+  }
+
+  .text-purple-400, .text-purple-500 {
+    color: #7c3aed !important;
+  }
+
+  .text-amber-400, .text-amber-500 {
+    color: #d97706 !important;
+  }
+
+  /* Table styling for print */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #94a3b8 !important;
+    font-weight: 700 !important;
+  }
+
+  td {
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+  }
+
+  /* Page break rules for report sections */
+  .print-page-break {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+}

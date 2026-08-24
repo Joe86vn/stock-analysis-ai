@@ -38,6 +38,7 @@ Thumbs.db
 .ag-kit-backups/
 .temp_ag_kit/
 skills-lock.json
+scratch/
 
 # TypeScript
 *.tsbuildinfo

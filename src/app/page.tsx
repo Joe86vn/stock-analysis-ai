@@ -127,7 +127,7 @@ export default function Home() {
 
       <main className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 space-y-6">
         {/* Top Control Bar: Stock Selection + Document Upload */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:hidden">
           <div className="lg:col-span-6">
             <StockSelector selectedStock={selectedStock} onSelectStock={handleSelectStock} />
           </div>
@@ -141,16 +141,20 @@ export default function Home() {
         </div>
 
         {/* Automatic Reference Document Catalog (cafef, vietstock, simplize) */}
-        <ReferenceDocumentCatalog
-          ticker={selectedStock.ticker}
-          onSelectDocumentsForAnalysis={handleSelectDocumentsForAnalysis}
-        />
+        <div className="print:hidden">
+          <ReferenceDocumentCatalog
+            ticker={selectedStock.ticker}
+            onSelectDocumentsForAnalysis={handleSelectDocumentsForAnalysis}
+          />
+        </div>
 
         {/* Live Market Indicators Summary */}
-        <MarketDataSummary marketData={selectedStock} />
+        <div className="print:hidden">
+          <MarketDataSummary marketData={selectedStock} />
+        </div>
 
         {/* AI Trigger Action Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between rounded-2xl border border-sky-500/20 bg-gradient-to-r from-sky-950/40 via-gray-900 to-emerald-950/40 p-4 shadow-xl gap-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between rounded-2xl border border-sky-500/20 bg-gradient-to-r from-sky-950/40 via-gray-900 to-emerald-950/40 p-4 shadow-xl gap-3 print:hidden">
           <div className="flex items-center space-x-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/20 text-sky-400">
               <Sparkles className={`h-5 w-5 ${isGenerating ? 'animate-spin' : 'animate-pulse'}`} />
@@ -195,14 +199,12 @@ export default function Home() {
 
         {/* Analyzing Progress Banner */}
         {isGenerating && (
-          <div className="flex items-center space-x-3 rounded-2xl border border-sky-500/30 bg-sky-950/60 px-5 py-3 shadow-lg">
+          <div className="flex items-center space-x-3 rounded-2xl border border-sky-500/30 bg-sky-950/60 px-5 py-3 shadow-lg print:hidden">
             <RefreshCw className="h-4 w-4 animate-spin text-sky-400 shrink-0" />
             <p className="text-xs font-medium text-sky-300">{generatingMsg}</p>
             <span className="ml-auto text-[10px] text-sky-500 animate-pulse">AI đang xử lý...</span>
           </div>
         )}
-
-
 
         {/* 4-Section Report Viewer (A, B, C, D) */}
         <div ref={reportSectionRef}>
@@ -212,7 +214,7 @@ export default function Home() {
         </div>
 
         {/* Template Guide Collapsible Section */}
-        <div id="analysis-guide" className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl">
+        <div id="analysis-guide" className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl print:hidden">
           <button
             onClick={() => setShowGuide(!showGuide)}
             className="flex w-full items-center justify-between text-left"

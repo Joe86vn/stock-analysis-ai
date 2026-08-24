@@ -88,7 +88,7 @@ ${report.sectionD.quarterlyForecastReasoning}
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 print:hidden">
       <div className="relative w-full max-w-lg rounded-2xl border border-gray-800 bg-[#111827] p-6 shadow-2xl">
         <button
           onClick={onClose}

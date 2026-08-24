@@ -1,6 +1,42 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AnalysisReport, StockMarketData, UploadedFile } from '@/types/analysis';
 
+async function fetchSimplizeFinancialContext(ticker: string): Promise<string> {
+  try {
+    const cleanTicker = ticker.trim().toUpperCase();
+    const url = `https://api2.simplize.vn/api/company/fi/ratio/${cleanTicker}?period=Q&size=12`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+    if (!res.ok) return '';
+    const json = await res.json();
+    if (!json || !json.data || !Array.isArray(json.data.items)) return '';
+
+    const items = json.data.items;
+    let text = `\n--- DỮ LIỆU BÁO CÁO TÀI CHÍNH THỰC TẾ CÁC QUÝ GẦN NHẤT TỪ SIMPLIZE/CAFEF/VIETSTOCK CHO ${cleanTicker} ---\n`;
+    text += `| Quý | Doanh Thu Thuần (Tỷ VNĐ) | Lợi Nhuận Gộp (Tỷ VNĐ) | Lợi Nhuận Sau Thuế (Tỷ VNĐ) | Biên Gộp (%) | ROE (%) |\n`;
+    text += `|---|---|---|---|---|---|\n`;
+
+    items.forEach((it: any) => {
+      const p = it.periodDateName || '';
+      const rev = (Number(it.is1 || 0) / 1e9).toFixed(1);
+      const gp = (Number(it.is3 || 0) / 1e9).toFixed(1);
+      const np = (Number(it.is14 || 0) / 1e9).toFixed(1);
+      const margin = (Number(it.op1 || 0)).toFixed(1);
+      const roe = (Number(it.op3 || 0)).toFixed(1);
+      text += `| ${p} | ${rev} | ${gp} | ${np} | ${margin}% | ${roe}% |\n`;
+    });
+
+    text += `\nHÃY SỬ DỤNG CHÍNH XÁC CÁC CON SỐ THỰC TẾ TRÊN CHO CÁC QUÝ ĐÃ CÓ BCTC (VÍ DỤ: Q1/2026, Q2/2026) KHI VIẾT PHẦN C VÀ PHẦN D.\n`;
+    return text;
+  } catch (err) {
+    console.warn('Failed to fetch Simplize financial context for AI:', err);
+    return '';
+  }
+}
+
 export async function generateAnalysisReport(
   ticker: string,
   marketData: StockMarketData,
@@ -31,6 +67,10 @@ export async function generateAnalysisReport(
     .map((f) => `--- File: ${f.name} (${f.type}) ---\n${f.content || 'Nội dung file PDF/Document'}`)
     .join('\n\n');
 
+  // Fetch real Simplize quarterly financial data
+  const simplizeContext = await fetchSimplizeFinancialContext(ticker);
+  combinedText = simplizeContext + '\n\n' + combinedText;
+
   if (apiKey) {
     const prompt = `
 Bạn là chuyên gia phân tích đầu tư chứng khoán hàng đầu Việt Nam.
@@ -39,7 +79,7 @@ Hãy lập BÁO CÁO PHÂN TÍCH ĐẦU TƯ hoàn chỉnh cho mã chứng khoán
 YÊU CẦU BẮT BUỘC VỀ ĐỘ DÀI VÀ NỘI DUNG:
 - Không viết tóm tắt ngắn gọn hoặc dùng chung chung. Mỗi trường văn bản trong JSON (ví dụ: valueChainInput, profitabilityMargins...) cần được phân tích rất chi tiết (tối thiểu 200-300 từ, trình bày thành nhiều đoạn lập luận chặt chẽ).
 - Mỗi luận điểm phân tích bắt buộc phải đưa ra dẫn chứng số liệu thực tế đã trích xuất từ tài liệu đính kèm hoặc số liệu thị trường để chứng minh.
-- Sử dụng mô hình cấu trúc phân tích chuyên nghiệp: [Luận điểm nhận định] -> [Dẫn chứng số liệu thực tế làm cơ sở] -> [Đánh giá tác động đến hiệu quả kinh doanh và giá trị cổ phiếu].
+- TRÌNH BÀY VĂN BẢN MẠCH LẠC, DỄ ĐỌC: TUYỆT ĐỐI KHÔNG sử dụng ký tự thô dạng [Luận điểm] -> [Dẫn chứng] -> [Kết luận]. Hãy dùng các tiêu đề phụ in đậm rõ ràng (ví dụ: **1. Yếu tố Sản lượng (Q):** ...). Bên dưới mỗi tiêu đề phụ, hãy sử dụng dấu gạch đầu dòng '-' hoặc dấu '•' để liệt kê các ý chi tiết, tránh lặp lại số thứ tự 1, 2, 3 ở mọi cấp. TUYỆT ĐỐI KHÔNG đặt các năm (như 2025, 2026) vào dạng (2025). ở cuối/đầu câu khiến câu bị ngắt dòng sai.
 - Sử dụng chính xác các thuật ngữ tài chính chuyên ngành (Biên gộp, Biên ròng, CAGR, ROE, đòn bẩy tài chính, pricing power, hàng tồn kho, khấu hao...).
 - TRÌNH BÀY MINH HỌA BẰNG BẢNG: Với các phần phân tích tài chính, chuỗi giá trị đầu vào/đầu ra, ước lượng KQKD — HÃY SỬ DỤNG bảng dữ liệu markdown (markdown tables) để trình bày số liệu rõ ràng, cấu trúc và dễ nhìn. TUYỆT ĐỐI KHÔNG dùng sơ đồ ASCII (ASCII art/flowchart) vì chúng khó đọc và không tương thích với giao diện hiển thị.
 
@@ -71,7 +111,7 @@ C. Tình hình tài chính:
 
 D. Triển vọng kinh doanh & Dự báo định giá:
   - growthDriversRevenueAndCost: Phân tích sâu sắc các yếu tố tăng trưởng tương lai: Sản lượng (Q - nhà máy mới, dự án sắp hoạt động), Giá bán (P - xu hướng thị trường, năng lực tăng giá) và Chi phí (C - hết khấu hao, tối ưu quy mô).
-  - quarterlyForecastReasoning: Giải trình logic chi tiết dự phóng 6 quý tiếp theo (Q3/2026, Q4/2026, Q1/2027, Q2/2027, Q3/2027, Q4/2027). Sau đó gộp số liệu Q1/2026 (thực tế) và Q2/2026 (thực tế) với dự phóng Q3/2026 và Q4/2026 để ra con số LNST cả năm 2026. Cộng gộp dự phóng 4 quý năm 2027 để ra con số cả năm 2027.
+  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH TÍNH TOÁN dự phóng theo quy trình Bottom-Up (Doanh thu = Công suất x Tỷ lệ lấp đầy % x Giá P; Lợi nhuận gộp = Doanh thu x Biên gộp %; Trừ Yếu tố mùa vụ thấp điểm Q1/Q3 và Chi phí tài chính/Lãi vay do dư nợ đầu tư dự án mới). TẬP TRUNG 100% VÀO NARRATIVE GIẢI TRÌNH LOGIC & LÝ DO ĐẦU TƯ. TUYỆT ĐỐI KHÔNG liệt kê lặp lại danh sách số tiền từng quý (dạng Q3 LNST = ... tỷ, Q4 LNST = ... tỷ) hay dòng cộng gộp cả năm (dạng LNST Cả năm = Q1 + Q2...) vì toàn bộ số liệu tính toán này đã được hiển thị trực quan trong Bảng Ma Trận Định Giá ngay phía dưới.
   - forecastQ1: LNST dự phóng cả năm 2026 (số nguyên, VND).
   - forecastQ2: LNST dự phóng cả năm 2027 (số nguyên, VND).
   - forecastQ3: Đặt bằng 0.
@@ -143,14 +183,14 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
         const model = genAI.getGenerativeModel({ model: modelName });
         const result = await model.generateContent(prompt);
         const text = result.response.text();
-        
+
         let cleanedJson = text.trim();
         const firstBrace = cleanedJson.indexOf('{');
         const lastBrace = cleanedJson.lastIndexOf('}');
         if (firstBrace !== -1 && lastBrace !== -1) {
           cleanedJson = cleanedJson.slice(firstBrace, lastBrace + 1);
         }
-        
+
         const parsed = JSON.parse(cleanedJson);
         const report = buildReportFromParsed(ticker, marketData, parsed);
         report.generationModel = modelName;
