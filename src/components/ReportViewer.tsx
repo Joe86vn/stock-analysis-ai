@@ -225,13 +225,13 @@ function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorTy
   } : (SECTOR_FLOWS[sector] || SECTOR_FLOWS.general);
 
   return (
-    <div className="rounded-xl border border-sky-500/20 bg-gray-950/60 p-4 shadow-lg space-y-3 my-4">
-      <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-        <h4 className="text-xs font-bold text-sky-400 flex items-center gap-1.5 uppercase tracking-wide">
-          <Factory className="h-4 w-4 text-sky-400" />
+    <div className="rounded-xl border border-gray-200 dark:border-sky-500/20 bg-white dark:bg-gray-950/60 p-4 shadow-sm dark:shadow-lg space-y-3 my-4 transition-colors">
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-2">
+        <h4 className="text-xs font-bold text-blue-700 dark:text-sky-400 flex items-center gap-1.5 uppercase tracking-wide font-heading">
+          <Factory className="h-4 w-4 text-blue-600 dark:text-sky-400" />
           <span>{flow.title}</span>
         </h4>
-        <span className="text-[10px] text-gray-400 bg-gray-900 border border-gray-800 px-2 py-0.5 rounded font-mono">
+        <span className="text-[10px] text-slate-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-2 py-0.5 rounded font-mono">
           Sector: {sector}
         </span>
       </div>
@@ -239,35 +239,35 @@ function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorTy
       {/* Desktop & Tablet: Flow 3 cột */}
       <div className="hidden md:grid grid-cols-3 gap-3 text-xs">
         {/* Inputs */}
-        <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2.5 overflow-hidden">
-          <div className="font-bold border-b border-gray-800 pb-1.5 mb-1 uppercase text-[10px] tracking-wider text-sky-400">{flow.inputHeader}</div>
+        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/80 border border-gray-200 dark:border-gray-800 space-y-2.5 overflow-hidden">
+          <div className="font-bold border-b border-gray-200 dark:border-gray-800 pb-1.5 mb-1 uppercase text-[10px] tracking-wider text-blue-700 dark:text-sky-400">{flow.inputHeader}</div>
           {flow.inputItems.map((item, i) => (
             <div key={i} className="space-y-0.5">
-              <div className="text-gray-300 font-medium leading-snug">{item.left}</div>
-              {item.right && <div className="text-sky-400 font-semibold text-[10px]">{item.right}</div>}
+              <div className="text-slate-800 dark:text-gray-300 font-medium leading-snug">{item.left}</div>
+              {item.right && <div className="text-blue-600 dark:text-sky-400 font-semibold text-[10px]">{item.right}</div>}
             </div>
           ))}
         </div>
 
         {/* Process */}
-        <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/25 space-y-2 flex flex-col justify-between overflow-hidden">
+        <div className="p-3 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/25 space-y-2 flex flex-col justify-between overflow-hidden">
           <div>
-            <div className="font-bold text-emerald-400 border-b border-emerald-500/15 pb-1.5 mb-2 uppercase text-[10px] tracking-wider">{flow.processHeader}</div>
-            <div className="font-bold text-gray-100 text-xs mb-1">{flow.processDesc}</div>
-            <p className="text-[11px] text-gray-300 leading-relaxed">{flow.processDetail}</p>
+            <div className="font-bold text-emerald-800 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-500/15 pb-1.5 mb-2 uppercase text-[10px] tracking-wider">{flow.processHeader}</div>
+            <div className="font-bold text-slate-900 dark:text-gray-100 text-xs mb-1 font-heading">{flow.processDesc}</div>
+            <p className="text-[11px] text-slate-700 dark:text-gray-300 leading-relaxed">{flow.processDetail}</p>
           </div>
-          <div className="pt-2 text-[10px] text-emerald-400/80 font-mono text-right font-bold border-t border-emerald-500/10">
+          <div className="pt-2 text-[10px] text-emerald-700 dark:text-emerald-400/80 font-mono text-right font-bold border-t border-emerald-200 dark:border-emerald-500/10">
             ► Tối ưu chi phí &amp; Biên lợi nhuận
           </div>
         </div>
 
         {/* Outputs */}
-        <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2.5 overflow-hidden">
-          <div className="font-bold border-b border-gray-800 pb-1.5 mb-1 uppercase text-[10px] tracking-wider text-purple-400">{flow.outputHeader}</div>
+        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/80 border border-gray-200 dark:border-gray-800 space-y-2.5 overflow-hidden">
+          <div className="font-bold border-b border-gray-200 dark:border-gray-800 pb-1.5 mb-1 uppercase text-[10px] tracking-wider text-purple-700 dark:text-purple-400">{flow.outputHeader}</div>
           {flow.outputItems.map((item, i) => (
             <div key={i} className="space-y-0.5">
-              <div className="text-gray-300 leading-snug">{item.left}</div>
-              {item.right && <div className="text-emerald-400 font-bold text-[10px]">{item.right}</div>}
+              <div className="text-slate-800 dark:text-gray-300 leading-snug">{item.left}</div>
+              {item.right && <div className="text-emerald-700 dark:text-emerald-400 font-bold text-[10px]">{item.right}</div>}
             </div>
           ))}
         </div>
@@ -275,28 +275,28 @@ function SupplyChainFlowchart({ ticker, sectorType }: { ticker: string; sectorTy
 
       {/* Mobile: stack dọc */}
       <div className="md:hidden flex flex-col gap-3 text-xs">
-        <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2">
-          <div className="font-bold border-b border-gray-800 pb-1.5 uppercase text-[10px] tracking-wider text-sky-400">{flow.inputHeader}</div>
+        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/80 border border-gray-200 dark:border-gray-800 space-y-2">
+          <div className="font-bold border-b border-gray-200 dark:border-gray-800 pb-1.5 uppercase text-[10px] tracking-wider text-blue-700 dark:text-sky-400">{flow.inputHeader}</div>
           {flow.inputItems.map((item, i) => (
             <div key={i}>
-              <div className="text-gray-300 font-medium">{item.left}</div>
-              {item.right && <div className="text-gray-500 text-[10px]">{item.right}</div>}
+              <div className="text-slate-800 dark:text-gray-300 font-medium">{item.left}</div>
+              {item.right && <div className="text-slate-500 dark:text-gray-500 text-[10px]">{item.right}</div>}
             </div>
           ))}
         </div>
-        <div className="text-center text-gray-600 text-xl">&#11015;</div>
-        <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/25 space-y-1.5">
-          <div className="font-bold text-emerald-400 border-b border-emerald-500/15 pb-1.5 uppercase text-[10px] tracking-wider">{flow.processHeader}</div>
-          <div className="font-semibold text-gray-200 text-[11px]">{flow.processDesc}</div>
-          <p className="text-[10px] text-gray-400 leading-relaxed">{flow.processDetail}</p>
+        <div className="text-center text-gray-400 dark:text-gray-600 text-xl">&#11015;</div>
+        <div className="p-3 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/25 space-y-1.5">
+          <div className="font-bold text-emerald-800 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-500/15 pb-1.5 uppercase text-[10px] tracking-wider">{flow.processHeader}</div>
+          <div className="font-semibold text-slate-900 dark:text-gray-200 text-[11px] font-heading">{flow.processDesc}</div>
+          <p className="text-[10px] text-slate-700 dark:text-gray-400 leading-relaxed">{flow.processDetail}</p>
         </div>
-        <div className="text-center text-gray-600 text-xl">&#11015;</div>
-        <div className="p-3 rounded-lg bg-gray-900/80 border border-gray-800 space-y-2">
-          <div className="font-bold border-b border-gray-800 pb-1.5 uppercase text-[10px] tracking-wider text-purple-400">{flow.outputHeader}</div>
+        <div className="text-center text-gray-400 dark:text-gray-600 text-xl">&#11015;</div>
+        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/80 border border-gray-200 dark:border-gray-800 space-y-2">
+          <div className="font-bold border-b border-gray-200 dark:border-gray-800 pb-1.5 uppercase text-[10px] tracking-wider text-purple-700 dark:text-purple-400">{flow.outputHeader}</div>
           {flow.outputItems.map((item, i) => (
             <div key={i}>
-              <div className="text-gray-300">{item.left}</div>
-              {item.right && <div className="text-emerald-400 font-bold text-[10px]">{item.right}</div>}
+              <div className="text-slate-800 dark:text-gray-300">{item.left}</div>
+              {item.right && <div className="text-emerald-700 dark:text-emerald-400 font-bold text-[10px]">{item.right}</div>}
             </div>
           ))}
         </div>
@@ -374,26 +374,26 @@ export function ReportViewer({
     const hasYearAndQuarter = yearCols.length > 0 && quarterCols.length > 0;
 
     return (
-      <div key={key} className="overflow-x-auto my-4 border border-gray-800/80 rounded-xl bg-gray-950/20">
-        <table className="min-w-full divide-y divide-gray-850 text-xs">
-          <thead className="bg-[#0b1329]/80">
+      <div key={key} className="overflow-x-auto my-4 border border-gray-200 dark:border-gray-800/80 rounded-xl bg-white dark:bg-gray-950/20 shadow-2xs">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-850 text-xs">
+          <thead className="bg-gray-50 dark:bg-[#0b1329]/80">
             {hasYearAndQuarter && (
-              <tr className="border-b border-gray-800/60 text-[9px] uppercase tracking-wider text-gray-400">
-                <th className="px-4 py-2 text-left font-bold bg-[#070d1a]/50 text-gray-500">Chỉ số kỳ báo cáo</th>
-                <th colSpan={yearCols.length} className="px-4 py-2 text-center font-bold bg-sky-950/15 text-sky-400 border-l border-r border-gray-800/60">
+              <tr className="border-b border-gray-200 dark:border-gray-800/60 text-[9px] uppercase tracking-wider text-slate-600 dark:text-gray-400">
+                <th className="px-4 py-2 text-left font-bold bg-gray-100/80 dark:bg-[#070d1a]/50 text-slate-700 dark:text-gray-400">Chỉ số kỳ báo cáo</th>
+                <th colSpan={yearCols.length} className="px-4 py-2 text-center font-bold bg-blue-50/70 dark:bg-sky-950/15 text-blue-700 dark:text-sky-400 border-l border-r border-gray-200 dark:border-gray-800/60">
                   Dữ liệu theo Năm
                 </th>
-                <th colSpan={quarterCols.length} className="px-4 py-2 text-center font-bold bg-emerald-950/10 text-emerald-400">
+                <th colSpan={quarterCols.length} className="px-4 py-2 text-center font-bold bg-emerald-50/70 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400">
                   Dữ liệu theo Quý (5 Quý gần nhất)
                 </th>
               </tr>
             )}
-            <tr className="border-b border-gray-800/50">
+            <tr className="border-b border-gray-200 dark:border-gray-800/50">
               {headers.map((h, idx) => {
-                let headerColor = "text-gray-300";
+                let headerColor = "text-slate-800 dark:text-gray-300";
                 if (idx > 0) {
-                  if (isYear(h)) headerColor = "text-sky-400 font-semibold";
-                  else if (isQuarter(h)) headerColor = "text-emerald-400 font-semibold";
+                  if (isYear(h)) headerColor = "text-blue-700 dark:text-sky-400 font-bold";
+                  else if (isQuarter(h)) headerColor = "text-emerald-700 dark:text-emerald-400 font-bold";
                 }
                 return (
                   <th
@@ -406,9 +406,9 @@ export function ReportViewer({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800/60 bg-gray-950/5">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-800/60 bg-transparent text-slate-800 dark:text-gray-200">
             {rows.map((row, rIdx) => (
-              <tr key={rIdx} className="hover:bg-gray-800/20 transition">
+              <tr key={rIdx} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/20 transition">
                 {row.map((cell, cIdx) => {
                   const isIndicatorCol = cIdx === 0;
                   const cellText = cell.trim();
@@ -416,16 +416,16 @@ export function ReportViewer({
                   // Nhận diện xem dòng này có phải là chỉ tiêu tăng trưởng không
                   const isGrowthRow = cellText.startsWith('+') || cellText.toLowerCase().includes('tăng trưởng') || cellText.includes('%');
 
-                  let tdClass = "px-4 py-2.5 text-gray-300 whitespace-nowrap";
+                  let tdClass = "px-4 py-2.5 text-slate-800 dark:text-gray-300 whitespace-nowrap";
                   if (isIndicatorCol) {
                     if (isGrowthRow) {
-                      tdClass = "px-4 py-2 text-gray-400/90 italic font-medium whitespace-nowrap pl-6 bg-gray-950/10";
+                      tdClass = "px-4 py-2 text-slate-600 dark:text-gray-400 italic font-medium whitespace-nowrap pl-6 bg-gray-50/40 dark:bg-gray-950/10";
                     } else {
-                      tdClass = "px-4 py-2.5 text-white font-bold whitespace-nowrap bg-[#0b1329]/10";
+                      tdClass = "px-4 py-2.5 text-slate-900 dark:text-white font-bold whitespace-nowrap bg-gray-50/80 dark:bg-[#0b1329]/10";
                     }
                   } else {
                     if (isGrowthRow) {
-                      tdClass = "px-4 py-2 text-gray-355 whitespace-nowrap font-medium";
+                      tdClass = "px-4 py-2 text-slate-700 dark:text-gray-355 whitespace-nowrap font-medium";
                     }
                   }
 
@@ -467,7 +467,7 @@ export function ReportViewer({
         const introText = text.substring(0, firstMatchIndex).trim();
         if (introText) {
           elements.push(
-            <p key={`${keyPrefix}-intro`} className="text-xs text-gray-300 leading-relaxed my-2">
+            <p key={`${keyPrefix}-intro`} className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed my-2">
               {renderInlineStyles(introText)}
             </p>
           );
@@ -488,10 +488,10 @@ export function ReportViewer({
         if (itemText) {
           elements.push(
             <div key={`${keyPrefix}-item-${idx}`} className="my-1.5 flex items-start space-x-2 pl-3">
-              <span className="text-xs font-bold text-sky-400 shrink-0">
+              <span className="text-xs font-bold text-emerald-700 dark:text-sky-400 shrink-0">
                 {letterMarker})
               </span>
-              <div className="text-xs text-gray-200 leading-relaxed flex-1 pt-0.5">
+              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed flex-1 pt-0.5">
                 {renderInlineStyles(itemText)}
               </div>
             </div>
@@ -504,7 +504,7 @@ export function ReportViewer({
 
     // Default regular paragraph
     return (
-      <p key={`${keyPrefix}-p`} className="text-xs text-gray-300 leading-relaxed my-2">
+      <p key={`${keyPrefix}-p`} className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed my-2">
         {renderInlineStyles(text)}
       </p>
     );
@@ -524,18 +524,18 @@ export function ReportViewer({
         return (
           <div key={`${keyPrefix}-bracket-wrapper`} className="my-3 space-y-1.5">
             {/* Block 0: Luận điểm (Subheading in bold, no boxes/borders) */}
-            <div className="text-xs font-bold text-sky-300 mt-2 mb-1">
+            <div className="text-xs font-bold text-emerald-800 dark:text-sky-300 mt-2 mb-1 font-heading">
               {renderInlineStyles(cleanedBlocks[0])}
             </div>
 
             {/* Block 1: Nội dung phân tích chi tiết */}
-            <div className="text-xs text-gray-300 leading-relaxed">
+            <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
               {renderFormattedParagraph(cleanedBlocks[1], `${keyPrefix}-body`)}
             </div>
 
             {/* Block 2 (nếu có): Đánh giá tác động & Kết luận */}
             {cleanedBlocks.length >= 3 && (
-              <div className="text-xs text-gray-300 leading-relaxed mt-1.5 font-medium">
+              <div className="text-xs text-slate-700 dark:text-gray-300 leading-relaxed mt-1.5 font-medium">
                 {renderInlineStyles(cleanedBlocks[2])}
               </div>
             )}
@@ -569,7 +569,7 @@ export function ReportViewer({
           parts.push(
             <pre
               key={`code-${i}`}
-              className="font-mono bg-[#030712] p-4 rounded-xl border border-gray-800 text-sky-400 overflow-x-auto text-[11px] my-3 leading-relaxed"
+              className="font-mono bg-gray-900 dark:bg-[#030712] p-4 rounded-xl border border-gray-200 dark:border-gray-800 text-emerald-400 dark:text-sky-400 overflow-x-auto text-[11px] my-3 leading-relaxed"
             >
               {codeBlockLines.join('\n')}
             </pre>
@@ -621,20 +621,20 @@ export function ReportViewer({
       const trimmed = line.trim();
       if (trimmed.startsWith('###')) {
         parts.push(
-          <h4 key={i} className="text-xs font-bold text-sky-300 mt-4 mb-1.5">
+          <h4 key={i} className="text-xs font-bold text-emerald-800 dark:text-sky-300 mt-4 mb-1.5 font-heading">
             {trimmed.replace('###', '').trim()}
           </h4>
         );
       } else if (trimmed.startsWith('##')) {
         parts.push(
-          <h3 key={i} className="text-sm font-bold text-white mt-5 mb-2">
+          <h3 key={i} className="text-sm font-bold text-slate-900 dark:text-white mt-5 mb-2 font-heading">
             {trimmed.replace('##', '').trim()}
           </h3>
         );
       } else if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
         const bulletText = trimmed.substring(1).trim();
         parts.push(
-          <div key={i} className="my-1.5 text-xs text-gray-300 leading-relaxed">
+          <div key={i} className="my-1.5 text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
             {renderBracketOrStructuredBlock(bulletText, `bullet-${i}`)}
           </div>
         );
@@ -648,8 +648,8 @@ export function ReportViewer({
 
           if (!isYearNum) {
             parts.push(
-              <div key={i} className="my-2 text-xs text-gray-200 leading-relaxed">
-                <span className="font-bold text-sky-300 mr-1.5">{num}.</span>
+              <div key={i} className="my-2 text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
+                <span className="font-bold text-emerald-700 dark:text-sky-300 mr-1.5">{num}.</span>
                 {renderBracketOrStructuredBlock(content, `numitem-${i}`)}
               </div>
             );
@@ -677,7 +677,7 @@ export function ReportViewer({
     // Tăng trưởng dương bắt đầu bằng dấu '+' và kết thúc bằng '%' (ví dụ: +15.0% hoặc +44.2%)
     if (cleanText.startsWith('+') && cleanText.endsWith('%')) {
       return (
-        <span className="text-emerald-400 font-semibold tabular-nums">
+        <span className="text-emerald-600 dark:text-emerald-400 font-bold tabular-nums">
           {cleanText}
         </span>
       );
@@ -685,7 +685,7 @@ export function ReportViewer({
     // Tăng trưởng âm bắt đầu bằng dấu '-' và kết thúc bằng '%' (ví dụ: -8.3%)
     if (cleanText.startsWith('-') && cleanText.endsWith('%')) {
       return (
-        <span className="text-red-400 font-semibold tabular-nums">
+        <span className="text-rose-600 dark:text-red-400 font-bold tabular-nums">
           {cleanText}
         </span>
       );
@@ -707,7 +707,7 @@ export function ReportViewer({
           parts.push(str.substring(last, match.index));
         }
         parts.push(
-          <em key={`${baseKey}-it-${match.index}`} className="italic text-gray-400 not-italic style-italic">
+          <em key={`${baseKey}-it-${match.index}`} className="italic text-slate-600 dark:text-gray-400 not-italic style-italic">
             {match[1]}
           </em>
         );
@@ -732,7 +732,7 @@ export function ReportViewer({
         }
       }
       processedText.push(
-        <strong key={`bold-${boldMatch.index}`} className="font-bold text-white">
+        <strong key={`bold-${boldMatch.index}`} className="font-bold text-slate-950 dark:text-white">
           {boldMatch[1]}
         </strong>
       );
@@ -1056,12 +1056,12 @@ export function ReportViewer({
       </div>
 
       {/* Navigation Tabs for A, B, C, D (Screen view only) */}
-      <div className="mt-4 flex flex-wrap gap-2 border-b border-gray-800 pb-3 print:hidden">
+      <div className="mt-4 flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800 pb-3 print:hidden">
         <button
           onClick={() => setActiveTab('A')}
           className={`flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === 'A'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
-              : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Building2 className="h-4 w-4" />
@@ -1071,8 +1071,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('B')}
           className={`flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === 'B'
-              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-              : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Factory className="h-4 w-4" />
@@ -1082,8 +1082,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('C')}
           className={`flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === 'C'
-              ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
-              : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/25'
+              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <LineChart className="h-4 w-4" />
@@ -1093,8 +1093,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('D')}
           className={`flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === 'D'
-              ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/25'
-              : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+              ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25'
+              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Target className="h-4 w-4" />
@@ -1115,10 +1115,10 @@ export function ReportViewer({
                 rows={6}
                 value={secA.historyAndOverview}
                 onChange={(e) => setSecA({ ...secA, historyAndOverview: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
-              <div className="text-xs text-gray-300 leading-relaxed animate-fade-in">
+              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed animate-fade-in">
                 {renderMarkdown(secA.historyAndOverview)}
               </div>
             )}
@@ -1130,10 +1130,10 @@ export function ReportViewer({
                 rows={4}
                 value={secA.shareholdersAndManagement}
                 onChange={(e) => setSecA({ ...secA, shareholdersAndManagement: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
-              <div className="text-xs text-gray-300 leading-relaxed">
+              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                 {renderMarkdown(secA.shareholdersAndManagement)}
               </div>
             )}
@@ -1145,10 +1145,10 @@ export function ReportViewer({
                 rows={4}
                 value={secA.subsidiariesAndAffiliates}
                 onChange={(e) => setSecA({ ...secA, subsidiariesAndAffiliates: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
-              <div className="text-xs text-gray-300 leading-relaxed">
+              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                 {renderMarkdown(secA.subsidiariesAndAffiliates)}
               </div>
             )}
@@ -1168,10 +1168,10 @@ export function ReportViewer({
                 rows={5}
                 value={secB.valueChainInput}
                 onChange={(e) => setSecB({ ...secB, valueChainInput: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
-              <div className="text-xs text-gray-300 leading-relaxed">
+              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                 {renderMarkdown(secB.valueChainInput)}
               </div>
             )}
@@ -1183,10 +1183,10 @@ export function ReportViewer({
                 rows={5}
                 value={secB.valueChainProduction}
                 onChange={(e) => setSecB({ ...secB, valueChainProduction: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
-              <div className="text-xs text-gray-300 leading-relaxed">
+              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                 {renderMarkdown(secB.valueChainProduction)}
               </div>
             )}
@@ -1199,17 +1199,17 @@ export function ReportViewer({
                 rows={5}
                 value={secB.valueChainOutput}
                 onChange={(e) => setSecB({ ...secB, valueChainOutput: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
               <div className="space-y-4">
-                <div className="text-xs text-gray-300 leading-relaxed">
+                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                   {renderMarkdown(secB.valueChainOutput)}
                 </div>
 
                 {/* Pie Chart nhúng ngay dưới phân tích đầu ra */}
-                <div className="border-t border-gray-800 pt-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3 flex items-center gap-1.5">
+                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-1.5 font-heading">
                     <BarChart2 className="h-4 w-4" />
                     Biểu đồ Cơ cấu Doanh thu Đầu ra (%)
                   </h4>
@@ -1222,7 +1222,7 @@ export function ReportViewer({
                             className="inline-block h-3 w-3 rounded-full shrink-0"
                             style={{ backgroundColor: entry.color }}
                           />
-                          <span className="text-xs text-gray-300 flex-1">{entry.name}</span>
+                          <span className="text-xs text-slate-800 dark:text-gray-300 flex-1 font-medium">{entry.name}</span>
                           <span
                             className="text-xs font-bold tabular-nums"
                             style={{ color: entry.color }}
@@ -1255,23 +1255,23 @@ export function ReportViewer({
                                   <text
                                     x={x}
                                     y={y}
-                                    fill="#9ca3af"
+                                    fill="#64748B"
                                     textAnchor={x > cx ? 'start' : 'end'}
                                     dominantBaseline="central"
-                                    style={{ fontSize: '10px', fontWeight: '600' }}
+                                    style={{ fontSize: '10px', fontWeight: '700' }}
                                   >
                                     {`${value}%`}
                                   </text>
                                 );
                               }}
-                              labelLine={{ stroke: '#4b5563', strokeWidth: 1 }}
+                              labelLine={{ stroke: '#94A3B8', strokeWidth: 1 }}
                             >
                               {getProductMixData(report.ticker).map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                               ))}
                             </Pie>
                             <Tooltip
-                              contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151' }}
+                              contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
                               itemStyle={{ color: '#fff', fontSize: '11px' }}
                               formatter={(value: number, name: string) => [`${value}%`, name]}
                             />
@@ -1279,7 +1279,7 @@ export function ReportViewer({
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-52 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                      <div className="h-52 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
                     )}
                   </div>
                 </div>
@@ -1300,90 +1300,90 @@ export function ReportViewer({
                 rows={5}
                 value={secC.revenueHistory3Years}
                 onChange={(e) => setSecC({ ...secC, revenueHistory3Years: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
               <div className="space-y-4">
-                <div className="text-xs text-gray-300 leading-relaxed">
+                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                   {renderMarkdown(secC.revenueHistory3Years)}
                 </div>
 
                 {/* Tách thành 2 biểu đồ riêng biệt: Biểu đồ Năm và Biểu đồ Quý */}
-                <div className="border-t border-gray-800 pt-4 space-y-6">
+                <div className="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-6">
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     {/* Biểu đồ 1: Dữ liệu năm */}
-                    <div className="bg-gray-950/20 p-4 rounded-xl border border-gray-800/60">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5">
-                        <BarChart2 className="h-4 w-4 text-sky-400" />
+                    <div className="bg-gray-50 dark:bg-gray-950/20 p-4 rounded-xl border border-gray-200 dark:border-gray-800/60 shadow-2xs">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-1.5 font-heading">
+                        <BarChart2 className="h-4 w-4 text-blue-600 dark:text-sky-400" />
                         Doanh thu & Lợi nhuận qua các năm (Tỷ VNĐ)
                       </h4>
                       {isMounted ? (
                         <div className="h-64 w-full">
                           <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={getFinancialsAnnualData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                              <XAxis dataKey="period" stroke="#9ca3af" style={{ fontSize: '10px' }} />
-                              <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '10px' }} />
-                              <YAxis yAxisId="right" orientation="right" stroke="#a855f7" style={{ fontSize: '10px' }} />
+                              <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
+                              <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="right" orientation="right" stroke="#9333EA" style={{ fontSize: '10px' }} />
                               <Tooltip
-                                contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151' }}
+                                contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
                                 itemStyle={{ color: '#fff', fontSize: '11px' }}
                               />
                               <Legend
                                 iconSize={8}
-                                formatter={(value) => <span className="text-[10px] text-gray-300 font-medium">{value}</span>}
+                                formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
                               />
-                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={24}>
-                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#38bdf8', fontSize: '9px', fontWeight: 'bold' }} />
+                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={24}>
+                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
                               </Bar>
-                              <Bar dataKey="LNST" yAxisId="left" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24}>
-                                <LabelList dataKey="LNST" position="top" style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }} />
+                              <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={24}>
+                                <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
                               </Bar>
-                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#f59e0b" strokeWidth={2} activeDot={{ r: 4 }} />
-                              <Line dataKey="ROE (%)" yAxisId="right" type="monotone" stroke="#a855f7" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="ROE (%)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
                             </ComposedChart>
                           </ResponsiveContainer>
                         </div>
                       ) : (
-                        <div className="h-64 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                        <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
                       )}
                     </div>
 
                     {/* Biểu đồ 2: Dữ liệu quý */}
-                    <div className="bg-gray-950/20 p-4 rounded-xl border border-gray-800/60">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5">
-                        <BarChart2 className="h-4 w-4 text-emerald-400" />
+                    <div className="bg-gray-50 dark:bg-gray-950/20 p-4 rounded-xl border border-gray-200 dark:border-gray-800/60 shadow-2xs">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-1.5 font-heading">
+                        <BarChart2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                         Doanh thu & Lợi nhuận 4 quý gần nhất (Tỷ VNĐ)
                       </h4>
                       {isMounted ? (
                         <div className="h-64 w-full">
                           <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={getFinancialsQuarterlyData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                              <XAxis dataKey="period" stroke="#9ca3af" style={{ fontSize: '10px' }} />
-                              <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '10px' }} />
-                              <YAxis yAxisId="right" orientation="right" stroke="#a855f7" style={{ fontSize: '10px' }} />
+                              <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
+                              <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="right" orientation="right" stroke="#9333EA" style={{ fontSize: '10px' }} />
                               <Tooltip
-                                contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151' }}
+                                contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
                                 itemStyle={{ color: '#fff', fontSize: '11px' }}
                               />
                               <Legend
                                 iconSize={8}
-                                formatter={(value) => <span className="text-[10px] text-gray-300 font-medium">{value}</span>}
+                                formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
                               />
-                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={24}>
-                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#38bdf8', fontSize: '9px', fontWeight: 'bold' }} />
+                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={24}>
+                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
                               </Bar>
-                              <Bar dataKey="LNST" yAxisId="left" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24}>
-                                <LabelList dataKey="LNST" position="top" style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }} />
+                              <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={24}>
+                                <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
                               </Bar>
-                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#f59e0b" strokeWidth={2} activeDot={{ r: 4 }} />
-                              <Line dataKey="ROE (%)" yAxisId="right" type="monotone" stroke="#a855f7" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="ROE (%)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
                             </ComposedChart>
                           </ResponsiveContainer>
                         </div>
                       ) : (
-                        <div className="h-64 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                        <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
                       )}
                     </div>
                   </div>
@@ -1399,10 +1399,10 @@ export function ReportViewer({
                 rows={5}
                 value={secC.profitabilityMargins}
                 onChange={(e) => setSecC({ ...secC, profitabilityMargins: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
-              <div className="text-xs text-gray-300 leading-relaxed">
+              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                 {renderMarkdown(secC.profitabilityMargins)}
               </div>
             )}
@@ -1415,42 +1415,42 @@ export function ReportViewer({
                 rows={5}
                 value={secC.financialHealthAndDebt}
                 onChange={(e) => setSecC({ ...secC, financialHealthAndDebt: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
               <div className="space-y-4">
-                <div className="text-xs text-gray-300 leading-relaxed">
+                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                   {renderMarkdown(secC.financialHealthAndDebt)}
                 </div>
 
                 {/* Biểu đồ Cơ cấu nợ nhúng trực tiếp */}
-                <div className="border-t border-gray-800 pt-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5">
-                    <BarChart2 className="h-4 w-4 text-emerald-400" />
+                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-1.5 font-heading">
+                    <BarChart2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     Biểu đồ Cơ cấu Nợ Vay & Vốn Chủ Sở Hữu (Tỷ VNĐ)
                   </h4>
                   {isMounted ? (
                     <div className="h-56 w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={getDebtEquityData(report.ticker)} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                          <XAxis dataKey="name" stroke="#9ca3af" style={{ fontSize: '10px', fontWeight: '500' }} />
-                          <YAxis stroke="#9ca3af" style={{ fontSize: '10px' }} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
+                          <XAxis dataKey="name" stroke="#64748B" style={{ fontSize: '10px', fontWeight: '600' }} />
+                          <YAxis stroke="#64748B" style={{ fontSize: '10px' }} />
                           <Tooltip
-                            contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151' }}
+                            contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
                             itemStyle={{ color: '#fff', fontSize: '11px' }}
                           />
-                          <Bar dataKey="value" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={40}>
+                          <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={40}>
                             {getDebtEquityData(report.ticker).map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
-                            <LabelList dataKey="value" position="top" style={{ fill: '#e5e7eb', fontSize: '10px', fontWeight: 'bold' }} />
+                            <LabelList dataKey="value" position="top" style={{ fill: '#334155', fontSize: '10px', fontWeight: 'bold' }} />
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <div className="h-56 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                    <div className="h-56 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
                   )}
                 </div>
               </div>
@@ -1469,10 +1469,10 @@ export function ReportViewer({
                 rows={6}
                 value={secDGrowth}
                 onChange={(e) => setSecDGrowth(e.target.value)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-white focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
-              <div className="text-xs text-gray-300 leading-relaxed">
+              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                 {renderMarkdown(secDGrowth)}
               </div>
             )}
@@ -1480,11 +1480,11 @@ export function ReportViewer({
 
           <SectionCard title="2. Luận điểm ước lượng KQKD & Bộ tính toán định giá" isEditing={false}>
             <div className="space-y-6">
-              <div className="text-xs text-gray-300 leading-relaxed">
+              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
                 {renderMarkdown(report.sectionD.quarterlyForecastReasoning)}
               </div>
 
-              <div className="border-t border-gray-800 pt-5">
+              <div className="border-t border-gray-200 dark:border-gray-800 pt-5">
                 <ValuationCalculator
                   valuation={report.sectionD.valuation}
                   currentPrice={report.marketData.currentPrice}
@@ -1505,9 +1505,9 @@ export function ReportViewer({
               </div>
 
               {/* 2 Biểu đồ Dự phóng độc lập (Năm và Quý) hiển thị đầy đủ tiêu chí */}
-              <div className="border-t border-gray-800 pt-5 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-2 flex items-center gap-1.5">
-                  <BarChart2 className="h-4 w-4 text-sky-400" />
+              <div className="border-t border-gray-200 dark:border-gray-800 pt-5 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-2 flex items-center gap-1.5 font-heading">
+                  <BarChart2 className="h-4 w-4 text-blue-600 dark:text-sky-400" />
                   Biểu đồ Dự phóng Tài chính & Chỉ số Định giá (2026 - 2027)
                 </h4>
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
