@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Building2, ChevronRight, Sparkles } from 'lucide-react';
+import { Search, Building2, ChevronRight } from 'lucide-react';
 import { POPULAR_STOCKS } from '@/lib/stock-data';
 import { StockMarketData } from '@/types/analysis';
 
@@ -11,15 +11,7 @@ interface StockSelectorProps {
 }
 
 export function StockSelector({ selectedStock, onSelectStock }: StockSelectorProps) {
-  const [searchTerm, setSearchTerm] = useState('');
   const [customInput, setCustomInput] = useState('');
-
-  const filtered = POPULAR_STOCKS.filter(
-    (s) =>
-      s.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.industry.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const handleCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,10 +43,10 @@ export function StockSelector({ selectedStock, onSelectStock }: StockSelectorPro
     <div className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Building2 className="h-5 w-5 text-sky-400" />
+          <Building2 className="h-5 w-5 text-emerald-400" />
           <h2 className="text-base font-semibold text-white">Chọn Mã Cổ Phiếu Phân Tích</h2>
         </div>
-        <span className="rounded-full bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-400">
+        <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
           HOSE / HNX / UPCoM
         </span>
       </div>
@@ -69,7 +61,7 @@ export function StockSelector({ selectedStock, onSelectStock }: StockSelectorPro
               onClick={() => onSelectStock(stock)}
               className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                 isSelected
-                  ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30'
+                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
                   : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
             >
@@ -89,13 +81,13 @@ export function StockSelector({ selectedStock, onSelectStock }: StockSelectorPro
             value={customInput}
             onChange={(e) => setCustomInput(e.target.value)}
             placeholder="Nhập mã chứng khoán khác (Ví dụ: VHM, TCB, DGC...)"
-            className="w-full rounded-xl border border-gray-700 bg-gray-900/80 py-2.5 pl-9 pr-4 text-xs font-medium text-white placeholder-gray-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            className="w-full rounded-xl border border-gray-700 bg-gray-900/80 py-2.5 pl-9 pr-4 text-xs font-medium text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
         <button
           type="submit"
           disabled={!customInput.trim()}
-          className="flex items-center space-x-1 rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-sky-400 disabled:opacity-50 disabled:hover:bg-sky-500"
+          className="flex items-center space-x-1 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 shadow-md shadow-emerald-500/20"
         >
           <span>Tạo Mã</span>
           <ChevronRight className="h-4 w-4" />

@@ -1,40 +1,42 @@
 import React from 'react';
-import { TrendingUp, FileText, Sparkles, ShieldCheck } from 'lucide-react';
+import Image from 'next/image';
+import { FileText, ShieldCheck, Sparkles } from 'lucide-react';
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-800 bg-[#0B0F19]/90 backdrop-blur-md print:hidden">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
-        <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-500 shadow-lg shadow-sky-500/20">
-            <TrendingUp className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
-                Quantum Stock AI
-              </h1>
-              <span className="inline-flex items-center rounded-md bg-sky-500/10 px-2 py-0.5 text-xs font-semibold text-sky-400 border border-sky-500/20">
-                PRO 1.5
-              </span>
+    <header className="sticky top-0 z-50 border-b border-gray-800/80 bg-[#0B0F19]/90 backdrop-blur-md print:hidden">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+        <div className="flex items-center space-x-3.5">
+          {/* Official ValueX Logo */}
+          <div className="flex items-center space-x-3">
+            <div className="relative h-10 w-40 sm:h-11 sm:w-44">
+              <Image
+                src="/brand/logo/logo-full-dark.svg"
+                alt="ValueX Logo"
+                fill
+                priority
+                className="object-contain object-left"
+              />
             </div>
-            <p className="text-xs text-gray-400 hidden sm:block">
-              Hệ thống Phân tích Đầu tư Chứng khoán Tự động theo Quy trình chuẩn
+            <div className="hidden h-6 w-px bg-gray-800 md:block" />
+            <p className="hidden text-xs text-gray-400 font-medium md:block">
+              Đồng hành bứt phá giá trị - Đầu tư bền vững
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="hidden items-center space-x-2 text-xs text-gray-400 md:flex">
-            <ShieldCheck className="h-4 w-4 text-emerald-400" />
-            <span>Gemini Long-Context AI Active</span>
+        <div className="flex items-center space-x-3.5">
+          <div className="hidden items-center space-x-1.5 rounded-full bg-emerald-950/40 border border-emerald-500/20 px-3 py-1 text-xs text-emerald-400 lg:flex">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>AI Valuation Engine</span>
           </div>
+
           <a
             href="#analysis-guide"
-            className="flex items-center space-x-1.5 rounded-lg border border-gray-700 bg-gray-800/80 px-3 py-1.5 text-xs font-medium text-gray-200 transition hover:bg-gray-700 hover:text-white"
+            className="flex items-center space-x-1.5 rounded-lg border border-gray-700/80 bg-gray-800/70 px-3.5 py-1.5 text-xs font-medium text-gray-200 transition hover:bg-gray-700 hover:border-emerald-500/40 hover:text-emerald-300"
           >
-            <FileText className="h-3.5 w-3.5 text-sky-400" />
-            <span>Mẫu Quy Trình</span>
+            <FileText className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Quy trình chuẩn</span>
           </a>
         </div>
       </div>

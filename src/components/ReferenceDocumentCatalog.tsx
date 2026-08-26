@@ -189,26 +189,26 @@ export function ReferenceDocumentCatalog({
   const countSelected = Object.values(selectedUrls).filter(Boolean).length;
 
   return (
-    <div className="rounded-2xl border border-sky-500/20 bg-[#111827] p-4 shadow-xl space-y-3">
+    <div className="rounded-2xl border border-emerald-500/20 bg-[#111827] p-4 shadow-xl space-y-3">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800 pb-3">
         <div className="flex items-center space-x-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400 shrink-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0">
             <Building2 className="h-4 w-4" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h3 className="text-xs font-bold text-white">
+              <h3 className="text-xs font-bold text-white font-heading">
                 Tài Liệu Tham Khảo Tự Động ({ticker})
               </h3>
-              <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-400 border border-sky-500/30">
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/30">
                 {countSelected} Đã Chọn
               </span>
             </div>
             <p className="text-[11px] text-gray-400">
               Tổng hợp link tải chuẩn từ <span className="text-amber-400 font-medium">cafef.vn</span>,{' '}
               <span className="text-emerald-400 font-medium">vietstock.vn</span> &amp;{' '}
-              <span className="text-purple-400 font-medium">simplize.vn</span>
+              <span className="text-blue-400 font-medium">simplize.vn</span>
             </p>
           </div>
         </div>
@@ -448,15 +448,15 @@ export function ReferenceDocumentCatalog({
           </div>
 
           {/* Action Footer CTA */}
-          <div className="flex flex-col sm:flex-row items-center justify-between rounded-xl bg-gradient-to-r from-sky-950/60 to-emerald-950/60 border border-sky-500/30 p-3 gap-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between rounded-xl bg-gradient-to-r from-emerald-950/60 to-gray-900 border border-emerald-500/30 p-3 gap-2">
             <div className="text-xs text-gray-300">
-              Đã chọn <span className="font-bold text-sky-400">{countSelected}</span> tài liệu tham khảo từ Cafef / Vietstock / Simplize.
+              Đã chọn <span className="font-bold text-emerald-400">{countSelected}</span> tài liệu tham khảo từ Cafef / Vietstock / Simplize.
             </div>
 
             <button
               onClick={handleApplyToAnalysis}
               disabled={countSelected === 0 || isDownloading}
-              className="w-full sm:w-auto flex items-center justify-center space-x-2 rounded-xl bg-gray-900 border border-sky-500/40 hover:bg-sky-950 px-4 py-2 text-xs font-bold text-sky-300 transition disabled:opacity-50"
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white transition disabled:opacity-50 shadow-md shadow-emerald-600/20"
             >
               <Sparkles className={`h-4 w-4 ${isDownloading ? 'animate-spin' : ''}`} />
               <span>{isDownloading ? downloadProgress : `📥 Nạp ${countSelected} tài liệu vào danh sách phân tích`}</span>

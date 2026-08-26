@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 120" width="500" height="120" fill="none" opacity="0.35">
+  <defs>
+    <style>
+      .wm-brand {
+        font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+        font-weight: 800;
+        font-size: 42px;
+        letter-spacing: -1px;
+      }
+      .wm-sub {
+        font-family: 'Inter', -apple-system, sans-serif;
+        font-weight: 600;
+        font-size: 16px;
+        letter-spacing: 2px;
+      }
+    </style>
+  </defs>
+
+  <!-- ValueX Icon Symbol -->
+  <g transform="translate(15, 15)">
+    <path
+      d="M15 15 L32 68 L42 68 L58 42"
+      stroke="#64748B"
+      stroke-width="11"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M28 68 L68 15 M68 15 H50 M68 15 V33"
+      stroke="#10B981"
+      stroke-width="11"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+
+  <!-- Logotype ValueX & Watermark text -->
+  <text x="105" y="60" class="wm-brand" fill="#64748B">
+    Value<tspan fill="#10B981">X</tspan>
+  </text>
+  <text x="108" y="88" class="wm-sub" fill="#94A3B8">
+    BẢN QUYỀN PHÂN TÍCH &amp; TƯ VẤN ĐẦU TƯ
+  </text>
+</svg>

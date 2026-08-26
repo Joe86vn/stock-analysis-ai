@@ -310,22 +310,22 @@ export function ValuationCalculator({
   const upsideBear = currentPrice > 0 ? Math.round(((priceBear - currentPrice) / currentPrice) * 100) : 0;
 
   const chartData = [
-    { name: 'Giá Hiện Tại', price: currentPrice, color: '#6B7280' },
+    { name: 'Giá Hiện Tại', price: currentPrice, color: '#64748B' },
     { name: 'Thận Trọng (Bear)', price: priceBear, color: '#EF4444' },
-    { name: 'Cơ Sở (Base)', price: priceBase, color: '#0EA5E9' },
+    { name: 'Cơ Sở (Base)', price: priceBase, color: '#3B82F6' },
     { name: 'Tích Cực (Bull)', price: priceBull, color: '#10B981' },
   ];
 
   return (
-    <div className="rounded-2xl border border-gray-800/80 bg-[#0b1329]/90 p-5 shadow-xl space-y-5">
+    <div className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl space-y-5">
       {/* Title Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800/80 pb-3 gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-3 gap-2">
         <div className="flex items-center space-x-2">
-          <Calculator className="h-5 w-5 text-sky-400" />
-          <h2 className="text-sm font-bold text-white">
+          <Calculator className="h-5 w-5 text-emerald-400" />
+          <h2 className="text-sm font-bold text-white font-heading">
             Bộ Tính Toán Định Giá 3 Kịch Bản
           </h2>
-          <span className="rounded-full bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-bold text-sky-400 border border-sky-500/30">
+          <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
             {ticker}
           </span>
         </div>
@@ -338,7 +338,7 @@ export function ValuationCalculator({
             onClick={() => setSelectedYear(year1.toString())}
             className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
               selectedYear === year1.toString()
-                ? 'bg-sky-500 text-white shadow-md'
+                ? 'bg-emerald-500 text-white shadow-md'
                 : 'text-gray-400 hover:text-white'
             }`}
           >

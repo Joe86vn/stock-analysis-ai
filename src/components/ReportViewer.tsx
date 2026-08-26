@@ -977,14 +977,40 @@ export function ReportViewer({
   };
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl">
+    <div className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl relative overflow-hidden">
+      {/* Background Watermark for Report Screen View */}
+      <div
+        className="pointer-events-none absolute right-4 top-16 h-64 w-64 opacity-[0.03] select-none print:hidden"
+        style={{
+          backgroundImage: 'url(/brand/logo/logo-watermark.svg)',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center',
+          backgroundSize: 'contain',
+        }}
+      />
+
       {/* Print-only Header (Appears when saving PDF or printing) */}
       <div className="hidden print:block mb-8 pb-4 border-b-2 border-slate-900 text-slate-900">
-        <h1 className="text-xl font-bold uppercase tracking-tight text-slate-900">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+          <div>
+            <div className="text-2xl font-black tracking-tight text-slate-900">
+              VALUEX <span className="text-emerald-600 font-bold">RESEARCH</span>
+            </div>
+            <p className="text-[10px] text-slate-500 font-medium italic">
+              Đồng hành bứt phá giá trị - Đầu tư bền vững
+            </p>
+          </div>
+          <div className="text-right text-[11px] text-slate-600">
+            <div>Ngày lập báo cáo: <strong>{report.createdDate}</strong></div>
+            <div>Bản quyền: <strong>valuex.vn</strong></div>
+          </div>
+        </div>
+
+        <h1 className="text-xl font-black uppercase tracking-tight text-slate-900 mt-4">
           BÁO CÁO PHÂN TÍCH ĐẦU TƯ CHỨNG KHOÁN: {report.ticker} ({report.companyName})
         </h1>
         <p className="text-xs text-slate-600 mt-1 font-medium">
-          Ngành: {report.marketData.industry} | Giá hiện tại: {report.marketData.currentPrice.toLocaleString('vi-VN')} VNĐ | Ngày lập: {report.createdDate}
+          Ngành: {report.marketData.industry} | Giá hiện tại: {report.marketData.currentPrice.toLocaleString('vi-VN')} VNĐ | Phương pháp: Bottom-Up 4 Bước
         </p>
       </div>
 
@@ -992,8 +1018,8 @@ export function ReportViewer({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-4 gap-3 print:hidden">
         <div className="flex items-center space-x-2">
           <FileText className="h-5 w-5 text-emerald-400" />
-          <h2 className="text-base font-semibold text-white">
-            Báo Cáo Phân Tích Chi Tiết theo Mẫu (`analysis-guide.md`)
+          <h2 className="text-base font-semibold text-white font-heading">
+            Báo Cáo Phân Tích Chuyên Sâu ValueX
           </h2>
         </div>
 
@@ -1009,9 +1035,9 @@ export function ReportViewer({
           ) : (
             <button
               onClick={() => setIsEditing(true)}
-              className="flex items-center space-x-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-200 hover:bg-gray-700 hover:text-white transition"
+              className="flex items-center space-x-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-200 hover:bg-gray-700 hover:border-emerald-500/40 hover:text-emerald-300 transition"
             >
-              <Edit3 className="h-4 w-4 text-sky-400" />
+              <Edit3 className="h-4 w-4 text-emerald-400" />
               <span>Chỉnh Sửa Văn Bản</span>
             </button>
           )}
@@ -1019,10 +1045,10 @@ export function ReportViewer({
       </div>
 
       {/* AI Model Indicator Bar */}
-      <div className="mt-3 flex flex-col sm:flex-row items-center justify-between rounded-xl border border-sky-500/30 bg-sky-950/20 px-4 py-2.5 gap-3 print:hidden">
+      <div className="mt-3 flex flex-col sm:flex-row items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-950/20 px-4 py-2.5 gap-3 print:hidden">
         <div className="flex items-center space-x-2 text-xs">
-          <Cpu className="h-4 w-4 text-sky-400 shrink-0 animate-pulse" />
-          <span className="text-gray-400 font-medium">Model AI Phân Tích Cố Định:</span>
+          <Cpu className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
+          <span className="text-gray-400 font-medium">Model AI Phân Tích:</span>
           <span className="font-extrabold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-lg shadow-sm">
             {report.generationModel || 'gemini-3.6-flash'}
           </span>
@@ -1034,7 +1060,7 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('A')}
           className={`flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === 'A'
-              ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/25'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
               : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
             }`}
         >

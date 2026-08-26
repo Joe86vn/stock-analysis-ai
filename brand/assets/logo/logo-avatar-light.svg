@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
+  <defs>
+    <radialGradient id="avatarBgLight" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F1F5F9"/>
+    </radialGradient>
+    <linearGradient id="bullishGlowLight" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="100" fill="url(#avatarBgLight)"/>
+  <rect width="504" height="504" x="4" y="4" rx="96" stroke="#E2E8F0" stroke-width="2"/>
+
+  <!-- ValueX Centered Icon Symbol -->
+  <g transform="translate(106, 106)">
+    <!-- Branch of V & solid base of X (Slate 900) -->
+    <path
+      d="M60 60 L120 240 L150 240 L195 150"
+      stroke="#0F172A"
+      stroke-width="36"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <!-- Growth branch of X (Bullish Green Arrow) -->
+    <path
+      d="M105 240 L225 60 M225 60 H165 M225 60 V120"
+      stroke="url(#bullishGlowLight)"
+      stroke-width="36"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

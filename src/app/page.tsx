@@ -195,22 +195,22 @@ export default function Home() {
         </div>
 
         {/* AI Trigger Action Bar */}
-        <div className="flex flex-col lg:flex-row items-center justify-between rounded-2xl border border-sky-500/20 bg-gradient-to-r from-sky-950/40 via-gray-900 to-emerald-950/40 p-4 shadow-xl gap-4 print:hidden">
+        <div className="flex flex-col lg:flex-row items-center justify-between rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/40 via-gray-900 to-[#111827] p-4 shadow-xl gap-4 print:hidden">
           <div className="flex items-center space-x-3 w-full lg:w-auto">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 text-sky-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
               <Sparkles className={`h-5 w-5 ${isGenerating ? 'animate-spin' : 'animate-pulse'}`} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>Google AI Studio:</span>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-heading">
+                <span>ValueX AI Engine:</span>
                 <span className="text-emerald-400 font-extrabold">
                   {report?.generationModel || 'gemini-3.6-flash'}
                 </span>
               </h3>
               <p className="text-xs text-gray-400">
                 {isGenerating
-                  ? <span className="text-sky-300 font-semibold animate-pulse">{generatingMsg}</span>
-                  : <>Lập báo cáo 4 phần A-B-C-D cho <span className="font-bold text-sky-400">{selectedStock.ticker}</span></>
+                  ? <span className="text-emerald-300 font-semibold animate-pulse">{generatingMsg}</span>
+                  : <>Lập báo cáo 4 phần A-B-C-D cho <span className="font-bold text-emerald-400">{selectedStock.ticker}</span></>
                 }
               </p>
             </div>
@@ -218,9 +218,9 @@ export default function Home() {
 
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
             {/* Fixed Model Badge */}
-            <div className="flex items-center space-x-2 bg-gray-950/80 border border-sky-500/30 rounded-xl px-3.5 py-2 shadow-inner">
-              <Cpu className="h-4 w-4 text-sky-400" />
-              <span className="text-xs font-bold text-sky-300">
+            <div className="flex items-center space-x-2 bg-gray-950/80 border border-emerald-500/30 rounded-xl px-3.5 py-2 shadow-inner">
+              <Cpu className="h-4 w-4 text-emerald-400" />
+              <span className="text-xs font-bold text-emerald-300">
                 ⚡ Gemini 3.6 Flash (Cố định)
               </span>
             </div>
@@ -228,7 +228,7 @@ export default function Home() {
             <button
               onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current)}
               disabled={isGenerating}
-              className="flex items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-sky-500 via-emerald-500 to-teal-500 px-6 py-2.5 text-xs font-extrabold text-white shadow-xl shadow-sky-500/25 hover:from-sky-400 hover:to-teal-400 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 text-xs font-extrabold text-white shadow-xl shadow-emerald-600/25 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
               <span>
