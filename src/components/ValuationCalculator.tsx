@@ -317,29 +317,29 @@ export function ValuationCalculator({
   ];
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl space-y-5">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-xl space-y-5 transition-colors duration-200">
       {/* Title Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-3 gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3 gap-2">
         <div className="flex items-center space-x-2">
-          <Calculator className="h-5 w-5 text-emerald-400" />
-          <h2 className="text-sm font-bold text-white font-heading">
+          <Calculator className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white font-heading">
             Bộ Tính Toán Định Giá 3 Kịch Bản
           </h2>
-          <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+          <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30">
             {ticker}
           </span>
         </div>
 
         {/* Year Toggle Switch */}
-        <div className="flex items-center space-x-2 bg-gray-950/60 p-1 rounded-xl border border-gray-800 self-start sm:self-auto">
-          <span className="text-[11px] text-gray-400 px-2 font-medium">Năm Định Giá:</span>
+        <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-950/60 p-1 rounded-xl border border-gray-200 dark:border-gray-800 self-start sm:self-auto">
+          <span className="text-[11px] text-slate-500 dark:text-gray-400 px-2 font-medium">Năm Định Giá:</span>
           <button
             type="button"
             onClick={() => setSelectedYear(year1.toString())}
             className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
               selectedYear === year1.toString()
-                ? 'bg-emerald-500 text-white shadow-md'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Năm {year1}
@@ -349,8 +349,8 @@ export function ValuationCalculator({
             onClick={() => setSelectedYear(year2.toString())}
             className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
               selectedYear === year2.toString()
-                ? 'bg-emerald-500 text-white shadow-md'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Năm {year2}
@@ -359,25 +359,25 @@ export function ValuationCalculator({
       </div>
 
       {/* Clean Tab C Style Financial Summary Table */}
-      <div className="overflow-x-auto rounded-xl border border-gray-800 bg-[#030712]/60">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#030712]/60">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="border-b border-gray-800 bg-gray-950/80 text-[11px] font-bold text-gray-300 uppercase tracking-wider">
+            <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/80 text-[11px] font-bold text-slate-700 dark:text-gray-300 uppercase tracking-wider">
               <th className="py-3 px-4 min-w-[200px]">Chỉ Tiêu Tài Chính</th>
               {currentQuarters.map((q) => (
                 <th key={q} className="py-3 px-3 text-center min-w-[100px]">
                   {q}
                 </th>
               ))}
-              <th className="py-3 px-4 text-center bg-sky-950/30 text-sky-300 font-extrabold border-l border-gray-800 min-w-[130px]">
+              <th className="py-3 px-4 text-center bg-blue-50 dark:bg-sky-950/30 text-blue-700 dark:text-sky-300 font-extrabold border-l border-gray-200 dark:border-gray-800 min-w-[130px]">
                 Lũy Kế Cả Năm {selectedYear}
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800/60 bg-gray-950/5 text-gray-200">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-800/60 bg-transparent text-slate-800 dark:text-gray-200">
             {/* Row 1: Doanh thu thuần */}
-            <tr className="hover:bg-gray-800/20 transition">
-              <td className="py-2.5 px-4 font-bold text-white whitespace-nowrap bg-[#0b1329]/10">
+            <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/20 transition">
+              <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-white whitespace-nowrap bg-gray-50/50 dark:bg-[#0b1329]/10">
                 Doanh Thu Thuần (Tỷ VNĐ)
               </td>
               {currentQuarters.map((q) => {
@@ -390,19 +390,19 @@ export function ValuationCalculator({
                       onChange={(e) =>
                         handleFinancialChange(q, 'revenue', parseFloat(e.target.value) || 0)
                       }
-                      className="w-full bg-transparent text-center text-xs font-bold text-white hover:bg-gray-800/60 focus:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-sky-500 rounded px-1 py-1 transition"
+                      className="w-full bg-transparent text-center text-xs font-bold text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800/60 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1 py-1 transition"
                     />
                   </td>
                 );
               })}
-              <td className="py-2.5 px-4 text-center font-extrabold text-sky-400 bg-sky-950/20 border-l border-gray-800">
+              <td className="py-2.5 px-4 text-center font-extrabold text-blue-600 dark:text-sky-400 bg-blue-50/60 dark:bg-sky-950/20 border-l border-gray-200 dark:border-gray-800">
                 {activeSummary.totalRev.toLocaleString('vi-VN')} Tỷ
               </td>
             </tr>
 
             {/* Row 2: Biên lợi nhuận gộp (%) */}
-            <tr className="hover:bg-gray-800/20 transition">
-              <td className="py-2.5 px-4 font-semibold text-gray-300 whitespace-nowrap">
+            <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/20 transition">
+              <td className="py-2.5 px-4 font-semibold text-slate-700 dark:text-gray-300 whitespace-nowrap">
                 Biên Lợi Nhuận Gộp (%)
               </td>
               {currentQuarters.map((q) => {
@@ -416,38 +416,38 @@ export function ValuationCalculator({
                       onChange={(e) =>
                         handleFinancialChange(q, 'grossMargin', parseFloat(e.target.value) || 0)
                       }
-                      className="w-full bg-transparent text-center text-xs font-bold text-amber-300 hover:bg-gray-800/60 focus:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-amber-500 rounded px-1 py-1 transition"
+                      className="w-full bg-transparent text-center text-xs font-bold text-amber-600 dark:text-amber-300 hover:bg-gray-100 dark:hover:bg-gray-800/60 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-amber-500 rounded px-1 py-1 transition"
                     />
                   </td>
                 );
               })}
-              <td className="py-2.5 px-4 text-center font-extrabold text-amber-400 bg-amber-950/10 border-l border-gray-800">
+              <td className="py-2.5 px-4 text-center font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/10 border-l border-gray-200 dark:border-gray-800">
                 {activeSummary.avgGrossMargin.toFixed(1)} %
               </td>
             </tr>
 
             {/* Row 3: Lợi nhuận gộp (Tỷ VNĐ) */}
-            <tr className="hover:bg-gray-800/20 transition bg-gray-950/20">
-              <td className="py-2.5 px-4 font-semibold text-gray-400 whitespace-nowrap">
+            <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/20 transition bg-gray-50/30 dark:bg-gray-950/20">
+              <td className="py-2.5 px-4 font-semibold text-slate-600 dark:text-gray-400 whitespace-nowrap">
                 Lợi Nhuận Gộp (Tỷ VNĐ)
               </td>
               {currentQuarters.map((q) => {
                 const item = financials[q] || getDefaultQuarterFinancials(ticker, q, parsedTextProfits);
                 const gp = Math.round(item.revenue * (item.grossMargin / 100));
                 return (
-                  <td key={q} className="py-2.5 px-3 text-center font-medium text-gray-300">
+                  <td key={q} className="py-2.5 px-3 text-center font-medium text-slate-700 dark:text-gray-300">
                     {gp.toLocaleString('vi-VN')}
                   </td>
                 );
               })}
-              <td className="py-2.5 px-4 text-center font-bold text-emerald-400 bg-emerald-950/10 border-l border-gray-800">
+              <td className="py-2.5 px-4 text-center font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/10 border-l border-gray-200 dark:border-gray-800">
                 {Math.round(activeSummary.totalGrossProfit).toLocaleString('vi-VN')} Tỷ
               </td>
             </tr>
 
             {/* Row 4: Lợi nhuận sau thuế (LNST) */}
-            <tr className="hover:bg-gray-800/20 transition">
-              <td className="py-2.5 px-4 font-bold text-white whitespace-nowrap bg-[#0b1329]/10">
+            <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/20 transition">
+              <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-white whitespace-nowrap bg-gray-50/50 dark:bg-[#0b1329]/10">
                 Lợi Nhuận Sau Thuế (Tỷ VNĐ)
               </td>
               {currentQuarters.map((q) => {
@@ -460,31 +460,31 @@ export function ValuationCalculator({
                       onChange={(e) =>
                         handleFinancialChange(q, 'netProfit', parseFloat(e.target.value) || 0)
                       }
-                      className="w-full bg-transparent text-center text-xs font-bold text-emerald-400 hover:bg-gray-800/60 focus:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1 py-1 transition"
+                      className="w-full bg-transparent text-center text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-gray-100 dark:hover:bg-gray-800/60 focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1 py-1 transition"
                     />
                   </td>
                 );
               })}
-              <td className="py-2.5 px-4 text-center font-black text-emerald-400 text-sm bg-emerald-950/20 border-l border-gray-800">
+              <td className="py-2.5 px-4 text-center font-black text-emerald-600 dark:text-emerald-400 text-sm bg-emerald-50/80 dark:bg-emerald-950/20 border-l border-gray-200 dark:border-gray-800">
                 {activeSummary.totalNetProfit.toLocaleString('vi-VN')} Tỷ
               </td>
             </tr>
 
             {/* Row 5: EPS Forward */}
-            <tr className="hover:bg-gray-800/20 transition bg-sky-950/10">
-              <td className="py-3 px-4 font-extrabold text-sky-300 whitespace-nowrap">
+            <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/20 transition bg-blue-50/30 dark:bg-sky-950/10">
+              <td className="py-3 px-4 font-extrabold text-blue-700 dark:text-sky-300 whitespace-nowrap">
                 EPS Forward (Đồng / cổ phiếu)
               </td>
               {currentQuarters.map((q) => {
                 const np = financials[q]?.netProfit || 0;
                 const qEps = Math.round((np * 1000000000) / (sharesInMillions * 1000000));
                 return (
-                  <td key={q} className="py-3 px-3 text-center font-bold text-sky-400">
+                  <td key={q} className="py-3 px-3 text-center font-bold text-blue-600 dark:text-sky-400">
                     {qEps.toLocaleString('vi-VN')} đ
                   </td>
                 );
               })}
-              <td className="py-3 px-4 text-center font-black text-sky-300 text-sm bg-sky-900/40 border-l border-gray-800">
+              <td className="py-3 px-4 text-center font-black text-blue-700 dark:text-sky-300 text-sm bg-blue-100/70 dark:bg-sky-900/40 border-l border-gray-200 dark:border-gray-800">
                 {activeEps.toLocaleString('vi-VN')} đ
               </td>
             </tr>
@@ -495,42 +495,42 @@ export function ValuationCalculator({
       {/* Target P/E Multipliers & Valuation Outputs */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-2">
         {/* P/E Inputs */}
-        <div className="lg:col-span-5 rounded-xl border border-gray-800 bg-gray-950/60 p-4 space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-1.5">
-            <Layers className="h-4 w-4 text-sky-400" />
+        <div className="lg:col-span-5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/60 p-4 space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300 flex items-center gap-1.5 font-heading">
+            <Layers className="h-4 w-4 text-blue-600 dark:text-sky-400" />
             Bội Số P/E Mục Tiêu (3 Kịch Bản)
           </h3>
           <div className="grid grid-cols-3 gap-2.5">
             <div>
-              <label className="text-[10px] text-rose-400 font-bold block mb-1">P/E Thận Trọng</label>
+              <label className="text-[10px] text-rose-600 dark:text-rose-400 font-bold block mb-1">P/E Thận Trọng</label>
               <input
                 type="number"
                 step="0.1"
                 value={valuation.peBear}
                 onChange={(e) => handlePeChange('peBear', parseFloat(e.target.value) || 0)}
-                className="w-full rounded-lg border border-rose-500/30 bg-gray-900 px-2 py-1.5 text-xs font-bold text-rose-400 text-center focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-lg border border-rose-300 dark:border-rose-500/30 bg-white dark:bg-gray-900 px-2 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 text-center focus:border-rose-500 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="text-[10px] text-sky-400 font-bold block mb-1">P/E Cơ Sở (Base)</label>
+              <label className="text-[10px] text-blue-600 dark:text-sky-400 font-bold block mb-1">P/E Cơ Sở (Base)</label>
               <input
                 type="number"
                 step="0.1"
                 value={valuation.peBase}
                 onChange={(e) => handlePeChange('peBase', parseFloat(e.target.value) || 0)}
-                className="w-full rounded-lg border border-sky-500/30 bg-gray-900 px-2 py-1.5 text-xs font-bold text-sky-400 text-center focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-lg border border-blue-300 dark:border-sky-500/30 bg-white dark:bg-gray-900 px-2 py-1.5 text-xs font-bold text-blue-600 dark:text-sky-400 text-center focus:border-blue-500 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="text-[10px] text-emerald-400 font-bold block mb-1">P/E Tích Cực</label>
+              <label className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mb-1">P/E Tích Cực</label>
               <input
                 type="number"
                 step="0.1"
                 value={valuation.peBull}
                 onChange={(e) => handlePeChange('peBull', parseFloat(e.target.value) || 0)}
-                className="w-full rounded-lg border border-emerald-500/30 bg-gray-900 px-2 py-1.5 text-xs font-bold text-emerald-400 text-center focus:border-emerald-500 focus:outline-none"
+                className="w-full rounded-lg border border-emerald-300 dark:border-emerald-500/30 bg-white dark:bg-gray-900 px-2 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 text-center focus:border-emerald-500 focus:outline-none"
               />
             </div>
           </div>
@@ -538,61 +538,61 @@ export function ValuationCalculator({
 
         {/* 3 Scenario Target Price Cards */}
         <div className="lg:col-span-7 grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3.5 flex flex-col justify-between text-center">
-            <span className="text-[10px] uppercase font-bold text-rose-400 block">Thận Trọng (Bear)</span>
+          <div className="rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50/50 dark:bg-rose-500/5 p-3.5 flex flex-col justify-between text-center shadow-2xs">
+            <span className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400 block">Thận Trọng (Bear)</span>
             <div>
-              <div className="text-base font-black text-white">
-                {priceBear.toLocaleString('vi-VN')} <span className="text-[10px] font-normal text-gray-400">đ</span>
+              <div className="text-base font-black text-slate-900 dark:text-white font-heading">
+                {priceBear.toLocaleString('vi-VN')} <span className="text-[10px] font-normal text-slate-500 dark:text-gray-400">đ</span>
               </div>
-              <span className={`text-xs font-extrabold ${upsideBear >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`text-xs font-extrabold ${upsideBear >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {upsideBear >= 0 ? '+' : ''}{upsideBear}%
               </span>
             </div>
-            <span className="text-[10px] text-gray-500">P/E = {valuation.peBear}x</span>
+            <span className="text-[10px] text-slate-400 dark:text-gray-500">P/E = {valuation.peBear}x</span>
           </div>
 
-          <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-3.5 flex flex-col justify-between text-center">
-            <span className="text-[10px] uppercase font-bold text-sky-400 block">Cơ Sở (Base)</span>
+          <div className="rounded-xl border border-blue-200 dark:border-sky-500/30 bg-blue-50/50 dark:bg-sky-500/10 p-3.5 flex flex-col justify-between text-center shadow-2xs">
+            <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-sky-400 block">Cơ Sở (Base)</span>
             <div>
-              <div className="text-base font-black text-white">
-                {priceBase.toLocaleString('vi-VN')} <span className="text-[10px] font-normal text-gray-400">đ</span>
+              <div className="text-base font-black text-slate-900 dark:text-white font-heading">
+                {priceBase.toLocaleString('vi-VN')} <span className="text-[10px] font-normal text-slate-500 dark:text-gray-400">đ</span>
               </div>
-              <span className={`text-xs font-extrabold ${upsideBase >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`text-xs font-extrabold ${upsideBase >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {upsideBase >= 0 ? '+' : ''}{upsideBase}%
               </span>
             </div>
-            <span className="text-[10px] text-gray-400">P/E = {valuation.peBase}x</span>
+            <span className="text-[10px] text-slate-400 dark:text-gray-400">P/E = {valuation.peBase}x</span>
           </div>
 
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 flex flex-col justify-between text-center">
-            <span className="text-[10px] uppercase font-bold text-emerald-400 block">Tích Cực (Bull)</span>
+          <div className="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-500/10 p-3.5 flex flex-col justify-between text-center shadow-2xs">
+            <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">Tích Cực (Bull)</span>
             <div>
-              <div className="text-base font-black text-white">
-                {priceBull.toLocaleString('vi-VN')} <span className="text-[10px] font-normal text-gray-400">đ</span>
+              <div className="text-base font-black text-slate-900 dark:text-white font-heading">
+                {priceBull.toLocaleString('vi-VN')} <span className="text-[10px] font-normal text-slate-500 dark:text-gray-400">đ</span>
               </div>
-              <span className={`text-xs font-extrabold ${upsideBull >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`text-xs font-extrabold ${upsideBull >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {upsideBull >= 0 ? '+' : ''}{upsideBull}%
               </span>
             </div>
-            <span className="text-[10px] text-gray-400">P/E = {valuation.peBull}x</span>
+            <span className="text-[10px] text-slate-400 dark:text-gray-400">P/E = {valuation.peBull}x</span>
           </div>
         </div>
       </div>
 
       {/* Chart */}
-      <div className="h-56 rounded-xl border border-gray-800 bg-gray-950/40 p-3">
-        <h4 className="text-xs font-bold text-gray-300 mb-2 flex items-center gap-1.5">
-          <TrendingUp className="h-3.5 w-3.5 text-sky-400" />
+      <div className="h-56 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40 p-3">
+        <h4 className="text-xs font-bold text-slate-700 dark:text-gray-300 mb-2 flex items-center gap-1.5 font-heading">
+          <TrendingUp className="h-3.5 w-3.5 text-blue-600 dark:text-sky-400" />
           So Sánh Giá Hiện Tại &amp; Định Giá 3 Kịch Bản Năm {selectedYear}
         </h4>
         <ResponsiveContainer width="100%" height="85%">
           <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" />
-            <XAxis dataKey="name" stroke="#9CA3AF" fontSize={10} tickLine={false} />
-            <YAxis stroke="#9CA3AF" fontSize={10} tickFormatter={(v) => (v / 1000).toLocaleString() + 'k'} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
+            <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
+            <YAxis stroke="#64748B" fontSize={10} tickFormatter={(v) => (v / 1000).toLocaleString() + 'k'} />
             <Tooltip
               formatter={(val: any) => [Number(val).toLocaleString('vi-VN') + ' VNĐ', 'Giá']}
-              contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', fontSize: '11px', color: '#FFF' }}
+              contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', fontSize: '11px', color: '#FFF', borderRadius: '8px' }}
             />
             <Bar dataKey="price" radius={[4, 4, 0, 0]}>
               {chartData.map((entry, index) => (

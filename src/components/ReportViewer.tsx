@@ -977,10 +977,10 @@ export function ReportViewer({
   };
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl relative overflow-hidden">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-xl relative overflow-hidden transition-colors duration-200">
       {/* Background Watermark for Report Screen View */}
       <div
-        className="pointer-events-none absolute right-4 top-16 h-64 w-64 opacity-[0.03] select-none print:hidden"
+        className="pointer-events-none absolute right-4 top-16 h-64 w-64 opacity-[0.04] dark:opacity-[0.03] select-none print:hidden"
         style={{
           backgroundImage: 'url(/brand/logo/logo-watermark.svg)',
           backgroundRepeat: 'no-repeat',
@@ -1015,10 +1015,10 @@ export function ReportViewer({
       </div>
 
       {/* Header & Tabs (Screen view only) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-4 gap-3 print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-4 gap-3 print:hidden">
         <div className="flex items-center space-x-2">
-          <FileText className="h-5 w-5 text-emerald-400" />
-          <h2 className="text-base font-semibold text-white font-heading">
+          <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <h2 className="text-base font-bold text-slate-900 dark:text-white font-heading">
             Báo Cáo Phân Tích Chuyên Sâu ValueX
           </h2>
         </div>
@@ -1512,78 +1512,78 @@ export function ReportViewer({
                 </h4>
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                   {/* Biểu đồ 1: Dự phóng theo Năm */}
-                  <div className="bg-[#0b1324]/40 p-4 rounded-xl border border-gray-850">
-                    <h5 className="text-[11px] font-bold text-gray-400 mb-3 flex items-center gap-1">
+                  <div className="bg-gray-50 dark:bg-[#0b1324]/40 p-4 rounded-xl border border-gray-200 dark:border-gray-850 shadow-2xs">
+                    <h5 className="text-[11px] font-bold text-slate-700 dark:text-gray-400 mb-3 flex items-center gap-1 font-heading">
                       Doanh thu, LNST & Chỉ số Định giá theo Năm
                     </h5>
                     {isMounted ? (
                       <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                           <ComposedChart data={getForecastAnnualData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                            <XAxis dataKey="period" stroke="#9ca3af" style={{ fontSize: '10px' }} />
-                            <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '10px' }} />
-                            <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" style={{ fontSize: '10px' }} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
+                            <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
+                            <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
+                            <YAxis yAxisId="right" orientation="right" stroke="#D97706" style={{ fontSize: '10px' }} />
                             <Tooltip
-                              contentStyle={{ backgroundColor: '#111827', borderColor: '#374151' }}
-                              itemStyle={{ color: '#fff', fontSize: '11px' }}
+                              contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
+                              itemStyle={{ color: '#FFF', fontSize: '11px' }}
                             />
                             <Legend
                               iconSize={8}
-                              formatter={(value) => <span className="text-[10px] text-gray-300 font-medium">{value}</span>}
+                              formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
                             />
-                            <Bar dataKey="Doanh thu" yAxisId="left" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={24}>
-                              <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#38bdf8', fontSize: '9px', fontWeight: 'bold' }} />
+                            <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={24}>
+                              <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
                             </Bar>
-                            <Bar dataKey="LNST" yAxisId="left" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24}>
-                              <LabelList dataKey="LNST" position="top" style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }} />
+                            <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={24}>
+                              <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
                             </Bar>
-                            <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#f59e0b" strokeWidth={2} activeDot={{ r: 4 }} />
-                            <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#a855f7" strokeWidth={2} activeDot={{ r: 4 }} />
-                            <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#ef4444" strokeWidth={2} activeDot={{ r: 4 }} />
+                            <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
+                            <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
+                            <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#DC2626" strokeWidth={2} activeDot={{ r: 4 }} />
                           </ComposedChart>
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-64 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                      <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
                     )}
                   </div>
 
                   {/* Biểu đồ 2: Dự phóng theo Quý */}
-                  <div className="bg-[#0b1324]/40 p-4 rounded-xl border border-gray-850">
-                    <h5 className="text-[11px] font-bold text-gray-400 mb-3 flex items-center gap-1">
+                  <div className="bg-gray-50 dark:bg-[#0b1324]/40 p-4 rounded-xl border border-gray-200 dark:border-gray-850 shadow-2xs">
+                    <h5 className="text-[11px] font-bold text-slate-700 dark:text-gray-400 mb-3 flex items-center gap-1 font-heading">
                       Doanh thu, LNST & Chỉ số Định giá theo Quý (2026 - 2027)
                     </h5>
                     {isMounted ? (
                       <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                           <ComposedChart data={getForecastQuarterlyData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                            <XAxis dataKey="period" stroke="#9ca3af" style={{ fontSize: '10px' }} />
-                            <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '10px' }} />
-                            <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" style={{ fontSize: '10px' }} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
+                            <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
+                            <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
+                            <YAxis yAxisId="right" orientation="right" stroke="#D97706" style={{ fontSize: '10px' }} />
                             <Tooltip
-                              contentStyle={{ backgroundColor: '#111827', borderColor: '#374151' }}
-                              itemStyle={{ color: '#fff', fontSize: '11px' }}
+                              contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
+                              itemStyle={{ color: '#FFF', fontSize: '11px' }}
                             />
                             <Legend
                               iconSize={8}
-                              formatter={(value) => <span className="text-[10px] text-gray-300 font-medium">{value}</span>}
+                              formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
                             />
-                            <Bar dataKey="Doanh thu" yAxisId="left" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={20}>
-                              <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#38bdf8', fontSize: '9px', fontWeight: 'bold' }} />
+                            <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={20}>
+                              <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
                             </Bar>
-                            <Bar dataKey="LNST" yAxisId="left" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
-                              <LabelList dataKey="LNST" position="top" style={{ fill: '#10b981', fontSize: '9px', fontWeight: 'bold' }} />
+                            <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={20}>
+                              <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
                             </Bar>
-                            <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#f59e0b" strokeWidth={2} activeDot={{ r: 4 }} />
-                            <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#a855f7" strokeWidth={2} activeDot={{ r: 4 }} />
-                            <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#ef4444" strokeWidth={2} activeDot={{ r: 4 }} />
+                            <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
+                            <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
+                            <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#DC2626" strokeWidth={2} activeDot={{ r: 4 }} />
                           </ComposedChart>
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-64 w-full bg-gray-950/20 rounded-xl animate-pulse" />
+                      <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
                     )}
                   </div>
                 </div>
@@ -1607,10 +1607,13 @@ function SectionCard({
 }) {
   return (
     <div
-      className={`rounded-xl border p-4 transition ${isEditing ? 'border-sky-500/50 bg-gray-900/90' : 'border-gray-800 bg-gray-900/60'
-        }`}
+      className={`rounded-xl border p-4 transition duration-200 ${
+        isEditing
+          ? 'border-emerald-500 bg-emerald-50/40 dark:bg-gray-900/90 shadow-md'
+          : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/60 shadow-2xs dark:shadow-none'
+      }`}
     >
-      <h3 className="text-xs font-bold uppercase tracking-wider text-sky-400 mb-2.5">
+      <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-2.5 font-heading">
         {title}
       </h3>
       {children}

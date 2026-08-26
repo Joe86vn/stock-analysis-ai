@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, Inter } from 'next/font/google';
 import './globals.css';
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin', 'vietnamese'],
@@ -32,9 +33,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`dark ${plusJakartaSans.variable} ${inter.variable}`}>
-      <body className="bg-[#0B0F19] text-gray-200 antialiased selection:bg-emerald-500 selection:text-white font-body">
-        {children}
+    <html lang="vi" suppressHydrationWarning className={`${plusJakartaSans.variable} ${inter.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var theme = localStorage.getItem('valuex-theme');
+                if (theme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
+      <body className="bg-[#F8FAFC] dark:bg-[#0B0F19] text-slate-800 dark:text-gray-200 antialiased selection:bg-emerald-500 selection:text-white font-body transition-colors duration-200">
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

@@ -40,13 +40,15 @@ export function StockSelector({ selectedStock, onSelectStock }: StockSelectorPro
   };
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-xl transition-colors duration-200">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Building2 className="h-5 w-5 text-emerald-400" />
-          <h2 className="text-base font-semibold text-white">Chọn Mã Cổ Phiếu Phân Tích</h2>
+          <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <h2 className="text-base font-bold text-slate-900 dark:text-white font-heading">
+            Chọn Mã Cổ Phiếu Phân Tích
+          </h2>
         </div>
-        <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+        <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
           HOSE / HNX / UPCoM
         </span>
       </div>
@@ -61,8 +63,8 @@ export function StockSelector({ selectedStock, onSelectStock }: StockSelectorPro
               onClick={() => onSelectStock(stock)}
               className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                 isSelected
-                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                  : 'bg-gray-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <span>{stock.ticker}</span>
@@ -81,13 +83,13 @@ export function StockSelector({ selectedStock, onSelectStock }: StockSelectorPro
             value={customInput}
             onChange={(e) => setCustomInput(e.target.value)}
             placeholder="Nhập mã chứng khoán khác (Ví dụ: VHM, TCB, DGC...)"
-            className="w-full rounded-xl border border-gray-700 bg-gray-900/80 py-2.5 pl-9 pr-4 text-xs font-medium text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/80 py-2.5 pl-9 pr-4 text-xs font-medium text-slate-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
           />
         </div>
         <button
           type="submit"
           disabled={!customInput.trim()}
-          className="flex items-center space-x-1 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 shadow-md shadow-emerald-500/20"
+          className="flex items-center space-x-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 shadow-md shadow-emerald-600/20"
         >
           <span>Tạo Mã</span>
           <ChevronRight className="h-4 w-4" />

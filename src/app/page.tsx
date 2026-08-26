@@ -163,7 +163,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] pb-16">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19] pb-16 transition-colors duration-200">
       <Header />
 
       <main className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 space-y-6">
@@ -195,22 +195,22 @@ export default function Home() {
         </div>
 
         {/* AI Trigger Action Bar */}
-        <div className="flex flex-col lg:flex-row items-center justify-between rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/40 via-gray-900 to-[#111827] p-4 shadow-xl gap-4 print:hidden">
+        <div className="flex flex-col lg:flex-row items-center justify-between rounded-2xl border border-emerald-200 dark:border-emerald-500/20 bg-gradient-to-r from-emerald-50 via-white to-gray-50 dark:from-emerald-950/40 dark:via-gray-900 dark:to-[#111827] p-4 shadow-sm dark:shadow-xl gap-4 print:hidden transition-colors duration-200">
           <div className="flex items-center space-x-3 w-full lg:w-auto">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
               <Sparkles className={`h-5 w-5 ${isGenerating ? 'animate-spin' : 'animate-pulse'}`} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2 font-heading">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 font-heading">
                 <span>ValueX AI Engine:</span>
-                <span className="text-emerald-400 font-extrabold">
+                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
                   {report?.generationModel || 'gemini-3.6-flash'}
                 </span>
               </h3>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-500 dark:text-gray-400">
                 {isGenerating
-                  ? <span className="text-emerald-300 font-semibold animate-pulse">{generatingMsg}</span>
-                  : <>Lập báo cáo 4 phần A-B-C-D cho <span className="font-bold text-emerald-400">{selectedStock.ticker}</span></>
+                  ? <span className="text-emerald-700 dark:text-emerald-300 font-semibold animate-pulse">{generatingMsg}</span>
+                  : <>Lập báo cáo 4 phần A-B-C-D cho <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedStock.ticker}</span></>
                 }
               </p>
             </div>
@@ -218,9 +218,9 @@ export default function Home() {
 
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
             {/* Fixed Model Badge */}
-            <div className="flex items-center space-x-2 bg-gray-950/80 border border-emerald-500/30 rounded-xl px-3.5 py-2 shadow-inner">
-              <Cpu className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs font-bold text-emerald-300">
+            <div className="flex items-center space-x-2 bg-white dark:bg-gray-950/80 border border-emerald-200 dark:border-emerald-500/30 rounded-xl px-3.5 py-2 shadow-xs">
+              <Cpu className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
                 ⚡ Gemini 3.6 Flash (Cố định)
               </span>
             </div>
@@ -228,7 +228,7 @@ export default function Home() {
             <button
               onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current)}
               disabled={isGenerating}
-              className="flex items-center justify-center space-x-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 text-xs font-extrabold text-white shadow-xl shadow-emerald-600/25 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 text-xs font-extrabold text-white shadow-md shadow-emerald-600/25 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
               <span>
@@ -243,7 +243,7 @@ export default function Home() {
             {report && (
               <button
                 onClick={() => setIsExportOpen(true)}
-                className="flex items-center justify-center space-x-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition"
+                className="flex items-center justify-center space-x-1.5 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition"
               >
                 <Download className="h-4 w-4" />
                 <span>Xuất PDF/Word</span>
@@ -254,14 +254,14 @@ export default function Home() {
 
         {/* Error Banner */}
         {errorMessage && (
-          <div className="rounded-2xl border border-rose-500/40 bg-rose-950/30 p-4 shadow-xl text-rose-200 space-y-3 print:hidden">
+          <div className="rounded-2xl border border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-950/30 p-4 shadow-sm dark:shadow-xl text-rose-800 dark:text-rose-200 space-y-3 print:hidden">
             <div className="flex items-start space-x-3">
-              <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-rose-400">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
                   Lỗi Kết Nối Google AI Studio (gemini-3.6-flash)
                 </h4>
-                <p className="text-xs text-gray-300 mt-1">{errorMessage}</p>
+                <p className="text-xs text-slate-700 dark:text-gray-300 mt-1">{errorMessage}</p>
               </div>
             </div>
           </div>
@@ -269,10 +269,10 @@ export default function Home() {
 
         {/* Analyzing Progress Banner */}
         {isGenerating && (
-          <div className="flex items-center space-x-3 rounded-2xl border border-sky-500/30 bg-sky-950/60 px-5 py-3 shadow-lg print:hidden">
-            <RefreshCw className="h-4 w-4 animate-spin text-sky-400 shrink-0" />
-            <p className="text-xs font-medium text-sky-300">{generatingMsg}</p>
-            <span className="ml-auto text-[10px] text-sky-500 animate-pulse">AI đang xử lý...</span>
+          <div className="flex items-center space-x-3 rounded-2xl border border-emerald-300 dark:border-sky-500/30 bg-emerald-50 dark:bg-sky-950/60 px-5 py-3 shadow-sm print:hidden">
+            <RefreshCw className="h-4 w-4 animate-spin text-emerald-600 dark:text-sky-400 shrink-0" />
+            <p className="text-xs font-medium text-emerald-800 dark:text-sky-300">{generatingMsg}</p>
+            <span className="ml-auto text-[10px] text-emerald-600 dark:text-sky-500 animate-pulse">AI đang xử lý...</span>
           </div>
         )}
 
@@ -289,14 +289,14 @@ export default function Home() {
         </div>
 
         {/* Template Guide Collapsible Section */}
-        <div id="analysis-guide" className="rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-xl print:hidden">
+        <div id="analysis-guide" className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-xl print:hidden transition-colors duration-200">
           <button
             onClick={() => setShowGuide(!showGuide)}
             className="flex w-full items-center justify-between text-left"
           >
             <div className="flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-sky-400" />
-              <h3 className="text-sm font-semibold text-white">
+              <FileText className="h-5 w-5 text-emerald-600 dark:text-sky-400" />
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white font-heading">
                 Tham Chiếu Quy Trình Phân Tích Chuẩn (`analysis-guide.md`)
               </h3>
             </div>
@@ -308,21 +308,21 @@ export default function Home() {
           </button>
 
           {showGuide && (
-            <div className="mt-4 border-t border-gray-800 pt-4 text-xs text-gray-300 space-y-3 leading-relaxed">
+            <div className="mt-4 border-t border-gray-200 dark:border-gray-800 pt-4 text-xs text-slate-600 dark:text-gray-300 space-y-3 leading-relaxed">
               <div>
-                <h4 className="font-bold text-sky-400">A. Tổng Quan</h4>
+                <h4 className="font-bold text-blue-600 dark:text-sky-400">A. Tổng Quan</h4>
                 <p>1. Doanh nghiệp | 2. Cơ cấu cổ đông & Ban lãnh đạo | 3. Cơ cấu doanh nghiệp (Công ty liên kết)</p>
               </div>
               <div>
-                <h4 className="font-bold text-emerald-400">B. Hoạt Động Kinh Doanh</h4>
+                <h4 className="font-bold text-emerald-600 dark:text-emerald-400">B. Hoạt Động Kinh Doanh</h4>
                 <p>1. Chuỗi giá trị (Đầu vào, Quy trình sản xuất, Đầu ra sản phẩm cốt lõi)</p>
               </div>
               <div>
-                <h4 className="font-bold text-purple-400">C. Tình Hình Tài Chính</h4>
+                <h4 className="font-bold text-purple-600 dark:text-purple-400">C. Tình Hình Tài Chính</h4>
                 <p>1. Doanh thu 3 năm | 2. Biên lợi nhuận (Gross/Net margin, ROE) | 3. Sức khỏe tài chính (Nợ vay/VCSH)</p>
               </div>
               <div>
-                <h4 className="font-bold text-amber-400">D. Triển Vọng Kinh Doanh & Định Giá</h4>
+                <h4 className="font-bold text-amber-600 dark:text-amber-400">D. Triển Vọng Kinh Doanh & Định Giá</h4>
                 <p>1. Tăng trưởng (Sản lượng x Giá bán, Chi phí) | 2. Ước lượng 4 quý | 3. Định giá 3 kịch bản (PE Trung bình, PE Max, PE Min)</p>
               </div>
             </div>

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { AnalysisReport } from '@/types/analysis';
 import { Download, FileSpreadsheet, Printer, X, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
+import { useTheme } from '@/components/ThemeProvider';
 
 interface ExportModalProps {
   report: AnalysisReport;
@@ -13,6 +14,7 @@ interface ExportModalProps {
 
 export function ExportModal({ report, isOpen, onClose }: ExportModalProps) {
   const [downloaded, setDownloaded] = useState<string | null>(null);
+  const { theme, mounted } = useTheme();
 
   if (!isOpen) return null;
 
@@ -93,33 +95,42 @@ ${report.sectionD.quarterlyForecastReasoning}
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 print:hidden">
-      <div className="relative w-full max-w-lg rounded-2xl border border-gray-800 bg-[#111827] p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/75 backdrop-blur-sm p-4 print:hidden transition-all">
+      <div className="relative w-full max-w-lg rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] p-6 shadow-2xl transition-colors duration-200">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 text-gray-400 hover:text-white transition"
+          className="absolute right-4 top-4 text-gray-400 hover:text-slate-900 dark:hover:text-white transition"
         >
           <X className="h-5 w-5" />
         </button>
 
         <div className="flex items-center space-x-2.5">
           <div className="relative h-7 w-28">
-            <Image
-              src="/brand/logo/logo-full-dark.svg"
-              alt="ValueX"
-              fill
-              className="object-contain object-left"
-            />
+            {mounted && theme === 'light' ? (
+              <Image
+                src="/brand/logo/logo-full-light.svg"
+                alt="ValueX"
+                fill
+                className="object-contain object-left"
+              />
+            ) : (
+              <Image
+                src="/brand/logo/logo-full-dark.svg"
+                alt="ValueX"
+                fill
+                className="object-contain object-left"
+              />
+            )}
           </div>
-          <span className="text-gray-600">|</span>
-          <h3 className="text-sm font-bold text-white font-heading">Xuất Báo Cáo Phân Tích</h3>
+          <span className="text-gray-300 dark:text-gray-600">|</span>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white font-heading">Xuất Báo Cáo Phân Tích</h3>
         </div>
-        <p className="mt-2 text-xs text-gray-400">
-          Xuất báo cáo định giá cổ phiếu <span className="font-bold text-emerald-400">{report.ticker}</span> theo chuẩn nhận diện ValueX.
+        <p className="mt-2 text-xs text-slate-600 dark:text-gray-400">
+          Xuất báo cáo định giá cổ phiếu <span className="font-bold text-emerald-600 dark:text-emerald-400">{report.ticker}</span> theo chuẩn nhận diện ValueX.
         </p>
 
         {downloaded && (
-          <div className="mt-4 flex items-center space-x-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-400">
+          <div className="mt-4 flex items-center space-x-2 rounded-xl border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-400">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>Đã tải thành công định dạng {downloaded}!</span>
           </div>
@@ -128,34 +139,34 @@ ${report.sectionD.quarterlyForecastReasoning}
         <div className="mt-6 space-y-3">
           <button
             onClick={handlePrintPdf}
-            className="flex w-full items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4 text-left transition hover:bg-emerald-950/40 hover:border-emerald-500/50"
+            className="flex w-full items-center justify-between rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20 p-4 text-left transition hover:bg-emerald-100/70 dark:hover:bg-emerald-950/40 hover:border-emerald-400 dark:hover:border-emerald-500/50 shadow-2xs"
           >
             <div className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                 <Printer className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white font-heading">In / Xuất PDF ValueX</h4>
-                <p className="text-[11px] text-gray-400">Xem trước và in ra định dạng PDF có watermark thương hiệu</p>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white font-heading">In / Xuất PDF ValueX</h4>
+                <p className="text-[11px] text-slate-500 dark:text-gray-400">Xem trước và in ra định dạng PDF có watermark thương hiệu</p>
               </div>
             </div>
-            <span className="text-xs font-bold text-emerald-400">In / PDF →</span>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">In / PDF →</span>
           </button>
 
           <button
             onClick={handleDownloadMarkdown}
-            className="flex w-full items-center justify-between rounded-xl border border-gray-800 bg-gray-900/80 p-4 text-left transition hover:bg-gray-800 hover:border-gray-700"
+            className="flex w-full items-center justify-between rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/80 p-4 text-left transition hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-2xs"
           >
             <div className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
                 <FileSpreadsheet className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white font-heading">Tải File Markdown (.md) / Word</h4>
-                <p className="text-[11px] text-gray-400">Dễ dàng sao chép và biên tập trên Word/Docs</p>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white font-heading">Tải File Markdown (.md) / Word</h4>
+                <p className="text-[11px] text-slate-500 dark:text-gray-400">Dễ dàng sao chép và biên tập trên Word/Docs</p>
               </div>
             </div>
-            <span className="text-xs font-bold text-blue-400">Tải Về →</span>
+            <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Tải Về →</span>
           </button>
         </div>
       </div>
