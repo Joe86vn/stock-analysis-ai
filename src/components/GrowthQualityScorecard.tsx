@@ -365,133 +365,272 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
         </div>
       </div>
 
-      {/* 2. 🌉 BẢNG BÓC TÁCH CẦU NỐI LNST & EPS CỐT LÕI (CORE EARNINGS BRIDGE) */}
+      {/* 2. 🌉 BẢNG BÓC TÁCH CẦU NỐI LNST & EPS CỐT LÕI (CORE EARNINGS BRIDGE - VALUEX) */}
       <div className="rounded-2xl border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900/70 p-5 shadow-xs transition-all">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 mb-3 border-b border-gray-100 dark:border-gray-800 gap-2">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400">
-                QUY CHUẨN VALUEX • CẦU NỐI CORE
+                QUY CHUẨN VALUEX • CẦU NỐI LỢI NHUẬN &amp; EPS CỐT LÕI
               </span>
             </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 font-heading">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white mt-0.5 font-heading">
               Bảng Bóc Tách Lợi Nhuận Sau Thuế &amp; EPS Cốt Lõi (Core Earnings Bridge)
             </h3>
-            <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5">
-              Bóc tách các khoản thu nhập tài chính đột biến &amp; lợi nhuận một lần để xác định lợi nhuận thực chất từ hoạt động vận hành cốt lõi ({scorecard.coreBridge.currentPeriodLabel} vs {scorecard.coreBridge.samePeriodLastYearLabel}).
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5 max-w-3xl">
+              Tuyệt đối không lấy LNST báo cáo hoặc lợi nhuận khác làm tăng trưởng cốt lõi. Bắt buộc đọc thuyết minh các khoản tài chính/khác/liên doanh, phân loại khoản lặp lại và bất thường trước khi tính LNST và EPS cốt lõi.
             </p>
           </div>
 
           <div className="shrink-0 flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border ${
-              scorecard.gatekeepers.gate1_CoreVerified
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${
+              scorecard.coreBridge.isCoreVerified
                 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                 : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
             }`}>
-              {scorecard.gatekeepers.gate1_CoreVerified ? (
+              {scorecard.coreBridge.isCoreVerified ? (
                 <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>ĐÃ XÁC MINH CỐT LÕI</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>TRẠNG THÁI: {scorecard.coreBridge.verificationStatusLabel}</span>
                 </>
               ) : (
                 <>
-                  <AlertTriangle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
-                  <span>CHƯA XÁC MINH CORE</span>
+                  <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                  <span>TRẠNG THÁI: {scorecard.coreBridge.verificationStatusLabel}</span>
                 </>
               )}
             </span>
           </div>
         </div>
 
-        {/* Core Bridge Data Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
+        {/* Core Bridge Data Table - Full 8 Columns */}
+        <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800">
+          <table className="w-full text-xs text-left min-w-[900px]">
             <thead>
-              <tr className="text-slate-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 font-medium text-[11px] bg-slate-50/60 dark:bg-gray-800/40">
-                <th className="py-2.5 px-3 font-bold uppercase tracking-wider">Khoản mục / Chỉ tiêu</th>
-                <th className="py-2.5 px-3 font-bold uppercase tracking-wider text-right">{scorecard.coreBridge.currentPeriodLabel} Hiện tại</th>
-                <th className="py-2.5 px-3 font-bold uppercase tracking-wider text-right">{scorecard.coreBridge.samePeriodLastYearLabel} Cùng kỳ</th>
-                <th className="py-2.5 px-3 font-bold uppercase tracking-wider text-right">Biến động YoY</th>
-                <th className="py-2.5 px-3 font-bold uppercase tracking-wider">Nguồn / Thuyết minh &amp; Phân loại</th>
+              <tr className="text-slate-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-800 font-bold text-[11px] bg-slate-100/80 dark:bg-gray-800/80">
+                <th className="py-2.5 px-3 uppercase tracking-wider w-[22%]">Khoản mục / Chỉ tiêu</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider w-[20%]">Quy tắc ValueX</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider text-right">{scorecard.coreBridge.currentPeriodLabel} Hiện tại</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider text-right">{scorecard.coreBridge.samePeriodLastYearLabel} Cùng kỳ</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider text-right">LTM Hiện tại</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider text-right">LTM Cùng kỳ</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider w-[18%]">Nguồn / Thuyết minh</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider w-[14%] text-center">Phân loại</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 font-sans">
-              {scorecard.coreBridge.rows.map((row, idx) => {
-                const isCoreRow = row.isCore;
-                const isHeadlineRow = row.isHeadline;
-                const isAdjRow = row.isAdjustment;
-
-                let rowBgClass = 'hover:bg-gray-50/60 dark:hover:bg-gray-800/30';
-                if (isCoreRow) {
-                  rowBgClass = 'bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40';
-                } else if (isHeadlineRow) {
-                  rowBgClass = 'bg-slate-50/80 dark:bg-gray-800/40 font-semibold';
-                }
-
-                return (
-                  <tr key={idx} className={`${rowBgClass} transition-colors`}>
-                    <td className={`py-2.5 px-3 ${
-                      isCoreRow
-                        ? 'font-black text-emerald-900 dark:text-emerald-200'
-                        : isHeadlineRow
-                        ? 'font-bold text-slate-900 dark:text-white'
-                        : isAdjRow
-                        ? 'text-slate-600 dark:text-gray-400 italic pl-5'
-                        : 'text-slate-700 dark:text-gray-300 font-medium'
+              {/* PHÂN ĐOẠN 1: CÁC CHỈ TIÊU BÁO CÁO CƠ BẢN */}
+              <tr className="bg-slate-50 dark:bg-gray-800/60 font-bold text-[11px] text-slate-700 dark:text-gray-300">
+                <td colSpan={8} className="py-2 px-3 tracking-wide uppercase text-teal-700 dark:text-teal-400">
+                  I. CÁC CHỈ TIÊU BÁO CÁO CƠ BẢN
+                </td>
+              </tr>
+              {scorecard.coreBridge.rows.filter(r => r.block === 'base').map((row, idx) => (
+                <tr key={`base-${idx}`} className={`hover:bg-gray-50/70 dark:hover:bg-gray-800/30 transition-colors ${row.isHeadline ? 'bg-slate-50/50 dark:bg-gray-800/20' : ''}`}>
+                  <td className={`py-2 px-3 ${row.isHeadline ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-gray-300'}`}>
+                    {row.label}
+                  </td>
+                  <td className="py-2 px-3 text-slate-500 dark:text-gray-400 text-[11px]">
+                    {row.rule}
+                  </td>
+                  <td className={`py-2 px-3 text-right font-mono ${row.isHeadline ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-800 dark:text-gray-200'}`}>
+                    {row.q0Current}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-gray-400">
+                    {row.q0SamePeriod}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-gray-300">
+                    {row.ltmCurrent}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono text-slate-500 dark:text-gray-400">
+                    {row.ltmSamePeriod}
+                  </td>
+                  <td className="py-2 px-3 text-[11px] text-slate-500 dark:text-gray-400">
+                    {row.sourceNote}
+                  </td>
+                  <td className="py-2 px-3 text-[11px] text-center">
+                    <span className={`inline-block px-2 py-0.5 rounded font-medium text-[10px] ${
+                      row.isHeadline
+                        ? 'bg-slate-200 dark:bg-gray-700 text-slate-800 dark:text-gray-200'
+                        : 'bg-gray-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400'
                     }`}>
-                      {row.label}
-                    </td>
+                      {row.classification}
+                    </span>
+                  </td>
+                </tr>
+              ))}
 
-                    <td className={`py-2.5 px-3 text-right font-mono ${
-                      isCoreRow
-                        ? 'font-black text-emerald-900 dark:text-emerald-200 text-[13px]'
-                        : isHeadlineRow
-                        ? 'font-bold text-slate-900 dark:text-white'
-                        : isAdjRow
-                        ? 'text-rose-600 dark:text-rose-400 font-semibold'
-                        : 'text-slate-800 dark:text-gray-200'
+              {/* PHÂN ĐOẠN 2: 9 KHOẢN MỤC ĐIỀU CHỈNH SAU THUẾ */}
+              <tr className="bg-rose-50/50 dark:bg-rose-950/20 font-bold text-[11px] text-rose-800 dark:text-rose-300">
+                <td colSpan={8} className="py-2 px-3 tracking-wide uppercase">
+                  II. ĐIỀU CHỈNH SAU THUẾ KHỎI LNST BÁO CÁO – NHẬP (+) ĐỂ LOẠI LÃI, NHẬP (-) ĐỂ CỘNG LẠI LỖ BẤT THƯỜNG
+                </td>
+              </tr>
+              {scorecard.coreBridge.rows.filter(r => r.block === 'adjustment').map((row, idx) => (
+                <tr key={`adj-${idx}`} className="hover:bg-rose-50/30 dark:hover:bg-rose-950/10 transition-colors">
+                  <td className="py-2 px-3 font-medium text-slate-700 dark:text-gray-300 pl-4">
+                    {row.label}
+                  </td>
+                  <td className="py-2 px-3 text-slate-500 dark:text-gray-400 text-[11px]">
+                    {row.rule}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">
+                    {row.q0Current}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono text-rose-600/80 dark:text-rose-400/80">
+                    {row.q0SamePeriod}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-gray-400">
+                    {row.ltmCurrent}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono text-slate-500 dark:text-gray-400">
+                    {row.ltmSamePeriod}
+                  </td>
+                  <td className="py-2 px-3 text-[11px] text-slate-500 dark:text-gray-400">
+                    {row.sourceNote}
+                  </td>
+                  <td className="py-2 px-3 text-[11px] text-center">
+                    <span className={`inline-block px-2 py-0.5 rounded font-medium text-[10px] ${
+                      row.classification.includes('Loại')
+                        ? 'bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-200'
+                        : row.classification.includes('GIỮ')
+                        ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200'
+                        : 'bg-gray-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400'
                     }`}>
-                      {row.q0Current}
-                    </td>
+                      {row.classification}
+                    </span>
+                  </td>
+                </tr>
+              ))}
 
-                    <td className={`py-2.5 px-3 text-right font-mono ${
-                      isCoreRow
-                        ? 'font-black text-emerald-900 dark:text-emerald-200 text-[13px]'
-                        : isHeadlineRow
-                        ? 'font-bold text-slate-900 dark:text-white'
-                        : isAdjRow
-                        ? 'text-rose-600 dark:text-rose-400 font-semibold'
-                        : 'text-slate-600 dark:text-gray-400'
-                    }`}>
-                      {row.q0SamePeriod}
-                    </td>
-
-                    <td className={`py-2.5 px-3 text-right font-mono ${
-                      isCoreRow
-                        ? 'font-black text-emerald-600 dark:text-emerald-400 text-[13px]'
-                        : String(row.yoyPct).startsWith('+')
-                        ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                        : String(row.yoyPct).startsWith('-')
-                        ? 'font-bold text-rose-600 dark:text-rose-400'
-                        : 'text-slate-400 dark:text-gray-500'
-                    }`}>
-                      {row.yoyPct}
-                    </td>
-
-                    <td className={`py-2.5 px-3 text-[11px] ${
-                      isCoreRow
-                        ? 'font-bold text-emerald-800 dark:text-emerald-300'
-                        : isHeadlineRow
-                        ? 'font-semibold text-slate-700 dark:text-gray-300'
-                        : 'text-slate-500 dark:text-gray-400'
-                    }`}>
-                      {row.sourceNote}
-                    </td>
-                  </tr>
-                );
-              })}
+              {/* PHÂN ĐOẠN 3: KẾT QUẢ TỔNG HỢP & CORE EPS */}
+              <tr className="bg-emerald-50/50 dark:bg-emerald-950/20 font-bold text-[11px] text-emerald-800 dark:text-emerald-300">
+                <td colSpan={8} className="py-2 px-3 tracking-wide uppercase">
+                  III. KẾT QUẢ CORE SAU BÓC TÁCH &amp; EPS CỐT LÕI
+                </td>
+              </tr>
+              {scorecard.coreBridge.rows.filter(r => r.block === 'summary').map((row, idx) => (
+                <tr key={`sum-${idx}`} className={`${row.isCore ? 'bg-emerald-50/80 dark:bg-emerald-950/40' : 'bg-slate-50/60 dark:bg-gray-800/40'} transition-colors`}>
+                  <td className={`py-2.5 px-3 ${row.isCore ? 'font-black text-emerald-900 dark:text-emerald-200 text-xs' : 'font-bold text-slate-800 dark:text-gray-200'}`}>
+                    {row.label}
+                  </td>
+                  <td className="py-2.5 px-3 text-slate-500 dark:text-gray-400 text-[11px]">
+                    {row.rule}
+                  </td>
+                  <td className={`py-2.5 px-3 text-right font-mono ${row.isCore ? 'font-black text-emerald-900 dark:text-emerald-200 text-sm' : 'font-bold text-slate-800 dark:text-gray-200'}`}>
+                    {row.q0Current}
+                  </td>
+                  <td className={`py-2.5 px-3 text-right font-mono ${row.isCore ? 'font-bold text-emerald-800 dark:text-emerald-300' : 'text-slate-600 dark:text-gray-400'}`}>
+                    {row.q0SamePeriod}
+                  </td>
+                  <td className={`py-2.5 px-3 text-right font-mono ${row.isCore ? 'font-bold text-emerald-900 dark:text-emerald-200' : 'text-slate-700 dark:text-gray-300'}`}>
+                    {row.ltmCurrent}
+                  </td>
+                  <td className={`py-2.5 px-3 text-right font-mono ${row.isCore ? 'font-bold text-emerald-800 dark:text-emerald-300' : 'text-slate-500 dark:text-gray-400'}`}>
+                    {row.ltmSamePeriod}
+                  </td>
+                  <td className="py-2.5 px-3 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
+                    {row.sourceNote}
+                  </td>
+                  <td className="py-2.5 px-3 text-[11px] text-center">
+                    <span className="inline-block px-2.5 py-1 rounded-md font-black text-[11px] bg-emerald-600 text-white shadow-2xs">
+                      {row.classification}
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
+        </div>
+
+        {/* 🚨 KHỐI 4: KẾT QUẢ CORE & CẢNH BÁO TỰ ĐỘNG (DÒNG 32-42 VALUEX SPEC) */}
+        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Cột Trái: Các Tỷ Lệ & Tốc Độ Tăng Trưởng Core */}
+          <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-gray-800/40 border border-gray-200/70 dark:border-gray-700">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-2.5 flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+              Tổng Hợp Tốc Độ Tăng Trưởng Core &amp; Phân Hóa Headline
+            </h4>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
+                <span className="text-slate-600 dark:text-gray-400">LNST cốt lõi Q0 YoY:</span>
+                <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                  {scorecard.coreBridge.coreNetProfitGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.coreNetProfitGrowthYoY.toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
+                <span className="text-slate-600 dark:text-gray-400">EPS cốt lõi Q0 YoY:</span>
+                <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                  {scorecard.coreBridge.coreEpsGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.coreEpsGrowthYoY.toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
+                <span className="text-slate-600 dark:text-gray-400">LNST cốt lõi 6T/12T (LTM) YoY:</span>
+                <span className="font-mono font-bold text-slate-800 dark:text-gray-200">
+                  {scorecard.coreBridge.coreNetProfitLtmGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.coreNetProfitLtmGrowthYoY.toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
+                <span className="text-slate-600 dark:text-gray-400">EPS cốt lõi 6T/12T (LTM) YoY:</span>
+                <span className="font-mono font-bold text-slate-800 dark:text-gray-200">
+                  {scorecard.coreBridge.coreEpsLtmGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.coreEpsLtmGrowthYoY.toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
+                <span className="text-slate-600 dark:text-gray-400">Tăng trưởng LNST báo cáo Q0 YoY:</span>
+                <span className="font-mono font-bold text-slate-700 dark:text-gray-300">
+                  {scorecard.coreBridge.headlineNetProfitGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.headlineNetProfitGrowthYoY.toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
+                <span className="text-slate-600 dark:text-gray-400">Chênh lệch Headline vs Core:</span>
+                <span className={`font-mono font-black ${scorecard.coreBridge.headlineVsCoreGapPts > 20 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-gray-300'}`}>
+                  {scorecard.coreBridge.headlineVsCoreGapPts >= 0 ? '+' : ''}{scorecard.coreBridge.headlineVsCoreGapPts.toFixed(1)} điểm %
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-slate-600 dark:text-gray-400">(DT tài chính + LN khác) / LNTT Q0:</span>
+                <span className={`font-mono font-black ${scorecard.coreBridge.finAndOtherToPbtRatioPct > 10 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {scorecard.coreBridge.finAndOtherToPbtRatioPct.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cột Phải: 5 Cảnh Báo Tự Động & Khóa Tăng Trưởng */}
+          <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-gray-800/40 border border-gray-200/70 dark:border-gray-700 flex flex-col justify-between">
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-2 flex items-center gap-1.5">
+                <ShieldAlert className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                Cảnh Báo Tự Động &amp; Khóa Chất Lượng Tăng Trưởng
+              </h4>
+              <div className="space-y-1.5">
+                {scorecard.coreBridge.alerts.map((alt) => (
+                  <div key={alt.id} className="flex items-start gap-2 text-xs">
+                    {alt.triggered ? (
+                      <AlertTriangle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${alt.severity === 'danger' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-500 dark:text-amber-400'}`} />
+                    ) : (
+                      <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-500 dark:text-emerald-400" />
+                    )}
+                    <span className={`${alt.triggered ? (alt.severity === 'danger' ? 'text-rose-700 dark:text-rose-300 font-semibold' : 'text-amber-700 dark:text-amber-300 font-medium') : 'text-slate-500 dark:text-gray-400'}`}>
+                      {alt.label} {alt.triggered ? `(${alt.detail})` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700 flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-700 dark:text-gray-300">Kết luận ngưỡng 20%:</span>
+              <span className={`font-black px-2.5 py-1 rounded ${
+                scorecard.gatekeepers.gate2_Growth20PercentThreshold
+                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                  : 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
+              }`}>
+                {scorecard.coreBridge.thresholdConclusionLabel}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

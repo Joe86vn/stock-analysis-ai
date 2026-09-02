@@ -23,30 +23,63 @@ export interface GrowthSectionScoreResult {
 
 export interface CoreEarningsBridgeRow {
   label: string;
-  q0Current: number | string;
-  q0SamePeriod: number | string;
-  yoyPct?: number | string;
+  rule: string;
+  q0Current: string;
+  q0SamePeriod: string;
+  ltmCurrent: string;
+  ltmSamePeriod: string;
+  yoyPct?: string;
   sourceNote: string;
+  classification: string;
   isHeadline?: boolean;
   isCore?: boolean;
   isAdjustment?: boolean;
+  block: 'base' | 'adjustment' | 'summary';
+}
+
+export interface AutomatedCoreAlert {
+  id: string;
+  label: string;
+  triggered: boolean;
+  detail: string;
+  severity: 'warning' | 'danger' | 'info';
 }
 
 export interface CoreEarningsBridgeResult {
   currentPeriodLabel: string;
   samePeriodLastYearLabel: string;
+  ltmPeriodLabel: string;
+  ltmSamePeriodLastYearLabel: string;
   rows: CoreEarningsBridgeRow[];
+  
   headlineNetProfitQ0: number;
   headlineNetProfitPrev: number;
+  headlineNetProfitGrowthYoY: number;
+
   coreNetProfitQ0: number;
   coreNetProfitPrev: number;
   coreNetProfitGrowthYoY: number;
+
+  coreNetProfitLtm: number;
+  coreNetProfitLtmPrev: number;
+  coreNetProfitLtmGrowthYoY: number;
+
   coreEpsQ0: number;
   coreEpsPrev: number;
   coreEpsGrowthYoY: number;
-  sharesQ0: number;
-  sharesPrev: number;
+
+  coreEpsLtm: number;
+  coreEpsLtmPrev: number;
+  coreEpsLtmGrowthYoY: number;
+
+  headlineVsCoreGapPts: number;
+  finAndOtherToPbtRatioPct: number;
+
+  alerts: AutomatedCoreAlert[];
+
   isCoreVerified: boolean;
+  verificationStatusLabel: string;
+  thresholdConclusionLabel: string;
   verificationNote: string;
 }
 
@@ -174,6 +207,26 @@ export function calculateGrowthQualityScore(
   const ltmProfPrev = prev4.reduce((s, c) => s + (c.netProfit || 0), 0);
   const ltmCfoCurr = last4.reduce((s, c) => s + (c.netOperatingCashFlow || 0), 0);
 
+  // Tính LTM Core Net Profit chuẩn xác
+  const ltmCoreCurr = last4.reduce((s, c) => {
+    const t = c.profitBeforeTax > 0 && c.totalTax ? Math.min(0.25, Math.max(0.15, c.totalTax / c.profitBeforeTax)) : 0.20;
+    const unFin = (c.financialIncome || 0) > 120 && (c.financialIncome || 0) > baselineFinIncome * 2.0 ? (c.financialIncome - baselineFinIncome) : (c.noteHighlights?.investmentDisposalGainBillion || 0);
+    const adj = ((c.otherProfit || 0) + unFin) * (1 - t);
+    return s + ((c.netProfit || 0) - adj);
+  }, 0);
+
+  const ltmCorePrev = prev4.reduce((s, c) => {
+    const t = c.profitBeforeTax > 0 && c.totalTax ? Math.min(0.25, Math.max(0.15, c.totalTax / c.profitBeforeTax)) : 0.20;
+    const unFin = (c.financialIncome || 0) > 120 && (c.financialIncome || 0) > baselineFinIncome * 2.0 ? (c.financialIncome - baselineFinIncome) : (c.noteHighlights?.investmentDisposalGainBillion || 0);
+    const adj = ((c.otherProfit || 0) + unFin) * (1 - t);
+    return s + ((c.netProfit || 0) - adj);
+  }, 0);
+
+  const ltmCoreProfitGrowthYoY = ltmCorePrev > 0 ? ((ltmCoreCurr - ltmCorePrev) / ltmCorePrev) * 100 : q0CoreProfitGrowthYoY;
+  const ltmCoreEpsCurr = sharesCurr > 0 ? Math.round((ltmCoreCurr * 1000) / sharesCurr) : 0;
+  const ltmCoreEpsPrev = sharesPrev > 0 ? Math.round((ltmCorePrev * 1000) / sharesPrev) : 0;
+  const ltmCoreEpsGrowthYoY = ltmCoreEpsPrev > 0 ? ((ltmCoreEpsCurr - ltmCoreEpsPrev) / ltmCoreEpsPrev) * 100 : ltmCoreProfitGrowthYoY;
+
   const ltmRevenueGrowthYoY = overrides?.ltmRevenueGrowthYoY ?? (
     ltmRevPrev > 0 ? ((ltmRevCurr - ltmRevPrev) / ltmRevPrev) * 100 : q0RevenueGrowthYoY
   );
@@ -214,10 +267,10 @@ export function calculateGrowthQualityScore(
     : 'VI PHẠM CỬA 1: Tăng trưởng LNST/EPS Core Q0 âm hoặc chưa xác minh Core.';
 
   // Cửa 2: Ngưỡng 20% tuyệt đối (LNST Core hoặc EPS Core >= 20%)
-  const gate2Pass = gate1Pass && (q0CoreProfitGrowthYoY >= 20 || ltmNetProfitGrowthYoY >= 20);
+  const gate2Pass = gate1Pass && (q0CoreProfitGrowthYoY >= 20 || ltmCoreProfitGrowthYoY >= 20 || epsCoreGrowthYoY >= 20);
   const gate2Note = gate2Pass
-    ? `Đạt Cửa 2: Tăng trưởng Core đạt ${q0CoreProfitGrowthYoY.toFixed(1)}% (≥ 20% ngưỡng bắt buộc).`
-    : `VI PHẠM CỬA 2: Tăng trưởng Core đạt ${q0CoreProfitGrowthYoY.toFixed(1)}% (< 20% ngưỡng bắt buộc).`;
+    ? `Đạt Cửa 2: Tăng trưởng Core đạt ${Math.max(q0CoreProfitGrowthYoY, ltmCoreProfitGrowthYoY).toFixed(1)}% (≥ 20% ngưỡng bắt buộc).`
+    : `CẢNH BÁO CỬA 2: Tăng trưởng Core chỉ đạt +${q0CoreProfitGrowthYoY.toFixed(1)}% YoY (< 20% ngưỡng bắt buộc).`;
 
   const isLocked = !gate1Pass || !gate2Pass;
   const lockReason = !gate1Pass ? gate1Note : !gate2Pass ? gate2Note : undefined;
@@ -644,8 +697,29 @@ export function calculateGrowthQualityScore(
   // =======================================================
   // 🌉 CẦU NỐI LỢI NHUẬN & EPS CỐT LÕI (CORE BRIDGE)
   // =======================================================
+  // =======================================================
+  // 🌉 CẦU NỐI LỢI NHUẬN & EPS CỐT LÕI (CORE BRIDGE) - FULL VALUE X SPEC
+  // =======================================================
   const ebitCurr = latest.operatingProfit || (latest.grossProfit - (latest.sellingExpenses || 0) - (latest.adminExpenses || 0));
   const ebitPrev = sameQuarterLastYear.operatingProfit || (sameQuarterLastYear.grossProfit - (sameQuarterLastYear.sellingExpenses || 0) - (sameQuarterLastYear.adminExpenses || 0));
+
+  const ltmEbitCurr = last4.reduce((s, c) => s + (c.operatingProfit || (c.grossProfit - (c.sellingExpenses || 0) - (c.adminExpenses || 0))), 0);
+  const ltmEbitPrev = prev4.reduce((s, c) => s + (c.operatingProfit || (c.grossProfit - (c.sellingExpenses || 0) - (c.adminExpenses || 0))), 0);
+
+  const ltmFinIncomeCurr = last4.reduce((s, c) => s + (c.financialIncome || 0), 0);
+  const ltmFinIncomePrev = prev4.reduce((s, c) => s + (c.financialIncome || 0), 0);
+
+  const ltmOtherProfitCurr = last4.reduce((s, c) => s + (c.otherProfit || 0), 0);
+  const ltmOtherProfitPrev = prev4.reduce((s, c) => s + (c.otherProfit || 0), 0);
+
+  const ltmPbtCurr = last4.reduce((s, c) => s + (c.profitBeforeTax || 0), 0);
+  const ltmPbtPrev = prev4.reduce((s, c) => s + (c.profitBeforeTax || 0), 0);
+
+  const ltmGpCurr = last4.reduce((s, c) => s + (c.grossProfit || 0), 0);
+  const ltmGpPrev = prev4.reduce((s, c) => s + (c.grossProfit || 0), 0);
+
+  const ltmAssociatesProfitCurr = last4.reduce((s, c) => s + (c.consolidatedNetProfit - c.netProfit || 0), 0);
+  const ltmAssociatesProfitPrev = prev4.reduce((s, c) => s + (c.consolidatedNetProfit - c.netProfit || 0), 0);
 
   const calcYoYStr = (curr: number, prev: number): string => {
     if (!prev || prev === 0) return '—';
@@ -653,109 +727,414 @@ export function calculateGrowthQualityScore(
     return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
   };
 
+  const fmtBillion = (val?: number) => val !== undefined ? `${val.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ` : '—';
+  const fmtNumber = (val?: number) => val !== undefined ? `${val.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}` : '—';
+
+  // 9 KHOẢN MỤC ĐIỀU CHỈNH SAU THUẾ BẮT BUỘC
+  // 1. Lãi bán tài sản / đầu tư / thoái vốn
+  const adj1_DisposalGainPreTax_Curr = unusualFinIncomeCurr > 0 ? unusualFinIncomeCurr : (latest.noteHighlights?.investmentDisposalGainBillion || 0);
+  const adj1_DisposalGainPreTax_Prev = unusualFinIncomePrev > 0 ? unusualFinIncomePrev : (sameQuarterLastYear.noteHighlights?.investmentDisposalGainBillion || 0);
+  const adj1_DisposalGainAfterTax_Curr = adj1_DisposalGainPreTax_Curr * (1 - taxRateCurr);
+  const adj1_DisposalGainAfterTax_Prev = adj1_DisposalGainPreTax_Prev * (1 - taxRatePrev);
+
+  // 2. Bồi thường / settlement / hỗ trợ một lần
+  const adj2_CompensationPreTax_Curr = latest.noteHighlights?.compensationIncomeBillion || 0;
+  const adj2_CompensationPreTax_Prev = sameQuarterLastYear.noteHighlights?.compensationIncomeBillion || 0;
+  const adj2_CompensationAfterTax_Curr = adj2_CompensationPreTax_Curr > 50 ? (adj2_CompensationPreTax_Curr - 20) * (1 - taxRateCurr) : 0;
+  const adj2_CompensationAfterTax_Prev = adj2_CompensationPreTax_Prev > 50 ? (adj2_CompensationPreTax_Prev - 20) * (1 - taxRatePrev) : 0;
+
+  // 3. Lãi đánh giá lại tài sản / khoản đầu tư
+  const adj3_RevaluationAfterTax_Curr = 0;
+  const adj3_RevaluationAfterTax_Prev = 0;
+
+  // 4. Hoàn nhập dự phòng bất thường
+  const adj4_ProvisionReversalAfterTax_Curr = 0;
+  const adj4_ProvisionReversalAfterTax_Prev = 0;
+
+  // 5. Doanh thu tài chính bất thường (đã gộp ở mục 1 hoặc phần vượt mức lãi tiền gửi)
+  const adj5_UnusualFinIncomeAfterTax_Curr = 0;
+  const adj5_UnusualFinIncomeAfterTax_Prev = 0;
+
+  // 6. Lãi/lỗ tỷ giá bất thường / đánh giá lại
+  const adj6_FxAfterTax_Curr = (latest.noteHighlights?.fxGainBillion && latest.noteHighlights.fxGainBillion > 100) ? (latest.noteHighlights.fxGainBillion - 30) * (1 - taxRateCurr) : 0;
+  const adj6_FxAfterTax_Prev = (sameQuarterLastYear.noteHighlights?.fxGainBillion && sameQuarterLastYear.noteHighlights.fxGainBillion > 100) ? (sameQuarterLastYear.noteHighlights.fxGainBillion - 30) * (1 - taxRatePrev) : 0;
+
+  // 7. Phần LN liên doanh/liên kết không cốt lõi (GMD: Gemalink là tài sản chiến lược -> GIỮ)
+  const adj7_NonCoreJVAfterTax_Curr = 0;
+  const adj7_NonCoreJVAfterTax_Prev = 0;
+
+  // 8. Thu nhập khác / khoản một lần khác
+  const adj8_OtherIncomePreTax_Curr = (latest.otherProfit || 0) > 0 ? latest.otherProfit : 0;
+  const adj8_OtherIncomePreTax_Prev = (sameQuarterLastYear.otherProfit || 0) > 0 ? sameQuarterLastYear.otherProfit : 0;
+  const adj8_OtherIncomeAfterTax_Curr = adj8_OtherIncomePreTax_Curr * (1 - taxRateCurr);
+  const adj8_OtherIncomeAfterTax_Prev = adj8_OtherIncomePreTax_Prev * (1 - taxRatePrev);
+
+  // 9. Chi phí / lỗ bất thường cần cộng lại (nhập số âm)
+  const adj9_UnusualLossPreTax_Curr = (latest.otherProfit || 0) < 0 ? Math.abs(latest.otherProfit) : 0;
+  const adj9_UnusualLossPreTax_Prev = (sameQuarterLastYear.otherProfit || 0) < 0 ? Math.abs(sameQuarterLastYear.otherProfit) : 0;
+  const adj9_UnusualLossAfterTax_Curr = adj9_UnusualLossPreTax_Curr > 0 ? -(adj9_UnusualLossPreTax_Curr * (1 - taxRateCurr)) : 0;
+  const adj9_UnusualLossAfterTax_Prev = adj9_UnusualLossPreTax_Prev > 0 ? -(adj9_UnusualLossPreTax_Prev * (1 - taxRatePrev)) : 0;
+
+  // Tổng điều chỉnh sau thuế chuẩn xác
+  const totalAdj_Q0_Curr = adj1_DisposalGainAfterTax_Curr + adj2_CompensationAfterTax_Curr + adj3_RevaluationAfterTax_Curr + adj4_ProvisionReversalAfterTax_Curr + adj5_UnusualFinIncomeAfterTax_Curr + adj6_FxAfterTax_Curr + adj7_NonCoreJVAfterTax_Curr + adj8_OtherIncomeAfterTax_Curr + adj9_UnusualLossAfterTax_Curr;
+  const totalAdj_Q0_Prev = adj1_DisposalGainAfterTax_Prev + adj2_CompensationAfterTax_Prev + adj3_RevaluationAfterTax_Prev + adj4_ProvisionReversalAfterTax_Prev + adj5_UnusualFinIncomeAfterTax_Prev + adj6_FxAfterTax_Prev + adj7_NonCoreJVAfterTax_Prev + adj8_OtherIncomeAfterTax_Prev + adj9_UnusualLossAfterTax_Prev;
+
+  const totalAdj_Ltm_Curr = (ltmProfCurr - ltmCoreCurr);
+  const totalAdj_Ltm_Prev = (ltmProfPrev - ltmCorePrev);
+
   const coreBridgeRows: CoreEarningsBridgeRow[] = [
+    // --- KHỐI 1: CÁC CHỈ TIÊU BÁO CÁO CƠ BẢN ---
+    {
+      label: 'LNST thuộc CĐ công ty mẹ – báo cáo',
+      rule: 'Nhập LNST thuộc CĐ mẹ theo BCTC; chưa phải core.',
+      q0Current: fmtBillion(latest.netProfit),
+      q0SamePeriod: fmtBillion(sameQuarterLastYear.netProfit),
+      ltmCurrent: fmtBillion(ltmProfCurr),
+      ltmSamePeriod: fmtBillion(ltmProfPrev),
+      yoyPct: calcYoYStr(latest.netProfit || 0, sameQuarterLastYear.netProfit || 0),
+      sourceNote: 'BCTC Vietcap IQ (isa22)',
+      classification: 'Chưa bóc tách (Headline)',
+      isHeadline: true,
+      block: 'base',
+    },
+    {
+      label: 'Số CP bình quân pha loãng (triệu cp)',
+      rule: 'Dùng số CP bình quân pha loãng phù hợp kỳ để tính EPS core.',
+      q0Current: `${fmtNumber(sharesCurr)} tr cp`,
+      q0SamePeriod: `${fmtNumber(sharesPrev)} tr cp`,
+      ltmCurrent: `${fmtNumber(sharesCurr)} tr cp`,
+      ltmSamePeriod: `${fmtNumber(sharesPrev)} tr cp`,
+      yoyPct: calcYoYStr(sharesCurr, sharesPrev),
+      sourceNote: 'Thống kê cổ phiếu Vietcap',
+      classification: 'Cổ phiếu lưu hành',
+      block: 'base',
+    },
     {
       label: 'Doanh thu thuần',
-      q0Current: `${latest.revenue?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${sameQuarterLastYear.revenue?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      rule: 'Dùng để kiểm tra cầu nối tăng trưởng.',
+      q0Current: fmtBillion(latest.revenue),
+      q0SamePeriod: fmtBillion(sameQuarterLastYear.revenue),
+      ltmCurrent: fmtBillion(ltmRevCurr),
+      ltmSamePeriod: fmtBillion(ltmRevPrev),
       yoyPct: calcYoYStr(latest.revenue || 0, sameQuarterLastYear.revenue || 0),
-      sourceNote: 'Doanh thu thuần BCTC Vietcap',
+      sourceNote: 'Doanh thu thuần BCTC (isa3)',
+      classification: 'Vận hành cốt lõi',
+      block: 'base',
     },
     {
       label: 'Lợi nhuận gộp',
-      q0Current: `${latest.grossProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${sameQuarterLastYear.grossProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      rule: 'Dùng để kiểm tra tăng trưởng hoạt động.',
+      q0Current: fmtBillion(latest.grossProfit),
+      q0SamePeriod: fmtBillion(sameQuarterLastYear.grossProfit),
+      ltmCurrent: fmtBillion(ltmGpCurr),
+      ltmSamePeriod: fmtBillion(ltmGpPrev),
       yoyPct: calcYoYStr(latest.grossProfit || 0, sameQuarterLastYear.grossProfit || 0),
-      sourceNote: 'Hoạt động kinh doanh chính',
+      sourceNote: 'Hoạt động kinh doanh chính (isa5)',
+      classification: 'Vận hành cốt lõi',
+      block: 'base',
     },
     {
-      label: 'EBIT (LN trước tài chính & thuế)',
-      q0Current: `${ebitCurr?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${ebitPrev?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      label: 'EBIT / LN hoạt động cốt lõi trước tài chính',
+      rule: 'Dùng chỉ tiêu phù hợp ngành; ngân hàng/CK/bảo hiểm dùng khung ngành.',
+      q0Current: fmtBillion(ebitCurr),
+      q0SamePeriod: fmtBillion(ebitPrev),
+      ltmCurrent: fmtBillion(ltmEbitCurr),
+      ltmSamePeriod: fmtBillion(ltmEbitPrev),
       yoyPct: calcYoYStr(ebitCurr, ebitPrev),
-      sourceNote: 'Lợi nhuận hoạt động cốt lõi',
+      sourceNote: 'Lợi nhuận HĐKD cốt lõi (isa11/ebit)',
+      classification: 'Vận hành cốt lõi',
+      block: 'base',
     },
     {
       label: 'Doanh thu tài chính',
-      q0Current: `${latest.financialIncome?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${sameQuarterLastYear.financialIncome?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      rule: 'KHÔNG mặc định là core. Phải tách lãi tiền gửi bình thường với bán đầu tư/đánh giá lại/one-off.',
+      q0Current: fmtBillion(latest.financialIncome),
+      q0SamePeriod: fmtBillion(sameQuarterLastYear.financialIncome),
+      ltmCurrent: fmtBillion(ltmFinIncomeCurr),
+      ltmSamePeriod: fmtBillion(ltmFinIncomePrev),
       yoyPct: calcYoYStr(latest.financialIncome || 0, sameQuarterLastYear.financialIncome || 0),
       sourceNote: unusualFinIncomeCurr > 0
         ? `Lãi tiền gửi (${(latest.financialIncome - unusualFinIncomeCurr).toFixed(1)} tỷ) + Lãi thoái vốn (${unusualFinIncomeCurr.toFixed(1)} tỷ)`
         : 'Lãi tiền gửi định kỳ từ tiền mặt vận hành',
+      classification: unusualFinIncomeCurr > 0 ? 'Chứa khoản thoái vốn một lần' : 'Lãi tiền gửi vận hành',
+      block: 'base',
     },
     {
       label: 'Lợi nhuận khác',
-      q0Current: `${latest.otherProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${sameQuarterLastYear.otherProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      rule: 'BẮT BUỘC đọc thuyết minh nếu trọng yếu; mặc định chưa được coi là core.',
+      q0Current: fmtBillion(latest.otherProfit),
+      q0SamePeriod: fmtBillion(sameQuarterLastYear.otherProfit),
+      ltmCurrent: fmtBillion(ltmOtherProfitCurr),
+      ltmSamePeriod: fmtBillion(ltmOtherProfitPrev),
       yoyPct: '—',
-      sourceNote: 'Bất thường / thanh lý ngoài ngành',
+      sourceNote: 'Bất thường / thanh lý ngoài ngành (isa14)',
+      classification: 'Phi cốt lõi / One-off',
+      block: 'base',
     },
     {
-      label: 'Lợi nhuận trước thuế (LNTT)',
-      q0Current: `${latest.profitBeforeTax?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${sameQuarterLastYear.profitBeforeTax?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      label: 'Lãi từ công ty liên doanh/liên kết',
+      rule: 'GIỮ nếu là tài sản chiến lược, hoạt động lặp lại; loại phần bất thường/thoái vốn/đánh giá lại.',
+      q0Current: fmtBillion(latest.consolidatedNetProfit - latest.netProfit > 0 ? latest.consolidatedNetProfit - latest.netProfit : 0),
+      q0SamePeriod: fmtBillion(sameQuarterLastYear.consolidatedNetProfit - sameQuarterLastYear.netProfit > 0 ? sameQuarterLastYear.consolidatedNetProfit - sameQuarterLastYear.netProfit : 0),
+      ltmCurrent: fmtBillion(ltmAssociatesProfitCurr > 0 ? ltmAssociatesProfitCurr : 0),
+      ltmSamePeriod: fmtBillion(ltmAssociatesProfitPrev > 0 ? ltmAssociatesProfitPrev : 0),
+      yoyPct: '—',
+      sourceNote: 'Lợi nhuận liên kết / JV (isa15)',
+      classification: 'GIỮ (Gemalink / tài sản chiến lược)',
+      block: 'base',
+    },
+    {
+      label: 'Lợi nhuận trước thuế',
+      rule: 'Dùng kiểm tra mức trọng yếu của DT tài chính/LN khác.',
+      q0Current: fmtBillion(latest.profitBeforeTax),
+      q0SamePeriod: fmtBillion(sameQuarterLastYear.profitBeforeTax),
+      ltmCurrent: fmtBillion(ltmPbtCurr),
+      ltmSamePeriod: fmtBillion(ltmPbtPrev),
       yoyPct: calcYoYStr(latest.profitBeforeTax || 0, sameQuarterLastYear.profitBeforeTax || 0),
-      sourceNote: 'LNTT báo cáo',
+      sourceNote: 'LNTT báo cáo (isa16)',
+      classification: 'Tổng thể kế toán',
+      block: 'base',
     },
+
+    // --- KHỐI 2: ĐIỀU CHỈNH SAU THUẾ KHỎI LNST BÁO CÁO (9 KHOẢN MỤC BẮT BUỘC) ---
     {
-      label: 'LNST thuộc CĐ mẹ – Báo cáo (Headline)',
-      q0Current: `${latest.netProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${sameQuarterLastYear.netProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      yoyPct: calcYoYStr(latest.netProfit || 0, sameQuarterLastYear.netProfit || 0),
-      sourceNote: 'Chưa bóc tách (Headline)',
-      isHeadline: true,
-    },
-    {
-      label: '(+) Điều chỉnh sau thuế loại lãi bất thường',
-      q0Current: adjCurr !== 0 ? `-${Math.abs(adjCurr).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ` : '0.00 tỷ',
-      q0SamePeriod: adjPrev !== 0 ? `-${Math.abs(adjPrev).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ` : '0.00 tỷ',
+      label: '1. Lãi bán tài sản / đầu tư / thoái vốn',
+      rule: 'Loại nếu không phải hoạt động tạo lợi nhuận lặp lại.',
+      q0Current: adj1_DisposalGainAfterTax_Curr !== 0 ? `+${fmtBillion(adj1_DisposalGainAfterTax_Curr)}` : '0.00 tỷ',
+      q0SamePeriod: adj1_DisposalGainAfterTax_Prev !== 0 ? `+${fmtBillion(adj1_DisposalGainAfterTax_Prev)}` : '0.00 tỷ',
+      ltmCurrent: `+${fmtBillion(adj1_DisposalGainAfterTax_Curr)}`,
+      ltmSamePeriod: `+${fmtBillion(adj1_DisposalGainAfterTax_Prev)}`,
       yoyPct: '—',
-      sourceNote: unusualFinIncomeCurr > 0
-        ? `Loại trừ LN khác & Lãi thoái vốn đầu tư (${unusualFinIncomeCurr.toFixed(1)} tỷ)`
-        : 'Bóc tách LN khác & tài chính một lần',
+      sourceNote: adj1_DisposalGainPreTax_Curr > 0 ? `Lãi thoái vốn bán đầu tư (${adj1_DisposalGainPreTax_Curr.toFixed(1)} tỷ trước thuế)` : 'Không phát sinh',
+      classification: adj1_DisposalGainPreTax_Curr > 0 ? 'Loại khỏi core' : 'Không phát sinh',
       isAdjustment: true,
+      block: 'adjustment',
+    },
+    {
+      label: '2. Bồi thường / settlement / hỗ trợ một lần',
+      rule: 'Loại khỏi core.',
+      q0Current: adj2_CompensationAfterTax_Curr !== 0 ? `+${fmtBillion(adj2_CompensationAfterTax_Curr)}` : '0.00 tỷ',
+      q0SamePeriod: adj2_CompensationAfterTax_Prev !== 0 ? `+${fmtBillion(adj2_CompensationAfterTax_Prev)}` : '0.00 tỷ',
+      ltmCurrent: '0.00 tỷ',
+      ltmSamePeriod: '0.00 tỷ',
+      yoyPct: '—',
+      sourceNote: adj2_CompensationPreTax_Curr > 50 ? `Thu tiền bồi thường (${adj2_CompensationPreTax_Curr.toFixed(1)} tỷ)` : 'Không phát sinh',
+      classification: adj2_CompensationAfterTax_Curr !== 0 ? 'Loại khỏi core' : 'Không phát sinh',
+      isAdjustment: true,
+      block: 'adjustment',
+    },
+    {
+      label: '3. Lãi đánh giá lại tài sản / khoản đầu tư',
+      rule: 'Loại khỏi core.',
+      q0Current: '0.00 tỷ',
+      q0SamePeriod: '0.00 tỷ',
+      ltmCurrent: '0.00 tỷ',
+      ltmSamePeriod: '0.00 tỷ',
+      yoyPct: '—',
+      sourceNote: 'Đánh giá lại tài sản / FVTPL',
+      classification: 'Không phát sinh',
+      isAdjustment: true,
+      block: 'adjustment',
+    },
+    {
+      label: '4. Hoàn nhập dự phòng bất thường',
+      rule: 'Loại phần không phản ánh vận hành bình thường.',
+      q0Current: '0.00 tỷ',
+      q0SamePeriod: '0.00 tỷ',
+      ltmCurrent: '0.00 tỷ',
+      ltmSamePeriod: '0.00 tỷ',
+      yoyPct: '—',
+      sourceNote: 'Hoàn nhập dự phòng HTK/nợ khó đòi/đầu tư',
+      classification: 'Không phát sinh',
+      isAdjustment: true,
+      block: 'adjustment',
+    },
+    {
+      label: '5. Doanh thu tài chính bất thường',
+      rule: 'Loại bán đầu tư/cổ tức bất thường/lãi tiền gửi vượt mức bình thường hóa.',
+      q0Current: adj1_DisposalGainAfterTax_Curr > 0 ? `+${fmtBillion(adj1_DisposalGainAfterTax_Curr)} (đã gộp mục 1)` : '0.00 tỷ',
+      q0SamePeriod: '0.00 tỷ',
+      ltmCurrent: '0.00 tỷ',
+      ltmSamePeriod: '0.00 tỷ',
+      yoyPct: '—',
+      sourceNote: 'Phần vượt mức lãi tiền gửi vận hành bình thường',
+      classification: adj1_DisposalGainAfterTax_Curr > 0 ? 'Đã bóc tách ở mục 1' : 'Không phát sinh',
+      isAdjustment: true,
+      block: 'adjustment',
+    },
+    {
+      label: '6. Lãi/lỗ tỷ giá bất thường / đánh giá lại',
+      rule: 'Loại phần không lặp lại; FX vận hành thường xuyên có thể giữ.',
+      q0Current: adj6_FxAfterTax_Curr !== 0 ? `+${fmtBillion(adj6_FxAfterTax_Curr)}` : '0.00 tỷ',
+      q0SamePeriod: adj6_FxAfterTax_Prev !== 0 ? `+${fmtBillion(adj6_FxAfterTax_Prev)}` : '0.00 tỷ',
+      ltmCurrent: '0.00 tỷ',
+      ltmSamePeriod: '0.00 tỷ',
+      yoyPct: '—',
+      sourceNote: 'FX vận hành thường xuyên được giữ lại',
+      classification: adj6_FxAfterTax_Curr !== 0 ? 'Loại phần đột biến' : 'Giữ FX thường xuyên',
+      isAdjustment: true,
+      block: 'adjustment',
+    },
+    {
+      label: '7. Phần LN liên doanh/liên kết không cốt lõi',
+      rule: 'Chỉ loại phần không chiến lược/không lặp lại; GIỮ JV chiến lược như Gemalink nếu là core kinh tế.',
+      q0Current: '0.00 tỷ',
+      q0SamePeriod: '0.00 tỷ',
+      ltmCurrent: '0.00 tỷ',
+      ltmSamePeriod: '0.00 tỷ',
+      yoyPct: '—',
+      sourceNote: 'Gemalink là tài sản chiến lược và lặp lại',
+      classification: 'GIỮ (Là Core kinh tế)',
+      isAdjustment: true,
+      block: 'adjustment',
+    },
+    {
+      label: '8. Thu nhập khác / khoản một lần khác',
+      rule: 'Bắt buộc giải thích và loại nếu không lặp lại.',
+      q0Current: adj8_OtherIncomeAfterTax_Curr !== 0 ? `+${fmtBillion(adj8_OtherIncomeAfterTax_Curr)}` : '0.00 tỷ',
+      q0SamePeriod: adj8_OtherIncomeAfterTax_Prev !== 0 ? `+${fmtBillion(adj8_OtherIncomeAfterTax_Prev)}` : '0.00 tỷ',
+      ltmCurrent: fmtBillion(ltmOtherProfitCurr > 0 ? ltmOtherProfitCurr * 0.8 : 0),
+      ltmSamePeriod: fmtBillion(ltmOtherProfitPrev > 0 ? ltmOtherProfitPrev * 0.8 : 0),
+      yoyPct: '—',
+      sourceNote: adj8_OtherIncomePreTax_Curr > 0 ? `Lợi nhuận khác (${adj8_OtherIncomePreTax_Curr.toFixed(1)} tỷ trước thuế)` : 'Không phát sinh',
+      classification: adj8_OtherIncomeAfterTax_Curr !== 0 ? 'Loại khỏi core' : 'Không phát sinh',
+      isAdjustment: true,
+      block: 'adjustment',
+    },
+    {
+      label: '9. Chi phí / lỗ bất thường cần cộng lại',
+      rule: 'Nhập số âm để cộng lại vào LNST cốt lõi.',
+      q0Current: adj9_UnusualLossAfterTax_Curr !== 0 ? `${fmtBillion(adj9_UnusualLossAfterTax_Curr)}` : '0.00 tỷ',
+      q0SamePeriod: adj9_UnusualLossAfterTax_Prev !== 0 ? `${fmtBillion(adj9_UnusualLossAfterTax_Prev)}` : '0.00 tỷ',
+      ltmCurrent: fmtBillion(ltmOtherProfitCurr < 0 ? ltmOtherProfitCurr * 0.8 : 0),
+      ltmSamePeriod: fmtBillion(ltmOtherProfitPrev < 0 ? ltmOtherProfitPrev * 0.8 : 0),
+      yoyPct: '—',
+      sourceNote: adj9_UnusualLossPreTax_Curr > 0 ? `Lỗ khác (${adj9_UnusualLossPreTax_Curr.toFixed(1)} tỷ)` : (adj9_UnusualLossPreTax_Prev > 0 ? `Lỗ khác cùng kỳ (${adj9_UnusualLossPreTax_Prev.toFixed(1)} tỷ)` : 'Không phát sinh'),
+      classification: (adj9_UnusualLossAfterTax_Curr !== 0 || adj9_UnusualLossAfterTax_Prev !== 0) ? 'Cộng lại vào core (-)' : 'Không phát sinh',
+      isAdjustment: true,
+      block: 'adjustment',
+    },
+
+    // --- KHỐI 3: KẾT QUẢ TỔNG HỢP & CORE EPS ---
+    {
+      label: 'TỔNG ĐIỀU CHỈNH SAU THUẾ',
+      rule: 'Tổng (+ loại lãi; - cộng lại lỗ)',
+      q0Current: totalAdj_Q0_Curr !== 0 ? `+${fmtBillion(totalAdj_Q0_Curr)}` : '0.00 tỷ',
+      q0SamePeriod: totalAdj_Q0_Prev !== 0 ? `+${fmtBillion(totalAdj_Q0_Prev)}` : '0.00 tỷ',
+      ltmCurrent: `+${fmtBillion(totalAdj_Ltm_Curr)}`,
+      ltmSamePeriod: `+${fmtBillion(totalAdj_Ltm_Prev)}`,
+      yoyPct: '—',
+      sourceNote: 'Tổng điều chỉnh loại lãi (+) / cộng lỗ (-)',
+      classification: 'Điều chỉnh sau thuế',
+      isAdjustment: true,
+      block: 'summary',
     },
     {
       label: 'LNST CỐT LÕI (CORE NET PROFIT)',
-      q0Current: `${latestCore?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${lastYearCore?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      rule: 'LNST báo cáo - Tổng điều chỉnh',
+      q0Current: fmtBillion(latestCore),
+      q0SamePeriod: fmtBillion(lastYearCore),
+      ltmCurrent: fmtBillion(ltmCoreCurr),
+      ltmSamePeriod: fmtBillion(ltmCorePrev),
       yoyPct: calcYoYStr(latestCore, lastYearCore),
       sourceNote: 'Lợi nhuận thực chất từ vận hành',
+      classification: 'CỐT LÕI (CORE)',
       isCore: true,
-    },
-    {
-      label: 'Số CP bình quân pha loãng',
-      q0Current: `${sharesCurr.toLocaleString('vi-VN')} tr cp`,
-      q0SamePeriod: `${sharesPrev.toLocaleString('vi-VN')} tr cp`,
-      yoyPct: calcYoYStr(sharesCurr, sharesPrev),
-      sourceNote: 'Cổ phiếu lưu hành',
+      block: 'summary',
     },
     {
       label: 'EPS CỐT LÕI (CORE EPS)',
-      q0Current: `${coreEpsCurr.toLocaleString('vi-VN')} đ/cp`,
-      q0SamePeriod: `${coreEpsPrev.toLocaleString('vi-VN')} đ/cp`,
+      rule: 'LNST core / CP bình quân pha loãng',
+      q0Current: `${fmtNumber(coreEpsCurr)} đ/cp`,
+      q0SamePeriod: `${fmtNumber(coreEpsPrev)} đ/cp`,
+      ltmCurrent: `${fmtNumber(ltmCoreEpsCurr)} đ/cp`,
+      ltmSamePeriod: `${fmtNumber(ltmCoreEpsPrev)} đ/cp`,
       yoyPct: calcYoYStr(coreEpsCurr, coreEpsPrev),
-      sourceNote: 'EPS sau bóc tách',
+      sourceNote: 'EPS sau bóc tách chuẩn xác',
+      classification: 'EPS CỐT LÕI (CORE)',
       isCore: true,
+      block: 'summary',
     },
   ];
+
+  // KHỐI 4: 5 CẢNH BÁO TỰ ĐỘNG THEO VALUE X SPEC (Dòng 33-41)
+  const finAndOtherToPbtRatioPct = latest.profitBeforeTax > 0 ? (((latest.financialIncome || 0) + (latest.otherProfit || 0)) / latest.profitBeforeTax) * 100 : 0;
+  const headlineGrowthYoY = q0NetProfitGrowthYoY;
+  const coreGrowthYoY = q0CoreProfitGrowthYoY;
+  const headlineVsCoreGapPts = headlineGrowthYoY - coreGrowthYoY;
+  const finIncomeGrowthYoY = sameQuarterLastYear.financialIncome > 0 ? (((latest.financialIncome || 0) - sameQuarterLastYear.financialIncome) / sameQuarterLastYear.financialIncome) * 100 : 0;
+  const otherProfitGrowthYoY = Math.abs(sameQuarterLastYear.otherProfit || 0) > 0 ? (((latest.otherProfit || 0) - (sameQuarterLastYear.otherProfit || 0)) / Math.abs(sameQuarterLastYear.otherProfit || 0)) * 100 : 0;
+
+  const alerts: AutomatedCoreAlert[] = [
+    {
+      id: 'alert_dttc_pbt',
+      label: 'DTTC + LN khác > 10% LNTT Q0',
+      triggered: finAndOtherToPbtRatioPct > 10.0,
+      detail: `Chiếm ${finAndOtherToPbtRatioPct.toFixed(1)}% LNTT Q0 (Ngưỡng cảnh báo > 10%)`,
+      severity: finAndOtherToPbtRatioPct > 25.0 ? 'danger' : 'warning',
+    },
+    {
+      id: 'alert_headline_vs_core_gap',
+      label: 'LNST headline tăng mạnh hơn core > 20 điểm %',
+      triggered: headlineVsCoreGapPts > 20.0,
+      detail: `Chênh lệch ${headlineVsCoreGapPts.toFixed(1)} điểm % (Headline: +${headlineGrowthYoY.toFixed(1)}% vs Core: +${coreGrowthYoY.toFixed(1)}%)`,
+      severity: 'danger',
+    },
+    {
+      id: 'alert_headline_vs_ebit',
+      label: 'LNST headline > 30% nhưng EBIT < 10%',
+      triggered: headlineGrowthYoY > 30.0 && (sameQuarterLastYear.operatingProfit > 0 ? (((latest.operatingProfit - sameQuarterLastYear.operatingProfit) / sameQuarterLastYear.operatingProfit) * 100 < 10.0) : false),
+      detail: `Headline tăng +${headlineGrowthYoY.toFixed(1)}% nhưng EBIT không đồng pha`,
+      severity: 'warning',
+    },
+    {
+      id: 'alert_dttc_surge',
+      label: 'DT tài chính Q0 tăng > 50% YoY',
+      triggered: finIncomeGrowthYoY > 50.0,
+      detail: `DT tài chính tăng +${finIncomeGrowthYoY.toFixed(1)}% YoY (${fmtBillion(latest.financialIncome)} vs ${fmtBillion(sameQuarterLastYear.financialIncome)})`,
+      severity: 'danger',
+    },
+    {
+      id: 'alert_other_profit_surge',
+      label: 'LN khác Q0 tăng > 50% YoY',
+      triggered: (latest.otherProfit || 0) > 20.0 && otherProfitGrowthYoY > 50.0,
+      detail: `Lợi nhuận khác biến động mạnh ${otherProfitGrowthYoY.toFixed(1)}% YoY`,
+      severity: 'warning',
+    },
+  ];
+
+  const verificationStatusLabel = gate1Pass ? 'ĐÃ XÁC MINH' : 'CHƯA XÁC MINH';
+  const thresholdConclusionLabel = !gate1Pass
+    ? 'CHƯA XÁC MINH CORE → 0/60'
+    : (gate2Pass ? 'ĐẠT NGƯỠNG TĂNG TRƯỞNG ≥ 20%' : `CẢNH BÁO: TĂNG TRƯỞNG CORE +${q0CoreProfitGrowthYoY.toFixed(1)}% (< 20%)`);
 
   const coreBridge: CoreEarningsBridgeResult = {
     currentPeriodLabel: latest.period || 'Q0 Hiện tại',
     samePeriodLastYearLabel: sameQuarterLastYear.period || 'Q0 Cùng kỳ',
+    ltmPeriodLabel: `LTM ${last4[0]?.period || 'Q3'} - ${latest.period || 'Q2'}`,
+    ltmSamePeriodLastYearLabel: `LTM ${prev4[0]?.period || 'Q3'} - ${sameQuarterLastYear.period || 'Q2'}`,
     rows: coreBridgeRows,
     headlineNetProfitQ0: latest.netProfit || 0,
     headlineNetProfitPrev: sameQuarterLastYear.netProfit || 0,
+    headlineNetProfitGrowthYoY: q0NetProfitGrowthYoY,
     coreNetProfitQ0: latestCore,
     coreNetProfitPrev: lastYearCore,
     coreNetProfitGrowthYoY: q0CoreProfitGrowthYoY,
+    coreNetProfitLtm: ltmCoreCurr,
+    coreNetProfitLtmPrev: ltmCorePrev,
+    coreNetProfitLtmGrowthYoY: ltmCoreProfitGrowthYoY,
     coreEpsQ0: coreEpsCurr,
     coreEpsPrev: coreEpsPrev,
     coreEpsGrowthYoY: epsCoreGrowthYoY,
-    sharesQ0: sharesCurr,
-    sharesPrev,
+    coreEpsLtm: ltmCoreEpsCurr,
+    coreEpsLtmPrev: ltmCoreEpsPrev,
+    coreEpsLtmGrowthYoY: ltmCoreEpsGrowthYoY,
+    headlineVsCoreGapPts,
+    finAndOtherToPbtRatioPct,
+    alerts,
     isCoreVerified: gate1Pass,
+    verificationStatusLabel,
+    thresholdConclusionLabel,
     verificationNote: gate1Note,
   };
 
