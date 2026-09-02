@@ -285,6 +285,11 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
       preferredModel,
       process.env.GEMINI_MODEL,
       'gemini-3.6-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-flash-lite-latest',
+      'gemini-3.8-flash',
+      'gemini-3.1-pro-preview',
     ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
     // Deduplicate candidate models
@@ -305,13 +310,13 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
           },
         });
 
-        // 120s timeout specifically for Gemini 3.6 Flash to allow complete synthesis without premature cutoffs
+        // 45s timeout per model attempt to quickly fallback if Google AI servers encounter high traffic spikes
         const generatePromise = model.generateContent({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
 
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error(`Model ${modelName} phản hồi quá lâu (>120s)`)), 120000);
+          setTimeout(() => reject(new Error(`Model ${modelName} phản hồi quá lâu (>45s)`)), 45000);
         });
 
         const result = await Promise.race([generatePromise, timeoutPromise]);
