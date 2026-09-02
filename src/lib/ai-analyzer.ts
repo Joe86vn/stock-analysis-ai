@@ -103,20 +103,32 @@ export async function generateAnalysisReport(
   uploadedFiles: UploadedFile[],
   preferredModel?: string
 ): Promise<AnalysisReport> {
-  // If running in the browser, fetch from the server-side API route
+  // If running in the browser, fetch from the server-side API route with extended timeout
   if (typeof window !== 'undefined') {
-    const response = await fetch('/api/analysis/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel }),
-    });
-    if (response.ok) {
-      return await response.json();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout for deep Gemini 3.7 Flash processing
+    try {
+      const response = await fetch('/api/analysis/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel: preferredModel || 'gemini-3.7-flash' }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        return await response.json();
+      }
+      const errJson = await response.json().catch(() => ({}));
+      throw new Error(errJson.error || `Lỗi từ server (${response.status}) khi khởi tạo báo cáo AI`);
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini 3.7 Flash.');
+      }
+      throw err;
     }
-    const errJson = await response.json().catch(() => ({}));
-    throw new Error(errJson.error || `Lỗi từ server (${response.status}) khi khởi tạo báo cáo AI`);
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -272,10 +284,7 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     const rawCandidates = [
       preferredModel,
       process.env.GEMINI_MODEL,
-      'gemini-3.5-flash-lite',
-      'gemini-3.1-flash-lite',
-      'gemini-3.5-flash',
-      'gemini-3.6-flash',
+      'gemini-3.7-flash',
     ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
     // Deduplicate candidate models
@@ -296,13 +305,13 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
           },
         });
 
-        // 25s per-model timeout to avoid server/gateway 504 timeouts and quickly fallback to faster models
+        // 120s timeout specifically for Gemini 3.7 Flash to allow complete synthesis without premature cutoffs
         const generatePromise = model.generateContent({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
 
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error(`Model ${modelName} phản hồi quá lâu (>25s), đang chuyển sang model dự phòng...`)), 25000);
+          setTimeout(() => reject(new Error(`Model ${modelName} phản hồi quá lâu (>120s)`)), 120000);
         });
 
         const result = await Promise.race([generatePromise, timeoutPromise]);
