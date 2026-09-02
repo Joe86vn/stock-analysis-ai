@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { StockSelector } from '@/components/StockSelector';
 import { DocumentUploader } from '@/components/DocumentUploader';
@@ -10,14 +11,38 @@ import { ValuationCalculator } from '@/components/ValuationCalculator';
 import { ReportViewer } from '@/components/ReportViewer';
 import { ExportModal } from '@/components/ExportModal';
 
-import { getStockData } from '@/lib/stock-data';
+import { getStockData, POPULAR_STOCKS } from '@/lib/stock-data';
 import { generateAnalysisReport, generateDefaultExpertReport } from '@/lib/ai-analyzer';
 import { AnalysisReport, StockMarketData, UploadedFile, ValuationAssumptions } from '@/types/analysis';
 
 import { Sparkles, Download, RefreshCw, FileText, CheckCircle2, ChevronDown, ChevronUp, Cpu, AlertTriangle } from 'lucide-react';
 
-export default function Home() {
-  const [selectedStock, setSelectedStock] = useState<StockMarketData>(getStockData('HPG'));
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const urlTicker = searchParams.get('ticker');
+
+  const [selectedStock, setSelectedStock] = useState<StockMarketData>(() => {
+    if (urlTicker) {
+      const clean = urlTicker.trim().toUpperCase();
+      const existing = POPULAR_STOCKS.find((s) => s.ticker === clean);
+      if (existing) return existing;
+      return {
+        ticker: clean,
+        companyName: `Công ty Cổ phần ${clean}`,
+        industry: 'Doanh nghiệp Niêm yết',
+        currentPrice: 0,
+        pe5YearMin: 0,
+        pe5YearMax: 0,
+        pe5YearAvg: 0,
+        peIndustry: 0,
+        pbIndustry: 0,
+        peCompetitors: [],
+        pbCompetitors: [],
+      };
+    }
+    return getStockData('HPG');
+  });
+
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -66,13 +91,28 @@ export default function Home() {
     return null;
   };
 
-  // Initial load: fetch prices & financial stats and display initial default report without calling AI automatically
+  // Handle URL param changes or initial load
   useEffect(() => {
     const init = async () => {
-      let priceUpdatedStock = { ...selectedStock };
+      const targetTicker = (urlTicker || selectedStock.ticker).trim().toUpperCase();
+      let targetStock = POPULAR_STOCKS.find((s) => s.ticker === targetTicker) || {
+        ticker: targetTicker,
+        companyName: `Công ty Cổ phần ${targetTicker}`,
+        industry: 'Doanh nghiệp Niêm yết',
+        currentPrice: 0,
+        pe5YearMin: 0,
+        pe5YearMax: 0,
+        pe5YearAvg: 0,
+        peIndustry: 0,
+        pbIndustry: 0,
+        peCompetitors: [],
+        pbCompetitors: [],
+      };
+
+      let priceUpdatedStock = { ...targetStock };
       const [latestPrice, ratios] = await Promise.all([
-        fetchLatestPrice(selectedStock.ticker),
-        fetchVietcapRatios(selectedStock.ticker),
+        fetchLatestPrice(targetTicker),
+        fetchVietcapRatios(targetTicker),
       ]);
       if (latestPrice !== null) {
         priceUpdatedStock.currentPrice = latestPrice;
@@ -86,7 +126,7 @@ export default function Home() {
       setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFiles));
     };
     init();
-  }, []);
+  }, [urlTicker]);
 
   const handleSelectStock = async (stock: StockMarketData) => {
     let priceUpdatedStock = { ...stock };
@@ -341,3 +381,12 @@ export default function Home() {
     </div>
   );
 }
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19]" />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
