@@ -30,6 +30,7 @@ type SortField =
   | 'financialHealthScore'
   | 'growthQualityScore'
   | 'businessQualityScore'
+  | 'rsRating'
   | 'coreEpsGrowthYoY'
   | 'coreNetProfitGrowthYoY'
   | 'currentPrice'
@@ -48,6 +49,7 @@ export default function RankingPage() {
   const [coreEpsFilter, setCoreEpsFilter] = useState<'ALL' | '20' | '50' | '100'>('ALL');
   const [coreProfitFilter, setCoreProfitFilter] = useState<'ALL' | '20' | '50'>('ALL');
   const [liquidityFilter, setLiquidityFilter] = useState<'ALL' | '10' | '50'>('ALL');
+  const [rsFilter, setRsFilter] = useState<'ALL' | '70' | '80' | '90'>('ALL');
 
   const [sortField, setSortField] = useState<SortField>('totalScore');
   const [sortAsc, setSortAsc] = useState(false);
@@ -113,9 +115,14 @@ export default function RankingPage() {
       if (liquidityFilter === '10' && item.adtv20Billion < 10) return false;
       if (liquidityFilter === '50' && item.adtv20Billion < 50) return false;
 
+      // 7. RS Rating filter
+      if (rsFilter === '70' && item.rsRating < 70) return false;
+      if (rsFilter === '80' && item.rsRating < 80) return false;
+      if (rsFilter === '90' && item.rsRating < 90) return false;
+
       return true;
     });
-  }, [rankings, searchTerm, exchangeFilter, scoreTierFilter, coreEpsFilter, coreProfitFilter, liquidityFilter]);
+  }, [rankings, searchTerm, exchangeFilter, scoreTierFilter, coreEpsFilter, coreProfitFilter, liquidityFilter, rsFilter]);
 
   // Sort Logic
   const sortedRankings = useMemo(() => {
@@ -127,7 +134,7 @@ export default function RankingPage() {
       if (typeof aVal === 'string') {
         return sortAsc ? aVal.localeCompare(bVal as string) : (bVal as string).localeCompare(aVal);
       }
-      return sortAsc ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+      return sortAsc ? ((aVal ?? 0) as number) - ((bVal ?? 0) as number) : ((bVal ?? 0) as number) - ((aVal ?? 0) as number);
     });
     return list;
   }, [filteredRankings, sortField, sortAsc]);
@@ -164,8 +171,10 @@ export default function RankingPage() {
       'Ma_CP',
       'Ten_Doanh_Nghiep',
       'San',
+      'Nganh_ICB',
       'Gia_Hien_Tai',
       'GTGD_20N_Ty',
+      'RS_Rating_Vietcap',
       'Tong_Diem_150',
       'Hang_Chat_Luong',
       'Suc_Khoe_TC_50',
@@ -182,8 +191,10 @@ export default function RankingPage() {
       it.ticker,
       `"${it.companyName.replace(/"/g, '""')}"`,
       it.exchange,
+      `"${it.industry.replace(/"/g, '""')}"`,
       it.currentPrice,
       it.adtv20Billion,
+      it.rsRating,
       it.totalScore,
       it.rankGrade,
       it.financialHealthScore,
@@ -432,7 +443,7 @@ export default function RankingPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
             {/* Search Input */}
             <div className="lg:col-span-2 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
@@ -440,7 +451,7 @@ export default function RankingPage() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm mã CP, tên công ty, ngành nghề..."
+                placeholder="Tìm mã CP, tên công ty, ngành ICB..."
                 className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 py-2 pl-8 pr-3 text-xs text-slate-900 dark:text-white placeholder-gray-400 focus:border-emerald-500 focus:outline-none"
               />
             </div>
@@ -471,6 +482,20 @@ export default function RankingPage() {
                 <option value="A">Hạng A & A+ (≥ 110đ)</option>
                 <option value="B_PLUS">Hạng B+ trở lên (≥ 95đ)</option>
                 <option value="B">Hạng B trở lên (≥ 80đ)</option>
+              </select>
+            </div>
+
+            {/* RS Rating Filter */}
+            <div>
+              <select
+                value={rsFilter}
+                onChange={(e) => setRsFilter(e.target.value as any)}
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 py-2 px-2.5 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="ALL">RS Vietcap: Tất cả</option>
+                <option value="90">RS ≥ 90 (Top 10%)</option>
+                <option value="80">RS ≥ 80 (Top 20%)</option>
+                <option value="70">RS ≥ 70 (Top 30%)</option>
               </select>
             </div>
 
@@ -525,6 +550,7 @@ export default function RankingPage() {
                   setSearchTerm('');
                   setExchangeFilter('ALL');
                   setScoreTierFilter('ALL');
+                  setRsFilter('ALL');
                   setCoreEpsFilter('ALL');
                   setCoreProfitFilter('ALL');
                   setLiquidityFilter('ALL');
@@ -565,6 +591,15 @@ export default function RankingPage() {
                       <div className="flex items-center justify-end space-x-1">
                         <span>GTGD 20N</span>
                         {sortField === 'adtv20Billion' && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('rsRating')}
+                      className="py-3 px-3 font-semibold text-center cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400"
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>RS Ngành</span>
+                        {sortField === 'rsRating' && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                       </div>
                     </th>
                     <th
@@ -674,7 +709,7 @@ export default function RankingPage() {
                           )}
                         </td>
 
-                        {/* Ticker & Name */}
+                        {/* Ticker & Name & Relationship */}
                         <td className="py-3 px-3">
                           <div className="flex items-center space-x-2">
                             <span className="text-sm font-black text-slate-900 dark:text-white font-heading">
@@ -683,10 +718,18 @@ export default function RankingPage() {
                             <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                               {item.exchange}
                             </span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium hidden sm:inline">
+                              {item.industry}
+                            </span>
                           </div>
-                          <div className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[200px]">
+                          <div className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[220px]">
                             {item.companyName}
                           </div>
+                          {(item.subsidiariesCount > 0 || item.affiliatesCount > 0) && (
+                            <div className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5">
+                              {item.subsidiariesCount} cty con • {item.affiliatesCount} cty liên kết
+                            </div>
+                          )}
                         </td>
 
                         {/* Current Price */}
@@ -704,6 +747,23 @@ export default function RankingPage() {
                             {item.adtv20Billion}
                           </span>
                           <span className="text-[10px] text-gray-400 ml-0.5">Tỷ</span>
+                        </td>
+
+                        {/* Vietcap RS Rating */}
+                        <td className="py-3 px-3 text-center">
+                          <span
+                            className={`inline-flex items-center justify-center font-bold px-2 py-0.5 rounded-md text-[11px] ${
+                              item.rsRating >= 90
+                                ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300/40'
+                                : item.rsRating >= 80
+                                ? 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-300/40'
+                                : item.rsRating >= 70
+                                ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300/40'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            RS {item.rsRating}
+                          </span>
                         </td>
 
                         {/* Total Score & Grade */}
@@ -780,6 +840,7 @@ export default function RankingPage() {
             </div>
           )}
         </div>
+
       </main>
     </div>
   );

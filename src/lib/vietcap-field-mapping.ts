@@ -789,3 +789,403 @@ export async function fetchFullVietcapData(ticker: string, options: { maxQuarter
     return [];
   }
 }
+
+// ============================================================================
+// 6. CHUẨN HÓA MAPPING BỔ SUNG THEO API-DATA/VIETCAP-API.MD
+// ============================================================================
+
+/**
+ * 6.1. Thông tin doanh nghiệp chi tiết (Company Information)
+ * Endpoint: /api/iq-insight-service/v1/company/details?ticker={ticker}
+ */
+export interface VietcapCompanyDetails {
+  ticker: string;
+  organCode: string;
+  companyNameVi: string;
+  companyNameEn: string;
+  shortNameVi: string;
+  shortNameEn: string;
+  exchange: 'HSX' | 'HNX' | 'UPCOM';
+  industryVi: string;
+  industryEn: string;
+  icbCodeLv2: string;
+  icbCodeLv4: string;
+  currentPrice: number;
+  marketCapBillion: number;
+  totalShares: number;
+  freeFloatShares: number;
+  freeFloatPercentage: number;
+  adtv1MonthBillion: number; // Giá trị GD khớp lệnh bình quân 1 tháng (~20 phiên) (Tỷ VNĐ)
+  adtv1MonthVolume: number;  // Khối lượng GD khớp lệnh bình quân 1 tháng (Cổ phiếu)
+  highestPrice1Year: number;
+  lowestPrice1Year: number;
+  foreignPercentage: number;
+  maxForeignPercentage: number;
+  statePercentage: number;
+  profileVi: string;
+  profileEn: string;
+  listingDate: string;
+  rating?: string;
+  targetPrice?: number;
+}
+
+/**
+ * 6.2. Lịch sử giá & Khối lượng (Price History)
+ * Endpoint: /api/iq-insight-service/v1/company/{ticker}/price-history
+ */
+export interface VietcapPriceHistoryItem {
+  id: string;
+  ticker: string;
+  tradingDate: string;
+  marketCap: number;
+  totalShares: number;
+  openPrice: number;
+  closePrice: number;
+  matchPrice: number;
+  highestPrice: number;
+  lowestPrice: number;
+  averagePrice: number;
+  priceChange: number;
+  percentPriceChange: number;
+  totalMatchVolume: number;
+  totalMatchValue: number;
+  totalDealVolume: number;
+  totalDealValue: number;
+  totalVolume: number;
+  totalValue: number;
+  foreignBuyValueMatched: number;
+  foreignSellValueMatched: number;
+  foreignOwnedPercentage: number;
+}
+
+/**
+ * 6.3. Quan hệ doanh nghiệp: Công ty con & Công ty liên kết (Relationship)
+ * Endpoint: /api/iq-insight-service/v1/company/{ticker}/relationship
+ */
+export interface VietcapRelatedCompany {
+  organCode: string;
+  ticker: string;
+  companyNameVi: string;
+  companyNameEn: string;
+  ownedQuantity: number;
+  ownedPercentage: number; // 0.0 -> 1.0 (e.g. 0.48 = 48%)
+}
+
+export interface VietcapRelationshipData {
+  ticker: string;
+  subsidiaries: VietcapRelatedCompany[]; // Công ty con
+  affiliates: VietcapRelatedCompany[];   // Công ty liên kết
+}
+
+/**
+ * 6.4. Cơ cấu cổ đông (Shareholder)
+ * Endpoint: /api/iq-insight-service/v1/company/{ticker}/shareholder
+ */
+export interface VietcapShareholderItem {
+  ownerName: string;
+  ownerNameEn: string;
+  ownerCode: string;
+  positionName: string;
+  positionNameEn: string;
+  quantity: number;
+  percentage: number; // 0.0 -> 1.0 (e.g. 0.0689 = 6.89%)
+  ownerType: string;
+  isForeigner?: boolean;
+}
+
+/**
+ * 6.5. Cấu hình ngành & Mã ICB
+ */
+export interface VietcapIndustryConfig {
+  id: number;
+  name: string;
+  icbCode: string;
+  orders: number;
+}
+
+export interface VietcapIcbCodeItem {
+  code: string;
+  viSector: string;
+  enSector: string;
+  icbLevel: number;
+  marketCap: number;
+}
+
+/**
+ * 6.6. Sức mạnh giá tương đối (RS Rating) theo nhóm ngành ICB Level 2
+ * Endpoint: /api/iq-insight-service/v1/sector-ranking/sectors/{icbCode}?icbLevel=2&adtv=3&value=3
+ */
+export interface VietcapStockRsValue {
+  date: string;
+  value: number; // RS Score 0 - 99
+  sectorTrend?: string;
+}
+
+export interface VietcapSectorStockRs {
+  ticker: string;
+  latestRs: number;
+  history: VietcapStockRsValue[];
+}
+
+export const VIETCAP_ICB_SECTORS: Record<string, string> = {
+  '5300': 'Bán lẻ',
+  '1700': 'Tài nguyên cơ bản',
+  '2700': 'Hàng & Dịch vụ công nghiệp',
+  '0500': 'Dầu khí',
+  '8300': 'Ngân hàng',
+  '3500': 'Thực phẩm và đồ uống',
+  '1300': 'Hóa chất',
+  '3300': 'Ô tô và phụ tùng',
+  '8600': 'Bất động sản',
+  '3700': 'Hàng cá nhân & gia dụng',
+  '9500': 'Công nghệ thông tin',
+  '2300': 'Xây dựng và vật liệu',
+  '7500': 'Điện, nước & xăng dầu khí đốt',
+  '5700': 'Du lịch và giải trí',
+  '8500': 'Bảo hiểm',
+  '8700': 'Dịch vụ tài chính',
+};
+
+// ============================================================================
+// 7. CÁC HÀM GỌI API VIETCAP IQ CHUẨN HÓA
+// ============================================================================
+
+const COMMON_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json',
+};
+
+/**
+ * Lấy thông tin công ty chi tiết
+ */
+export async function fetchVietcapCompanyDetails(ticker: string): Promise<VietcapCompanyDetails | null> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  try {
+    const res = await fetch(`https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/details?ticker=${cleanTicker}`, {
+      headers: COMMON_HEADERS,
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const d = json?.data;
+    if (!d) return null;
+
+    let exchange: 'HSX' | 'HNX' | 'UPCOM' = 'HSX';
+    const grp = (d.comGroupCode || '').toUpperCase();
+    if (grp.includes('HNX')) exchange = 'HNX';
+    else if (grp.includes('UPCOM')) exchange = 'UPCOM';
+
+    return {
+      ticker: cleanTicker,
+      organCode: d.organCode || cleanTicker,
+      companyNameVi: d.viOrganName || `Công ty Cổ phần ${cleanTicker}`,
+      companyNameEn: d.enOrganName || '',
+      shortNameVi: d.viOrganShortName || cleanTicker,
+      shortNameEn: d.enOrganShortName || cleanTicker,
+      exchange,
+      industryVi: d.sectorVn || 'Doanh nghiệp Niêm yết',
+      industryEn: d.sector || '',
+      icbCodeLv2: d.icbCodeLv2 || '',
+      icbCodeLv4: d.icbCodeLv4 || '',
+      currentPrice: d.currentPrice || 0,
+      marketCapBillion: Math.round(((d.marketCap || 0) / 1_000_000_000) * 10) / 10,
+      totalShares: d.numberOfSharesMktCap || 0,
+      freeFloatShares: d.freeFloat || 0,
+      freeFloatPercentage: d.freeFloatPercentage ? Math.round(d.freeFloatPercentage * 1000) / 10 : 0,
+      adtv1MonthBillion: Math.round(((d.averageMatchValue1Month || 0) / 1_000_000_000) * 10) / 10,
+      adtv1MonthVolume: d.averageMatchVolume1Month || 0,
+      highestPrice1Year: d.highestPrice1Year || 0,
+      lowestPrice1Year: d.lowestPrice1Year || 0,
+      foreignPercentage: d.foreignerPercentage ? Math.round(d.foreignerPercentage * 1000) / 10 : 0,
+      maxForeignPercentage: d.maximumForeignPercentage ? Math.round(d.maximumForeignPercentage * 1000) / 10 : 0,
+      statePercentage: d.statePercentage ? Math.round(d.statePercentage * 1000) / 10 : 0,
+      profileVi: d.profile || '',
+      profileEn: d.enProfile || '',
+      listingDate: d.listingDate || '',
+      rating: d.rating,
+      targetPrice: d.targetPrice,
+    };
+  } catch (error) {
+    console.error(`[Vietcap API] fetchCompanyDetails failed for ${cleanTicker}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Lấy lịch sử giá và khối lượng giao dịch
+ */
+export async function fetchVietcapPriceHistory(
+  ticker: string,
+  options: { fromDate?: string; toDate?: string; page?: number; size?: number } = {}
+): Promise<VietcapPriceHistoryItem[]> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const page = options.page ?? 0;
+  const size = options.size ?? 30;
+  let url = `https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/${cleanTicker}/price-history?page=${page}&size=${size}`;
+  if (options.fromDate) url += `&fromDate=${options.fromDate}`;
+  if (options.toDate) url += `&toDate=${options.toDate}`;
+
+  try {
+    const res = await fetch(url, { headers: COMMON_HEADERS, next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const content = json?.data?.content;
+    if (!Array.isArray(content)) return [];
+
+    return content.map((item: any) => ({
+      id: item.id || `${cleanTicker}_${item.tradingDate}`,
+      ticker: cleanTicker,
+      tradingDate: item.tradingDate,
+      marketCap: item.marketCap || 0,
+      totalShares: item.totalShares || 0,
+      openPrice: item.openPrice || 0,
+      closePrice: item.closePrice || 0,
+      matchPrice: item.matchPrice || item.closePrice || 0,
+      highestPrice: item.highestPrice || 0,
+      lowestPrice: item.lowestPrice || 0,
+      averagePrice: item.averagePrice || 0,
+      priceChange: item.priceChange || 0,
+      percentPriceChange: item.percentPriceChange ? Math.round(item.percentPriceChange * 1000) / 10 : 0,
+      totalMatchVolume: item.totalMatchVolume || 0,
+      totalMatchValue: item.totalMatchValue || 0,
+      totalDealVolume: item.totalDealVolume || 0,
+      totalDealValue: item.totalDealValue || 0,
+      totalVolume: item.totalVolume || 0,
+      totalValue: item.totalValue || 0,
+      foreignBuyValueMatched: item.foreignBuyValueMatched || 0,
+      foreignSellValueMatched: item.foreignSellValueMatched || 0,
+      foreignOwnedPercentage: item.foreignOwnedPercentage ? Math.round(item.foreignOwnedPercentage * 1000) / 10 : 0,
+    }));
+  } catch (error) {
+    console.error(`[Vietcap API] fetchPriceHistory failed for ${cleanTicker}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Lấy danh sách công ty con và công ty liên kết
+ */
+export async function fetchVietcapRelationship(ticker: string): Promise<VietcapRelationshipData> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  try {
+    const res = await fetch(`https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/${cleanTicker}/relationship`, {
+      headers: COMMON_HEADERS,
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return { ticker: cleanTicker, subsidiaries: [], affiliates: [] };
+    const json = await res.json();
+    const d = json?.data || {};
+
+    const subsidiaries = (Array.isArray(d.subsidiaries) ? d.subsidiaries : []).map((s: any) => ({
+      organCode: s.rightOrganCode || '',
+      ticker: s.rightTicker || '',
+      companyNameVi: s.rightOrganNameVi || '',
+      companyNameEn: s.rightOrganNameEn || '',
+      ownedQuantity: s.ownedQuantity || 0,
+      ownedPercentage: s.ownedPercentage ? Math.round(s.ownedPercentage * 10000) / 100 : 0,
+    }));
+
+    const affiliates = (Array.isArray(d.affiliates) ? d.affiliates : []).map((a: any) => ({
+      organCode: a.rightOrganCode || '',
+      ticker: a.rightTicker || '',
+      companyNameVi: a.rightOrganNameVi || '',
+      companyNameEn: a.rightOrganNameEn || '',
+      ownedQuantity: a.ownedQuantity || 0,
+      ownedPercentage: a.ownedPercentage ? Math.round(a.ownedPercentage * 10000) / 100 : 0,
+    }));
+
+    return { ticker: cleanTicker, subsidiaries, affiliates };
+  } catch (error) {
+    console.error(`[Vietcap API] fetchRelationship failed for ${cleanTicker}:`, error);
+    return { ticker: cleanTicker, subsidiaries: [], affiliates: [] };
+  }
+}
+
+/**
+ * Lấy cơ cấu cổ đông chính
+ */
+export async function fetchVietcapShareholders(ticker: string): Promise<VietcapShareholderItem[]> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  try {
+    const res = await fetch(`https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/${cleanTicker}/shareholder`, {
+      headers: COMMON_HEADERS,
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const list = Array.isArray(json?.data) ? json.data : [];
+
+    return list.map((item: any) => ({
+      ownerName: item.ownerName || '',
+      ownerNameEn: item.ownerNameEn || '',
+      ownerCode: item.ownerCode || '',
+      positionName: item.positionName || 'Cổ đông lớn',
+      positionNameEn: item.positionNameEn || '',
+      quantity: item.quantity || 0,
+      percentage: item.percentage ? Math.round(item.percentage * 10000) / 100 : 0,
+      ownerType: item.ownerType || '',
+      isForeigner: item.isForeigner,
+    }));
+  } catch (error) {
+    console.error(`[Vietcap API] fetchShareholders failed for ${cleanTicker}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Lấy danh sách RS Rating của các mã thuộc 1 ngành ICB
+ */
+export async function fetchVietcapSectorRs(icbCode: string): Promise<VietcapSectorStockRs[]> {
+  try {
+    const res = await fetch(
+      `https://iq.vietcap.com.vn/api/iq-insight-service/v1/sector-ranking/sectors/${icbCode}?icbLevel=2&adtv=3&value=3`,
+      { headers: COMMON_HEADERS, next: { revalidate: 300 } }
+    );
+    if (!res.ok) return [];
+    const json = await res.json();
+    const data = Array.isArray(json?.data) ? json.data : [];
+
+    return data.map((item: any) => {
+      const vals: VietcapStockRsValue[] = (Array.isArray(item.values) ? item.values : []).map((v: any) => ({
+        date: v.date || '',
+        value: typeof v.value === 'number' ? v.value : 50,
+        sectorTrend: v.sectorTrend,
+      }));
+      const latestRs = vals.length > 0 ? vals[0].value : 50;
+
+      return {
+        ticker: (item.name || '').trim().toUpperCase(),
+        latestRs,
+        history: vals,
+      };
+    });
+  } catch (error) {
+    console.error(`[Vietcap API] fetchSectorRs failed for ICB ${icbCode}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Lấy chỉ số RS Rating mới nhất của 1 mã cổ phiếu
+ */
+export async function fetchVietcapStockRs(ticker: string, icbCodeLv2?: string): Promise<number | null> {
+  const cleanTicker = ticker.trim().toUpperCase();
+
+  // 1. Nếu có mã ICB, tìm trong ngành tương ứng
+  if (icbCodeLv2) {
+    const list = await fetchVietcapSectorRs(icbCodeLv2);
+    const match = list.find((s) => s.ticker === cleanTicker);
+    if (match) return match.latestRs;
+  }
+
+  // 2. Nếu không có mã ICB hoặc không tìm thấy, quét qua các nhóm ngành lớn
+  const majorIcbCodes = ['5300', '1700', '2700', '0500', '8300', '3500', '1300', '3300', '8600', '3700', '9500', '2300', '7500', '5700', '8700'];
+  for (const icb of majorIcbCodes) {
+    const list = await fetchVietcapSectorRs(icb);
+    const match = list.find((s) => s.ticker === cleanTicker);
+    if (match) return match.latestRs;
+  }
+
+  return null;
+}
+

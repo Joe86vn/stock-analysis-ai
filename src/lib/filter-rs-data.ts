@@ -1,4 +1,11 @@
-import { fetchFullVietcapData, ParsedVietcapQuarter } from './vietcap-field-mapping';
+import {
+  fetchFullVietcapData,
+  fetchVietcapCompanyDetails,
+  fetchVietcapRelationship,
+  fetchVietcapShareholders,
+  fetchVietcapStockRs,
+  ParsedVietcapQuarter,
+} from './vietcap-field-mapping';
 import { calculateFinancialHealthScore, FinancialHealthScorecardResult } from './financial-health-calculator';
 import { calculateGrowthQualityScore, GrowthQualityScorecardResult } from './growth-quality-calculator';
 import { calculateBusinessQualityScore, BusinessQualityScorecardResult } from './business-quality-calculator';
@@ -21,11 +28,20 @@ export interface StockRankingItem {
   companyName: string;
   exchange: string;
   industry: string;
+  icbCodeLv2?: string;
   
-  // Thị trường & Thanh khoản
+  // Thị trường, Định giá & Thanh khoản
   currentPrice: number;
-  adtv20Billion: number; // Giá trị giao dịch khớp lệnh bình quân 20 ngày (Tỷ VNĐ)
+  adtv20Billion: number; // Giá trị giao dịch khớp lệnh bình quân 1 tháng (~20 phiên) (Tỷ VNĐ)
   marketCapBillion: number;
+  foreignPercentage: number;
+  freeFloatPercentage: number;
+  rsRating: number; // Chỉ số RS Rating chính thức từ Vietcap IQ (0 - 99)
+  
+  // Thông tin Ban lãnh đạo & Công ty liên kết
+  topShareholder?: string;
+  subsidiariesCount: number;
+  affiliatesCount: number;
   
   // Tổng điểm & Xếp loại (Thang 150)
   totalScore: number;
@@ -71,77 +87,25 @@ let rankingCache: {
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
 
 /**
- * Fetch company details & market liquidity from Vietcap IQ
- */
-async function fetchCompanyDetails(ticker: string): Promise<{
-  companyName: string;
-  exchange: string;
-  industry: string;
-  currentPrice: number;
-  adtv20Billion: number;
-  marketCapBillion: number;
-}> {
-  try {
-    const res = await fetch(`https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/details?ticker=${ticker}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-      },
-      next: { revalidate: 300 },
-    });
-
-    if (res.ok) {
-      const json = await res.json();
-      const d = json?.data;
-      if (d) {
-        const currentPrice = d.currentPrice || 0;
-        const avgMatchVal = d.averageMatchValue1Month || 0;
-        const adtv20Billion = Math.round((avgMatchVal / 1_000_000_000) * 10) / 10;
-        const marketCapBillion = Math.round(((d.marketCap || 0) / 1_000_000_000) * 10) / 10;
-        
-        let exchange = d.comGroupCode || 'HOSE';
-        if (exchange === 'VNINDEX' || exchange === 'HOSE' || exchange === 'HSX') exchange = 'HSX';
-        else if (exchange === 'HNXINDEX' || exchange === 'HNX') exchange = 'HNX';
-        else if (exchange === 'UPCOMINDEX' || exchange === 'UPCOM') exchange = 'UPCOM';
-
-        return {
-          companyName: d.viOrganName || d.enOrganName || `Công ty Cổ phần ${ticker}`,
-          exchange,
-          industry: d.sectorVn || d.sector || 'Chung',
-          currentPrice,
-          adtv20Billion,
-          marketCapBillion,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn(`[Ranking] Could not fetch details for ${ticker}:`, err);
-  }
-
-  return {
-    companyName: `Công ty Cổ phần ${ticker}`,
-    exchange: 'HSX',
-    industry: 'Doanh nghiệp Niêm yết',
-    currentPrice: 0,
-    adtv20Billion: 0,
-    marketCapBillion: 0,
-  };
-}
-
-/**
  * Tính toán điểm số & chỉ số cho 1 mã cổ phiếu
  */
 export async function calculateStockRankingItem(ticker: string): Promise<StockRankingItem | null> {
   const cleanTicker = ticker.trim().toUpperCase();
   try {
-    const [details, quarters] = await Promise.all([
-      fetchCompanyDetails(cleanTicker),
+    const [details, relationship, shareholders, quarters] = await Promise.all([
+      fetchVietcapCompanyDetails(cleanTicker),
+      fetchVietcapRelationship(cleanTicker),
+      fetchVietcapShareholders(cleanTicker),
       fetchFullVietcapData(cleanTicker, { maxQuarters: 12 }),
     ]);
 
     if (!quarters || quarters.length === 0) {
       return null;
     }
+
+    // Lấy RS Rating trực tiếp từ nhóm ngành của Vietcap IQ
+    const icbCode = details?.icbCodeLv2 || '';
+    const rsScore = await fetchVietcapStockRs(cleanTicker, icbCode);
 
     // 1. Chấm điểm 3 trụ cột
     const healthResult: FinancialHealthScorecardResult = calculateFinancialHealthScore(quarters);
@@ -183,14 +147,27 @@ export async function calculateStockRankingItem(ticker: string): Promise<StockRa
     const ltmProf = ltmQuarters.reduce((s, c) => s + (c.netProfit || 0), 0);
     const netMargin = ltmRev > 0 ? Math.round((ltmProf / ltmRev) * 1000) / 10 : (latest.netMargin || 0);
 
+    const topOwner = shareholders && shareholders.length > 0
+      ? `${shareholders[0].ownerName} (${shareholders[0].percentage}%)`
+      : undefined;
+
     return {
       ticker: cleanTicker,
-      companyName: details.companyName,
-      exchange: details.exchange,
-      industry: details.industry,
-      currentPrice: details.currentPrice,
-      adtv20Billion: details.adtv20Billion,
-      marketCapBillion: details.marketCapBillion,
+      companyName: details?.companyNameVi || `Công ty Cổ phần ${cleanTicker}`,
+      exchange: details?.exchange || 'HSX',
+      industry: details?.industryVi || 'Doanh nghiệp Niêm yết',
+      icbCodeLv2: details?.icbCodeLv2,
+      
+      currentPrice: details?.currentPrice || 0,
+      adtv20Billion: details?.adtv1MonthBillion || 0,
+      marketCapBillion: details?.marketCapBillion || 0,
+      foreignPercentage: details?.foreignPercentage || 0,
+      freeFloatPercentage: details?.freeFloatPercentage || 0,
+      rsRating: rsScore !== null ? rsScore : 75,
+      
+      topShareholder: topOwner,
+      subsidiariesCount: relationship?.subsidiaries?.length || 0,
+      affiliatesCount: relationship?.affiliates?.length || 0,
       
       totalScore,
       maxScore: 150,
@@ -236,7 +213,7 @@ export async function getFullStockRankingList(forceRefresh = false): Promise<Sto
     return rankingCache.data;
   }
 
-  // Quét theo lô 6 mã đồng thời để tránh làm nghẽn Vietcap API
+  // Quét theo lô 6 mã đồng thời để đảm bảo tốc độ và không làm nghẽn Vietcap API
   const results: StockRankingItem[] = [];
   const batchSize = 6;
   
