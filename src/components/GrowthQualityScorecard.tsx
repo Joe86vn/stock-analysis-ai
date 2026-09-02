@@ -152,13 +152,13 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
           <div className="flex items-center gap-3">
             <div className="text-right">
               <span className="text-sm font-bold text-slate-900 dark:text-white">
-                {scorecard.gatekeepers.isLocked ? '0.0' : sec.score.toFixed(1)}
+                {sec.score.toFixed(1)}
               </span>
               <span className="text-xs text-slate-400 dark:text-gray-500">/{sec.maxScore.toFixed(1)}đ</span>
               <div className="w-20 bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden mt-1">
                 <div
-                  className={`h-full rounded-full ${scorecard.gatekeepers.isLocked ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                  style={{ width: `${scorecard.gatekeepers.isLocked ? 0 : Math.min(100, sec.percentage)}%` }}
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${Math.min(100, sec.percentage)}%` }}
                 />
               </div>
             </div>
@@ -261,16 +261,21 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
             {/* Score Pill */}
             <div className="text-center px-4 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs">
               <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-gray-400 block">
-                Điểm Trụ Cột
+                {scorecard.gatekeepers.isLocked ? 'Điểm Chính Thức (Bị Khóa)' : 'Điểm Trụ Cột'}
               </span>
               <div className="flex items-baseline justify-center gap-1 mt-0.5">
-                <span className="text-2xl font-black text-slate-900 dark:text-white">
+                <span className={`text-2xl font-black ${scorecard.gatekeepers.isLocked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
                   {scorecard.totalScore.toFixed(1)}
                 </span>
                 <span className="text-xs font-semibold text-slate-400 dark:text-gray-500">
                   /{scorecard.maxScore.toFixed(0)}đ
                 </span>
               </div>
+              {scorecard.gatekeepers.isLocked && (
+                <span className="text-[10px] font-semibold text-slate-500 dark:text-gray-400 block mt-0.5">
+                  (Điểm tham khảo: {scorecard.rawTotalScore.toFixed(1)}đ)
+                </span>
+              )}
             </div>
 
             {/* Rank Badge */}
@@ -345,15 +350,13 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
                 <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-gray-400 mb-1">
                   <span>Nhóm {key}</span>
                   <span className="text-slate-800 dark:text-gray-200 font-semibold">
-                    {scorecard.gatekeepers.isLocked ? '0.0' : sec.score.toFixed(1)}/{sec.maxScore}đ
+                    {sec.score.toFixed(1)}/{sec.maxScore}đ
                   </span>
                 </div>
                 <div className="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      scorecard.gatekeepers.isLocked ? 'bg-rose-500' : 'bg-teal-500'
-                    }`}
-                    style={{ width: `${scorecard.gatekeepers.isLocked ? 0 : Math.min(100, sec.percentage)}%` }}
+                    className="h-full rounded-full bg-teal-500 transition-all duration-500"
+                    style={{ width: `${Math.min(100, sec.percentage)}%` }}
                   />
                 </div>
                 <span className="text-[10px] text-slate-600 dark:text-gray-300 truncate block mt-1 font-medium">

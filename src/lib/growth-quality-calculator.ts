@@ -85,8 +85,10 @@ export interface CoreEarningsBridgeResult {
 
 export interface GrowthQualityScorecardResult {
   totalScore: number;
+  rawTotalScore: number;
   maxScore: number;
   percentage: number;
+  rawPercentage: number;
   rankGrade: 'A+' | 'A' | 'B+' | 'B' | 'C' | 'D';
   rankTitle: string;
   rankDescription: string;
@@ -1152,8 +1154,10 @@ export function calculateGrowthQualityScore(
 
   return {
     totalScore,
+    rawTotalScore,
     maxScore: 60.0,
     percentage,
+    rawPercentage: Math.round((rawTotalScore / 60.0) * 100),
     rankGrade,
     rankTitle,
     rankDescription,
