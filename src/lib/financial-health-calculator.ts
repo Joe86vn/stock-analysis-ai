@@ -69,7 +69,7 @@ export function calculateFinancialHealthScore(
   quarters: ParsedVietcapQuarter[] = [],
   overrides?: Partial<FinancialHealthScorecardResult['metrics']>
 ): FinancialHealthScorecardResult {
-  const validQuarters = (quarters || []).filter((q) => q && q.revenue > 0);
+  const validQuarters = (quarters || []).filter((q) => q && q.revenue > 0 && q.quarter >= 1 && q.quarter <= 4);
   const latest = validQuarters[validQuarters.length - 1] || ({} as ParsedVietcapQuarter);
   const last4Quarters = validQuarters.slice(-4);
 

@@ -98,10 +98,11 @@ export function calculateGrowthQualityScore(
   quarters: ParsedVietcapQuarter[] = [],
   overrides?: Partial<GrowthQualityScorecardResult['metrics']>
 ): GrowthQualityScorecardResult {
-  const validQuarters = (quarters || []).filter((q) => q && q.revenue > 0);
+  // Lọc chỉ lấy các kỳ theo Quý (1..4) có doanh thu thực tế
+  const validQuarters = (quarters || []).filter((q) => q && q.revenue > 0 && q.quarter >= 1 && q.quarter <= 4);
   const n = validQuarters.length;
   const latest = validQuarters[n - 1] || ({} as ParsedVietcapQuarter);
-  const sameQuarterLastYear = validQuarters[n - 5] || ({} as ParsedVietcapQuarter);
+  const sameQuarterLastYear = validQuarters.find((q) => q.year === latest.year - 1 && q.quarter === latest.quarter) || validQuarters[n - 5] || ({} as ParsedVietcapQuarter);
 
   // 1. Tính toán tăng trưởng Q0 YoY
   const q0RevenueGrowthYoY = overrides?.q0RevenueGrowthYoY ?? (
