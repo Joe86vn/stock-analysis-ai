@@ -1,8 +1,6 @@
 import {
   fetchFullVietcapData,
   fetchVietcapCompanyDetails,
-  fetchVietcapRelationship,
-  fetchVietcapShareholders,
   fetchVietcapStockRs,
   ParsedVietcapQuarter,
 } from './vietcap-field-mapping';
@@ -22,6 +20,20 @@ export const FILTER_75_TICKERS: string[] = [
   'VPS', 'VTE', 'VTV', 'VTZ', 'VVS'
 ];
 
+// Chỉ số RS (Sức mạnh giá tương đối 6 tháng) chính thức của từng mã cổ phiếu từ filter-rs.md
+export const FILTER_75_RS_MAP: Record<string, number> = {
+  AAA: 71, ABW: 91, AIG: 90, APH: 87, BHN: 76, BSP: 86, BSR: 79, CDC: 89,
+  CSM: 88, DGW: 90, DHC: 93, DHG: 76, DNA: 78, DP1: 78, DRI: 78, DST: 93,
+  DVP: 89, DXP: 93, FRT: 97, GMD: 88, GVR: 83, HAD: 88, HII: 99, HNM: 73,
+  HTL: 75, HTV: 88, HUB: 78, ICT: 72, IFS: 82, KSV: 96, L10: 80, LLM: 99,
+  MCF: 73, MCP: 74, MSR: 88, MST: 97, MWG: 71, MZG: 96, PDB: 88, PGS: 95,
+  PGV: 79, PHP: 95, PHR: 73, PLX: 72, PPH: 76, PSW: 71, PTS: 94, PVP: 91,
+  PVS: 72, PVT: 91, SAM: 70, SAS: 80, SBG: 97, SBL: 96, SCL: 97, SZB: 87,
+  TCO: 75, TDP: 91, THD: 99, TLP: 93, TMP: 93, TNI: 95, TT6: 99, VC9: 80,
+  VCB: 72, VGC: 77, VGT: 71, VHM: 94, VNM: 84, VPI: 85, VPS: 89, VTE: 81,
+  VTV: 81, VTZ: 70, VVS: 95,
+};
+
 export interface StockRankingItem {
   stt?: number;
   ticker: string;
@@ -36,12 +48,7 @@ export interface StockRankingItem {
   marketCapBillion: number;
   foreignPercentage: number;
   freeFloatPercentage: number;
-  rsRating: number; // Chỉ số RS Rating chính thức từ Vietcap IQ (0 - 99)
-  
-  // Thông tin Ban lãnh đạo & Công ty liên kết
-  topShareholder?: string;
-  subsidiariesCount: number;
-  affiliatesCount: number;
+  rsRating: number; // Chỉ số RS Rating của chính mã cổ phiếu (0 - 99)
   
   // Tổng điểm & Xếp loại (Thang 150)
   totalScore: number;
@@ -92,10 +99,8 @@ const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
 export async function calculateStockRankingItem(ticker: string): Promise<StockRankingItem | null> {
   const cleanTicker = ticker.trim().toUpperCase();
   try {
-    const [details, relationship, shareholders, quarters] = await Promise.all([
+    const [details, quarters] = await Promise.all([
       fetchVietcapCompanyDetails(cleanTicker),
-      fetchVietcapRelationship(cleanTicker),
-      fetchVietcapShareholders(cleanTicker),
       fetchFullVietcapData(cleanTicker, { maxQuarters: 12 }),
     ]);
 
@@ -103,9 +108,10 @@ export async function calculateStockRankingItem(ticker: string): Promise<StockRa
       return null;
     }
 
-    // Lấy RS Rating trực tiếp từ nhóm ngành của Vietcap IQ
-    const icbCode = details?.icbCodeLv2 || '';
-    const rsScore = await fetchVietcapStockRs(cleanTicker, icbCode);
+    // Lấy chỉ số RS của chính mã cổ phiếu từ bộ dữ liệu chuẩn hóa hoặc Vietcap live
+    const baseRs = FILTER_75_RS_MAP[cleanTicker] ?? 75;
+    const liveRs = await fetchVietcapStockRs(cleanTicker, details?.icbCodeLv2);
+    const rsRating = liveRs !== null && liveRs > 0 ? liveRs : baseRs;
 
     // 1. Chấm điểm 3 trụ cột
     const healthResult: FinancialHealthScorecardResult = calculateFinancialHealthScore(quarters);
@@ -147,10 +153,6 @@ export async function calculateStockRankingItem(ticker: string): Promise<StockRa
     const ltmProf = ltmQuarters.reduce((s, c) => s + (c.netProfit || 0), 0);
     const netMargin = ltmRev > 0 ? Math.round((ltmProf / ltmRev) * 1000) / 10 : (latest.netMargin || 0);
 
-    const topOwner = shareholders && shareholders.length > 0
-      ? `${shareholders[0].ownerName} (${shareholders[0].percentage}%)`
-      : undefined;
-
     return {
       ticker: cleanTicker,
       companyName: details?.companyNameVi || `Công ty Cổ phần ${cleanTicker}`,
@@ -163,11 +165,7 @@ export async function calculateStockRankingItem(ticker: string): Promise<StockRa
       marketCapBillion: details?.marketCapBillion || 0,
       foreignPercentage: details?.foreignPercentage || 0,
       freeFloatPercentage: details?.freeFloatPercentage || 0,
-      rsRating: rsScore !== null ? rsScore : 75,
-      
-      topShareholder: topOwner,
-      subsidiariesCount: relationship?.subsidiaries?.length || 0,
-      affiliatesCount: relationship?.affiliates?.length || 0,
+      rsRating,
       
       totalScore,
       maxScore: 150,

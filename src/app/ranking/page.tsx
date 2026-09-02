@@ -492,7 +492,7 @@ export default function RankingPage() {
                 onChange={(e) => setRsFilter(e.target.value as any)}
                 className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 py-2 px-2.5 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               >
-                <option value="ALL">RS Vietcap: Tất cả</option>
+                <option value="ALL">RS (6T): Tất cả</option>
                 <option value="90">RS ≥ 90 (Top 10%)</option>
                 <option value="80">RS ≥ 80 (Top 20%)</option>
                 <option value="70">RS ≥ 70 (Top 30%)</option>
@@ -598,7 +598,7 @@ export default function RankingPage() {
                       className="py-3 px-3 font-semibold text-center cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400"
                     >
                       <div className="flex items-center justify-center space-x-1">
-                        <span>RS Ngành</span>
+                        <span>RS (6T)</span>
                         {sortField === 'rsRating' && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                       </div>
                     </th>
@@ -725,11 +725,6 @@ export default function RankingPage() {
                           <div className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[220px]">
                             {item.companyName}
                           </div>
-                          {(item.subsidiariesCount > 0 || item.affiliatesCount > 0) && (
-                            <div className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5">
-                              {item.subsidiariesCount} cty con • {item.affiliatesCount} cty liên kết
-                            </div>
-                          )}
                         </td>
 
                         {/* Current Price */}
