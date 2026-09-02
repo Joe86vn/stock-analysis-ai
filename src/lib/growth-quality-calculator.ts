@@ -880,7 +880,7 @@ export function calculateGrowthQualityScore(
       ltmSamePeriod: fmtBillion(ltmAssociatesProfitPrev > 0 ? ltmAssociatesProfitPrev : 0),
       yoyPct: '—',
       sourceNote: 'Lợi nhuận liên kết / JV (isa15)',
-      classification: 'GIỮ (Gemalink / tài sản chiến lược)',
+      classification: 'GIỮ (JV / tài sản chiến lược)',
       block: 'base',
     },
     {
@@ -983,7 +983,7 @@ export function calculateGrowthQualityScore(
       ltmCurrent: '0.00 tỷ',
       ltmSamePeriod: '0.00 tỷ',
       yoyPct: '—',
-      sourceNote: 'Gemalink là tài sản chiến lược và lặp lại',
+      sourceNote: 'LN liên doanh/liên kết chiến lược và lặp lại',
       classification: 'GIỮ (Là Core kinh tế)',
       isAdjustment: true,
       block: 'adjustment',
