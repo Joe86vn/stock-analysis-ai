@@ -134,9 +134,10 @@ export async function generateAnalysisReport(
 Bạn là chuyên gia phân tích đầu tư chứng khoán hàng đầu Việt Nam theo phương pháp ValueX chuẩn hóa (150 điểm Trụ cột Doanh nghiệp).
 Hãy lập BÁO CÁO PHÂN TÍCH ĐẦU TƯ hoàn chỉnh cho mã chứng khoán ${ticker} (${marketData.companyName}) dựa trên quy trình chuẩn và tài liệu đính kèm:
 
-YÊU CẦU BẮT BUỘC VỀ ĐỘ DÀI VÀ NỘI DUNG:
-- Không viết tóm tắt ngắn gọn hoặc dùng chung chung. Mỗi trường văn bản trong JSON cần được phân tích rất chi tiết (tối thiểu 150-250 từ, có dẫn chứng số liệu rõ ràng).
+YÊU CẦU BẮT BUỘC VỀ NỘI DUNG VÀ ĐỊNH DẠNG:
+- Phân tích súc tích, chuyên sâu, giàu dữ liệu định lượng (mỗi trường văn bản khoảng 80-150 từ, có dẫn chứng số liệu rõ ràng).
 - TRÌNH BÀY VĂN BẢN MẠCH LẠC, DỄ ĐỌC: Sử dụng các tiêu đề phụ in đậm rõ ràng (ví dụ: **1. Yếu tố Sản lượng (Q):** ...), dùng dấu gạch đầu dòng '-' hoặc '•' để liệt kê ý chi tiết.
+- ĐẢM BẢO TRẢ VỀ JSON HỢP LỆ 100%: Cung cấp đầy đủ toàn bộ các trường JSON được yêu cầu bên dưới, không bỏ sót trường nào.
 
 THÔNG SỐ THỊ TRƯỜNG & DỰ PHÓNG NĂM (${year1} VÀ ${year2}):
 - Ngành: ${marketData.industry}
@@ -271,10 +272,10 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     const rawCandidates = [
       preferredModel,
       process.env.GEMINI_MODEL,
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
       'gemini-3.5-flash',
-      'gemini-flash-latest',
+      'gemini-3.6-flash',
     ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
     // Deduplicate candidate models
@@ -294,9 +295,17 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
             maxOutputTokens: 8192,
           },
         });
-        const result = await model.generateContent({
+
+        // 25s per-model timeout to avoid server/gateway 504 timeouts and quickly fallback to faster models
+        const generatePromise = model.generateContent({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error(`Model ${modelName} phản hồi quá lâu (>25s), đang chuyển sang model dự phòng...`)), 25000);
+        });
+
+        const result = await Promise.race([generatePromise, timeoutPromise]);
         const text = result.response.text();
 
         const parsed = repairAndParseJson(text);
