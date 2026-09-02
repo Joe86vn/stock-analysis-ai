@@ -4,6 +4,7 @@ import {
   fetchVietcapStockRs,
   ParsedVietcapQuarter,
 } from './vietcap-field-mapping';
+import { VietcapScreenerMatchedStock } from './vietcap-screener-service';
 import { calculateFinancialHealthScore, FinancialHealthScorecardResult } from './financial-health-calculator';
 import { calculateGrowthQualityScore, GrowthQualityScorecardResult } from './growth-quality-calculator';
 import { calculateBusinessQualityScore, BusinessQualityScorecardResult } from './business-quality-calculator';
@@ -85,22 +86,29 @@ export interface StockRankingItem {
   updatedAt: string;
 }
 
-// In-memory cache for ranking items
-let rankingCache: {
-  timestamp: number;
-  data: StockRankingItem[];
-} | null = null;
-
-const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
+// In-memory cache for stock items (15 minutes TTL)
+const CACHE_TTL_MS = 15 * 60 * 1000;
+const stockItemCache = new Map<string, { timestamp: number; item: StockRankingItem }>();
 
 /**
  * Tính toán điểm số & chỉ số cho 1 mã cổ phiếu
  */
-export async function calculateStockRankingItem(ticker: string): Promise<StockRankingItem | null> {
+export async function calculateStockRankingItem(
+  ticker: string,
+  matchedMeta?: VietcapScreenerMatchedStock
+): Promise<StockRankingItem | null> {
   const cleanTicker = ticker.trim().toUpperCase();
+  const now = Date.now();
+
+  // Kiểm tra cache cho từng mã
+  const cached = stockItemCache.get(cleanTicker);
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return { ...cached.item };
+  }
+
   try {
     const [details, quarters] = await Promise.all([
-      fetchVietcapCompanyDetails(cleanTicker),
+      matchedMeta ? Promise.resolve(null) : fetchVietcapCompanyDetails(cleanTicker),
       fetchFullVietcapData(cleanTicker, { maxQuarters: 12 }),
     ]);
 
@@ -108,12 +116,20 @@ export async function calculateStockRankingItem(ticker: string): Promise<StockRa
       return null;
     }
 
-    // Lấy chỉ số RS của chính mã cổ phiếu từ bộ dữ liệu chuẩn hóa hoặc Vietcap live
-    const baseRs = FILTER_75_RS_MAP[cleanTicker] ?? 75;
-    const liveRs = await fetchVietcapStockRs(cleanTicker, details?.icbCodeLv2);
-    const rsRating = liveRs !== null && liveRs > 0 ? liveRs : baseRs;
+    // Xác định RS Rating của cổ phiếu
+    let rsRating = 75;
+    if (matchedMeta && typeof matchedMeta.rs1Month === 'number' && matchedMeta.rs1Month > 0) {
+      rsRating = matchedMeta.rs1Month;
+    } else if (FILTER_75_RS_MAP[cleanTicker]) {
+      rsRating = FILTER_75_RS_MAP[cleanTicker];
+    } else {
+      const liveRs = await fetchVietcapStockRs(cleanTicker, details?.icbCodeLv2);
+      if (liveRs !== null && liveRs > 0) {
+        rsRating = liveRs;
+      }
+    }
 
-    // 1. Chấm điểm 3 trụ cột
+    // 1. Chấm điểm 3 trụ cột ValueX
     const healthResult: FinancialHealthScorecardResult = calculateFinancialHealthScore(quarters);
     const growthResult: GrowthQualityScorecardResult = calculateGrowthQualityScore(quarters);
     const businessResult: BusinessQualityScorecardResult = calculateBusinessQualityScore(quarters);
@@ -153,16 +169,23 @@ export async function calculateStockRankingItem(ticker: string): Promise<StockRa
     const ltmProf = ltmQuarters.reduce((s, c) => s + (c.netProfit || 0), 0);
     const netMargin = ltmRev > 0 ? Math.round((ltmProf / ltmRev) * 1000) / 10 : (latest.netMargin || 0);
 
-    return {
+    const price = matchedMeta ? matchedMeta.marketPrice : (details?.currentPrice || 0);
+    const adtv = matchedMeta ? matchedMeta.adtv20Billion : (details?.adtv1MonthBillion || 0);
+    const marketCapBillion = matchedMeta ? Math.round((matchedMeta.marketCap / 1_000_000_000) * 10) / 10 : (details?.marketCapBillion || 0);
+    const companyName = matchedMeta?.companyNameVi || details?.companyNameVi || `Công ty Cổ phần ${cleanTicker}`;
+    const exchange = matchedMeta?.exchange || details?.exchange || 'HSX';
+    const industry = matchedMeta?.sectorVi || details?.industryVi || 'Doanh nghiệp Niêm yết';
+
+    const item: StockRankingItem = {
       ticker: cleanTicker,
-      companyName: details?.companyNameVi || `Công ty Cổ phần ${cleanTicker}`,
-      exchange: details?.exchange || 'HSX',
-      industry: details?.industryVi || 'Doanh nghiệp Niêm yết',
-      icbCodeLv2: details?.icbCodeLv2,
+      companyName,
+      exchange,
+      industry,
+      icbCodeLv2: matchedMeta?.icbCodeLv2 || details?.icbCodeLv2,
       
-      currentPrice: details?.currentPrice || 0,
-      adtv20Billion: details?.adtv1MonthBillion || 0,
-      marketCapBillion: details?.marketCapBillion || 0,
+      currentPrice: price,
+      adtv20Billion: adtv,
+      marketCapBillion,
       foreignPercentage: details?.foreignPercentage || 0,
       freeFloatPercentage: details?.freeFloatPercentage || 0,
       rsRating,
@@ -196,6 +219,14 @@ export async function calculateStockRankingItem(ticker: string): Promise<StockRa
       latestQuarter: latestQuarterLabel,
       updatedAt: new Date().toISOString(),
     };
+
+    // Lưu vào cache
+    stockItemCache.set(cleanTicker, {
+      timestamp: now,
+      item,
+    });
+
+    return item;
   } catch (err) {
     console.error(`[Ranking] Error calculating ${cleanTicker}:`, err);
     return null;
@@ -203,23 +234,19 @@ export async function calculateStockRankingItem(ticker: string): Promise<StockRa
 }
 
 /**
- * Lấy danh sách xếp hạng toàn bộ 75 mã cổ phiếu, sắp xếp từ điểm cao xuống thấp
+ * Chấm điểm danh sách cổ phiếu động bất kỳ (Dùng cho kết quả trả về từ Vietcap Screener Tầng 1)
  */
-export async function getFullStockRankingList(forceRefresh = false): Promise<StockRankingItem[]> {
-  const now = Date.now();
-  if (!forceRefresh && rankingCache && now - rankingCache.timestamp < CACHE_TTL_MS) {
-    return rankingCache.data;
-  }
-
-  // Quét theo lô 6 mã đồng thời để đảm bảo tốc độ và không làm nghẽn Vietcap API
+export async function scoreDynamicStockList(
+  matchedList: VietcapScreenerMatchedStock[]
+): Promise<StockRankingItem[]> {
   const results: StockRankingItem[] = [];
   const batchSize = 6;
-  
-  for (let i = 0; i < FILTER_75_TICKERS.length; i += batchSize) {
-    const batch = FILTER_75_TICKERS.slice(i, i + batchSize);
-    const batchPromises = batch.map((ticker) => calculateStockRankingItem(ticker));
+
+  for (let i = 0; i < matchedList.length; i += batchSize) {
+    const batch = matchedList.slice(i, i + batchSize);
+    const batchPromises = batch.map((meta) => calculateStockRankingItem(meta.ticker, meta));
     const batchResults = await Promise.all(batchPromises);
-    
+
     for (const item of batchResults) {
       if (item) {
         results.push(item);
@@ -227,19 +254,44 @@ export async function getFullStockRankingList(forceRefresh = false): Promise<Sto
     }
   }
 
-  // Sắp xếp tổng điểm từ cao xuống thấp (Total Score descending)
+  // Sắp xếp tổng điểm từ cao xuống thấp
+  results.sort((a, b) => b.totalScore - a.totalScore);
+
+  // Gán STT xếp hạng
+  results.forEach((item, index) => {
+    item.stt = index + 1;
+  });
+
+  return results;
+}
+
+/**
+ * Lấy danh sách xếp hạng toàn bộ 75 mã cổ phiếu chuẩn Q2/2026
+ */
+export async function getFullStockRankingList(forceRefresh = false): Promise<StockRankingItem[]> {
+  const now = Date.now();
+  const results: StockRankingItem[] = [];
+  const batchSize = 6;
+
+  for (let i = 0; i < FILTER_75_TICKERS.length; i += batchSize) {
+    const batch = FILTER_75_TICKERS.slice(i, i + batchSize);
+    const batchPromises = batch.map((ticker) => calculateStockRankingItem(ticker));
+    const batchResults = await Promise.all(batchPromises);
+
+    for (const item of batchResults) {
+      if (item) {
+        results.push(item);
+      }
+    }
+  }
+
+  // Sắp xếp tổng điểm từ cao xuống thấp
   results.sort((a, b) => b.totalScore - a.totalScore);
 
   // Gán STT xếp hạng sau khi sắp xếp
   results.forEach((item, index) => {
     item.stt = index + 1;
   });
-
-  // Lưu cache
-  rankingCache = {
-    timestamp: now,
-    data: results,
-  };
 
   return results;
 }
