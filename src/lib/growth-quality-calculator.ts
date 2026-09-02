@@ -38,7 +38,6 @@ export interface CoreEarningsBridgeResult {
   rows: CoreEarningsBridgeRow[];
   headlineNetProfitQ0: number;
   headlineNetProfitPrev: number;
-  headlineNetProfitGrowthYoY: number;
   coreNetProfitQ0: number;
   coreNetProfitPrev: number;
   coreNetProfitGrowthYoY: number;
@@ -49,11 +48,6 @@ export interface CoreEarningsBridgeResult {
   sharesPrev: number;
   isCoreVerified: boolean;
   verificationNote: string;
-  totalUnusualIncomePreTaxQ0: number;
-  afterTaxAdjustmentQ0: number;
-  afterTaxAdjustmentPrev: number;
-  nonCoreToPreTaxProfitRatio: number;
-  warnings: string[];
 }
 
 export interface GrowthQualityScorecardResult {
@@ -122,14 +116,38 @@ export function calculateGrowthQualityScore(
       : 20
   );
 
-  // Core Profit (Loại trừ LN khác và bất thường)
-  const latestCore = (latest.netProfit || 0) - (latest.otherProfit || 0) * 0.8;
-  const lastYearCore = (sameQuarterLastYear.netProfit || 0) - (sameQuarterLastYear.otherProfit || 0) * 0.8;
+  // Thuế suất thực tế hiệu dụng
+  const taxRateCurr = latest.profitBeforeTax > 0 && latest.totalTax
+    ? Math.min(0.25, Math.max(0.15, latest.totalTax / latest.profitBeforeTax))
+    : 0.20;
+  const taxRatePrev = sameQuarterLastYear.profitBeforeTax > 0 && sameQuarterLastYear.totalTax
+    ? Math.min(0.25, Math.max(0.15, sameQuarterLastYear.totalTax / sameQuarterLastYear.profitBeforeTax))
+    : 0.20;
+
+  // Bóc tách thu nhập tài chính một lần & Lợi nhuận khác
+  const unusualFinIncomeCurr = latest.noteHighlights?.investmentDisposalGainBillion || 0;
+  const unusualFinIncomePrev = sameQuarterLastYear.noteHighlights?.investmentDisposalGainBillion || 0;
+
+  const adjCurr = ((latest.otherProfit || 0) + unusualFinIncomeCurr) * (1 - taxRateCurr);
+  const adjPrev = ((sameQuarterLastYear.otherProfit || 0) + unusualFinIncomePrev) * (1 - taxRatePrev);
+
+  // Core Profit sau bóc tách
+  const latestCore = (latest.netProfit || 0) - adjCurr;
+  const lastYearCore = (sameQuarterLastYear.netProfit || 0) - adjPrev;
+
+  const sharesCurr = latest.sharesOutstandingMillions || 1000;
+  const sharesPrev = sameQuarterLastYear.sharesOutstandingMillions || sharesCurr;
+
+  const coreEpsCurr = sharesCurr > 0 ? Math.round((latestCore * 1000) / sharesCurr) : 0;
+  const coreEpsPrev = sharesPrev > 0 ? Math.round((lastYearCore * 1000) / sharesPrev) : 0;
+
   const q0CoreProfitGrowthYoY = overrides?.q0CoreProfitGrowthYoY ?? (
-    lastYearCore > 0 ? ((latestCore - lastYearCore) / lastYearCore) * 100 : q0NetProfitGrowthYoY
+    lastYearCore !== 0 ? ((latestCore - lastYearCore) / Math.abs(lastYearCore)) * 100 : q0NetProfitGrowthYoY
   );
 
-  const epsCoreGrowthYoY = overrides?.epsCoreGrowthYoY ?? q0CoreProfitGrowthYoY;
+  const epsCoreGrowthYoY = overrides?.epsCoreGrowthYoY ?? (
+    coreEpsPrev > 0 ? ((coreEpsCurr - coreEpsPrev) / Math.abs(coreEpsPrev)) * 100 : q0CoreProfitGrowthYoY
+  );
 
   // LTM 4 quý gần nhất vs 4 quý cùng kỳ trước
   const last4 = validQuarters.slice(-4);
@@ -613,67 +631,6 @@ export function calculateGrowthQualityScore(
   const ebitCurr = latest.operatingProfit || (latest.grossProfit - (latest.sellingExpenses || 0) - (latest.adminExpenses || 0));
   const ebitPrev = sameQuarterLastYear.operatingProfit || (sameQuarterLastYear.grossProfit - (sameQuarterLastYear.sellingExpenses || 0) - (sameQuarterLastYear.adminExpenses || 0));
 
-  // Thuế suất thực tế
-  const taxRateCurr = latest.profitBeforeTax > 0 && latest.totalTax
-    ? Math.min(0.25, Math.max(0.15, latest.totalTax / latest.profitBeforeTax))
-    : 0.20;
-  const taxRatePrev = sameQuarterLastYear.profitBeforeTax > 0 && sameQuarterLastYear.totalTax
-    ? Math.min(0.25, Math.max(0.15, sameQuarterLastYear.totalTax / sameQuarterLastYear.profitBeforeTax))
-    : 0.20;
-
-  // Tách Doanh thu tài chính: Lãi tiền gửi bình thường hóa vs Thoái vốn/Đột biến một lần
-  const normalInterestIncomeCurr = latest.noteHighlights?.interestIncomeBillion ?? (
-    sameQuarterLastYear.financialIncome > 0 && latest.financialIncome > sameQuarterLastYear.financialIncome * 2
-      ? sameQuarterLastYear.financialIncome
-      : (latest.financialIncome || 0)
-  );
-  
-  const unusualFinancialIncomeCurr = latest.noteHighlights?.investmentDisposalGainBillion ?? (
-    latest.financialIncome > normalInterestIncomeCurr ? latest.financialIncome - normalInterestIncomeCurr : 0
-  );
-
-  const unusualFinancialIncomePrev = sameQuarterLastYear.noteHighlights?.investmentDisposalGainBillion ?? 0;
-
-  // Tổng thu nhập bất thường trước thuế
-  const totalUnusualPreTaxCurr = unusualFinancialIncomeCurr + (latest.otherProfit || 0);
-  const totalUnusualPreTaxPrev = unusualFinancialIncomePrev + (sameQuarterLastYear.otherProfit || 0);
-
-  // Điều chỉnh sau thuế: nhập âm (-) để loại lãi bất thường, nhập dương (+) để cộng lại lỗ bất thường
-  const adjCurr = - (totalUnusualPreTaxCurr * (1 - taxRateCurr));
-  const adjPrev = - (totalUnusualPreTaxPrev * (1 - taxRatePrev));
-
-  // LNST Cốt lõi sau điều chỉnh
-  const calculatedCoreCurr = (latest.netProfit || 0) + adjCurr;
-  const calculatedCorePrev = (sameQuarterLastYear.netProfit || 0) + adjPrev;
-
-  const sharesCurr = latest.sharesOutstandingMillions || 1000;
-  const sharesPrev = sameQuarterLastYear.sharesOutstandingMillions || sharesCurr;
-
-  const coreEpsCurr = sharesCurr > 0 ? Math.round((calculatedCoreCurr * 1000) / sharesCurr) : 0;
-  const coreEpsPrev = sharesPrev > 0 ? Math.round((calculatedCorePrev * 1000) / sharesPrev) : 0;
-  const calculatedCoreEpsGrowthYoY = coreEpsPrev > 0 ? ((coreEpsCurr - coreEpsPrev) / Math.abs(coreEpsPrev)) * 100 : q0CoreProfitGrowthYoY;
-  const headlineGrowthYoY = sameQuarterLastYear.netProfit > 0 ? ((latest.netProfit - sameQuarterLastYear.netProfit) / Math.abs(sameQuarterLastYear.netProfit)) * 100 : 0;
-
-  const nonCoreRatioQ0 = latest.profitBeforeTax > 0 ? (((latest.financialIncome || 0) + (latest.otherProfit || 0)) / latest.profitBeforeTax) * 100 : 0;
-
-  // Danh sách Cảnh Báo Tự Động theo Quy chuẩn ValueX
-  const warnings: string[] = [];
-  if (Math.abs(totalUnusualPreTaxCurr) > 1.0) {
-    warnings.push(`Đã bóc tách ${Math.abs(totalUnusualPreTaxCurr).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ VNĐ thu nhập tài chính/lợi nhuận khác bất thường khỏi LNST Q0.`);
-  }
-  if (nonCoreRatioQ0 > 10) {
-    warnings.push(`CẢNH BÁO TỰ ĐỘNG: DT tài chính + LN khác chiếm ${nonCoreRatioQ0.toFixed(2)}% (>10%) LNTT Q0.`);
-  }
-  if (headlineGrowthYoY - q0CoreProfitGrowthYoY > 20) {
-    warnings.push(`CẢNH BÁO TỰ ĐỘNG: LNST headline (${headlineGrowthYoY >= 0 ? '+' : ''}${headlineGrowthYoY.toFixed(2)}%) tăng mạnh hơn Core (${q0CoreProfitGrowthYoY >= 0 ? '+' : ''}${q0CoreProfitGrowthYoY.toFixed(2)}%) tới ${(headlineGrowthYoY - q0CoreProfitGrowthYoY).toFixed(2)} điểm %.`);
-  }
-  if (sameQuarterLastYear.financialIncome > 0 && ((latest.financialIncome - sameQuarterLastYear.financialIncome) / sameQuarterLastYear.financialIncome) > 0.5) {
-    warnings.push(`CẢNH BÁO TỰ ĐỘNG: Doanh thu tài chính Q0 tăng đột biến so với cùng kỳ.`);
-  }
-  if (headlineGrowthYoY > 30 && (sameQuarterLastYear.operatingProfit > 0 && ((ebitCurr - ebitPrev) / ebitPrev) < 0.1)) {
-    warnings.push(`CẢNH BÁO TỰ ĐỘNG: LNST headline tăng >30% nhưng EBIT tăng <10%.`);
-  }
-
   const calcYoYStr = (curr: number, prev: number): string => {
     if (!prev || prev === 0) return '—';
     const pct = ((curr - prev) / Math.abs(prev)) * 100;
@@ -729,23 +686,23 @@ export function calculateGrowthQualityScore(
       label: 'LNST thuộc CĐ mẹ – Báo cáo (Headline)',
       q0Current: `${latest.netProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
       q0SamePeriod: `${sameQuarterLastYear.netProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      yoyPct: `${headlineGrowthYoY >= 0 ? '+' : ''}${headlineGrowthYoY.toFixed(2)}%`,
+      yoyPct: calcYoYStr(latest.netProfit || 0, sameQuarterLastYear.netProfit || 0),
       sourceNote: 'Chưa bóc tách (Headline)',
       isHeadline: true,
     },
     {
       label: '(+) Điều chỉnh sau thuế loại lãi bất thường',
-      q0Current: `${adjCurr >= 0 ? '+' : ''}${adjCurr.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${adjPrev >= 0 ? '+' : ''}${adjPrev.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0Current: adjCurr !== 0 ? `-${Math.abs(adjCurr).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ` : '0.00 tỷ',
+      q0SamePeriod: adjPrev !== 0 ? `-${Math.abs(adjPrev).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ` : '0.00 tỷ',
       yoyPct: '—',
       sourceNote: 'Bóc tách thoái vốn/tài chính một lần',
       isAdjustment: true,
     },
     {
       label: 'LNST CỐT LÕI (CORE NET PROFIT)',
-      q0Current: `${calculatedCoreCurr?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      q0SamePeriod: `${calculatedCorePrev?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
-      yoyPct: calcYoYStr(calculatedCoreCurr, calculatedCorePrev),
+      q0Current: `${latestCore?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0SamePeriod: `${lastYearCore?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      yoyPct: calcYoYStr(latestCore, lastYearCore),
       sourceNote: 'Lợi nhuận thực chất từ vận hành',
       isCore: true,
     },
@@ -772,22 +729,16 @@ export function calculateGrowthQualityScore(
     rows: coreBridgeRows,
     headlineNetProfitQ0: latest.netProfit || 0,
     headlineNetProfitPrev: sameQuarterLastYear.netProfit || 0,
-    headlineNetProfitGrowthYoY: headlineGrowthYoY,
-    coreNetProfitQ0: calculatedCoreCurr,
-    coreNetProfitPrev: calculatedCorePrev,
+    coreNetProfitQ0: latestCore,
+    coreNetProfitPrev: lastYearCore,
     coreNetProfitGrowthYoY: q0CoreProfitGrowthYoY,
     coreEpsQ0: coreEpsCurr,
     coreEpsPrev: coreEpsPrev,
-    coreEpsGrowthYoY: calculatedCoreEpsGrowthYoY,
+    coreEpsGrowthYoY: epsCoreGrowthYoY,
     sharesQ0: sharesCurr,
     sharesPrev,
     isCoreVerified: gate1Pass,
     verificationNote: gate1Note,
-    totalUnusualIncomePreTaxQ0: totalUnusualPreTaxCurr,
-    afterTaxAdjustmentQ0: adjCurr,
-    afterTaxAdjustmentPrev: adjPrev,
-    nonCoreToPreTaxProfitRatio: nonCoreRatioQ0,
-    warnings,
   };
 
   return {
