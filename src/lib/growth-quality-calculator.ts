@@ -21,6 +21,35 @@ export interface GrowthSectionScoreResult {
   summaryNote: string;
 }
 
+export interface CoreEarningsBridgeRow {
+  label: string;
+  q0Current: number | string;
+  q0SamePeriod: number | string;
+  yoyPct?: number | string;
+  sourceNote: string;
+  isHeadline?: boolean;
+  isCore?: boolean;
+  isAdjustment?: boolean;
+}
+
+export interface CoreEarningsBridgeResult {
+  currentPeriodLabel: string;
+  samePeriodLastYearLabel: string;
+  rows: CoreEarningsBridgeRow[];
+  headlineNetProfitQ0: number;
+  headlineNetProfitPrev: number;
+  coreNetProfitQ0: number;
+  coreNetProfitPrev: number;
+  coreNetProfitGrowthYoY: number;
+  coreEpsQ0: number;
+  coreEpsPrev: number;
+  coreEpsGrowthYoY: number;
+  sharesQ0: number;
+  sharesPrev: number;
+  isCoreVerified: boolean;
+  verificationNote: string;
+}
+
 export interface GrowthQualityScorecardResult {
   totalScore: number;
   maxScore: number;
@@ -36,6 +65,7 @@ export interface GrowthQualityScorecardResult {
     isLocked: boolean;
     lockReason?: string;
   };
+  coreBridge: CoreEarningsBridgeResult;
   sections: {
     A: GrowthSectionScoreResult;
     B: GrowthSectionScoreResult;
@@ -571,6 +601,132 @@ export function calculateGrowthQualityScore(
     rankDescription = 'Tăng trưởng kém hoặc không chuyển hóa thành tiền mặt, tiềm ẩn rủi ro chu kỳ đảo chiều.';
   }
 
+  // =======================================================
+  // 🌉 CẦU NỐI LỢI NHUẬN & EPS CỐT LÕI (CORE BRIDGE)
+  // =======================================================
+  const ebitCurr = latest.operatingProfit || (latest.grossProfit - (latest.sellingExpenses || 0) - (latest.adminExpenses || 0));
+  const ebitPrev = sameQuarterLastYear.operatingProfit || (sameQuarterLastYear.grossProfit - (sameQuarterLastYear.sellingExpenses || 0) - (sameQuarterLastYear.adminExpenses || 0));
+
+  const adjCurr = (latest.otherProfit || 0) * 0.8;
+  const adjPrev = (sameQuarterLastYear.otherProfit || 0) * 0.8;
+
+  const sharesCurr = latest.sharesOutstandingMillions || 1000;
+  const sharesPrev = sameQuarterLastYear.sharesOutstandingMillions || sharesCurr;
+
+  const coreEpsCurr = sharesCurr > 0 ? Math.round((latestCore * 1000) / sharesCurr) : 0;
+  const coreEpsPrev = sharesPrev > 0 ? Math.round((lastYearCore * 1000) / sharesPrev) : 0;
+  const coreEpsGrowthYoY = coreEpsPrev > 0 ? ((coreEpsCurr - coreEpsPrev) / Math.abs(coreEpsPrev)) * 100 : q0CoreProfitGrowthYoY;
+
+  const calcYoYStr = (curr: number, prev: number): string => {
+    if (!prev || prev === 0) return '—';
+    const pct = ((curr - prev) / Math.abs(prev)) * 100;
+    return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+  };
+
+  const coreBridgeRows: CoreEarningsBridgeRow[] = [
+    {
+      label: 'Doanh thu thuần',
+      q0Current: `${latest.revenue?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0SamePeriod: `${sameQuarterLastYear.revenue?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      yoyPct: calcYoYStr(latest.revenue || 0, sameQuarterLastYear.revenue || 0),
+      sourceNote: 'Doanh thu thuần BCTC Vietcap',
+    },
+    {
+      label: 'Lợi nhuận gộp',
+      q0Current: `${latest.grossProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0SamePeriod: `${sameQuarterLastYear.grossProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      yoyPct: calcYoYStr(latest.grossProfit || 0, sameQuarterLastYear.grossProfit || 0),
+      sourceNote: 'Hoạt động kinh doanh chính',
+    },
+    {
+      label: 'EBIT (LN trước tài chính & thuế)',
+      q0Current: `${ebitCurr?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0SamePeriod: `${ebitPrev?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      yoyPct: calcYoYStr(ebitCurr, ebitPrev),
+      sourceNote: 'Lợi nhuận hoạt động cốt lõi',
+    },
+    {
+      label: 'Doanh thu tài chính',
+      q0Current: `${latest.financialIncome?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0SamePeriod: `${sameQuarterLastYear.financialIncome?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      yoyPct: calcYoYStr(latest.financialIncome || 0, sameQuarterLastYear.financialIncome || 0),
+      sourceNote: latest.noteHighlights?.interestIncomeBillion
+        ? `Tách lãi tiền gửi (${latest.noteHighlights.interestIncomeBillion.toFixed(1)} tỷ) vs thoái vốn`
+        : 'Tách lãi tiền gửi vs thoái vốn',
+    },
+    {
+      label: 'Lợi nhuận khác',
+      q0Current: `${latest.otherProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0SamePeriod: `${sameQuarterLastYear.otherProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      yoyPct: '—',
+      sourceNote: 'Bất thường / thanh lý ngoài ngành',
+    },
+    {
+      label: 'Lợi nhuận trước thuế (LNTT)',
+      q0Current: `${latest.profitBeforeTax?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0SamePeriod: `${sameQuarterLastYear.profitBeforeTax?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      yoyPct: calcYoYStr(latest.profitBeforeTax || 0, sameQuarterLastYear.profitBeforeTax || 0),
+      sourceNote: 'LNTT báo cáo',
+    },
+    {
+      label: 'LNST thuộc CĐ mẹ – Báo cáo (Headline)',
+      q0Current: `${latest.netProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0SamePeriod: `${sameQuarterLastYear.netProfit?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      yoyPct: calcYoYStr(latest.netProfit || 0, sameQuarterLastYear.netProfit || 0),
+      sourceNote: 'Chưa bóc tách (Headline)',
+      isHeadline: true,
+    },
+    {
+      label: '(+) Điều chỉnh sau thuế loại lãi bất thường',
+      q0Current: adjCurr !== 0 ? `-${Math.abs(adjCurr).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ` : '0.00 tỷ',
+      q0SamePeriod: adjPrev !== 0 ? `-${Math.abs(adjPrev).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ` : '0.00 tỷ',
+      yoyPct: '—',
+      sourceNote: 'Bóc tách thoái vốn/tài chính một lần',
+      isAdjustment: true,
+    },
+    {
+      label: 'LNST CỐT LÕI (CORE NET PROFIT)',
+      q0Current: `${latestCore?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      q0SamePeriod: `${lastYearCore?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      yoyPct: calcYoYStr(latestCore, lastYearCore),
+      sourceNote: 'Lợi nhuận thực chất từ vận hành',
+      isCore: true,
+    },
+    {
+      label: 'Số CP bình quân pha loãng',
+      q0Current: `${sharesCurr.toLocaleString('vi-VN')} tr cp`,
+      q0SamePeriod: `${sharesPrev.toLocaleString('vi-VN')} tr cp`,
+      yoyPct: calcYoYStr(sharesCurr, sharesPrev),
+      sourceNote: 'Cổ phiếu lưu hành',
+    },
+    {
+      label: 'EPS CỐT LÕI (CORE EPS)',
+      q0Current: `${coreEpsCurr.toLocaleString('vi-VN')} đ/cp`,
+      q0SamePeriod: `${coreEpsPrev.toLocaleString('vi-VN')} đ/cp`,
+      yoyPct: calcYoYStr(coreEpsCurr, coreEpsPrev),
+      sourceNote: 'EPS sau bóc tách',
+      isCore: true,
+    },
+  ];
+
+  const coreBridge: CoreEarningsBridgeResult = {
+    currentPeriodLabel: latest.period || 'Q0 Hiện tại',
+    samePeriodLastYearLabel: sameQuarterLastYear.period || 'Q0 Cùng kỳ',
+    rows: coreBridgeRows,
+    headlineNetProfitQ0: latest.netProfit || 0,
+    headlineNetProfitPrev: sameQuarterLastYear.netProfit || 0,
+    coreNetProfitQ0: latestCore,
+    coreNetProfitPrev: lastYearCore,
+    coreNetProfitGrowthYoY: q0CoreProfitGrowthYoY,
+    coreEpsQ0: coreEpsCurr,
+    coreEpsPrev: coreEpsPrev,
+    coreEpsGrowthYoY,
+    sharesQ0: sharesCurr,
+    sharesPrev,
+    isCoreVerified: gate1Pass,
+    verificationNote: gate1Note,
+  };
+
   return {
     totalScore,
     maxScore: 60.0,
@@ -586,6 +742,7 @@ export function calculateGrowthQualityScore(
       isLocked,
       lockReason,
     },
+    coreBridge,
     sections: {
       A: sectionA,
       B: sectionB,

@@ -365,7 +365,137 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
         </div>
       </div>
 
-      {/* 2. 7 DETAILED SECTIONS A THROUGH G */}
+      {/* 2. 🌉 BẢNG BÓC TÁCH CẦU NỐI LNST & EPS CỐT LÕI (CORE EARNINGS BRIDGE) */}
+      <div className="rounded-2xl border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-gray-900/70 p-5 shadow-xs transition-all">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 mb-3 border-b border-gray-100 dark:border-gray-800 gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400">
+                QUY CHUẨN VALUEX • CẦU NỐI CORE
+              </span>
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 font-heading">
+              Bảng Bóc Tách Lợi Nhuận Sau Thuế &amp; EPS Cốt Lõi (Core Earnings Bridge)
+            </h3>
+            <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5">
+              Bóc tách các khoản thu nhập tài chính đột biến &amp; lợi nhuận một lần để xác định lợi nhuận thực chất từ hoạt động vận hành cốt lõi ({scorecard.coreBridge.currentPeriodLabel} vs {scorecard.coreBridge.samePeriodLastYearLabel}).
+            </p>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border ${
+              scorecard.gatekeepers.gate1_CoreVerified
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+            }`}>
+              {scorecard.gatekeepers.gate1_CoreVerified ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>ĐÃ XÁC MINH CỐT LÕI</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                  <span>CHƯA XÁC MINH CORE</span>
+                </>
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* Core Bridge Data Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left">
+            <thead>
+              <tr className="text-slate-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 font-medium text-[11px] bg-slate-50/60 dark:bg-gray-800/40">
+                <th className="py-2.5 px-3 font-bold uppercase tracking-wider">Khoản mục / Chỉ tiêu</th>
+                <th className="py-2.5 px-3 font-bold uppercase tracking-wider text-right">{scorecard.coreBridge.currentPeriodLabel} Hiện tại</th>
+                <th className="py-2.5 px-3 font-bold uppercase tracking-wider text-right">{scorecard.coreBridge.samePeriodLastYearLabel} Cùng kỳ</th>
+                <th className="py-2.5 px-3 font-bold uppercase tracking-wider text-right">Biến động YoY</th>
+                <th className="py-2.5 px-3 font-bold uppercase tracking-wider">Nguồn / Thuyết minh &amp; Phân loại</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 font-sans">
+              {scorecard.coreBridge.rows.map((row, idx) => {
+                const isCoreRow = row.isCore;
+                const isHeadlineRow = row.isHeadline;
+                const isAdjRow = row.isAdjustment;
+
+                let rowBgClass = 'hover:bg-gray-50/60 dark:hover:bg-gray-800/30';
+                if (isCoreRow) {
+                  rowBgClass = 'bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40';
+                } else if (isHeadlineRow) {
+                  rowBgClass = 'bg-slate-50/80 dark:bg-gray-800/40 font-semibold';
+                }
+
+                return (
+                  <tr key={idx} className={`${rowBgClass} transition-colors`}>
+                    <td className={`py-2.5 px-3 ${
+                      isCoreRow
+                        ? 'font-black text-emerald-900 dark:text-emerald-200'
+                        : isHeadlineRow
+                        ? 'font-bold text-slate-900 dark:text-white'
+                        : isAdjRow
+                        ? 'text-slate-600 dark:text-gray-400 italic pl-5'
+                        : 'text-slate-700 dark:text-gray-300 font-medium'
+                    }`}>
+                      {row.label}
+                    </td>
+
+                    <td className={`py-2.5 px-3 text-right font-mono ${
+                      isCoreRow
+                        ? 'font-black text-emerald-900 dark:text-emerald-200 text-[13px]'
+                        : isHeadlineRow
+                        ? 'font-bold text-slate-900 dark:text-white'
+                        : isAdjRow
+                        ? 'text-rose-600 dark:text-rose-400 font-semibold'
+                        : 'text-slate-800 dark:text-gray-200'
+                    }`}>
+                      {row.q0Current}
+                    </td>
+
+                    <td className={`py-2.5 px-3 text-right font-mono ${
+                      isCoreRow
+                        ? 'font-black text-emerald-900 dark:text-emerald-200 text-[13px]'
+                        : isHeadlineRow
+                        ? 'font-bold text-slate-900 dark:text-white'
+                        : isAdjRow
+                        ? 'text-rose-600 dark:text-rose-400 font-semibold'
+                        : 'text-slate-600 dark:text-gray-400'
+                    }`}>
+                      {row.q0SamePeriod}
+                    </td>
+
+                    <td className={`py-2.5 px-3 text-right font-mono ${
+                      isCoreRow
+                        ? 'font-black text-emerald-600 dark:text-emerald-400 text-[13px]'
+                        : String(row.yoyPct).startsWith('+')
+                        ? 'font-bold text-emerald-600 dark:text-emerald-400'
+                        : String(row.yoyPct).startsWith('-')
+                        ? 'font-bold text-rose-600 dark:text-rose-400'
+                        : 'text-slate-400 dark:text-gray-500'
+                    }`}>
+                      {row.yoyPct}
+                    </td>
+
+                    <td className={`py-2.5 px-3 text-[11px] ${
+                      isCoreRow
+                        ? 'font-bold text-emerald-800 dark:text-emerald-300'
+                        : isHeadlineRow
+                        ? 'font-semibold text-slate-700 dark:text-gray-300'
+                        : 'text-slate-500 dark:text-gray-400'
+                    }`}>
+                      {row.sourceNote}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 3. 7 DETAILED SECTIONS A THROUGH G */}
       <div className="space-y-4">
         {(['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const).map((key) =>
           renderSectionCard(scorecard.sections[key])
