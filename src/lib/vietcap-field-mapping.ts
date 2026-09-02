@@ -175,8 +175,21 @@ export const VIETCAP_NOTE_MAP: Record<string, VietcapFieldMeta> = {
   noc102: { code: 'noc102', nameVi: 'Doanh thu bán thành phẩm và hàng hóa', nameEn: 'Revenue from Sale of Goods & Finished Products', unit: 'VND' },
   noc106: { code: 'noc106', nameVi: 'Chiết khấu thương mại và Giảm giá hàng bán', nameEn: 'Trade Discounts & Sales Allowances', unit: 'VND' },
   noc113: { code: 'noc113', nameVi: 'Giá vốn thành phẩm và hàng hóa đã bán', nameEn: 'Cost of Finished Goods Sold', unit: 'VND' },
+  noc121: { code: 'noc121', nameVi: 'Doanh thu hoạt động tài chính chi tiết', nameEn: 'Financial Income Breakdown', unit: 'VND' },
   noc122: { code: 'noc122', nameVi: 'Lãi tiền gửi, tiền cho vay', nameEn: 'Interest Income from Deposits & Loans', unit: 'VND' },
+  noc123: { code: 'noc123', nameVi: 'Lãi chênh lệch tỷ giá hối đoái', nameEn: 'Foreign Exchange Gain', unit: 'VND' },
+  noc124: { code: 'noc124', nameVi: 'Cổ tức, lợi nhuận được chia', nameEn: 'Dividends & Distributed Profits', unit: 'VND' },
+  noc125: { code: 'noc125', nameVi: 'Lãi bán các khoản đầu tư / thoái vốn', nameEn: 'Gain on Disposal of Investments / Divestment', unit: 'VND' },
+  noc126: { code: 'noc126', nameVi: 'Doanh thu hoạt động tài chính khác', nameEn: 'Other Financial Income', unit: 'VND' },
   noc131: { code: 'noc131', nameVi: 'Chi phí lãi tiền vay chi tiết', nameEn: 'Borrowing Costs / Interest Expense Breakdown', unit: 'VND' },
+  noc132: { code: 'noc132', nameVi: 'Lỗ chênh lệch tỷ giá hối đoái', nameEn: 'Foreign Exchange Loss', unit: 'VND' },
+  noc133: { code: 'noc133', nameVi: 'Dự phòng giảm giá chứng khoán & tổn thất đầu tư', nameEn: 'Provision for Investment Losses', unit: 'VND' },
+  noc134: { code: 'noc134', nameVi: 'Chi phí tài chính khác', nameEn: 'Other Financial Expenses', unit: 'VND' },
+  noc141: { code: 'noc141', nameVi: 'Thu nhập từ thanh lý, nhượng bán TSCĐ', nameEn: 'Gain on Disposal of Fixed Assets', unit: 'VND' },
+  noc142: { code: 'noc142', nameVi: 'Thu tiền phạt, bồi thường được nhận', nameEn: 'Penalties & Compensations Received', unit: 'VND' },
+  noc143: { code: 'noc143', nameVi: 'Thu nhập khác chi tiết', nameEn: 'Other Miscellaneous Income', unit: 'VND' },
+  noc151: { code: 'noc151', nameVi: 'Chi phí khác chi tiết', nameEn: 'Other Miscellaneous Expenses', unit: 'VND' },
+  noc161: { code: 'noc161', nameVi: 'Lợi nhuận khác chi tiết', nameEn: 'Other Profit Breakdown', unit: 'VND' },
 };
 
 export const ALL_VIETCAP_FIELDS_MAP: Record<string, VietcapFieldMeta> = {
@@ -298,10 +311,24 @@ export interface ParsedVietcapQuarter {
 
   // 6. Thuyết minh BCTC nổi bật (Notes Summary)
   noteHighlights?: {
-    cashInBankBillion?: number; // noc1
-    shortTermDepositsBillion?: number; // noc5
-    interestIncomeBillion?: number; // noc122
-    interestExpenseBillion?: number; // noc131
+    cashInBankBillion?: number; // noc1: Tiền gửi ngân hàng & Tiền mặt
+    shortTermDepositsBillion?: number; // noc5: Tiền gửi có kỳ hạn ngắn hạn
+    heldToMaturityBillion?: number; // noc6: Đầu tư nắm giữ đến ngày đáo hạn
+    tradeReceivablesDetailBillion?: number; // noc15: Phải thu KH chi tiết
+    inventoryProvisionBillion?: number; // noc39: Dự phòng giảm giá hàng tồn kho
+    financialIncomeDetailBillion?: number; // noc121: Doanh thu tài chính chi tiết
+    interestIncomeBillion?: number; // noc122: Lãi tiền gửi, tiền cho vay
+    fxGainBillion?: number; // noc123: Lãi chênh lệch tỷ giá
+    dividendIncomeBillion?: number; // noc124: Cổ tức, lợi nhuận được chia
+    investmentDisposalGainBillion?: number; // noc125: Lãi bán các khoản đầu tư / thoái vốn
+    otherFinancialIncomeBillion?: number; // noc126: Doanh thu tài chính khác
+    interestExpenseBillion?: number; // noc131: Chi phí lãi vay chi tiết
+    fxLossBillion?: number; // noc132: Lỗ chênh lệch tỷ giá
+    investmentLossProvisionBillion?: number; // noc133: Dự phòng tổn thất đầu tư
+    fixedAssetDisposalIncomeBillion?: number; // noc141: Thu nhập thanh lý, nhượng bán TSCĐ
+    otherIncomeBillion?: number; // noc143: Thu nhập khác chi tiết
+    otherExpensesBillion?: number; // noc151: Chi phí khác chi tiết
+    otherProfitDetailBillion?: number; // noc161: Lợi nhuận khác chi tiết
   };
 }
 
@@ -439,8 +466,22 @@ export function parseVietcapQuarter(
   const noteHighlights = {
     cashInBankBillion: toBillion(noteItem.noc1),
     shortTermDepositsBillion: toBillion(noteItem.noc5),
+    heldToMaturityBillion: toBillion(noteItem.noc6),
+    tradeReceivablesDetailBillion: toBillion(noteItem.noc15),
+    inventoryProvisionBillion: toBillion(noteItem.noc39),
+    financialIncomeDetailBillion: toBillion(noteItem.noc121),
     interestIncomeBillion: toBillion(noteItem.noc122),
+    fxGainBillion: toBillion(noteItem.noc123),
+    dividendIncomeBillion: toBillion(noteItem.noc124),
+    investmentDisposalGainBillion: toBillion(noteItem.noc125),
+    otherFinancialIncomeBillion: toBillion(noteItem.noc126),
     interestExpenseBillion: toBillion(noteItem.noc131),
+    fxLossBillion: toBillion(noteItem.noc132),
+    investmentLossProvisionBillion: toBillion(noteItem.noc133),
+    fixedAssetDisposalIncomeBillion: toBillion(noteItem.noc141),
+    otherIncomeBillion: toBillion(noteItem.noc143),
+    otherExpensesBillion: toBillion(noteItem.noc151),
+    otherProfitDetailBillion: toBillion(noteItem.noc161),
   };
 
   return {
