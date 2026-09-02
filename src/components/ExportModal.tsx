@@ -54,7 +54,7 @@ ${report.sectionB.valueChainOutput}
 
 ---
 
-## C. TÌNH HÌNH TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
+## C. SỨC KHỎE TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
 ### A. Thanh khoản & Trả nợ
 ${report.sectionC.partA_LiquidityAndDebt || report.sectionC.financialHealthAndDebt || ''}
 
@@ -75,18 +75,70 @@ ${report.sectionC.partF_EarningsQualityAndAccounting || ''}
 
 ---
 
-## D. TRIỂN VỌNG KINH DOANH & ĐỊNH GIÁ 3 KỊCH BẢN
-### 1. Phân tích yếu tố tăng trưởng (Sản lượng, Giá bán, Chi phí)
-${report.sectionD.growthDriversRevenueAndCost}
+## D. CHẤT LƯỢNG TĂNG TRƯỞNG & CẦU NỐI CORE (60 ĐIỂM)
+### A. Chất lượng tăng trưởng hiện tại
+${report.sectionD?.partA_CurrentGrowth || ''}
 
-### 2. Dự báo KQKD 4 Quý tiếp theo
-${report.sectionD.quarterlyForecastReasoning}
+### B. Độ chắc chắn 2–4 quý tới
+${report.sectionD?.partB_VisibilityNext2To4Q || ''}
+
+### C. Độ bền biên lợi nhuận
+${report.sectionD?.partC_MarginDurability || ''}
+
+### D. Dư địa tăng trưởng
+${report.sectionD?.partD_GrowthRunway || ''}
+
+### E. Tăng trưởng chuyển thành tiền
+${report.sectionD?.partE_GrowthToCash || ''}
+
+### F. Tăng trưởng trung hạn (CAGR 3Y)
+${report.sectionD?.partF_MediumTermGrowth || ''}
+
+### G. Bền vững sau điều chỉnh rủi ro
+${report.sectionD?.partG_RiskAdjustedSustainability || ''}
+
+---
+
+## E. CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT (40 ĐIỂM)
+### A. Lợi thế cạnh tranh kinh tế (Moat)
+${report.sectionE?.partA_EconomicMoat || ''}
+
+### B. Vị thế ngành & Thị phần
+${report.sectionE?.partB_IndustryPosition || ''}
+
+### C. Mô hình kinh doanh & Hiệu quả
+${report.sectionE?.partC_BusinessModel || ''}
+
+### D. Ban lãnh đạo & Phân bổ vốn
+${report.sectionE?.partD_ManagementAndCapitalAllocation || ''}
+
+### E. Quản trị công ty & Cổ đông
+${report.sectionE?.partE_CorporateGovernance || ''}
+
+### F. Duy trì ROIC cao & Tái đầu tư
+${report.sectionE?.partF_RoicSustenance || ''}
+
+### G. Khả năng chống chịu & Thích ứng
+${report.sectionE?.partG_ShockResilience || ''}
+
+---
+
+## F. TRIỂN VỌNG KINH DOANH & ĐỊNH GIÁ 3 KỊCH BẢN
+### 1. Phân tích yếu tố tăng trưởng (Sản lượng, Giá bán, Chi phí)
+${report.sectionF?.growthDriversRevenueAndCost || (report.sectionD as any)?.growthDriversRevenueAndCost || ''}
+
+### 2. Dự báo KQKD & Luận điểm
+${report.sectionF?.quarterlyForecastReasoning || (report.sectionD as any)?.quarterlyForecastReasoning || ''}
 
 ### 3. Kết Quả Định Giá 3 Kịch Bản
-- **Kịch bản Cơ sở (Base Case)**: PE ${report.sectionD.valuation.peBase}x => **${Math.round(report.sectionD.valuation.epsForward * report.sectionD.valuation.peBase).toLocaleString('vi-VN')} VNĐ**
-- **Kịch bản Tích cực (Bull Case)**: PE ${report.sectionD.valuation.peBull}x => **${Math.round(report.sectionD.valuation.epsForward * report.sectionD.valuation.peBull).toLocaleString('vi-VN')} VNĐ**
-- **Kịch bản Thận trọng (Bear Case)**: PE ${report.sectionD.valuation.peBear}x => **${Math.round(report.sectionD.valuation.epsForward * report.sectionD.valuation.peBear).toLocaleString('vi-VN')} VNĐ**
-- EPS Forward Dự Phóng: **${report.sectionD.valuation.epsForward.toLocaleString('vi-VN')} VNĐ**
+${(() => {
+  const val = report.sectionF?.valuation || (report.sectionD as any)?.valuation;
+  if (!val) return '';
+  return `- **Kịch bản Cơ sở (Base Case)**: PE ${val.peBase}x => **${Math.round(val.epsForward * val.peBase).toLocaleString('vi-VN')} VNĐ**
+- **Kịch bản Tích cực (Bull Case)**: PE ${val.peBull}x => **${Math.round(val.epsForward * val.peBull).toLocaleString('vi-VN')} VNĐ**
+- **Kịch bản Thận trọng (Bear Case)**: PE ${val.peBear}x => **${Math.round(val.epsForward * val.peBear).toLocaleString('vi-VN')} VNĐ**
+- EPS Forward Dự Phóng: **${val.epsForward.toLocaleString('vi-VN')} VNĐ**`;
+})()}
 
 ---
 *Bản quyền phân tích thuộc về ValueX (valuex.vn)*

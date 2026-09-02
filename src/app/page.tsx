@@ -151,8 +151,8 @@ export default function Home() {
     if (!report) return;
     setReport({
       ...report,
-      sectionD: {
-        ...report.sectionD,
+      sectionF: {
+        ...report.sectionF,
         valuation: newValuation,
       },
     });

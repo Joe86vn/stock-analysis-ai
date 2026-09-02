@@ -88,7 +88,7 @@ async function fetchVietcapFinancialContext(ticker: string, marketData: StockMar
 
     text += `\nQUÝ MỚI NHẤT ĐÃ CÓ BCTC THỰC TẾ TRÊN VIETCAP IQ LÀ: ${latestQuarter || 'N/A'}.\n`;
     text += `DỰ PHÓNG SẼ THỰC HIỆN CHO 2 NĂM TỚI: NĂM 1 = ${year1}, NĂM 2 = ${year2}.\n`;
-    text += `HÃY SỬ DỤNG CHÍNH XÁC CÁC CHỈ SỐ P/E THỰC TẾ TRÊN KHI ĐỊNH GIÁ (Section D): peBear = ${marketData.pe5YearMin || 0}, peBase = ${marketData.pe5YearAvg || 0}, peBull = ${marketData.pe5YearMax || 0}.\n`;
+    text += `HÃY SỬ DỤNG CHÍNH XÁC CÁC CHỈ SỐ P/E THỰC TẾ TRÊN KHI ĐỊNH GIÁ (Section F): peBear = ${marketData.pe5YearMin || 0}, peBase = ${marketData.pe5YearAvg || 0}, peBull = ${marketData.pe5YearMax || 0}.\n`;
 
     return { text, year1, year2, latestQuarter };
   } catch (err) {
@@ -131,13 +131,12 @@ export async function generateAnalysisReport(
 
   if (apiKey) {
     const prompt = `
-Bạn là chuyên gia phân tích đầu tư chứng khoán hàng đầu Việt Nam.
-Hãy lập BÁO CÁO PHÂN TÍCH ĐẦU TƯ hoàn chỉnh cho mã chứng khoán ${ticker} (${marketData.companyName}) dựa trên quy trình chuẩn dưới đây và tài liệu được đính kèm:
+Bạn là chuyên gia phân tích đầu tư chứng khoán hàng đầu Việt Nam theo phương pháp ValueX chuẩn hóa (150 điểm Trụ cột Doanh nghiệp).
+Hãy lập BÁO CÁO PHÂN TÍCH ĐẦU TƯ hoàn chỉnh cho mã chứng khoán ${ticker} (${marketData.companyName}) dựa trên quy trình chuẩn và tài liệu đính kèm:
 
 YÊU CẦU BẮT BUỘC VỀ ĐỘ DÀI VÀ NỘI DUNG:
-- Không viết tóm tắt ngắn gọn hoặc dùng chung chung. Mỗi trường văn bản trong JSON cần được phân tích rất chi tiết (tối thiểu 200-300 từ, trình bày thành nhiều đoạn lập luận chặt chẽ).
-- Mỗi luận điểm phân tích bắt buộc phải đưa ra dẫn chứng số liệu thực tế đã trích xuất từ tài liệu đính kèm hoặc số liệu thị trường để chứng minh.
-- TRÌNH BÀY VĂN BẢN MẠCH LẠC, DỄ ĐỌC: TUYỆT ĐỐI KHÔNG sử dụng ký tự thô dạng [Luận điểm] -> [Dẫn chứng] -> [Kết luận]. Hãy dùng các tiêu đề phụ in đậm rõ ràng (ví dụ: **1. Yếu tố Sản lượng (Q):** ...). Bên dưới mỗi tiêu đề phụ, hãy sử dụng dấu gạch đầu dòng '-' hoặc dấu '•' để liệt kê các ý chi tiết.
+- Không viết tóm tắt ngắn gọn hoặc dùng chung chung. Mỗi trường văn bản trong JSON cần được phân tích rất chi tiết (tối thiểu 150-250 từ, có dẫn chứng số liệu rõ ràng).
+- TRÌNH BÀY VĂN BẢN MẠCH LẠC, DỄ ĐỌC: Sử dụng các tiêu đề phụ in đậm rõ ràng (ví dụ: **1. Yếu tố Sản lượng (Q):** ...), dùng dấu gạch đầu dòng '-' hoặc '•' để liệt kê ý chi tiết.
 
 THÔNG SỐ THỊ TRƯỜNG & DỰ PHÓNG NĂM (${year1} VÀ ${year2}):
 - Ngành: ${marketData.industry}
@@ -148,7 +147,7 @@ THÔNG SỐ THỊ TRƯỜNG & DỰ PHÓNG NĂM (${year1} VÀ ${year2}):
 - P/E Cao nhất (Bull / Max) các quý thực tế từ Vietcap IQ API: ${marketData.pe5YearMax || 0}x
 - P/E Thấp nhất (Bear / Min) các quý thực tế từ Vietcap IQ API: ${marketData.pe5YearMin || 0}x
 
-YÊU CẦU CẤU TRÚC BÁO CÁO (JSON):
+YÊU CẦU CẤU TRÚC BÁO CÁO (JSON 6 PHẦN):
 A. Tổng quan doanh nghiệp:
   - historyAndOverview: Lịch sử hình thành chi tiết, cột mốc lớn, địa bàn hoạt động, sản phẩm chính, đối thủ cạnh tranh chính kèm số liệu thị phần.
   - shareholdersAndManagement: Cơ cấu cổ đông lớn, ban lãnh đạo.
@@ -160,7 +159,7 @@ B. Hoạt động kinh doanh & Chuỗi giá trị:
   - valueChainOutput: Đầu ra (Cơ cấu doanh thu sản phẩm/dịch vụ).
   - revenueBreakdown: Mảng JSON các phân khúc doanh thu.
 
-C. Tình hình tài chính • Đánh giá Sức khỏe tài chính ValueX (50 điểm across 6 parts):
+C. Sức khỏe tài chính (ValueX Pillar 1 - 50 điểm):
   - partA_LiquidityAndDebt: Nhóm A - Thanh khoản & Trả nợ (Current/Quick Ratio, Net Debt/EBITDA, Interest Coverage).
   - partB_CashFlowAndEarnings: Nhóm B - Dòng tiền & Chuyển đổi lợi nhuận (CFO/LNST core, FCF sau CAPEX, CFO/EBITDA, tính bền vững dòng tiền).
   - partC_ProfitabilityAndROIC: Nhóm C - Sinh lời & Hiệu quả vốn (ROIC vs WACC, ROE điều chỉnh đòn bẩy D/E, Biên gộp, Biên EBIT, Vòng quay tài sản).
@@ -168,11 +167,29 @@ C. Tình hình tài chính • Đánh giá Sức khỏe tài chính ValueX (50 �
   - partE_CapitalStructureAndFunding: Nhóm E - Cơ cấu vốn & Khả năng tài trợ (Đòn bẩy D/E, cơ cấu nợ ngắn/dài hạn, khả năng tự tài trợ CAPEX).
   - partF_EarningsQualityAndAccounting: Nhóm F - Chất lượng lợi nhuận & Kế toán (Tỷ trọng LNST cốt lõi, loại trừ một lần, kiểm toán và giao dịch bên liên quan).
 
-D. Triển vọng kinh doanh & Dự báo định giá:
+D. Chất lượng tăng trưởng (ValueX Pillar 2 - 60 điểm):
+  - partA_CurrentGrowth: Nhóm A - Tăng trưởng doanh thu và EPS core hiện tại qua Cầu nối Core.
+  - partB_VisibilityNext2To4Q: Nhóm B - Độ chắc chắn 2-4 quý tới (Backlog, công suất mở rộng, chỉ báo cầu).
+  - partC_MarginDurability: Nhóm C - Độ bền biên lợi nhuận (Gross margin, EBIT margin, Pricing power).
+  - partD_GrowthRunway: Nhóm D - Dư địa tăng trưởng (Dư địa công suất, thị phần TAM/SAM, thị trường mới).
+  - partE_GrowthToCash: Nhóm E - Tăng trưởng chuyển thành tiền (CFO, hiệu quả ROIC của vốn tăng trưởng mới).
+  - partF_MediumTermGrowth: Nhóm F - Tăng trưởng trung hạn (CAGR 3Y, dư địa tái đầu tư).
+  - partG_RiskAdjustedSustainability: Nhóm G - Bền vững sau điều chỉnh rủi ro (Tính chu kỳ, thực thi, pha loãng).
+
+E. Chất lượng doanh nghiệp (ValueX Pillar 3 - 40 điểm):
+  - partA_EconomicMoat: Nhóm A - Lợi thế cạnh tranh kinh tế (Moat chi phí, mạng lưới, bản quyền, thương hiệu).
+  - partB_IndustryPosition: Nhóm B - Vị thế ngành và xu hướng thị phần.
+  - partC_BusinessModel: Nhóm C - Mô hình kinh doanh và hiệu quả kinh tế đơn vị.
+  - partD_ManagementAndCapitalAllocation: Nhóm D - Ban lãnh đạo và kỷ luật phân bổ vốn (CAPEX, M&A, Cổ tức).
+  - partE_CorporateGovernance: Nhóm E - Quản trị công ty, độc lập HĐQT và quyền lợi cổ đông thiểu số.
+  - partF_RoicSustenance: Nhóm F - Khả năng duy trì ROIC cao qua chu kỳ và cơ hội tái đầu tư.
+  - partG_ShockResilience: Nhóm G - Khả năng chống chịu suy thoái và thích ứng công nghệ.
+
+F. Triển vọng kinh doanh & Định giá:
   - growthDriversRevenueAndCost: Phân tích sâu sắc các yếu tố tăng trưởng tương lai: Sản lượng (Q), Giá bán (P) và Chi phí (C).
-  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH TÍNH TOÁN dự phóng theo quy trình Bottom-Up cho 2 năm NĂM 1 (${year1}) VÀ NĂM 2 (${year2}). VỚI CÁC QUÝ ĐÃ CÓ BCTC THỰC TẾ TRÊN VIETCAP IQ API, BẮT BUỘC giữ nguyên con số thực tế. VỚI CÁC QUÝ CHƯA CÓ BCTC, hãy giải trình rõ từng con số Doanh thu, Biên gộp (%) và LNST dựa trên yếu tố mùa vụ, công suất và giá bán.
-  - forecastYear1Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year1}. Mỗi quý có các trường: "revenue" (Tỷ VNĐ), "grossMargin" (%), "netProfit" (Tỷ VNĐ). Với các quý đã có BCTC thực tế, lấy đúng số thực tế.
-  - forecastYear2Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year2}. Mỗi quý có các trường: "revenue" (Tỷ VNĐ), "grossMargin" (%), "netProfit" (Tỷ VNĐ).
+  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH TÍNH TOÁN dự phóng theo quy trình Bottom-Up cho 2 năm NĂM 1 (${year1}) VÀ NĂM 2 (${year2}).
+  - forecastYear1Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year1}.
+  - forecastYear2Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year2}.
   - forecastQ1: LNST dự phóng cả năm ${year1} (số nguyên VND).
   - forecastQ2: LNST dự phóng cả năm ${year2} (số nguyên VND).
   - forecastQ3: Đặt bằng 0.
@@ -181,8 +198,6 @@ D. Triển vọng kinh doanh & Dự báo định giá:
   - peBase: BẮT BUỘC dùng P/E Trung bình thực tế từ Vietcap IQ API: ${marketData.pe5YearAvg || 0}.
   - peBull: BẮT BUỘC dùng P/E Cao nhất thực tế từ Vietcap IQ API: ${marketData.pe5YearMax || 0}.
   - peBear: BẮT BUỘC dùng P/E Thấp nhất thực tế từ Vietcap IQ API: ${marketData.pe5YearMin || 0}.
-
-CỰC KỲ QUAN TRỌNG: Mọi con số Doanh thu, Biên gộp, LNST trong đối tượng JSON forecastYear1Data và forecastYear2Data BẮT BUỘC PHẢI KHỚP CHÍNH XÁC 100% VỚI CÁC CON SỐ TRONG ĐOẠN VĂN BẢN QUARTERLYFORECASTREASONING.
 
 Tài liệu đính kèm:
 ${combinedText.slice(0, 300000)}
@@ -198,7 +213,7 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     "valueChainInput": "...",
     "valueChainProduction": "...",
     "valueChainOutput": "...",
-    "revenueBreakdown": [{"name": "Tên phân khúc", "value": 60}, {"name": "Phân khúc 2", "value": 30}, {"name": "Khác", "value": 10}]
+    "revenueBreakdown": [{"name": "Phân khúc 1", "value": 60}, {"name": "Phân khúc 2", "value": 30}, {"name": "Khác", "value": 10}]
   },
   "sectionC": {
     "partA_LiquidityAndDebt": "...",
@@ -209,6 +224,24 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     "partF_EarningsQualityAndAccounting": "..."
   },
   "sectionD": {
+    "partA_CurrentGrowth": "...",
+    "partB_VisibilityNext2To4Q": "...",
+    "partC_MarginDurability": "...",
+    "partD_GrowthRunway": "...",
+    "partE_GrowthToCash": "...",
+    "partF_MediumTermGrowth": "...",
+    "partG_RiskAdjustedSustainability": "..."
+  },
+  "sectionE": {
+    "partA_EconomicMoat": "...",
+    "partB_IndustryPosition": "...",
+    "partC_BusinessModel": "...",
+    "partD_ManagementAndCapitalAllocation": "...",
+    "partE_CorporateGovernance": "...",
+    "partF_RoicSustenance": "...",
+    "partG_ShockResilience": "..."
+  },
+  "sectionF": {
     "growthDriversRevenueAndCost": "...",
     "quarterlyForecastReasoning": "...",
     "forecastYear1Data": {
@@ -335,14 +368,15 @@ function buildReportFromParsed(
   dynamicYear1?: number,
   dynamicYear2?: number
 ): AnalysisReport {
-  const shares = parsed.sectionD?.sharesOutstandingMillions || marketData.sharesOutstanding || 0;
+  const valSection = parsed.sectionF || parsed.sectionD || {};
+  const shares = valSection.sharesOutstandingMillions || marketData.sharesOutstanding || 0;
 
   const currentYear = new Date().getFullYear();
-  const year1 = dynamicYear1 || parsed.sectionD?.valuation?.year1 || currentYear;
-  const year2 = dynamicYear2 || parsed.sectionD?.valuation?.year2 || (year1 + 1);
+  const year1 = dynamicYear1 || valSection.valuation?.year1 || currentYear;
+  const year2 = dynamicYear2 || valSection.valuation?.year2 || (year1 + 1);
 
-  const fYear1 = parsed.sectionD?.forecastYear1Data || parsed.sectionD?.forecast2026;
-  const fYear2 = parsed.sectionD?.forecastYear2Data || parsed.sectionD?.forecast2027;
+  const fYear1 = valSection.forecastYear1Data || valSection.forecast2026;
+  const fYear2 = valSection.forecastYear2Data || valSection.forecast2027;
 
   let sumNetProfitYear1Billion = 0;
   if (fYear1) {
@@ -360,17 +394,17 @@ function buildReportFromParsed(
       (Number(fYear2.q4?.netProfit) || 0);
   }
 
-  const q1 = sumNetProfitYear1Billion > 0 ? sumNetProfitYear1Billion * 1e9 : (Number(parsed.sectionD?.forecastQ1) || 0);
-  const q2 = sumNetProfitYear2Billion > 0 ? sumNetProfitYear2Billion * 1e9 : (Number(parsed.sectionD?.forecastQ2) || 0);
+  const q1 = sumNetProfitYear1Billion > 0 ? sumNetProfitYear1Billion * 1e9 : (Number(valSection.forecastQ1) || 0);
+  const q2 = sumNetProfitYear2Billion > 0 ? sumNetProfitYear2Billion * 1e9 : (Number(valSection.forecastQ2) || 0);
   const q3 = 0;
   const q4 = 0;
 
   const totalProfit = q1 || q2;
   const epsForward = (shares > 0 && totalProfit > 0) ? Math.round(totalProfit / (shares * 1000000)) : 0;
 
-  const peBase = parsed.sectionD?.peBase || marketData.pe5YearAvg || 0;
-  const peBull = parsed.sectionD?.peBull || marketData.pe5YearMax || 0;
-  const peBear = parsed.sectionD?.peBear || marketData.pe5YearMin || 0;
+  const peBase = valSection.peBase || marketData.pe5YearAvg || 0;
+  const peBull = valSection.peBull || marketData.pe5YearMax || 0;
+  const peBear = valSection.peBear || marketData.pe5YearMin || 0;
 
   return {
     ticker,
@@ -396,13 +430,28 @@ function buildReportFromParsed(
       partD_WorkingCapitalAndAssetQuality: parsed.sectionC?.partD_WorkingCapitalAndAssetQuality || 'Đánh giá vòng quay vốn lưu động DSO, DIO, CCC và chất lượng tài sản...',
       partE_CapitalStructureAndFunding: parsed.sectionC?.partE_CapitalStructureAndFunding || 'Đánh giá cơ cấu vốn D/E và khả năng tự tài trợ CAPEX...',
       partF_EarningsQualityAndAccounting: parsed.sectionC?.partF_EarningsQualityAndAccounting || 'Đánh giá tỷ trọng lợi nhuận cốt lõi, kiểm toán và giao dịch bên liên quan...',
-      revenueHistory3Years: parsed.sectionC?.revenueHistory3Years,
-      profitabilityMargins: parsed.sectionC?.profitabilityMargins,
-      financialHealthAndDebt: parsed.sectionC?.financialHealthAndDebt,
     },
     sectionD: {
-      growthDriversRevenueAndCost: parsed.sectionD?.growthDriversRevenueAndCost || 'Luận điểm tăng trưởng doanh thu và chi phí.',
-      quarterlyForecastReasoning: parsed.sectionD?.quarterlyForecastReasoning || 'Lập luận dự phóng kết quả kinh doanh.',
+      partA_CurrentGrowth: parsed.sectionD?.partA_CurrentGrowth || 'Tăng trưởng doanh thu và EPS cốt lõi qua Cầu nối Core...',
+      partB_VisibilityNext2To4Q: parsed.sectionD?.partB_VisibilityNext2To4Q || 'Độ chắc chắn 2-4 quý tới từ Backlog và công suất mới...',
+      partC_MarginDurability: parsed.sectionD?.partC_MarginDurability || 'Độ bền biên lợi nhuận gộp và đòn bẩy hoạt động...',
+      partD_GrowthRunway: parsed.sectionD?.partD_GrowthRunway || 'Dư địa tăng trưởng công suất và mở rộng thị phần...',
+      partE_GrowthToCash: parsed.sectionD?.partE_GrowthToCash || 'Tăng trưởng đi kèm dòng tiền CFO thực chất...',
+      partF_MediumTermGrowth: parsed.sectionD?.partF_MediumTermGrowth || 'Tăng trưởng kép trung hạn CAGR 3Y và tái đầu tư...',
+      partG_RiskAdjustedSustainability: parsed.sectionD?.partG_RiskAdjustedSustainability || 'Tính bền vững sau điều chỉnh rủi ro chu kỳ...',
+    },
+    sectionE: {
+      partA_EconomicMoat: parsed.sectionE?.partA_EconomicMoat || 'Hào kinh tế (Moat) chi phí thấp và tài sản vô hình...',
+      partB_IndustryPosition: parsed.sectionE?.partB_IndustryPosition || 'Vị thế đầu ngành và xu hướng thị phần 3 năm...',
+      partC_BusinessModel: parsed.sectionE?.partC_BusinessModel || 'Mô hình kinh doanh hiệu quả và tính lặp lại của doanh thu...',
+      partD_ManagementAndCapitalAllocation: parsed.sectionE?.partD_ManagementAndCapitalAllocation || 'Năng lực thực thi của ban lãnh đạo và kỷ luật phân bổ vốn...',
+      partE_CorporateGovernance: parsed.sectionE?.partE_CorporateGovernance || 'Quản trị công ty và bảo vệ quyền lợi cổ đông thiểu số...',
+      partF_RoicSustenance: parsed.sectionE?.partF_RoicSustenance || 'Khả năng duy trì ROIC cao qua chu kỳ và cơ hội tái đầu tư...',
+      partG_ShockResilience: parsed.sectionE?.partG_ShockResilience || 'Khả năng chống chịu suy thoái và thích ứng công nghệ...',
+    },
+    sectionF: {
+      growthDriversRevenueAndCost: valSection.growthDriversRevenueAndCost || 'Luận điểm tăng trưởng doanh thu và chi phí.',
+      quarterlyForecastReasoning: valSection.quarterlyForecastReasoning || 'Lập luận dự phóng kết quả kinh doanh.',
       valuation: {
         year1,
         year2,
@@ -487,6 +536,44 @@ export function generateDefaultExpertReport(
 • **Ý kiến kiểm toán & Giao dịch bên liên quan**: Báo cáo tài chính được kiểm toán độc lập chấp nhận toàn phần, các giao dịch nội bộ tuân thủ nghiêm ngặt chuẩn mực giá thị trường và đảm bảo quyền lợi cổ đông thiểu số.`,
     },
     sectionD: {
+      partA_CurrentGrowth: `• **Doanh thu cốt lõi**: Tăng trưởng doanh thu được thúc đẩy bởi sự mở rộng sản lượng thực tế và chiếm lĩnh thêm thị phần khách hàng mới.
+• **Tăng trưởng EPS Cốt lõi**: Đạt mức tăng trưởng vượt trội qua Cầu nối Core sau khi đã bóc tách toàn bộ các khoản lợi nhuận tài chính đột biến.
+• **Độ rộng động lực**: Động lực tăng trưởng phân bổ đa dạng qua các phân khúc sản phẩm chủ lực.`,
+      partB_VisibilityNext2To4Q: `• **Backlog & Đơn hàng đã ký**: Đơn hàng và hợp đồng bao phủ trên 75% chỉ tiêu kinh doanh cho các quý tới.
+• **Công suất mở rộng**: Các dự án nâng công suất vận hành đúng tiến độ và đã có khách hàng bao tiêu đầu ra.
+• **Chỉ báo cầu**: Nhu cầu ngành ở mức cao, doanh nghiệp duy trì vị thế dẫn đầu.`,
+      partC_MarginDurability: `• **Xu hướng biên gộp & EBIT**: Biên lợi nhuận duy trì ổn định và mở rộng nhờ lợi thế quy mô và cơ cấu sản phẩm cao cấp.
+• **Đòn bẩy hoạt động**: Tỷ lệ chi phí SG&A trên doanh thu được tối ưu hóa rõ rệt.
+• **Năng lực định giá (Pricing Power)**: Khả năng chuyển giao biến động chi phí đầu vào sang giá bán nhanh chóng.`,
+      partD_GrowthRunway: `• **Dư địa công suất**: Nhà máy vận hành ở mức hiệu suất cao và có phương án nâng công suất kịp thời.
+• **Mở rộng thị phần**: Quy mô ngành tiếp tục mở rộng, doanh nghiệp củng cố vững chắc thị phần.
+• **Sản phẩm & Thị trường mới**: Bắt đầu đóng góp doanh thu thực tế, tạo động lực tăng trưởng dài hạn.`,
+      partE_GrowthToCash: `• **Dòng tiền đi kèm tăng trưởng**: Dòng tiền thuần CFO dương lớn, tăng trưởng không bị đọng vốn vào công nợ.
+• **Hiệu quả ROIC của vốn mới**: Dự án đầu tư mới mang lại tỷ suất ROIC vượt trội so với chi phí vốn WACC.`,
+      partF_MediumTermGrowth: `• **Tăng trưởng kép CAGR 3Y**: Tốc độ tăng trưởng kép EPS cốt lõi 3 năm dự kiến đạt trên 20%/năm.
+• **Dư địa tái đầu tư**: Doanh nghiệp duy trì tỷ lệ tái đầu tư cao vào hoạt động kinh doanh cốt lõi ở tỷ suất sinh lời thặng dư lớn.`,
+      partG_RiskAdjustedSustainability: `• **Tính bền vững sau chu kỳ**: Tăng trưởng đến từ nội tại doanh nghiệp, không phụ thuộc đỉnh chu kỳ giá hàng hóa ngắn hạn.
+• **Rủi ro thực thi & Pha loãng**: Ban lãnh đạo có năng lực thực thi xuất sắc, không có nguy cơ pha loãng cổ phiếu bất lợi.`,
+    },
+    sectionE: {
+      partA_EconomicMoat: `• **Hào kinh tế cốt lõi (Core Moat)**: Sở hữu lợi thế chi phí thấp bền vững nhờ quy mô sản xuất vượt trội và chuỗi cung ứng khép kín.
+• **Độ bền vững của Moat**: Doanh nghiệp liên tục tái đầu tư củng cố Moat, nới rộng khoảng cách cạnh tranh với đối thủ (>10 năm).`,
+      partB_IndustryPosition: `• **Vị thế đầu ngành**: Chiếm lĩnh vị trí Số 1 tuyệt đối của ngành với thị phần áp đảo.
+• **Xu hướng thị phần**: Thị phần liên tục gia tăng trong 3 năm qua nhờ ưu thế về thương hiệu và hệ thống phân phối.`,
+      partC_BusinessModel: `• **Hiệu quả kinh tế đơn vị**: Mô hình kinh doanh tạo biên EBIT bình quân vượt trội so với trung bình ngành.
+• **Tính lặp lại của doanh thu**: Doanh thu định kỳ cao nhờ tệp khách hàng trung thành và nhu cầu tiêu dùng thiết yếu.
+• **Cường độ vốn**: Quản trị vốn lưu động chặt chẽ, tối ưu hóa hiệu suất sinh lời trên tài sản.`,
+      partD_ManagementAndCapitalAllocation: `• **Năng lực thực thi**: Ban lãnh đạo dày dạn kinh nghiệm, luôn hoàn thành và vượt kế hoạch ĐHCĐ.
+• **Kỷ luật phân bổ vốn**: Đầu tư mở rộng đúng chu kỳ, không đầu tư dàn trải ngoài ngành, trả cổ tức tiền mặt đều đặn.
+• **Minh bạch IR**: Công bố thông tin minh bạch, quan hệ nhà đầu tư chuẩn mực quốc tế.`,
+      partE_CorporateGovernance: `• **Đồng thuận lợi ích cổ đông**: Ban lãnh đạo sở hữu tỷ lệ cổ phần lớn, chính sách ESOP hợp lý gắn với KPI tăng trưởng.
+• **Độc lập HĐQT**: Hệ thống kiểm soát nội bộ và thành viên HĐQT độc lập hoạt động hiệu quả.`,
+      partF_RoicSustenance: `• **Duy trì ROIC cao qua chu kỳ**: ROIC bình quân 5 năm luôn vượt xa chi phí vốn bình quân gia quyền WACC.
+• **Cơ hội tái đầu tư**: Doanh nghiệp có thị trường mở rộng đủ lớn để tiếp tục hấp thụ vốn mới ở mức ROIC cao.`,
+      partG_ShockResilience: `• **Chống chịu suy thoái**: Duy trì dòng tiền dương và lợi nhuận vững qua các giai đoạn khó khăn của nền kinh tế.
+• **Thích ứng & Đa dạng đối tác**: Tiên phong chuyển đổi số, cơ cấu khách hàng phân tán hạn chế rủi ro phụ thuộc đối tác đơn lẻ.`,
+    },
+    sectionF: {
       growthDriversRevenueAndCost: `• **Tác động Sản lượng (Q)**: Nhà máy hoặc công suất mới đi vào hoạt động trong các quý tới sẽ tạo lực đẩy tăng trưởng sản lượng bán hàng 20-25% YoY.
 • **Tác động Giá bán (P)**: Giá bán sản phẩm/dịch vụ cốt lõi giữ vững xu hướng tích cực nhờ sự phục hồi chung của thị trường hàng hóa toàn cầu.
 • **Tác động Chi phí (C)**: Việc tối ưu hóa chi phí vận hành và hết khấu hao của một số tài sản cố định lớn giúp cải thiện lợi nhuận sau cùng.`,

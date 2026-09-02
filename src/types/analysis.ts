@@ -187,11 +187,37 @@ export interface ValuationResults {
   upsideBearPct: number;
 }
 
-export interface SectionD {
+// Tab D: Chất Lượng Tăng Trưởng (60 Điểm - 7 Nhóm A đến G)
+export interface SectionD_GrowthQuality {
+  partA_CurrentGrowth?: string;              // A. Chất lượng tăng trưởng hiện tại (10.0đ)
+  partB_VisibilityNext2To4Q?: string;        // B. Độ chắc chắn 2–4 quý tới (16.0đ)
+  partC_MarginDurability?: string;           // C. Độ bền biên lợi nhuận (10.0đ)
+  partD_GrowthRunway?: string;               // D. Dư địa tăng trưởng (10.0đ)
+  partE_GrowthToCash?: string;               // E. Tăng trưởng chuyển thành tiền (6.0đ)
+  partF_MediumTermGrowth?: string;           // F. Tăng trưởng trung hạn CAGR 3Y (5.0đ)
+  partG_RiskAdjustedSustainability?: string; // G. Bền vững sau điều chỉnh rủi ro (3.0đ)
+}
+
+// Tab E: Chất Lượng Doanh Nghiệp (40 Điểm - 7 Nhóm A đến G)
+export interface SectionE_BusinessQuality {
+  partA_EconomicMoat?: string;               // A. Lợi thế cạnh tranh kinh tế - Moat (8.0đ)
+  partB_IndustryPosition?: string;           // B. Vị thế ngành & Thị phần (5.0đ)
+  partC_BusinessModel?: string;              // C. Mô hình kinh doanh & Hiệu quả (6.0đ)
+  partD_ManagementAndCapitalAllocation?: string; // D. Ban lãnh đạo & Phân bổ vốn (7.0đ)
+  partE_CorporateGovernance?: string;        // E. Quản trị công ty & Cổ đông (5.0đ)
+  partF_RoicSustenance?: string;             // F. Duy trì ROIC cao & Tái đầu tư (5.0đ)
+  partG_ShockResilience?: string;            // G. Khả năng chống chịu & Thích ứng (4.0đ)
+}
+
+// Tab F: Triển Vọng Kinh Doanh & Định Giá (Chuyển từ Tab D cũ)
+export interface SectionF_Valuation {
   growthDriversRevenueAndCost: string;
   quarterlyForecastReasoning: string;
   valuation: ValuationAssumptions;
 }
+
+// Giữ lại alias SectionD để tương thích ngược nếu cần
+export type SectionD = SectionD_GrowthQuality;
 
 export interface AnalysisReport {
   ticker: string;
@@ -200,7 +226,9 @@ export interface AnalysisReport {
   sectionA: SectionA;
   sectionB: SectionB;
   sectionC: SectionC;
-  sectionD: SectionD;
+  sectionD: SectionD_GrowthQuality;
+  sectionE: SectionE_BusinessQuality;
+  sectionF: SectionF_Valuation;
   marketData: StockMarketData;
   generationModel?: string;
 }

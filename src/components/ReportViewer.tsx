@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AnalysisReport, SectionA, SectionB, SectionC, SectionD, SectorType } from '@/types/analysis';
+import { AnalysisReport, SectionA, SectionB, SectionC, SectionD_GrowthQuality, SectionE_BusinessQuality, SectionF_Valuation, SectorType } from '@/types/analysis';
 import { ValuationCalculator } from './ValuationCalculator';
 import { FinancialHealthScorecard } from './FinancialHealthScorecard';
-import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw } from 'lucide-react';
+import { GrowthQualityScorecard } from './GrowthQualityScorecard';
+import { BusinessQualityScorecard } from './BusinessQualityScorecard';
+import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw, TrendingUp, Award } from 'lucide-react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -312,7 +314,7 @@ export function ReportViewer({
   onRegenerate,
   isGenerating,
 }: ReportViewerProps) {
-  const [activeTab, setActiveTab] = useState<'A' | 'B' | 'C' | 'D'>('A');
+  const [activeTab, setActiveTab] = useState<'A' | 'B' | 'C' | 'D' | 'E' | 'F'>('A');
   const [isEditing, setIsEditing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [realQuarterlyFinancials, setRealQuarterlyFinancials] = useState<any[]>([]);
@@ -331,18 +333,34 @@ export function ReportViewer({
     }
   }, [report?.ticker]);
 
-  // Editable states
+  // Editable states for all 6 tabs
   const [secA, setSecA] = useState<SectionA>(report.sectionA);
   const [secB, setSecB] = useState<SectionB>(report.sectionB);
   const [secC, setSecC] = useState<SectionC>(report.sectionC);
-  const [secDGrowth, setSecDGrowth] = useState<string>(report.sectionD.growthDriversRevenueAndCost);
+  const [secD, setSecD] = useState<SectionD_GrowthQuality>(report.sectionD || {});
+  const [secE, setSecE] = useState<SectionE_BusinessQuality>(report.sectionE || {});
+  const [secFValuation, setSecFValuation] = useState<SectionF_Valuation>(
+    report.sectionF || {
+      growthDriversRevenueAndCost: (report as any).sectionD?.growthDriversRevenueAndCost || '',
+      quarterlyForecastReasoning: (report as any).sectionD?.quarterlyForecastReasoning || '',
+      valuation: (report as any).sectionD?.valuation || {} as any,
+    }
+  );
 
   // Sync internal states when report prop updates
   useEffect(() => {
     setSecA(report.sectionA);
     setSecB(report.sectionB);
     setSecC(report.sectionC);
-    setSecDGrowth(report.sectionD.growthDriversRevenueAndCost);
+    setSecD(report.sectionD || {});
+    setSecE(report.sectionE || {});
+    setSecFValuation(
+      report.sectionF || {
+        growthDriversRevenueAndCost: (report as any).sectionD?.growthDriversRevenueAndCost || '',
+        quarterlyForecastReasoning: (report as any).sectionD?.quarterlyForecastReasoning || '',
+        valuation: (report as any).sectionD?.valuation || {} as any,
+      }
+    );
     setIsEditing(false);
   }, [report]);
 
@@ -356,10 +374,9 @@ export function ReportViewer({
       sectionA: secA,
       sectionB: secB,
       sectionC: secC,
-      sectionD: {
-        ...report.sectionD,
-        growthDriversRevenueAndCost: secDGrowth,
-      },
+      sectionD: secD,
+      sectionE: secE,
+      sectionF: secFValuation,
     });
     setIsEditing(false);
   };
@@ -940,7 +957,7 @@ export function ReportViewer({
   };
 
   const getForecastAnnualData = (ticker: string) => {
-    const val = report.sectionD.valuation;
+    const val = report.sectionF?.valuation || (report.sectionD as any)?.valuation || {} as any;
     const p2026 = val.forecastNetProfitQ1 ? val.forecastNetProfitQ1 / 1000000000 : 0;
     const p2027 = val.forecastNetProfitQ2 ? val.forecastNetProfitQ2 / 1000000000 : 0;
 
@@ -949,13 +966,13 @@ export function ReportViewer({
     const eps2027 = (shares > 0 && p2027 > 0) ? Math.round((p2027 * 1000000000) / (shares * 1000000)) : 0;
 
     return [
-      { period: 'Năm 2026 (Dự phóng)', 'LNST (Tỷ VNĐ)': p2026 > 0 ? p2026 : 'Đang tính...', 'EPS (k VNĐ)': eps2026 > 0 ? (eps2026 / 1000).toFixed(2) : '---', 'PE (lần)': val.peBase },
-      { period: 'Năm 2027 (Dự phóng)', 'LNST (Tỷ VNĐ)': p2027 > 0 ? p2027 : 'Đang tính...', 'EPS (k VNĐ)': eps2027 > 0 ? (eps2027 / 1000).toFixed(2) : '---', 'PE (lần)': val.peBase },
+      { period: 'Năm 2026 (Dự phóng)', 'LNST (Tỷ VNĐ)': p2026 > 0 ? p2026 : 'Đang tính...', 'EPS (k VNĐ)': eps2026 > 0 ? (eps2026 / 1000).toFixed(2) : '---', 'PE (lần)': val.peBase || 0 },
+      { period: 'Năm 2027 (Dự phóng)', 'LNST (Tỷ VNĐ)': p2027 > 0 ? p2027 : 'Đang tính...', 'EPS (k VNĐ)': eps2027 > 0 ? (eps2027 / 1000).toFixed(2) : '---', 'PE (lần)': val.peBase || 0 },
     ];
   };
 
   const getForecastQuarterlyData = (ticker: string) => {
-    const val = report.sectionD.valuation;
+    const val = report.sectionF?.valuation || (report.sectionD as any)?.valuation || {} as any;
     const shares = val.sharesOutstanding || 0;
 
     // Build quarterly rows if specific quarter profits exist in valuation
@@ -1056,50 +1073,72 @@ export function ReportViewer({
         </div>
       </div>
 
-      {/* Navigation Tabs for A, B, C, D (Screen view only) */}
+      {/* Navigation Tabs for A, B, C, D, E, F (Screen view only) */}
       <div className="mt-4 flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800 pb-3 print:hidden">
         <button
           onClick={() => setActiveTab('A')}
-          className={`flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === 'A'
+          className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'A'
               ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
               : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Building2 className="h-4 w-4" />
-          <span>A. Tổng Quan Doanh Nghiệp</span>
+          <span>A. Tổng Quan</span>
         </button>
 
         <button
           onClick={() => setActiveTab('B')}
-          className={`flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === 'B'
+          className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'B'
               ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
               : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Factory className="h-4 w-4" />
-          <span>B. Hoạt Động KD & Chuỗi Giá Trị</span>
+          <span>B. Chuỗi Giá Trị</span>
         </button>
 
         <button
           onClick={() => setActiveTab('C')}
-          className={`flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === 'C'
+          className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'C'
               ? 'bg-purple-600 text-white shadow-md shadow-purple-600/25'
               : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <LineChart className="h-4 w-4" />
-          <span>C. Tình Hình Tài Chính</span>
+          <span>C. Sức Khỏe Tài Chính (50đ)</span>
         </button>
 
         <button
           onClick={() => setActiveTab('D')}
-          className={`flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === 'D'
+          className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'D'
+              ? 'bg-teal-600 text-white shadow-md shadow-teal-600/25'
+              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            }`}
+        >
+          <TrendingUp className="h-4 w-4" />
+          <span>D. Chất Lượng Tăng Trưởng (60đ)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('E')}
+          className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'E'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
+              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            }`}
+        >
+          <Award className="h-4 w-4" />
+          <span>E. Chất Lượng Doanh Nghiệp (40đ)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('F')}
+          className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'F'
               ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25'
               : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Target className="h-4 w-4" />
-          <span>D. Triển Vọng & Định Giá</span>
+          <span>F. Triển Vọng & Định Giá</span>
         </button>
       </div>
 
@@ -1289,10 +1328,10 @@ export function ReportViewer({
           </SectionCard>
         </div>
 
-        {/* TAB C: TÌNH HÌNH TÀI CHÍNH (SỨC KHỎE TÀI CHÍNH VALUEX 50 ĐIỂM - 6 NHÓM A ĐẾN F) */}
+        {/* TAB C: SỨC KHỎE TÀI CHÍNH (50 ĐIỂM - 6 NHÓM A ĐẾN F) */}
         <div className={`space-y-5 print:pt-6 ${activeTab === 'C' ? 'block' : 'hidden print:block'}`}>
           <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-            C. TÌNH HÌNH TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
+            C. SỨC KHỎE TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
           </h2>
           <FinancialHealthScorecard
             ticker={report.ticker}
@@ -1304,22 +1343,52 @@ export function ReportViewer({
           />
         </div>
 
-        {/* TAB D: TRIỂN VỌNG KINH DOANH & ĐỊNH GIÁ */}
+        {/* TAB D: CHẤT LƯỢNG TĂNG TRƯỞNG & CẦU NỐI CORE (60 ĐIỂM - 7 NHÓM A ĐẾN G) */}
         <div className={`space-y-5 print:pt-6 ${activeTab === 'D' ? 'block' : 'hidden print:block'}`}>
           <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-            D. TRIỂN VỌNG KINH DOANH &amp; ĐỊNH GIÁ
+            D. CHẤT LƯỢNG TĂNG TRƯỞNG &amp; CẦU NỐI CORE (60 ĐIỂM)
+          </h2>
+          <GrowthQualityScorecard
+            ticker={report.ticker}
+            sectionD={secD}
+            realQuarterlyFinancials={realQuarterlyFinancials}
+            isEditing={isEditing}
+            onSectionDChange={setSecD}
+            renderMarkdown={renderMarkdown}
+          />
+        </div>
+
+        {/* TAB E: CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT & COMPOUNDER (40 ĐIỂM - 7 NHÓM A ĐẾN G) */}
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'E' ? 'block' : 'hidden print:block'}`}>
+          <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
+            E. CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT &amp; COMPOUNDER (40 ĐIỂM)
+          </h2>
+          <BusinessQualityScorecard
+            ticker={report.ticker}
+            sectionE={secE}
+            realQuarterlyFinancials={realQuarterlyFinancials}
+            isEditing={isEditing}
+            onSectionEChange={setSecE}
+            renderMarkdown={renderMarkdown}
+          />
+        </div>
+
+        {/* TAB F: TRIỂN VỌNG KINH DOANH & ĐỊNH GIÁ 3 KỊCH BẢN */}
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'F' ? 'block' : 'hidden print:block'}`}>
+          <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
+            F. TRIỂN VỌNG KINH DOANH &amp; ĐỊNH GIÁ
           </h2>
           <SectionCard title="1. Phân tích yếu tố ảnh hưởng tăng trưởng (Sản lượng, Giá bán, Chi phí)" isEditing={isEditing}>
             {isEditing ? (
               <textarea
                 rows={6}
-                value={secDGrowth}
-                onChange={(e) => setSecDGrowth(e.target.value)}
+                value={secFValuation.growthDriversRevenueAndCost}
+                onChange={(e) => setSecFValuation({ ...secFValuation, growthDriversRevenueAndCost: e.target.value })}
                 className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             ) : (
               <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                {renderMarkdown(secDGrowth)}
+                {renderMarkdown(secFValuation.growthDriversRevenueAndCost)}
               </div>
             )}
           </SectionCard>
@@ -1327,22 +1396,26 @@ export function ReportViewer({
           <SectionCard title="2. Luận điểm ước lượng KQKD & Bộ tính toán định giá" isEditing={false}>
             <div className="space-y-6">
               <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                {renderMarkdown(report.sectionD.quarterlyForecastReasoning)}
+                {renderMarkdown(secFValuation.quarterlyForecastReasoning)}
               </div>
 
               <div className="border-t border-gray-200 dark:border-gray-800 pt-5">
                 <ValuationCalculator
-                  valuation={report.sectionD.valuation}
+                  valuation={secFValuation.valuation}
                   currentPrice={report.marketData.currentPrice}
                   ticker={report.ticker}
                   historicalQuarters={getFinancialsQuarterlyData(report.ticker)}
-                  forecastReasoningText={report.sectionD.quarterlyForecastReasoning}
+                  forecastReasoningText={secFValuation.quarterlyForecastReasoning}
                   realQuarterlyFinancials={realQuarterlyFinancials}
                   onUpdateValuation={(newVal) => {
+                    setSecFValuation({
+                      ...secFValuation,
+                      valuation: newVal,
+                    });
                     onUpdateReport({
                       ...report,
-                      sectionD: {
-                        ...report.sectionD,
+                      sectionF: {
+                        ...secFValuation,
                         valuation: newVal,
                       },
                     });
