@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateAnalysisReport } from '@/lib/ai-analyzer';
 
-export const maxDuration = 60; // Vercel Serverless Function timeout (60 seconds)
+export const maxDuration = 120; // Serverless Function timeout (120 seconds)
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {

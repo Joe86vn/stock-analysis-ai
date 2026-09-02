@@ -217,33 +217,49 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
 }
       `;
 
-    const targetModel = 'gemini-3.6-flash';
-    try {
-      console.log(`[AI Analyzer] Generating report using strictly model: ${targetModel}...`);
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: targetModel,
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.2,
-          topP: 0.8,
-          maxOutputTokens: 8192,
-        },
-      });
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      });
-      const text = result.response.text();
+    const rawCandidates = [
+      preferredModel,
+      process.env.GEMINI_MODEL,
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-latest',
+    ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
-      const parsed = repairAndParseJson(text);
-      const report = buildReportFromParsed(ticker, marketData, parsed, year1, year2);
-      report.generationModel = targetModel;
-      console.log(`[AI Analyzer] Successfully generated report using model: ${targetModel}`);
-      return report;
-    } catch (err: any) {
-      console.error(`[AI Analyzer] Model ${targetModel} failed:`, err.message || err);
-      throw new Error(`Lỗi Google AI Studio (${targetModel}): ${err.message || 'Không thể kết nối AI Studio'}`);
+    // Deduplicate candidate models
+    const candidateModels = Array.from(new Set(rawCandidates));
+    const genAI = new GoogleGenerativeAI(apiKey);
+    let lastError: any = null;
+
+    for (const modelName of candidateModels) {
+      try {
+        console.log(`[AI Analyzer] Attempting report generation with model: ${modelName}...`);
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.2,
+            topP: 0.8,
+            maxOutputTokens: 8192,
+          },
+        });
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        const text = result.response.text();
+
+        const parsed = repairAndParseJson(text);
+        const report = buildReportFromParsed(ticker, marketData, parsed, year1, year2);
+        report.generationModel = modelName;
+        console.log(`[AI Analyzer] Successfully generated report using model: ${modelName}`);
+        return report;
+      } catch (err: any) {
+        console.warn(`[AI Analyzer] Model ${modelName} failed, trying next fallback:`, err.message || err);
+        lastError = err;
+      }
     }
+
+    throw new Error(`Lỗi Google AI Studio (Tất cả model [${candidateModels.join(', ')}] đều thất bại): ${lastError?.message || 'Không thể kết nối AI Studio'}`);
   }
 
   // Fallback / High-quality Expert Default Engine when no API key is set

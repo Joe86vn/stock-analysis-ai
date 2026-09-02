@@ -121,17 +121,17 @@ export default function Home() {
   };
 
   const runAnalysis = async (stock: StockMarketData, files: UploadedFile[]) => {
-    const fixedModel = 'gemini-3.6-flash';
+    const defaultModel = 'gemini-3.7-flash';
     setIsGenerating(true);
     setErrorMessage('');
     const fileCount = files.length;
     setGeneratingMsg(
       fileCount > 0
-        ? `Đang phân tích ${fileCount} tài liệu bằng ${fixedModel} cho ${stock.ticker}...`
-        : `Đang kết nối ${fixedModel} lập báo cáo cho ${stock.ticker}...`
+        ? `Đang phân tích ${fileCount} tài liệu bằng ${defaultModel} cho ${stock.ticker}...`
+        : `Đang kết nối ${defaultModel} lập báo cáo cho ${stock.ticker}...`
     );
     try {
-      const generated = await generateAnalysisReport(stock.ticker, stock, files, fixedModel);
+      const generated = await generateAnalysisReport(stock.ticker, stock, files, defaultModel);
       setReport(generated);
       setErrorMessage('');
       // Scroll to report section after generation
@@ -140,7 +140,7 @@ export default function Home() {
       }, 100);
     } catch (err: any) {
       console.error('Error generating report:', err);
-      setErrorMessage(err.message || 'Lỗi khi gọi Google AI Studio Gemini 3.6 Flash.');
+      setErrorMessage(err.message || 'Lỗi khi gọi Google AI Studio Gemini.');
     } finally {
       setIsGenerating(false);
       setGeneratingMsg('');
@@ -204,7 +204,7 @@ export default function Home() {
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 font-heading">
                 <span>ValueX AI Engine:</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                  {report?.generationModel || 'gemini-3.6-flash'}
+                  {report?.generationModel || 'gemini-3.7-flash'}
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-gray-400">
@@ -217,11 +217,11 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
-            {/* Fixed Model Badge */}
+            {/* Model Badge */}
             <div className="flex items-center space-x-2 bg-white dark:bg-gray-950/80 border border-emerald-200 dark:border-emerald-500/30 rounded-xl px-3.5 py-2 shadow-xs">
               <Cpu className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                ⚡ Gemini 3.6 Flash (Cố định)
+                ⚡ Gemini 3.7 Flash
               </span>
             </div>
 
@@ -259,7 +259,7 @@ export default function Home() {
               <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
-                  Lỗi Kết Nối Google AI Studio (gemini-3.6-flash)
+                  Lỗi Kết Nối Google AI Studio
                 </h4>
                 <p className="text-xs text-slate-700 dark:text-gray-300 mt-1">{errorMessage}</p>
               </div>
