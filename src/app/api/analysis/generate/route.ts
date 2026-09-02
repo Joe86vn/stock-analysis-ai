@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateAnalysisReport } from '@/lib/ai-analyzer';
 
-export const maxDuration = 300; // Serverless Function timeout (300 seconds for Gemini 3.7 Flash)
+export const maxDuration = 300; // Serverless Function timeout (300 seconds for Gemini 3.6 Flash)
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {

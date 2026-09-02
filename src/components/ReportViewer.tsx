@@ -1068,7 +1068,7 @@ export function ReportViewer({
           <Cpu className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
           <span className="text-gray-400 font-medium">Model AI Phân Tích:</span>
           <span className="font-extrabold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-lg shadow-sm">
-            {report.generationModel || 'gemini-3.7-flash'}
+            {report.generationModel || 'gemini-3.6-flash'}
           </span>
         </div>
       </div>
