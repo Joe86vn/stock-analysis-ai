@@ -125,14 +125,29 @@ export function calculateGrowthQualityScore(
     ? Math.min(0.25, Math.max(0.15, sameQuarterLastYear.totalTax / sameQuarterLastYear.profitBeforeTax))
     : 0.20;
 
-  // Bóc tách thu nhập tài chính một lần & Lợi nhuận khác
-  const unusualFinIncomeCurr = latest.noteHighlights?.investmentDisposalGainBillion || 0;
-  const unusualFinIncomePrev = sameQuarterLastYear.noteHighlights?.investmentDisposalGainBillion || 0;
+  // Tính mức Doanh thu tài chính bình thường hóa (lãi tiền gửi từ tiền mặt vận hành)
+  const regularFinIncomes = validQuarters
+    .map((q) => q.financialIncome || 0)
+    .filter((v) => v > 0 && v < 150);
+  const baselineFinIncome = regularFinIncomes.length > 0
+    ? regularFinIncomes.reduce((s, c) => s + c, 0) / regularFinIncomes.length
+    : 50.0;
+
+  // Bóc tách thu nhập tài chính một lần (Lãi bán/thoái vốn khoản đầu tư, cổ tức bất thường) & Lợi nhuận khác
+  let unusualFinIncomeCurr = latest.noteHighlights?.investmentDisposalGainBillion || 0;
+  if (unusualFinIncomeCurr === 0 && (latest.financialIncome || 0) > 120 && (latest.financialIncome || 0) > baselineFinIncome * 2.0) {
+    unusualFinIncomeCurr = Math.round(((latest.financialIncome || 0) - baselineFinIncome) * 100) / 100;
+  }
+
+  let unusualFinIncomePrev = sameQuarterLastYear.noteHighlights?.investmentDisposalGainBillion || 0;
+  if (unusualFinIncomePrev === 0 && (sameQuarterLastYear.financialIncome || 0) > 120 && (sameQuarterLastYear.financialIncome || 0) > baselineFinIncome * 2.0) {
+    unusualFinIncomePrev = Math.round(((sameQuarterLastYear.financialIncome || 0) - baselineFinIncome) * 100) / 100;
+  }
 
   const adjCurr = ((latest.otherProfit || 0) + unusualFinIncomeCurr) * (1 - taxRateCurr);
   const adjPrev = ((sameQuarterLastYear.otherProfit || 0) + unusualFinIncomePrev) * (1 - taxRatePrev);
 
-  // Core Profit sau bóc tách
+  // Core Profit sau bóc tách 100%
   const latestCore = (latest.netProfit || 0) - adjCurr;
   const lastYearCore = (sameQuarterLastYear.netProfit || 0) - adjPrev;
 
@@ -665,9 +680,9 @@ export function calculateGrowthQualityScore(
       q0Current: `${latest.financialIncome?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
       q0SamePeriod: `${sameQuarterLastYear.financialIncome?.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
       yoyPct: calcYoYStr(latest.financialIncome || 0, sameQuarterLastYear.financialIncome || 0),
-      sourceNote: latest.noteHighlights?.interestIncomeBillion
-        ? `Tách lãi tiền gửi (${latest.noteHighlights.interestIncomeBillion.toFixed(1)} tỷ) vs thoái vốn`
-        : 'Tách lãi tiền gửi vs thoái vốn',
+      sourceNote: unusualFinIncomeCurr > 0
+        ? `Lãi tiền gửi (${(latest.financialIncome - unusualFinIncomeCurr).toFixed(1)} tỷ) + Lãi thoái vốn (${unusualFinIncomeCurr.toFixed(1)} tỷ)`
+        : 'Lãi tiền gửi định kỳ từ tiền mặt vận hành',
     },
     {
       label: 'Lợi nhuận khác',
@@ -696,7 +711,9 @@ export function calculateGrowthQualityScore(
       q0Current: adjCurr !== 0 ? `-${Math.abs(adjCurr).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ` : '0.00 tỷ',
       q0SamePeriod: adjPrev !== 0 ? `-${Math.abs(adjPrev).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ` : '0.00 tỷ',
       yoyPct: '—',
-      sourceNote: 'Bóc tách thoái vốn/tài chính một lần',
+      sourceNote: unusualFinIncomeCurr > 0
+        ? `Loại trừ LN khác & Lãi thoái vốn đầu tư (${unusualFinIncomeCurr.toFixed(1)} tỷ)`
+        : 'Bóc tách LN khác & tài chính một lần',
       isAdjustment: true,
     },
     {
