@@ -258,7 +258,7 @@ export function calculateGrowthQualityScore(
   );
 
   // =======================================================
-  // 🔒 KIỂM TRA 2 CỬA CHẶN (GATEKEEPERS)
+  // 🔒 KIỂM TRA 2 CỬA CHẶN (GATEKEEPERS) THEO QUY CHUẨN VALUEX
   // =======================================================
   // Cửa 1: Xác minh Core & LNST/EPS core Q0 > 0%
   const gate1Pass = q0CoreProfitGrowthYoY > 0;
@@ -266,11 +266,23 @@ export function calculateGrowthQualityScore(
     ? 'Đạt Cửa 1: Đã xác minh Cầu nối LNST cốt lõi, tăng trưởng Core Q0 dương.'
     : 'VI PHẠM CỬA 1: Tăng trưởng LNST/EPS Core Q0 âm hoặc chưa xác minh Core.';
 
-  // Cửa 2: Ngưỡng 20% tuyệt đối (LNST Core hoặc EPS Core >= 20%)
-  const gate2Pass = gate1Pass && (q0CoreProfitGrowthYoY >= 20 || ltmCoreProfitGrowthYoY >= 20 || epsCoreGrowthYoY >= 20);
+  // Cửa 2: NGƯỠNG 20% TUYỆT ĐỐI (Cả LNST Core và EPS Core đều phải >= 20% ở Q0 và 6T/12T LTM)
+  const isQ0CoreProfitGte20 = q0CoreProfitGrowthYoY >= 20.0;
+  const isQ0CoreEpsGte20 = epsCoreGrowthYoY >= 20.0;
+  const isLtmCoreProfitGte20 = ltmCoreProfitGrowthYoY >= 20.0;
+  const isLtmCoreEpsGte20 = ltmCoreEpsGrowthYoY >= 20.0;
+
+  const gate2Pass = gate1Pass && isQ0CoreProfitGte20 && isQ0CoreEpsGte20 && isLtmCoreProfitGte20 && isLtmCoreEpsGte20;
+  
+  let gate2FailReasons: string[] = [];
+  if (!isQ0CoreProfitGte20) gate2FailReasons.push(`LNST Core Q0 (+${q0CoreProfitGrowthYoY.toFixed(1)}% < 20%)`);
+  if (!isQ0CoreEpsGte20) gate2FailReasons.push(`EPS Core Q0 (+${epsCoreGrowthYoY.toFixed(1)}% < 20%)`);
+  if (!isLtmCoreProfitGte20) gate2FailReasons.push(`LNST Core LTM (+${ltmCoreProfitGrowthYoY.toFixed(1)}% < 20%)`);
+  if (!isLtmCoreEpsGte20) gate2FailReasons.push(`EPS Core LTM (+${ltmCoreEpsGrowthYoY.toFixed(1)}% < 20%)`);
+
   const gate2Note = gate2Pass
-    ? `Đạt Cửa 2: Tăng trưởng Core đạt ${Math.max(q0CoreProfitGrowthYoY, ltmCoreProfitGrowthYoY).toFixed(1)}% (≥ 20% ngưỡng bắt buộc).`
-    : `CẢNH BÁO CỬA 2: Tăng trưởng Core chỉ đạt +${q0CoreProfitGrowthYoY.toFixed(1)}% YoY (< 20% ngưỡng bắt buộc).`;
+    ? `Đạt Cửa 2: Cả LNST Core (+${q0CoreProfitGrowthYoY.toFixed(1)}%) và EPS Core (+${epsCoreGrowthYoY.toFixed(1)}%) đều tăng trưởng ≥ 20% ở cả Q0 và LTM (+${ltmCoreProfitGrowthYoY.toFixed(1)}%).`
+    : `VI PHẠM CỬA 2 (NGƯỠNG 20% TUYỆT ĐỐI): ${gate2FailReasons.join(', ')} → BỊ KHÓA 0/60.`;
 
   const isLocked = !gate1Pass || !gate2Pass;
   const lockReason = !gate1Pass ? gate1Note : !gate2Pass ? gate2Note : undefined;
@@ -1106,7 +1118,7 @@ export function calculateGrowthQualityScore(
   const verificationStatusLabel = gate1Pass ? 'ĐÃ XÁC MINH' : 'CHƯA XÁC MINH';
   const thresholdConclusionLabel = !gate1Pass
     ? 'CHƯA XÁC MINH CORE → 0/60'
-    : (gate2Pass ? 'ĐẠT NGƯỠNG TĂNG TRƯỞNG ≥ 20%' : `CẢNH BÁO: TĂNG TRƯỞNG CORE +${q0CoreProfitGrowthYoY.toFixed(1)}% (< 20%)`);
+    : (gate2Pass ? 'ĐẠT NGƯỠNG TĂNG TRƯỞNG ≥ 20%' : `VI PHẠM NGƯỠNG 20% TUYỆT ĐỐI (${gate2FailReasons.join('; ')}) → KHÓA 0/60`);
 
   const coreBridge: CoreEarningsBridgeResult = {
     currentPeriodLabel: latest.period || 'Q0 Hiện tại',

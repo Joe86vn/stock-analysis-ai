@@ -403,25 +403,23 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
           </div>
         </div>
 
-        {/* Core Bridge Data Table - Full 8 Columns */}
+        {/* Core Bridge Data Table - Clean 6 Columns */}
         <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800">
-          <table className="w-full text-xs text-left min-w-[900px]">
+          <table className="w-full text-xs text-left min-w-[760px]">
             <thead>
               <tr className="text-slate-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-800 font-bold text-[11px] bg-slate-100/80 dark:bg-gray-800/80">
-                <th className="py-2.5 px-3 uppercase tracking-wider w-[22%]">Khoản mục / Chỉ tiêu</th>
-                <th className="py-2.5 px-3 uppercase tracking-wider w-[20%]">Quy tắc ValueX</th>
-                <th className="py-2.5 px-3 uppercase tracking-wider text-right">{scorecard.coreBridge.currentPeriodLabel} Hiện tại</th>
-                <th className="py-2.5 px-3 uppercase tracking-wider text-right">{scorecard.coreBridge.samePeriodLastYearLabel} Cùng kỳ</th>
-                <th className="py-2.5 px-3 uppercase tracking-wider text-right">LTM Hiện tại</th>
-                <th className="py-2.5 px-3 uppercase tracking-wider text-right">LTM Cùng kỳ</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider w-[28%]">Khoản mục / Chỉ tiêu</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider text-right w-[14%]">{scorecard.coreBridge.currentPeriodLabel} Hiện tại</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider text-right w-[14%]">{scorecard.coreBridge.samePeriodLastYearLabel} Cùng kỳ</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider text-right w-[14%]">Tăng trưởng YoY (%)</th>
                 <th className="py-2.5 px-3 uppercase tracking-wider w-[18%]">Nguồn / Thuyết minh</th>
-                <th className="py-2.5 px-3 uppercase tracking-wider w-[14%] text-center">Phân loại</th>
+                <th className="py-2.5 px-3 uppercase tracking-wider w-[12%] text-center">Phân loại</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 font-sans">
               {/* PHÂN ĐOẠN 1: CÁC CHỈ TIÊU BÁO CÁO CƠ BẢN */}
               <tr className="bg-slate-50 dark:bg-gray-800/60 font-bold text-[11px] text-slate-700 dark:text-gray-300">
-                <td colSpan={8} className="py-2 px-3 tracking-wide uppercase text-teal-700 dark:text-teal-400">
+                <td colSpan={6} className="py-2 px-3 tracking-wide uppercase text-teal-700 dark:text-teal-400">
                   I. CÁC CHỈ TIÊU BÁO CÁO CƠ BẢN
                 </td>
               </tr>
@@ -430,20 +428,20 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
                   <td className={`py-2 px-3 ${row.isHeadline ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-gray-300'}`}>
                     {row.label}
                   </td>
-                  <td className="py-2 px-3 text-slate-500 dark:text-gray-400 text-[11px]">
-                    {row.rule}
-                  </td>
                   <td className={`py-2 px-3 text-right font-mono ${row.isHeadline ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-800 dark:text-gray-200'}`}>
                     {row.q0Current}
                   </td>
                   <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-gray-400">
                     {row.q0SamePeriod}
                   </td>
-                  <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-gray-300">
-                    {row.ltmCurrent}
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono text-slate-500 dark:text-gray-400">
-                    {row.ltmSamePeriod}
+                  <td className={`py-2 px-3 text-right font-mono ${
+                    String(row.yoyPct).startsWith('+')
+                      ? 'font-bold text-emerald-600 dark:text-emerald-400'
+                      : String(row.yoyPct).startsWith('-')
+                      ? 'font-bold text-rose-600 dark:text-rose-400'
+                      : 'text-slate-400 dark:text-gray-500'
+                  }`}>
+                    {row.yoyPct || '—'}
                   </td>
                   <td className="py-2 px-3 text-[11px] text-slate-500 dark:text-gray-400">
                     {row.sourceNote}
@@ -462,7 +460,7 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
 
               {/* PHÂN ĐOẠN 2: 9 KHOẢN MỤC ĐIỀU CHỈNH SAU THUẾ */}
               <tr className="bg-rose-50/50 dark:bg-rose-950/20 font-bold text-[11px] text-rose-800 dark:text-rose-300">
-                <td colSpan={8} className="py-2 px-3 tracking-wide uppercase">
+                <td colSpan={6} className="py-2 px-3 tracking-wide uppercase">
                   II. ĐIỀU CHỈNH SAU THUẾ KHỎI LNST BÁO CÁO – NHẬP (+) ĐỂ LOẠI LÃI, NHẬP (-) ĐỂ CỘNG LẠI LỖ BẤT THƯỜNG
                 </td>
               </tr>
@@ -471,20 +469,14 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
                   <td className="py-2 px-3 font-medium text-slate-700 dark:text-gray-300 pl-4">
                     {row.label}
                   </td>
-                  <td className="py-2 px-3 text-slate-500 dark:text-gray-400 text-[11px]">
-                    {row.rule}
-                  </td>
                   <td className="py-2 px-3 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">
                     {row.q0Current}
                   </td>
                   <td className="py-2 px-3 text-right font-mono text-rose-600/80 dark:text-rose-400/80">
                     {row.q0SamePeriod}
                   </td>
-                  <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-gray-400">
-                    {row.ltmCurrent}
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono text-slate-500 dark:text-gray-400">
-                    {row.ltmSamePeriod}
+                  <td className="py-2 px-3 text-right font-mono text-slate-400 dark:text-gray-500">
+                    {row.yoyPct || '—'}
                   </td>
                   <td className="py-2 px-3 text-[11px] text-slate-500 dark:text-gray-400">
                     {row.sourceNote}
@@ -505,7 +497,7 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
 
               {/* PHÂN ĐOẠN 3: KẾT QUẢ TỔNG HỢP & CORE EPS */}
               <tr className="bg-emerald-50/50 dark:bg-emerald-950/20 font-bold text-[11px] text-emerald-800 dark:text-emerald-300">
-                <td colSpan={8} className="py-2 px-3 tracking-wide uppercase">
+                <td colSpan={6} className="py-2 px-3 tracking-wide uppercase">
                   III. KẾT QUẢ CORE SAU BÓC TÁCH &amp; EPS CỐT LÕI
                 </td>
               </tr>
@@ -514,20 +506,20 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
                   <td className={`py-2.5 px-3 ${row.isCore ? 'font-black text-emerald-900 dark:text-emerald-200 text-xs' : 'font-bold text-slate-800 dark:text-gray-200'}`}>
                     {row.label}
                   </td>
-                  <td className="py-2.5 px-3 text-slate-500 dark:text-gray-400 text-[11px]">
-                    {row.rule}
-                  </td>
                   <td className={`py-2.5 px-3 text-right font-mono ${row.isCore ? 'font-black text-emerald-900 dark:text-emerald-200 text-sm' : 'font-bold text-slate-800 dark:text-gray-200'}`}>
                     {row.q0Current}
                   </td>
                   <td className={`py-2.5 px-3 text-right font-mono ${row.isCore ? 'font-bold text-emerald-800 dark:text-emerald-300' : 'text-slate-600 dark:text-gray-400'}`}>
                     {row.q0SamePeriod}
                   </td>
-                  <td className={`py-2.5 px-3 text-right font-mono ${row.isCore ? 'font-bold text-emerald-900 dark:text-emerald-200' : 'text-slate-700 dark:text-gray-300'}`}>
-                    {row.ltmCurrent}
-                  </td>
-                  <td className={`py-2.5 px-3 text-right font-mono ${row.isCore ? 'font-bold text-emerald-800 dark:text-emerald-300' : 'text-slate-500 dark:text-gray-400'}`}>
-                    {row.ltmSamePeriod}
+                  <td className={`py-2.5 px-3 text-right font-mono ${
+                    row.isCore
+                      ? 'font-black text-emerald-600 dark:text-emerald-400 text-[13px]'
+                      : String(row.yoyPct).startsWith('+')
+                      ? 'font-bold text-emerald-600 dark:text-emerald-400'
+                      : 'text-slate-400 dark:text-gray-500'
+                  }`}>
+                    {row.yoyPct || '—'}
                   </td>
                   <td className="py-2.5 px-3 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
                     {row.sourceNote}
@@ -543,86 +535,16 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
           </table>
         </div>
 
-        {/* 🚨 KHỐI 4: KẾT QUẢ CORE & CẢNH BÁO TỰ ĐỘNG (DÒNG 32-42 VALUEX SPEC) */}
-        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Cột Trái: Các Tỷ Lệ & Tốc Độ Tăng Trưởng Core */}
-          <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-gray-800/40 border border-gray-200/70 dark:border-gray-700">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-2.5 flex items-center gap-1.5">
-              <TrendingUp className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-              Tổng Hợp Tốc Độ Tăng Trưởng Core &amp; Phân Hóa Headline
+        {/* 🚨 KHỐI CẢNH BÁO TỰ ĐỘNG & KHÓA CHẤT LƯỢNG TĂNG TRƯỞNG */}
+        <div className="mt-4 p-4 rounded-xl bg-slate-50/80 dark:bg-gray-800/50 border border-gray-200/80 dark:border-gray-700">
+          <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 mb-3 border-b border-gray-200/60 dark:border-gray-700/60 gap-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-gray-200 flex items-center gap-1.5">
+              <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              Cảnh Báo Tự Động &amp; Khóa Chất Lượng Tăng Trưởng (Quy Chuẩn ValueX)
             </h4>
-            <div className="space-y-1.5 text-xs">
-              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
-                <span className="text-slate-600 dark:text-gray-400">LNST cốt lõi Q0 YoY:</span>
-                <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
-                  {scorecard.coreBridge.coreNetProfitGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.coreNetProfitGrowthYoY.toFixed(2)}%
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
-                <span className="text-slate-600 dark:text-gray-400">EPS cốt lõi Q0 YoY:</span>
-                <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
-                  {scorecard.coreBridge.coreEpsGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.coreEpsGrowthYoY.toFixed(2)}%
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
-                <span className="text-slate-600 dark:text-gray-400">LNST cốt lõi 6T/12T (LTM) YoY:</span>
-                <span className="font-mono font-bold text-slate-800 dark:text-gray-200">
-                  {scorecard.coreBridge.coreNetProfitLtmGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.coreNetProfitLtmGrowthYoY.toFixed(2)}%
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
-                <span className="text-slate-600 dark:text-gray-400">EPS cốt lõi 6T/12T (LTM) YoY:</span>
-                <span className="font-mono font-bold text-slate-800 dark:text-gray-200">
-                  {scorecard.coreBridge.coreEpsLtmGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.coreEpsLtmGrowthYoY.toFixed(2)}%
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
-                <span className="text-slate-600 dark:text-gray-400">Tăng trưởng LNST báo cáo Q0 YoY:</span>
-                <span className="font-mono font-bold text-slate-700 dark:text-gray-300">
-                  {scorecard.coreBridge.headlineNetProfitGrowthYoY >= 0 ? '+' : ''}{scorecard.coreBridge.headlineNetProfitGrowthYoY.toFixed(2)}%
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-gray-200/50 dark:border-gray-700/50">
-                <span className="text-slate-600 dark:text-gray-400">Chênh lệch Headline vs Core:</span>
-                <span className={`font-mono font-black ${scorecard.coreBridge.headlineVsCoreGapPts > 20 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-gray-300'}`}>
-                  {scorecard.coreBridge.headlineVsCoreGapPts >= 0 ? '+' : ''}{scorecard.coreBridge.headlineVsCoreGapPts.toFixed(1)} điểm %
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-1">
-                <span className="text-slate-600 dark:text-gray-400">(DT tài chính + LN khác) / LNTT Q0:</span>
-                <span className={`font-mono font-black ${scorecard.coreBridge.finAndOtherToPbtRatioPct > 10 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  {scorecard.coreBridge.finAndOtherToPbtRatioPct.toFixed(1)}%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Cột Phải: 5 Cảnh Báo Tự Động & Khóa Tăng Trưởng */}
-          <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-gray-800/40 border border-gray-200/70 dark:border-gray-700 flex flex-col justify-between">
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-gray-300 mb-2 flex items-center gap-1.5">
-                <ShieldAlert className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
-                Cảnh Báo Tự Động &amp; Khóa Chất Lượng Tăng Trưởng
-              </h4>
-              <div className="space-y-1.5">
-                {scorecard.coreBridge.alerts.map((alt) => (
-                  <div key={alt.id} className="flex items-start gap-2 text-xs">
-                    {alt.triggered ? (
-                      <AlertTriangle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${alt.severity === 'danger' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-500 dark:text-amber-400'}`} />
-                    ) : (
-                      <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-500 dark:text-emerald-400" />
-                    )}
-                    <span className={`${alt.triggered ? (alt.severity === 'danger' ? 'text-rose-700 dark:text-rose-300 font-semibold' : 'text-amber-700 dark:text-amber-300 font-medium') : 'text-slate-500 dark:text-gray-400'}`}>
-                      {alt.label} {alt.triggered ? `(${alt.detail})` : ''}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700 flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-700 dark:text-gray-300">Kết luận ngưỡng 20%:</span>
-              <span className={`font-black px-2.5 py-1 rounded ${
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 dark:text-gray-400 font-medium">Kết luận ngưỡng 20%:</span>
+              <span className={`font-black px-3 py-1 rounded-lg text-xs ${
                 scorecard.gatekeepers.gate2_Growth20PercentThreshold
                   ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
                   : 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
@@ -630,6 +552,34 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
                 {scorecard.coreBridge.thresholdConclusionLabel}
               </span>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {scorecard.coreBridge.alerts.map((alt) => (
+              <div key={alt.id} className={`p-2.5 rounded-lg border text-xs flex items-start gap-2 ${
+                alt.triggered
+                  ? alt.severity === 'danger'
+                    ? 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                    : 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
+                  : 'bg-white dark:bg-gray-800/40 border-gray-200/60 dark:border-gray-700 text-slate-500 dark:text-gray-400'
+              }`}>
+                {alt.triggered ? (
+                  <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alt.severity === 'danger' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-500 dark:text-amber-400'}`} />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-500 dark:text-emerald-400" />
+                )}
+                <div>
+                  <div className={`font-semibold ${alt.triggered ? (alt.severity === 'danger' ? 'text-rose-900 dark:text-rose-100' : 'text-amber-900 dark:text-amber-100') : 'text-slate-600 dark:text-gray-300'}`}>
+                    {alt.label}
+                  </div>
+                  {alt.triggered && (
+                    <div className="text-[11px] mt-0.5 opacity-90">
+                      {alt.detail}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
