@@ -45,7 +45,7 @@ export default function Home() {
     return null;
   };
 
-  const fetchSimplizeRatios = async (ticker: string) => {
+  const fetchVietcapRatios = async (ticker: string) => {
     try {
       const response = await fetch(`/api/stocks/${ticker}/financials`);
       if (response.ok) {
@@ -61,7 +61,7 @@ export default function Home() {
         }
       }
     } catch (err) {
-      console.warn(`Failed to fetch Simplize ratios for ${ticker}:`, err);
+      console.warn(`Failed to fetch Vietcap ratios for ${ticker}:`, err);
     }
     return null;
   };
@@ -72,7 +72,7 @@ export default function Home() {
       let priceUpdatedStock = { ...selectedStock };
       const [latestPrice, ratios] = await Promise.all([
         fetchLatestPrice(selectedStock.ticker),
-        fetchSimplizeRatios(selectedStock.ticker),
+        fetchVietcapRatios(selectedStock.ticker),
       ]);
       if (latestPrice !== null) {
         priceUpdatedStock.currentPrice = latestPrice;
@@ -92,7 +92,7 @@ export default function Home() {
     let priceUpdatedStock = { ...stock };
     const [latestPrice, ratios] = await Promise.all([
       fetchLatestPrice(stock.ticker),
-      fetchSimplizeRatios(stock.ticker),
+      fetchVietcapRatios(stock.ticker),
     ]);
     if (latestPrice !== null) {
       priceUpdatedStock.currentPrice = latestPrice;

@@ -64,7 +64,7 @@ Loại tài liệu: ${type}
 Tên file: ${fileLabel}
 Nguồn tài liệu: ${url}
 
-Ghi chú: Nội dung tài liệu PDF này sẽ được phân tích kết hợp cùng số liệu tài chính thực tế 100% từ Simplize API cho mã ${ticker}.
+Ghi chú: Nội dung tài liệu PDF này sẽ được phân tích kết hợp cùng số liệu tài chính thực tế 100% từ Vietcap IQ API cho mã ${ticker}.
 Các thông tin về mô hình kinh doanh, chuỗi giá trị và triển vọng sẽ được AI bóc tách trực tiếp từ văn bản tài liệu chính thức.
 `;
 }

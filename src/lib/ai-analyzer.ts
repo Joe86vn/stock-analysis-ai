@@ -1,8 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AnalysisReport, StockMarketData, UploadedFile } from '@/types/analysis';
-import { fetchFullSimplizeData, ParsedSimplizeQuarter } from '@/lib/simplize-field-mapping';
+import { fetchFullVietcapData, ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
 
-export function getForecastYearsFromItems(items: ParsedSimplizeQuarter[]) {
+export function getForecastYearsFromItems(items: ParsedVietcapQuarter[]) {
   const validItems = (items || []).filter((q) => q && q.revenue > 0);
   if (validItems.length > 0) {
     let maxItem = validItems[0];
@@ -33,17 +33,18 @@ export function getForecastYearsFromItems(items: ParsedSimplizeQuarter[]) {
   return { year1: currentYear, year2: currentYear + 1, latestQuarter: '' };
 }
 
-async function fetchSimplizeFinancialContext(ticker: string, marketData: StockMarketData): Promise<{ text: string; year1: number; year2: number; latestQuarter: string }> {
+async function fetchVietcapFinancialContext(ticker: string, marketData: StockMarketData): Promise<{ text: string; year1: number; year2: number; latestQuarter: string }> {
   const defaultYear = new Date().getFullYear();
   try {
     const cleanTicker = ticker.trim().toUpperCase();
-    const items = await fetchFullSimplizeData(cleanTicker, 12);
+    const items = await fetchFullVietcapData(cleanTicker);
     if (!items || items.length === 0) return { text: '', year1: defaultYear, year2: defaultYear + 1, latestQuarter: '' };
 
     const { year1, year2, latestQuarter } = getForecastYearsFromItems(items);
 
-    // Extract actual P/E stats from historical quarters
-    const peValues = items.map((it) => it.pe).filter((pe) => typeof pe === 'number' && pe > 0);
+    // Lấy chuỗi P/E từ 12-20 quý gần nhất
+    const recentItems = items.slice(-20);
+    const peValues = recentItems.map((it) => it.pe).filter((pe) => typeof pe === 'number' && pe > 0);
     if (peValues.length > 0) {
       const realPeMin = Math.round(Math.min(...peValues) * 10) / 10;
       const realPeMax = Math.round(Math.max(...peValues) * 10) / 10;
@@ -59,28 +60,39 @@ async function fetchSimplizeFinancialContext(ticker: string, marketData: StockMa
       marketData.sharesOutstanding = lastShares;
     }
 
-    let text = `\n--- DỮ LIỆU BÁO CÁO TÀI CHÍNH THỰC TẾ VÀ CHỈ SỐ P/E TỪ SIMPLIZE CHO ${cleanTicker} ---\n`;
-    text += `| Quý | Doanh Thu Thuần (Tỷ VNĐ) | Lợi Nhuận Gộp (Tỷ VNĐ) | Lợi Nhuận Sau Thuế (Tỷ VNĐ) | P/E (lần) | Biên Gộp (%) | ROE (%) |\n`;
-    text += `|---|---|---|---|---|---|---|\n`;
+    let text = `\n--- DỮ LIỆU BÁO CÁO TÀI CHÍNH SỐ HÓA THỰC TẾ VÀ CHỈ SỐ P/E TỪ VIETCAP IQ API CHO ${cleanTicker} (TỪ 2018 - NAY) ---\n`;
+    text += `| Quý | Doanh Thu (Tỷ) | LN Gộp (Tỷ) | LNST CĐ Mẹ (Tỷ) | P/E (lần) | P/B (lần) | Biên Gộp (%) | ROE (%) | Nợ Vay (Tỷ) | LCT HĐKD (Tỷ) |\n`;
+    text += `|---|---|---|---|---|---|---|---|---|---|\n`;
 
-    items.forEach((it: ParsedSimplizeQuarter) => {
-      text += `| ${it.period} | ${it.revenue.toFixed(1)} | ${it.grossProfit.toFixed(1)} | ${it.netProfit.toFixed(1)} | ${it.pe > 0 ? it.pe.toFixed(1) + 'x' : 'N/A'} | ${it.grossMargin.toFixed(1)}% | ${it.roe.toFixed(1)}% |\n`;
+    // Hiển thị 12 quý gần nhất trong bảng chi tiết cho prompt gọn gàng
+    const displayItems = items.slice(-12);
+    displayItems.forEach((it: ParsedVietcapQuarter) => {
+      text += `| ${it.period} | ${it.revenue.toFixed(1)} | ${it.grossProfit.toFixed(1)} | ${it.netProfit.toFixed(1)} | ${it.pe > 0 ? it.pe.toFixed(1) + 'x' : 'N/A'} | ${it.pb > 0 ? it.pb.toFixed(1) + 'x' : 'N/A'} | ${it.grossMargin.toFixed(1)}% | ${it.roe.toFixed(1)}% | ${it.totalDebt.toFixed(1)} | ${it.netOperatingCashFlow.toFixed(1)} |\n`;
     });
 
     if (peValues.length > 0) {
-      text += `\nCHỈ SỐ P/E THỰC TẾ TRÍCH XUẤT TỪ SIMPLIZE API:\n`;
+      text += `\nCHỈ SỐ P/E THỰC TẾ TRÍCH XUẤT TỪ VIETCAP IQ API:\n`;
       text += `- P/E Thấp nhất (Bear): ${marketData.pe5YearMin}x\n`;
       text += `- P/E Trung bình (Base): ${marketData.pe5YearAvg}x\n`;
       text += `- P/E Cao nhất (Bull): ${marketData.pe5YearMax}x\n`;
     }
 
-    text += `\nQUÝ MỚI NHẤT ĐÃ CÓ BCTC THỰC TẾ TRÊN SIMPLIZE API LÀ: ${latestQuarter || 'N/A'}.\n`;
+    const latestItem = items[items.length - 1];
+    if (latestItem?.noteHighlights) {
+      text += `\nTHUYẾT MINH BCTC NỔI BẬT (${latestItem.period}):\n`;
+      text += `- Tiền gửi ngân hàng & Tiền mặt: ${latestItem.noteHighlights.cashInBankBillion?.toFixed(1) || 0} tỷ VNĐ\n`;
+      text += `- Tiền gửi có kỳ hạn ngắn hạn: ${latestItem.noteHighlights.shortTermDepositsBillion?.toFixed(1) || 0} tỷ VNĐ\n`;
+      text += `- Doanh thu tài chính / Lãi tiền gửi: ${latestItem.noteHighlights.interestIncomeBillion?.toFixed(1) || 0} tỷ VNĐ\n`;
+      text += `- Chi phí lãi vay phát sinh: ${latestItem.noteHighlights.interestExpenseBillion?.toFixed(1) || 0} tỷ VNĐ\n`;
+    }
+
+    text += `\nQUÝ MỚI NHẤT ĐÃ CÓ BCTC THỰC TẾ TRÊN VIETCAP IQ LÀ: ${latestQuarter || 'N/A'}.\n`;
     text += `DỰ PHÓNG SẼ THỰC HIỆN CHO 2 NĂM TỚI: NĂM 1 = ${year1}, NĂM 2 = ${year2}.\n`;
     text += `HÃY SỬ DỤNG CHÍNH XÁC CÁC CHỈ SỐ P/E THỰC TẾ TRÊN KHI ĐỊNH GIÁ (Section D): peBear = ${marketData.pe5YearMin || 0}, peBase = ${marketData.pe5YearAvg || 0}, peBull = ${marketData.pe5YearMax || 0}.\n`;
 
     return { text, year1, year2, latestQuarter };
   } catch (err) {
-    console.warn('Failed to fetch Simplize financial context for AI:', err);
+    console.warn('Failed to fetch Vietcap financial context for AI:', err);
     return { text: '', year1: defaultYear, year2: defaultYear + 1, latestQuarter: '' };
   }
 }
@@ -113,9 +125,9 @@ export async function generateAnalysisReport(
     .map((f) => `--- File: ${f.name} (${f.type}) ---\n${f.content || 'Nội dung file PDF/Document'}`)
     .join('\n\n');
 
-  // Fetch real Simplize quarterly financial data & real P/E ratios & dynamic forecast years
-  const { text: simplizeContext, year1, year2, latestQuarter } = await fetchSimplizeFinancialContext(ticker, marketData);
-  combinedText = simplizeContext + '\n\n' + combinedText;
+  // Fetch real Vietcap quarterly financial data & real P/E ratios & dynamic forecast years
+  const { text: vietcapContext, year1, year2, latestQuarter } = await fetchVietcapFinancialContext(ticker, marketData);
+  combinedText = vietcapContext + '\n\n' + combinedText;
 
   if (apiKey) {
     const prompt = `
@@ -123,7 +135,7 @@ Bạn là chuyên gia phân tích đầu tư chứng khoán hàng đầu Việt 
 Hãy lập BÁO CÁO PHÂN TÍCH ĐẦU TƯ hoàn chỉnh cho mã chứng khoán ${ticker} (${marketData.companyName}) dựa trên quy trình chuẩn dưới đây và tài liệu được đính kèm:
 
 YÊU CẦU BẮT BUỘC VỀ ĐỘ DÀI VÀ NỘI DUNG:
-- Không viết tóm tắt ngắn gọn hoặc dùng chung chung. Mỗi trường văn bản trong JSON (ví dụ: valueChainInput, profitabilityMargins...) cần được phân tích rất chi tiết (tối thiểu 200-300 từ, trình bày thành nhiều đoạn lập luận chặt chẽ).
+- Không viết tóm tắt ngắn gọn hoặc dùng chung chung. Mỗi trường văn bản trong JSON cần được phân tích rất chi tiết (tối thiểu 200-300 từ, trình bày thành nhiều đoạn lập luận chặt chẽ).
 - Mỗi luận điểm phân tích bắt buộc phải đưa ra dẫn chứng số liệu thực tế đã trích xuất từ tài liệu đính kèm hoặc số liệu thị trường để chứng minh.
 - TRÌNH BÀY VĂN BẢN MẠCH LẠC, DỄ ĐỌC: TUYỆT ĐỐI KHÔNG sử dụng ký tự thô dạng [Luận điểm] -> [Dẫn chứng] -> [Kết luận]. Hãy dùng các tiêu đề phụ in đậm rõ ràng (ví dụ: **1. Yếu tố Sản lượng (Q):** ...). Bên dưới mỗi tiêu đề phụ, hãy sử dụng dấu gạch đầu dòng '-' hoặc dấu '•' để liệt kê các ý chi tiết.
 
@@ -132,9 +144,9 @@ THÔNG SỐ THỊ TRƯỜNG & DỰ PHÓNG NĂM (${year1} VÀ ${year2}):
 - Giá hiện tại: ${marketData.currentPrice ? marketData.currentPrice + ' VND' : 'N/A'}
 - Quý thực tế mới nhất: ${latestQuarter || 'N/A'}
 - Hai năm cần dự phóng: Năm 1 = ${year1}, Năm 2 = ${year2}
-- P/E Trung bình (Base) 12 quý thực tế từ Simplize API: ${marketData.pe5YearAvg || 0}x
-- P/E Cao nhất (Bull / Max) 12 quý thực tế từ Simplize API: ${marketData.pe5YearMax || 0}x
-- P/E Thấp nhất (Bear / Min) 12 quý thực tế từ Simplize API: ${marketData.pe5YearMin || 0}x
+- P/E Trung bình (Base) các quý thực tế từ Vietcap IQ API: ${marketData.pe5YearAvg || 0}x
+- P/E Cao nhất (Bull / Max) các quý thực tế từ Vietcap IQ API: ${marketData.pe5YearMax || 0}x
+- P/E Thấp nhất (Bear / Min) các quý thực tế từ Vietcap IQ API: ${marketData.pe5YearMin || 0}x
 
 YÊU CẦU CẤU TRÚC BÁO CÁO (JSON):
 A. Tổng quan doanh nghiệp:
@@ -148,14 +160,17 @@ B. Hoạt động kinh doanh & Chuỗi giá trị:
   - valueChainOutput: Đầu ra (Cơ cấu doanh thu sản phẩm/dịch vụ).
   - revenueBreakdown: Mảng JSON các phân khúc doanh thu.
 
-C. Tình hình tài chính:
-  - revenueHistory3Years: Phân tích hiệu quả kinh doanh 3 năm & 5 quý gần nhất.
-  - profitabilityMargins: Phân tích chi tiết các biên lợi nhuận & ROE.
-  - financialHealthAndDebt: Sức khỏe tài chính, tỷ lệ nợ vay D/E.
+C. Tình hình tài chính • Đánh giá Sức khỏe tài chính ValueX (50 điểm across 6 parts):
+  - partA_LiquidityAndDebt: Nhóm A - Thanh khoản & Trả nợ (Current/Quick Ratio, Net Debt/EBITDA, Interest Coverage).
+  - partB_CashFlowAndEarnings: Nhóm B - Dòng tiền & Chuyển đổi lợi nhuận (CFO/LNST core, FCF sau CAPEX, CFO/EBITDA, tính bền vững dòng tiền).
+  - partC_ProfitabilityAndROIC: Nhóm C - Sinh lời & Hiệu quả vốn (ROIC vs WACC, ROE điều chỉnh đòn bẩy D/E, Biên gộp, Biên EBIT, Vòng quay tài sản).
+  - partD_WorkingCapitalAndAssetQuality: Nhóm D - Vốn lưu động & Chất lượng tài sản (DSO, DIO, Chu kỳ tiền mặt CCC, chất lượng tài sản & XDCB dở dang).
+  - partE_CapitalStructureAndFunding: Nhóm E - Cơ cấu vốn & Khả năng tài trợ (Đòn bẩy D/E, cơ cấu nợ ngắn/dài hạn, khả năng tự tài trợ CAPEX).
+  - partF_EarningsQualityAndAccounting: Nhóm F - Chất lượng lợi nhuận & Kế toán (Tỷ trọng LNST cốt lõi, loại trừ một lần, kiểm toán và giao dịch bên liên quan).
 
 D. Triển vọng kinh doanh & Dự báo định giá:
   - growthDriversRevenueAndCost: Phân tích sâu sắc các yếu tố tăng trưởng tương lai: Sản lượng (Q), Giá bán (P) và Chi phí (C).
-  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH TÍNH TOÁN dự phóng theo quy trình Bottom-Up cho 2 năm NĂM 1 (${year1}) VÀ NĂM 2 (${year2}). VỚI CÁC QUÝ ĐÃ CÓ BCTC THỰC TẾ TRÊN SIMPLIZE API, BẮT BUỘC giữ nguyên con số thực tế. VỚI CÁC QUÝ CHƯA CÓ BCTC, hãy giải trình rõ từng con số Doanh thu, Biên gộp (%) và LNST dựa trên yếu tố mùa vụ, công suất và giá bán.
+  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH TÍNH TOÁN dự phóng theo quy trình Bottom-Up cho 2 năm NĂM 1 (${year1}) VÀ NĂM 2 (${year2}). VỚI CÁC QUÝ ĐÃ CÓ BCTC THỰC TẾ TRÊN VIETCAP IQ API, BẮT BUỘC giữ nguyên con số thực tế. VỚI CÁC QUÝ CHƯA CÓ BCTC, hãy giải trình rõ từng con số Doanh thu, Biên gộp (%) và LNST dựa trên yếu tố mùa vụ, công suất và giá bán.
   - forecastYear1Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year1}. Mỗi quý có các trường: "revenue" (Tỷ VNĐ), "grossMargin" (%), "netProfit" (Tỷ VNĐ). Với các quý đã có BCTC thực tế, lấy đúng số thực tế.
   - forecastYear2Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year2}. Mỗi quý có các trường: "revenue" (Tỷ VNĐ), "grossMargin" (%), "netProfit" (Tỷ VNĐ).
   - forecastQ1: LNST dự phóng cả năm ${year1} (số nguyên VND).
@@ -163,9 +178,9 @@ D. Triển vọng kinh doanh & Dự báo định giá:
   - forecastQ3: Đặt bằng 0.
   - forecastQ4: Đặt bằng 0.
   - sharesOutstandingMillions: Số lượng cổ phiếu lưu hành (triệu cổ phiếu).
-  - peBase: BẮT BUỘC dùng P/E Trung bình 12 quý thực tế từ Simplize API: ${marketData.pe5YearAvg || 0}.
-  - peBull: BẮT BUỘC dùng P/E Cao nhất 12 quý thực tế từ Simplize API: ${marketData.pe5YearMax || 0}.
-  - peBear: BẮT BUỘC dùng P/E Thấp nhất 12 quý thực tế từ Simplize API: ${marketData.pe5YearMin || 0}.
+  - peBase: BẮT BUỘC dùng P/E Trung bình thực tế từ Vietcap IQ API: ${marketData.pe5YearAvg || 0}.
+  - peBull: BẮT BUỘC dùng P/E Cao nhất thực tế từ Vietcap IQ API: ${marketData.pe5YearMax || 0}.
+  - peBear: BẮT BUỘC dùng P/E Thấp nhất thực tế từ Vietcap IQ API: ${marketData.pe5YearMin || 0}.
 
 CỰC KỲ QUAN TRỌNG: Mọi con số Doanh thu, Biên gộp, LNST trong đối tượng JSON forecastYear1Data và forecastYear2Data BẮT BUỘC PHẢI KHỚP CHÍNH XÁC 100% VỚI CÁC CON SỐ TRONG ĐOẠN VĂN BẢN QUARTERLYFORECASTREASONING.
 
@@ -186,9 +201,12 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     "revenueBreakdown": [{"name": "Tên phân khúc", "value": 60}, {"name": "Phân khúc 2", "value": 30}, {"name": "Khác", "value": 10}]
   },
   "sectionC": {
-    "revenueHistory3Years": "...",
-    "profitabilityMargins": "...",
-    "financialHealthAndDebt": "..."
+    "partA_LiquidityAndDebt": "...",
+    "partB_CashFlowAndEarnings": "...",
+    "partC_ProfitabilityAndROIC": "...",
+    "partD_WorkingCapitalAndAssetQuality": "...",
+    "partE_CapitalStructureAndFunding": "...",
+    "partF_EarningsQualityAndAccounting": "..."
   },
   "sectionD": {
     "growthDriversRevenueAndCost": "...",
@@ -372,9 +390,15 @@ function buildReportFromParsed(
         : undefined,
     },
     sectionC: {
-      revenueHistory3Years: parsed.sectionC?.revenueHistory3Years || 'Số liệu doanh thu 3 năm gần đây thu thập từ Simplize API.',
-      profitabilityMargins: parsed.sectionC?.profitabilityMargins || 'Biên lợi nhuận gộp và hiệu quả hoạt động.',
-      financialHealthAndDebt: parsed.sectionC?.financialHealthAndDebt || 'Sức khỏe tài chính và tỷ lệ nợ vay.',
+      partA_LiquidityAndDebt: parsed.sectionC?.partA_LiquidityAndDebt || parsed.sectionC?.financialHealthAndDebt || 'Đánh giá khả năng thanh toán và đòn bẩy nợ...',
+      partB_CashFlowAndEarnings: parsed.sectionC?.partB_CashFlowAndEarnings || 'Đánh giá chất lượng dòng tiền CFO và FCF sau CAPEX...',
+      partC_ProfitabilityAndROIC: parsed.sectionC?.partC_ProfitabilityAndROIC || parsed.sectionC?.profitabilityMargins || 'Đánh giá tỷ suất sinh lời ROIC, ROE và biên lợi nhuận...',
+      partD_WorkingCapitalAndAssetQuality: parsed.sectionC?.partD_WorkingCapitalAndAssetQuality || 'Đánh giá vòng quay vốn lưu động DSO, DIO, CCC và chất lượng tài sản...',
+      partE_CapitalStructureAndFunding: parsed.sectionC?.partE_CapitalStructureAndFunding || 'Đánh giá cơ cấu vốn D/E và khả năng tự tài trợ CAPEX...',
+      partF_EarningsQualityAndAccounting: parsed.sectionC?.partF_EarningsQualityAndAccounting || 'Đánh giá tỷ trọng lợi nhuận cốt lõi, kiểm toán và giao dịch bên liên quan...',
+      revenueHistory3Years: parsed.sectionC?.revenueHistory3Years,
+      profitabilityMargins: parsed.sectionC?.profitabilityMargins,
+      financialHealthAndDebt: parsed.sectionC?.financialHealthAndDebt,
     },
     sectionD: {
       growthDriversRevenueAndCost: parsed.sectionD?.growthDriversRevenueAndCost || 'Luận điểm tăng trưởng doanh thu và chi phí.',
@@ -417,7 +441,7 @@ export function generateDefaultExpertReport(
 
   const hasFilesNotice = uploadedFiles.length > 0
     ? `(Đã phân tích bóc tách từ ${uploadedFiles.length} tài liệu được upload: ${uploadedFiles.map(f => f.name).join(', ')})`
-    : '(Phân tích tổng hợp từ hệ thống tài chính Simplize API)';
+    : '(Phân tích tổng hợp từ hệ thống tài chính Vietcap IQ API)';
 
   let revenueBreakdown = undefined;
 
@@ -442,11 +466,25 @@ export function generateDefaultExpertReport(
       revenueBreakdown,
     },
     sectionC: {
-      revenueHistory3Years: `• **Phân tích Doanh thu & Tăng trưởng**: Hoạt động kinh doanh cốt lõi được thu thập 100% từ Báo cáo tài chính thực tế 8 quý gần nhất qua API Simplize.
-• **Lợi nhuận sau thuế & Hiệu quả**: Biên lợi nhuận gộp và lợi nhuận thuần duy trì ổn định theo quy mô và đặc thù ngành kinh doanh.`,
-      profitabilityMargins: `• **Phân tích Biên lợi nhuận & Khả năng sinh lời**: Biên lợi nhuận gộp và ROE thực tế của doanh nghiệp được tổng hợp trực tiếp từ Simplize API.`,
-      financialHealthAndDebt: `• **Tỷ lệ Nợ vay & Đòn bẩy tài chính**: Cơ cấu nguồn vốn và dư nợ vay được đánh giá dựa trên số liệu BCTC hợp nhất mới nhất từ Simplize API.
-• **Đánh giá rủi ro đòn bẩy**: Dòng tiền kinh doanh và chỉ số thanh toán lãi vay đảm bảo an toàn vận hành.`,
+      partA_LiquidityAndDebt: `• **Hệ số thanh toán hiện hành & nhanh**: Duy trì ở mức rất an toàn, đảm bảo khả năng đáp ứng toàn bộ nghĩa vụ nợ ngắn hạn mà không gặp áp lực thanh khoản.
+• **Nợ ròng / EBITDA**: Đòn bẩy nợ ròng trên lợi nhuận trước thuế, khấu hao ở mức lành mạnh, dòng tiền kinh doanh dồi dào bảo vệ cấu trúc tài chính.
+• **Khả năng bao phủ lãi vay (Interest Coverage)**: Lợi nhuận kinh doanh EBIT bao phủ gấp nhiều lần chi phí lãi vay, hạn chế tối đa rủi ro biến động lãi suất thị trường.`,
+      partB_CashFlowAndEarnings: `• **Chất lượng chuyển đổi tiền mặt (CFO / LNST Core)**: Dòng tiền thuần từ HĐKD duy trì tỷ lệ chuyển đổi cao vượt trội so với lợi nhuận kế toán, khẳng định chất lượng tiền về thực chất.
+• **Tính ổn định của dòng tiền**: Dòng tiền HĐKD dương bền vững qua hầu hết các quý trong chu kỳ kinh doanh.
+• **Dòng tiền tự do (FCF sau CAPEX)**: Thặng dư tiền mặt sau khi khấu trừ toàn bộ chi phí đầu tư bảo trì và nâng cấp nhà máy/thiết bị, tạo nguồn vốn tự thân vững vàng.`,
+      partC_ProfitabilityAndROIC: `• **Tỷ suất sinh lời trên vốn đầu tư (ROIC)**: Duy trì mức sinh lời vượt trội so với chi phí vốn bình quân gia quyền (WACC), khẳng định doanh nghiệp đang liên tục tạo ra giá trị kinh tế thặng dư.
+• **ROE sau điều chỉnh đòn bẩy**: Đạt tỷ suất sinh lời trên vốn chủ sở hữu cao xuất sắc mà không cần lạm dụng đòn bẩy tài chính rủi ro cao.
+• **Biên lợi nhuận & Vòng quay tài sản**: Biên gộp và biên EBIT thuộc nhóm dẫn đầu ngành, hiệu suất khai thác tài sản tối ưu.`,
+      partD_WorkingCapitalAndAssetQuality: `• **Quản trị công nợ (DSO)**: Số ngày thu tiền bán hàng được kiểm soát chặt chẽ, không để phát sinh nợ xấu hoặc dồn doanh thu ảo.
+• **Vòng quay hàng tồn kho (DIO)**: Tồn kho luân chuyển nhịp nhàng, trích lập dự phòng giảm giá hàng tồn kho đầy đủ và thận trọng.
+• **Chu kỳ tiền mặt (CCC)**: Chu kỳ chuyển đổi tiền mặt ngắn, tối ưu hóa vòng quay dòng vốn lưu động trong hoạt động vận hành.
+• **Độ sạch tài sản**: Cơ cấu tài sản minh bạch, tỷ lệ chi phí XDCB dở dang và các khoản phải thu khác ở mức an toàn, có tiến độ hoàn thành rõ ràng.`,
+      partE_CapitalStructureAndFunding: `• **Cơ cấu vốn & Tỷ lệ nợ/VCSH (D/E)**: Đòn bẩy tài chính duy trì ở mức cân bằng, cơ cấu kỳ hạn nợ phân bổ hợp lý giữa ngắn hạn và dài hạn.
+• **Rủi ro tái cấp vốn & Lãi suất**: Năng lực tiếp cận tín dụng dồi dào tại các ngân hàng lớn với lãi suất ưu đãi, không chịu áp lực đáo hạn trái phiếu.
+• **Năng lực tự tài trợ CAPEX**: Dòng tiền tích lũy và dòng tiền hoạt động hàng năm đủ năng lực tự tài trợ phần lớn các dự án đầu tư mở rộng công suất.`,
+      partF_EarningsQualityAndAccounting: `• **Tỷ trọng lợi nhuận cốt lõi**: LNST từ hoạt động sản xuất kinh doanh chính chiếm tỷ trọng áp đảo trên 90% tổng lợi nhuận kế toán.
+• **Khoản bất thường không lặp lại**: Kết quả kinh doanh không phụ thuộc vào các khoản lãi bán tài sản một lần hay đánh giá lại tài chính mang tính thời điểm.
+• **Ý kiến kiểm toán & Giao dịch bên liên quan**: Báo cáo tài chính được kiểm toán độc lập chấp nhận toàn phần, các giao dịch nội bộ tuân thủ nghiêm ngặt chuẩn mực giá thị trường và đảm bảo quyền lợi cổ đông thiểu số.`,
     },
     sectionD: {
       growthDriversRevenueAndCost: `• **Tác động Sản lượng (Q)**: Nhà máy hoặc công suất mới đi vào hoạt động trong các quý tới sẽ tạo lực đẩy tăng trưởng sản lượng bán hàng 20-25% YoY.

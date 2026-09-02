@@ -118,16 +118,25 @@ export interface SectionB {
 }
 
 export interface SectionC {
-  revenueHistory3Years: string;
-  profitabilityMargins: string;
-  financialHealthAndDebt: string;
+  // 6 Phân mục Sức khỏe Tài chính Chuẩn ValueX (50 Điểm)
+  partA_LiquidityAndDebt?: string;             // A. Thanh khoản & trả nợ (8.0đ)
+  partB_CashFlowAndEarnings?: string;          // B. Dòng tiền & chuyển đổi lợi nhuận (10.0đ)
+  partC_ProfitabilityAndROIC?: string;         // C. Sinh lời & hiệu quả vốn (10.0đ)
+  partD_WorkingCapitalAndAssetQuality?: string;// D. Vốn lưu động & chất lượng tài sản (7.0đ)
+  partE_CapitalStructureAndFunding?: string;   // E. Cơ cấu vốn & khả năng tài trợ (7.0đ)
+  partF_EarningsQualityAndAccounting?: string; // F. Chất lượng lợi nhuận & kế toán (8.0đ)
+
+  // Backward compatibility fields
+  revenueHistory3Years?: string;
+  profitabilityMargins?: string;
+  financialHealthAndDebt?: string;
 }
 
 export interface ForecastQuarterData {
   revenue: number;      // Tỷ VNĐ
   grossMargin: number;  // %
   netProfit: number;    // Tỷ VNĐ
-  isActual?: boolean;   // Đánh dấu số thực tế từ Simplize API
+  isActual?: boolean;   // Đánh dấu số thực tế từ Vietcap IQ API
 }
 
 export interface ValuationAssumptions {

@@ -54,15 +54,24 @@ ${report.sectionB.valueChainOutput}
 
 ---
 
-## C. TÌNH HÌNH TÀI CHÍNH
-### 1. Doanh thu 3 năm gần nhất
-${report.sectionC.revenueHistory3Years}
+## C. TÌNH HÌNH TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
+### A. Thanh khoản & Trả nợ
+${report.sectionC.partA_LiquidityAndDebt || report.sectionC.financialHealthAndDebt || ''}
 
-### 2. Tỷ suất lợi nhuận & ROE
-${report.sectionC.profitabilityMargins}
+### B. Dòng tiền & Chuyển đổi lợi nhuận
+${report.sectionC.partB_CashFlowAndEarnings || ''}
 
-### 3. Sức khỏe tài chính (Nợ vay / VCSH)
-${report.sectionC.financialHealthAndDebt}
+### C. Sinh lời & Hiệu quả vốn
+${report.sectionC.partC_ProfitabilityAndROIC || report.sectionC.profitabilityMargins || ''}
+
+### D. Vốn lưu động & Chất lượng tài sản
+${report.sectionC.partD_WorkingCapitalAndAssetQuality || ''}
+
+### E. Cơ cấu vốn & Khả năng tài trợ
+${report.sectionC.partE_CapitalStructureAndFunding || ''}
+
+### F. Chất lượng lợi nhuận & Kế toán
+${report.sectionC.partF_EarningsQualityAndAccounting || ''}
 
 ---
 

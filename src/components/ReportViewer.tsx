@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnalysisReport, SectionA, SectionB, SectionC, SectionD, SectorType } from '@/types/analysis';
 import { ValuationCalculator } from './ValuationCalculator';
+import { FinancialHealthScorecard } from './FinancialHealthScorecard';
 import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -316,7 +317,7 @@ export function ReportViewer({
   const [isMounted, setIsMounted] = useState(false);
   const [realQuarterlyFinancials, setRealQuarterlyFinancials] = useState<any[]>([]);
 
-  // Fetch real BCTC quarterly data from Simplize API endpoint
+  // Fetch real BCTC quarterly data from Vietcap IQ API endpoint
   useEffect(() => {
     if (report?.ticker) {
       fetch(`/api/stocks/${report.ticker}/financials`)
@@ -1288,174 +1289,19 @@ export function ReportViewer({
           </SectionCard>
         </div>
 
-        {/* TAB C: TÌNH HÌNH TÀI CHÍNH */}
+        {/* TAB C: TÌNH HÌNH TÀI CHÍNH (SỨC KHỎE TÀI CHÍNH VALUEX 50 ĐIỂM - 6 NHÓM A ĐẾN F) */}
         <div className={`space-y-5 print:pt-6 ${activeTab === 'C' ? 'block' : 'hidden print:block'}`}>
           <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-            C. TÌNH HÌNH TÀI CHÍNH
+            C. TÌNH HÌNH TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
           </h2>
-          {/* Section 1: Phân tích doanh thu + Biểu đồ Doanh thu & Lợi nhuận */}
-          <SectionCard title="1. Phân tích doanh thu (3 năm gần nhất & So sánh Quý mới nhất YoY)" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={5}
-                value={secC.revenueHistory3Years}
-                onChange={(e) => setSecC({ ...secC, revenueHistory3Years: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="space-y-4">
-                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                  {renderMarkdown(secC.revenueHistory3Years)}
-                </div>
-
-                {/* Tách thành 2 biểu đồ riêng biệt: Biểu đồ Năm và Biểu đồ Quý */}
-                <div className="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-6">
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    {/* Biểu đồ 1: Dữ liệu năm */}
-                    <div className="bg-gray-50 dark:bg-gray-950/20 p-4 rounded-xl border border-gray-200 dark:border-gray-800/60 shadow-2xs">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-1.5 font-heading">
-                        <BarChart2 className="h-4 w-4 text-blue-600 dark:text-sky-400" />
-                        Doanh thu & Lợi nhuận qua các năm (Tỷ VNĐ)
-                      </h4>
-                      {isMounted ? (
-                        <div className="h-64 w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={getFinancialsAnnualData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
-                              <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
-                              <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
-                              <YAxis yAxisId="right" orientation="right" stroke="#9333EA" style={{ fontSize: '10px' }} />
-                              <Tooltip
-                                contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
-                                itemStyle={{ color: '#fff', fontSize: '11px' }}
-                              />
-                              <Legend
-                                iconSize={8}
-                                formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
-                              />
-                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={24}>
-                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
-                              </Bar>
-                              <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={24}>
-                                <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
-                              </Bar>
-                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
-                              <Line dataKey="ROE (%)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
-                            </ComposedChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
-                      )}
-                    </div>
-
-                    {/* Biểu đồ 2: Dữ liệu quý */}
-                    <div className="bg-gray-50 dark:bg-gray-950/20 p-4 rounded-xl border border-gray-200 dark:border-gray-800/60 shadow-2xs">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-1.5 font-heading">
-                        <BarChart2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                        Doanh thu & Lợi nhuận 4 quý gần nhất (Tỷ VNĐ)
-                      </h4>
-                      {isMounted ? (
-                        <div className="h-64 w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={getFinancialsQuarterlyData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
-                              <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
-                              <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
-                              <YAxis yAxisId="right" orientation="right" stroke="#9333EA" style={{ fontSize: '10px' }} />
-                              <Tooltip
-                                contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
-                                itemStyle={{ color: '#fff', fontSize: '11px' }}
-                              />
-                              <Legend
-                                iconSize={8}
-                                formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
-                              />
-                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={24}>
-                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
-                              </Bar>
-                              <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={24}>
-                                <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
-                              </Bar>
-                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
-                              <Line dataKey="ROE (%)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
-                            </ComposedChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Section 2: Phân tích Tỷ suất lợi nhuận */}
-          <SectionCard title="2. Phân tích tỷ suất lợi nhuận (Gross/Net Margin & ROE - Cập nhật Q2/2026 YoY)" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={5}
-                value={secC.profitabilityMargins}
-                onChange={(e) => setSecC({ ...secC, profitabilityMargins: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                {renderMarkdown(secC.profitabilityMargins)}
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Section 3: Sức khỏe tài chính + Biểu đồ Cơ cấu nợ */}
-          <SectionCard title="3. Sức khỏe tài chính & Tỷ lệ nợ vay/VCSH (D/E)" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={5}
-                value={secC.financialHealthAndDebt}
-                onChange={(e) => setSecC({ ...secC, financialHealthAndDebt: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="space-y-4">
-                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                  {renderMarkdown(secC.financialHealthAndDebt)}
-                </div>
-
-                {/* Biểu đồ Cơ cấu nợ nhúng trực tiếp */}
-                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-1.5 font-heading">
-                    <BarChart2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    Biểu đồ Cơ cấu Nợ Vay & Vốn Chủ Sở Hữu (Tỷ VNĐ)
-                  </h4>
-                  {isMounted ? (
-                    <div className="h-56 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={getDebtEquityData(report.ticker)} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
-                          <XAxis dataKey="name" stroke="#64748B" style={{ fontSize: '10px', fontWeight: '600' }} />
-                          <YAxis stroke="#64748B" style={{ fontSize: '10px' }} />
-                          <Tooltip
-                            contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
-                            itemStyle={{ color: '#fff', fontSize: '11px' }}
-                          />
-                          <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={40}>
-                            {getDebtEquityData(report.ticker).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                            <LabelList dataKey="value" position="top" style={{ fill: '#334155', fontSize: '10px', fontWeight: 'bold' }} />
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-56 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
-                  )}
-                </div>
-              </div>
-            )}
-          </SectionCard>
+          <FinancialHealthScorecard
+            ticker={report.ticker}
+            sectionC={secC}
+            realQuarterlyFinancials={realQuarterlyFinancials}
+            isEditing={isEditing}
+            onSectionCChange={setSecC}
+            renderMarkdown={renderMarkdown}
+          />
         </div>
 
         {/* TAB D: TRIỂN VỌNG KINH DOANH & ĐỊNH GIÁ */}

@@ -65,7 +65,7 @@ const getDefaultQuarterFinancials = (
   // 1. If exact parsed profit from AI text exists for this quarter
   const parsedNetProfit = parsedTextProfits[periodStr];
 
-  // 2. Compute averages strictly from real historical quarterly data from Simplize API
+  // 2. Compute averages strictly from real historical quarterly data from Vietcap IQ API
   const validReal = (realQuarterlyFinancials || []).filter((item) => item && item.revenue > 0);
   let avgRevenue = 0;
   let avgGrossMargin = 0;
@@ -127,7 +127,7 @@ const getQuarterFinancialsWithRealData = (
   realQuarterlyFinancials: any[] = [],
   valuation?: ValuationAssumptions
 ) => {
-  // 1. Priority 1: Check if quarter exists in actual Simplize API historical data
+  // 1. Priority 1: Check if quarter exists in actual Vietcap IQ API historical data
   if (realQuarterlyFinancials && realQuarterlyFinancials.length > 0) {
     const found = realQuarterlyFinancials.find((q) => q.period === periodStr);
     if (found && found.revenue > 0) {
