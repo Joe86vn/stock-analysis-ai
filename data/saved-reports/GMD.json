@@ -1,0 +1,178 @@
+{
+  "ticker": "GMD",
+  "companyName": "Công ty Cổ phần Gemadept",
+  "savedAt": "2026-09-03T07:52:10.053Z",
+  "generationModel": "gemini-3.5-flash-lite",
+  "report": {
+    "ticker": "GMD",
+    "companyName": "Công ty Cổ phần Gemadept",
+    "createdDate": "3/9/2026",
+    "sectionA": {
+      "historyAndOverview": "**1. Lịch sử và Cột mốc:**\n- Thành lập năm 1990, Công ty Cổ phần Gemadept (GMD) là doanh nghiệp tiên phong trong lĩnh vực khai thác cảng và logistics tích hợp tại Việt Nam.\n- Các cột mốc lớn bao gồm niêm yết trên HOSE năm 2002, vận hành các cảng nước sâu lớn như Gemalink (Bà Rịa - Vũng Tàu) và Nam Hải Đình Vũ (Hải Phòng).\n\n**2. Địa bàn và Sản phẩm:**\n- Hoạt động trải dài từ Bắc chí Nam với hệ thống cảng biển chiến lược và trung tâm logistics.\n- Sản phẩm dịch vụ chính: Khai thác cảng container, cảng hàng rời, dịch vụ ICD, vận tải thủy/đường bộ và logistics tổng hợp.\n\n**3. Đối thủ cạnh tranh:**\n- Cạnh tranh trực tiếp với các ông lớn như Tổng công ty Hàng hải Việt Nam (VIMC), HAH, SGP trong bối cảnh thị phần cảng nước sâu miền Nam tập trung cao.",
+      "shareholdersAndManagement": "**1. Cơ cấu cổ đông:**\n- GMD có cơ cấu cổ đông khá cô đặc với sự tham gia của các quỹ đầu tư lớn trong và ngoài nước (SSIAM, Dragon Capital) cùng cổ đông chiến lược nước ngoài (CMA CGM/CEVA Logistics).\n\n**2. Ban lãnh đạo:**\n- Đội ngũ quản trị dày dặn kinh nghiệm, gắn bó lâu năm với ngành hàng hải và logistics.\n- Chủ tịch HĐQT và ban điều hành sở hữu tầm nhìn chiến lược dài hạn, liên tục đầu tư mở rộng năng lực khai thác đón đầu chu kỳ tăng trưởng thương mại toàn cầu.",
+      "subsidiariesAndAffiliates": "**1. Công ty con và liên kết:**\n- Sở hữu mạng lưới công ty con và liên kết dày đặc tại các cụm cảng trọng điểm.\n- Các đơn vị tiêu biểu: Cảng Gemalink, Cảng Nam Hải Đình Vũ, Cảng Nam Đình Vũ, Công ty Cổ phần Tiếp vận Gemadept.\n\n**2. Vai trò chiến lược:**\n- Mô hình sinh thái khép kín giúp tối ưu hóa chi phí vận hành, giữ chân khách hàng hãng tàu lớn và gia tăng biên lợi nhuận hợp nhất thông qua chuỗi giá trị bổ trợ lẫn nhau."
+    },
+    "sectionB": {
+      "valueChainInput": "**1. Tỷ trọng chi phí:**\n- Chi phí đầu vào chủ yếu gồm khấu hao tài sản cố định (cần thủ tục đầu tư lớn cho hạ tầng cầu cảng, cẩu trục), chi phí nhân công, nhiên liệu và chi phí thuê ngoài dịch vụ bốc xếp, lai dắt.\n\n**2. Nhà cung cấp:**\n- Các nhà cung cấp thiết bị cảng biển hàng đầu thế giới (ZPMC, Liebherr), nhà cung cấp nhiên liệu lớn trong nước và các đối tác hạ tầng khu công nghiệp.",
+      "valueChainProduction": "**1. Quy trình vận hành:**\n- Tiếp nhận tàu container/tàu hàng rời -> Lai dắt và cập cảng -> Xếp dỡ container bằng hệ thống cẩu bờ chuyên dụng (STS) -> Lưu bãi tại bãi container (CY) hoặc kho CFS -> Giao nhận đường bộ/đường thủy.\n\n**2. Năng lực công suất:**\n- Tổng công suất toàn hệ thống đạt trên hàng triệu TEU/năm, trong đó điểm nhấn là cảng nước sâu Gemalink giai đoạn 1 với công suất 1.5 triệu TEU/năm.",
+      "valueChainOutput": "**1. Cơ cấu đầu ra:**\n- Phục vụ các hãng tàu quốc tế lớn (Maersk, MSC, CMA CGM...), các doanh nghiệp xuất nhập khẩu, công ty logistics nội địa và quốc tế.\n\n**2. Phương thức phân phối:**\n- Cung cấp dịch vụ trực tiếp tại cảng và qua hệ thống mạng lưới logistics tích hợp cửa-đến-cửa (door-to-door).",
+      "revenueBreakdown": [
+        {
+          "name": "Khai thác cảng",
+          "value": 75
+        },
+        {
+          "name": "Logistics và dịch vụ khác",
+          "value": 25
+        }
+      ]
+    },
+    "sectionC": {
+      "partA_LiquidityAndDebt": "**1. Thanh khoản ngắn hạn:**\n- Các chỉ số thanh toán hiện hành và thanh khoản nhanh ở mức an toàn, đảm bảo khả năng chi trả các nghĩa vụ ngắn hạn.\n\n**2. Nợ vay và khả năng trả nợ:**\n- Tính đến Q2/2026, tổng nợ vay ở mức 18,285.2 tỷ VNĐ, nhưng được bù đắp bởi lượng tiền mặt và tiền gửi ngắn hạn dồi dào (hơn 1,773 tỷ VNĐ).\n- Khả năng trả lãi (Interest Coverage) duy trì rất cao nhờ lợi nhuận cốt lõi vững chắc.",
+      "partB_CashFlowAndEarnings": "**1. Dòng tiền hoạt động kinh doanh (CFO):**\n- CFO rất mạnh mẽ, ghi nhận 1,550.3 tỷ VNĐ trong Q2/2026, vượt trội so với cùng kỳ nhờ sản lượng qua cảng hồi phục mạnh.\n\n**2. Dòng tiền tự do (FCF):**\n- FCF duy trì dương sau khi trừ đi các khoản đầu tư CAPEX mở rộng giai đoạn trước, chứng minh mô hình kinh doanh tạo tiền mặt thực chất.",
+      "partC_ProfitabilityAndROIC": "**1. Hiệu suất sinh lời:**\n- Biên lợi nhuận gộp cải thiện lên mức 46.3% trong Q2/2026 nhờ tỷ lệ khai thác (utilization rate) tại các cảng trọng điểm tăng cao.\n- ROE đạt 19.4% và ROIC vượt trội so với chi phí vốn bình quân WACC, phản ánh hiệu quả phân bổ vốn xuất sắc.",
+      "partD_WorkingCapitalAndAssetQuality": "**1. Quản lý vốn lưu động:**\n- Kỳ thu tiền bình quân (DSO) được kiểm soát tốt với các hãng tàu và khách hàng lớn.\n- Vòng quay tài sản cải thiện khi các dự án mới đi vào vận hành tối ưu.\n\n**2. Chất lượng tài sản:**\n- Tài sản cố định chiếm tỷ trọng lớn, XDCB dở dang minh bạch phản ánh tiến độ đầu tư các giai đoạn tiếp theo của cụm cảng Nam Đình Vũ và Gemalink.",
+      "partE_CapitalStructureAndFunding": "**1. Đòn bẩy tài chính:**\n- Tỷ lệ Nợ/Vốn chủ sở hữu duy trì ở ngưỡng hợp lý cho ngành thâm dụng vốn như cảng biển.\n\n**2. Khả năng tự tài trợ:**\n- Dòng tiền nội bộ mạnh mẽ từ hoạt động kinh doanh đủ sức tài trợ phần lớn cho các kế hoạch CAPEX mở rộng sắp tới mà không gây áp lực pha loãng cổ phiếu.",
+      "partF_EarningsQualityAndAccounting": "**1. Chất lượng lợi nhuận:**\n- Lợi nhuận chủ yếu đến từ hoạt động kinh doanh cốt lõi (khai thác cảng và logistics), tỷ trọng lợi nhuận đột biến từ thoái vốn (như vụ bán Nam Hải Đình Vũ trước đây) đã được ghi nhận đúng chuẩn mực.\n\n**2. Kế toán và minh bạch:**\n- BCTC được kiểm toán sạch, giao dịch bên liên quan tuân thủ chặt chẽ quy định quản trị công ty đại chúng."
+    },
+    "sectionD": {
+      "partA_CurrentGrowth": "**1. Động lực tăng trưởng hiện tại:**\n- Doanh thu Q2/2026 đạt 1,761.6 tỷ VNĐ và LNST cổ đông mẹ đạt 1,133.5 tỷ VNĐ, tăng trưởng ấn tượng so với các quý trước nhờ sản lượng hàng hóa xuất nhập khẩu toàn quốc tăng mạnh.\n\n**2. Cầu nối Core:**\n- Sự hồi phục của các tuyến hàng hải quốc tế trực xuyên Thái Bình Dương và nội Á thúc đẩy trực tiếp sản lượng thông qua cụm cảng Cái Mép và Hải Phòng.",
+      "partB_VisibilityNext2To4Q": "**1. Độ chắc chắn ngắn hạn:**\n- Khả năng dự báo doanh thu 2-4 quý tới rất cao nhờ các hợp đồng dài hạn đã ký kết với các liên minh hãng tàu lớn.\n\n**2. Chỉ báo cầu:**\n- Tốc độ tăng trưởng kim ngạch xuất nhập khẩu của Việt Nam tiếp tục duy trì hai con số là bệ đỡ vững chắc cho sản lượng qua cảng.",
+      "partC_MarginDurability": "**1. Sức mạnh định giá (Pricing Power):**\n- GMD duy trì biên lợi nhuận gộp trên 46% nhờ lợi thế vị trí độc tôn tại các khu vực nước sâu không thể thay thế.\n\n**2. Khả năng chống chịu lạm phát:**\n- Biên EBIT ổn định nhờ kiểm soát tốt chi phí cố định và tối ưu hóa năng suất bốc xếp.",
+      "partD_GrowthRunway": "**1. Dư địa công suất:**\n- Dư địa tăng trưởng lớn từ việc nâng cao hiệu suất khai thác giai đoạn 1 Gemalink và chuẩn bị triển khai Gemalink giai đoạn 2.\n\n**2. Thị phần:**\n- Củng cố vững chắc vị thế dẫn đầu thị phần khai thác cảng tư nhân tại Việt Nam.",
+      "partE_GrowthToCash": "**1. Chuyển hóa tăng trưởng thành tiền:**\n- Mọi đồng doanh thu tăng thêm đều mang lại thặng dư tiền mặt lớn nhờ biên EBITDA cao của ngành cảng biển.\n\n**2. Hiệu quả vốn đầu tư mới:**\n- Các dự án mở rộng đều mang lại ROIC vượt kỳ vọng sau khi đạt điểm hòa vốn công suất.",
+      "partF_MediumTermGrowth": "**1. Tăng trưởng trung hạn (CAGR 3Y):**\n- Kỳ vọng duy trì tốc độ tăng trưởng kép hai con số về doanh thu và lợi nhuận nhờ sự dịch chuyển chuỗi cung ứng toàn cầu (China+1) vào Việt Nam.",
+      "partG_RiskAdjustedSustainability": "**1. Quản trị rủi ro chu kỳ:**\n- Ngành cảng biển mang tính chu kỳ theo thương mại toàn cầu, tuy nhiên mô hình tích hợp cảng-logistics giúp GMD giảm thiểu rủi ro biến động ngắn hạn."
+    },
+    "sectionE": {
+      "partA_EconomicMoat": "**1. Lợi thế kinh tế (Economic Moat):**\n- Lợi thế về vị trí địa lý đắc địa (Cái Mép - Thị Vải và Hải Phòng) - tài sản hạ tầng không thể sao chép.\n- Rào cản gia nhập ngành rất cao do đòi hỏi vốn đầu tư khổng lồ và thời gian xin cấp phép kéo dài.",
+      "partB_IndustryPosition": "**1. Vị thế đầu ngành:**\n- GMD là nhà khai thác cảng tư nhân lớn nhất Việt Nam, nắm giữ thị phần trọng yếu tại các cửa ngõ xuất nhập khẩu quốc gia.",
+      "partC_BusinessModel": "**1. Hiệu quả kinh tế đơn vị:**\n- Mô hình kinh doanh khai thác hạ tầng có tính độc quyền tự nhiên cao, chi phí biên giảm dần khi sản lượng thông qua tăng lên.",
+      "partD_ManagementAndCapitalAllocation": "**1. Kỷ luật phân bổ vốn:**\n- Ban lãnh đạo thể hiện tầm nhìn sắc bén qua việc thoái vốn tài sản non-core đúng thời điểm để tập trung toàn lực cho các siêu dự án cảng nước sâu.",
+      "partE_CorporateGovernance": "**1. Quản trị minh bạch:**\n- Tuân thủ tiêu chuẩn quản trị công ty niêm yết cấp độ cao, bảo vệ tốt quyền lợi của cổ đông thiểu số và sự độc lập của thành viên HĐQT độc lập.",
+      "partF_RoicSustenance": "**1. Duy trì ROIC cao:**\n- Nhờ lợi thế kinh tế quy mô và kỷ luật đầu tư, GMD liên tục duy trì mức sinh suất trên vốn đầu tư (ROIC) vượt trội so với chi phí vốn.",
+      "partG_ShockResilience": "**1. Khả năng chống chịu:**\n- Khả năng chống chọi tốt trước các cú sốc vĩ mô toàn cầu (như gián đoạn chuỗi cung ứng hay chiến tranh thương mại) nhờ nền tảng tài chính lành mạnh và lượng tiền mặt lớn."
+    },
+    "sectionF": {
+      "growthDriversRevenueAndCost": "**1. Động lực Sản lượng (Q):**\n- Sản lượng container thông qua hệ thống cảng dự kiến tăng trưởng 10-15% mỗi năm nhờ sự khởi sắc của kim ngạch xuất nhập khẩu Việt Nam và việc khai thác tối đa công suất các cảng nước sâu.\n\n**2. Động lực Giá bán (P):**\n- Dư địa tăng giá dịch vụ bốc xếp (ÍT nhất 5-10% theo lộ trình của Bộ GTVT đối với các cảng nước sâu đạt chuẩn quốc tế).\n\n**3. Động lực Chi phí (C):**\n- Kiểm soát chặt chẽ chi phí khấu hao trên mỗi TEU khi sản lượng tăng, biên lợi nhuận gộp duy trì ổn định trên 45-47%.",
+      "quarterlyForecastReasoning": "**1. Luận điểm Bottom-Up:**\n- Dự phóng doanh thu và lợi nhuận năm 2026 và 2027 dựa trên giả định sản lượng qua cụm cảng Gemalink và Nam Đình Vũ tăng trưởng đều đặn 12%/năm.\n\n**2. Tính toán tài chính:**\n- LNST dự phóng cả năm 2026 đạt khoảng 3,850 tỷ VNĐ và năm 2027 đạt khoảng 4,400 tỷ VNĐ. Áp dụng mức P/E cơ sở 15x để định giá mục tiêu dài hạn.",
+      "valuation": {
+        "year1": 2026,
+        "year2": 2027,
+        "forecastYear1Data": {
+          "q1": {
+            "revenue": 1500,
+            "grossMargin": 46,
+            "netProfit": 850
+          },
+          "q2": {
+            "revenue": 1761.6,
+            "grossMargin": 46.3,
+            "netProfit": 1133.5
+          },
+          "q3": {
+            "revenue": 1650,
+            "grossMargin": 46,
+            "netProfit": 900
+          },
+          "q4": {
+            "revenue": 1700,
+            "grossMargin": 46.5,
+            "netProfit": 966.5
+          }
+        },
+        "forecastYear2Data": {
+          "q1": {
+            "revenue": 1750,
+            "grossMargin": 46.5,
+            "netProfit": 1000
+          },
+          "q2": {
+            "revenue": 1900,
+            "grossMargin": 47,
+            "netProfit": 1150
+          },
+          "q3": {
+            "revenue": 1850,
+            "grossMargin": 46.8,
+            "netProfit": 1100
+          },
+          "q4": {
+            "revenue": 1950,
+            "grossMargin": 47.2,
+            "netProfit": 1150
+          }
+        },
+        "forecast2026": {
+          "q1": {
+            "revenue": 1500,
+            "grossMargin": 46,
+            "netProfit": 850
+          },
+          "q2": {
+            "revenue": 1761.6,
+            "grossMargin": 46.3,
+            "netProfit": 1133.5
+          },
+          "q3": {
+            "revenue": 1650,
+            "grossMargin": 46,
+            "netProfit": 900
+          },
+          "q4": {
+            "revenue": 1700,
+            "grossMargin": 46.5,
+            "netProfit": 966.5
+          }
+        },
+        "forecast2027": {
+          "q1": {
+            "revenue": 1750,
+            "grossMargin": 46.5,
+            "netProfit": 1000
+          },
+          "q2": {
+            "revenue": 1900,
+            "grossMargin": 47,
+            "netProfit": 1150
+          },
+          "q3": {
+            "revenue": 1850,
+            "grossMargin": 46.8,
+            "netProfit": 1100
+          },
+          "q4": {
+            "revenue": 1950,
+            "grossMargin": 47.2,
+            "netProfit": 1150
+          }
+        },
+        "forecastNetProfitQ1": 3850000000000,
+        "forecastNetProfitQ2": 4400000000000,
+        "forecastNetProfitQ3": 0,
+        "forecastNetProfitQ4": 0,
+        "totalForecastProfit": 3850000000000,
+        "sharesOutstanding": 432.89,
+        "epsForward": 8894,
+        "peBase": 15,
+        "peBull": 22.7,
+        "peBear": 8.7
+      }
+    },
+    "marketData": {
+      "ticker": "GMD",
+      "companyName": "Công ty Cổ phần Gemadept",
+      "industry": "Cảng biển & Logistics",
+      "currentPrice": 75000,
+      "pe5YearMin": 8.7,
+      "pe5YearMax": 22.7,
+      "pe5YearAvg": 15,
+      "peIndustry": 15,
+      "pbIndustry": 1.8,
+      "peCompetitors": [],
+      "pbCompetitors": [],
+      "sharesOutstanding": 432.89
+    },
+    "generationModel": "gemini-3.5-flash-lite"
+  }
+}

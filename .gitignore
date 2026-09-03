@@ -44,7 +44,7 @@ scratch/
 *.tsbuildinfo
 next-env.d.ts
 
-# Runtime Data
-data/saved-reports/*.json
+# Runtime Data (allow tracking saved reports)
+# data/saved-reports/*.json
 !data/saved-reports/.gitkeep
 
