@@ -58,6 +58,28 @@ export default function RankingPage() {
   const [isScanningLive, setIsScanningLive] = useState(false);
   const [liveScanProgress, setLiveScanProgress] = useState<string>('');
 
+  // Danh sách các mã đã có báo cáo phân tích AI sẵn trên server
+  const [savedReportTickers, setSavedReportTickers] = useState<Set<string>>(new Set());
+
+  // Fetch danh sách mã đã có báo cáo AI trên server
+  useEffect(() => {
+    const fetchAnalyzedReports = async () => {
+      try {
+        const res = await fetch('/api/reports');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.reports && Array.isArray(data.reports)) {
+            const set = new Set<string>(data.reports.map((r: any) => String(r.ticker).trim().toUpperCase()));
+            setSavedReportTickers(set);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load analyzed reports list:', err);
+      }
+    };
+    fetchAnalyzedReports();
+  }, []);
+
   // Tiêu chí quét Tầng 1 (Toàn thị trường)
   const [tier1Criteria, setTier1Criteria] = useState<ScreenerFilterCriteria>({
     exchanges: ['HSX', 'HNX', 'UPCOM'],
@@ -584,10 +606,23 @@ export default function RankingPage() {
                     <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
                       <Link
                         href={`/?ticker=${champ.ticker}`}
-                        className="flex items-center justify-center space-x-1.5 w-full py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 text-xs font-semibold transition"
+                        className={`flex items-center justify-center space-x-1.5 w-full py-1.5 rounded-lg text-xs font-semibold transition ${
+                          savedReportTickers.has(champ.ticker.toUpperCase())
+                            ? 'bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 hover:bg-amber-200 border border-amber-300/60 dark:border-amber-700/60 shadow-xs'
+                            : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100'
+                        }`}
                       >
-                        <span>Phân tích chi tiết</span>
-                        <ExternalLink className="h-3 w-3" />
+                        {savedReportTickers.has(champ.ticker.toUpperCase()) ? (
+                          <>
+                            <Sparkles className="h-3 w-3 text-amber-600 dark:text-amber-400 fill-amber-500/30 animate-pulse" />
+                            <span>Xem Báo Cáo AI (0 Token)</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Phân tích chi tiết</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </>
+                        )}
                       </Link>
                     </div>
                   </div>
@@ -890,6 +925,15 @@ export default function RankingPage() {
                             <span className="text-sm font-black text-slate-900 dark:text-white font-heading">
                               {item.ticker}
                             </span>
+                            {savedReportTickers.has(item.ticker.toUpperCase()) && (
+                              <span
+                                className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300/60 dark:border-amber-500/30"
+                                title="Đã có báo cáo phân tích AI sẵn trên server (xem ngay 0 token)"
+                              >
+                                <Sparkles className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400" />
+                                AI Sẵn
+                              </span>
+                            )}
                             <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                               {item.exchange}
                             </span>
@@ -1038,10 +1082,28 @@ export default function RankingPage() {
                         <td className="py-3 px-3 text-center">
                           <Link
                             href={`/?ticker=${item.ticker}`}
-                            className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800 transition"
+                            className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                              savedReportTickers.has(item.ticker.toUpperCase())
+                                ? 'bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 border-amber-300/80 dark:border-amber-700 shadow-xs'
+                                : 'bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                            }`}
+                            title={
+                              savedReportTickers.has(item.ticker.toUpperCase())
+                                ? 'Đã có báo cáo phân tích AI trên hệ thống, xem ngay 0 token'
+                                : 'Bắt đầu phân tích AI'
+                            }
                           >
-                            <span>Phân tích</span>
-                            <Zap className="h-3 w-3 text-emerald-500" />
+                            {savedReportTickers.has(item.ticker.toUpperCase()) ? (
+                              <>
+                                <span>Báo Cáo AI</span>
+                                <Sparkles className="h-3 w-3 text-amber-500 fill-amber-500/30" />
+                              </>
+                            ) : (
+                              <>
+                                <span>Phân tích</span>
+                                <Zap className="h-3 w-3 text-emerald-500" />
+                              </>
+                            )}
                           </Link>
                         </td>
                       </tr>

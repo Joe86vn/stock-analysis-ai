@@ -15,7 +15,7 @@ import { getStockData, POPULAR_STOCKS } from '@/lib/stock-data';
 import { generateAnalysisReport, generateDefaultExpertReport } from '@/lib/ai-analyzer';
 import { AnalysisReport, StockMarketData, UploadedFile, ValuationAssumptions } from '@/types/analysis';
 
-import { Sparkles, Download, RefreshCw, FileText, CheckCircle2, ChevronDown, ChevronUp, Cpu, AlertTriangle } from 'lucide-react';
+import { Sparkles, Download, RefreshCw, FileText, CheckCircle2, ChevronDown, ChevronUp, Cpu, AlertTriangle, Trash2 } from 'lucide-react';
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -55,6 +55,13 @@ function HomeContent() {
   uploadedFilesRef.current = uploadedFiles;
   const reportSectionRef = useRef<HTMLDivElement>(null);
 
+  // Metadata của bản lưu trên server
+  const [savedReportMeta, setSavedReportMeta] = useState<{
+    isSaved: boolean;
+    savedAt?: string;
+    generationModel?: string;
+  } | null>(null);
+
   const fetchLatestPrice = async (ticker: string): Promise<number | null> => {
     try {
       const response = await fetch(`/api/stocks/${ticker}/price`);
@@ -91,6 +98,60 @@ function HomeContent() {
     return null;
   };
 
+  // Lấy báo cáo đã lưu trên server
+  const fetchSavedServerReport = async (ticker: string) => {
+    try {
+      const response = await fetch(`/api/reports/${ticker}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.success && data.report) {
+          return {
+            report: data.report as AnalysisReport,
+            savedAt: data.savedAt as string,
+            generationModel: data.generationModel as string,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`Failed to fetch saved report for ${ticker}:`, err);
+    }
+    return null;
+  };
+
+  // Lưu báo cáo lên server để chia sẻ cho mọi người dùng
+  const saveReportToServer = async (ticker: string, reportData: AnalysisReport, modelName?: string) => {
+    try {
+      const response = await fetch(`/api/reports/${ticker}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          report: reportData,
+          model: modelName || reportData.generationModel || 'gemini-3.6-flash',
+        }),
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.error(`Failed to save report to server for ${ticker}:`, err);
+    }
+    return null;
+  };
+
+  // Xóa báo cáo đã lưu trên server
+  const handleDeleteSavedReport = async () => {
+    if (!confirm(`Bạn có chắc muốn xóa bản lưu phân tích AI của mã ${selectedStock.ticker} trên server? Hệ thống sẽ đặt lại về bản mẫu ban đầu.`)) {
+      return;
+    }
+    try {
+      await fetch(`/api/reports/${selectedStock.ticker}`, { method: 'DELETE' });
+      setSavedReportMeta(null);
+      setReport(generateDefaultExpertReport(selectedStock.ticker, selectedStock, uploadedFilesRef.current));
+    } catch (err) {
+      console.error('Failed to delete report:', err);
+    }
+  };
+
   // Handle URL param changes or initial load
   useEffect(() => {
     const init = async () => {
@@ -110,9 +171,10 @@ function HomeContent() {
       };
 
       let priceUpdatedStock = { ...targetStock };
-      const [latestPrice, ratios] = await Promise.all([
+      const [latestPrice, ratios, savedServerData] = await Promise.all([
         fetchLatestPrice(targetTicker),
         fetchVietcapRatios(targetTicker),
+        fetchSavedServerReport(targetTicker),
       ]);
       if (latestPrice !== null) {
         priceUpdatedStock.currentPrice = latestPrice;
@@ -123,16 +185,38 @@ function HomeContent() {
         priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
       }
       setSelectedStock(priceUpdatedStock);
-      setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFiles));
+
+      if (savedServerData) {
+        const restoredReport: AnalysisReport = {
+          ...savedServerData.report,
+          marketData: {
+            ...savedServerData.report.marketData,
+            currentPrice: priceUpdatedStock.currentPrice || savedServerData.report.marketData?.currentPrice || 0,
+            pe5YearMin: priceUpdatedStock.pe5YearMin || savedServerData.report.marketData?.pe5YearMin || 0,
+            pe5YearMax: priceUpdatedStock.pe5YearMax || savedServerData.report.marketData?.pe5YearMax || 0,
+            pe5YearAvg: priceUpdatedStock.pe5YearAvg || savedServerData.report.marketData?.pe5YearAvg || 0,
+          },
+        };
+        setReport(restoredReport);
+        setSavedReportMeta({
+          isSaved: true,
+          savedAt: savedServerData.savedAt,
+          generationModel: savedServerData.generationModel,
+        });
+      } else {
+        setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFiles));
+        setSavedReportMeta(null);
+      }
     };
     init();
   }, [urlTicker]);
 
   const handleSelectStock = async (stock: StockMarketData) => {
     let priceUpdatedStock = { ...stock };
-    const [latestPrice, ratios] = await Promise.all([
+    const [latestPrice, ratios, savedServerData] = await Promise.all([
       fetchLatestPrice(stock.ticker),
       fetchVietcapRatios(stock.ticker),
+      fetchSavedServerReport(stock.ticker),
     ]);
     if (latestPrice !== null) {
       priceUpdatedStock.currentPrice = latestPrice;
@@ -143,7 +227,28 @@ function HomeContent() {
       priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
     }
     setSelectedStock(priceUpdatedStock);
-    setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFilesRef.current));
+
+    if (savedServerData) {
+      const restoredReport: AnalysisReport = {
+        ...savedServerData.report,
+        marketData: {
+          ...savedServerData.report.marketData,
+          currentPrice: priceUpdatedStock.currentPrice || savedServerData.report.marketData?.currentPrice || 0,
+          pe5YearMin: priceUpdatedStock.pe5YearMin || savedServerData.report.marketData?.pe5YearMin || 0,
+          pe5YearMax: priceUpdatedStock.pe5YearMax || savedServerData.report.marketData?.pe5YearMax || 0,
+          pe5YearAvg: priceUpdatedStock.pe5YearAvg || savedServerData.report.marketData?.pe5YearAvg || 0,
+        },
+      };
+      setReport(restoredReport);
+      setSavedReportMeta({
+        isSaved: true,
+        savedAt: savedServerData.savedAt,
+        generationModel: savedServerData.generationModel,
+      });
+    } else {
+      setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFilesRef.current));
+      setSavedReportMeta(null);
+    }
   };
 
   const handleAddFiles = (files: UploadedFile[]) => {
@@ -174,6 +279,15 @@ function HomeContent() {
       const generated = await generateAnalysisReport(stock.ticker, stock, files, defaultModel);
       setReport(generated);
       setErrorMessage('');
+
+      // Lưu lên server cho toàn bộ người dùng khác xem ngay lập tức
+      const saveResult = await saveReportToServer(stock.ticker, generated, defaultModel);
+      setSavedReportMeta({
+        isSaved: true,
+        savedAt: saveResult?.savedAt || new Date().toISOString(),
+        generationModel: defaultModel,
+      });
+
       // Scroll to report section after generation
       setTimeout(() => {
         reportSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -189,17 +303,24 @@ function HomeContent() {
 
   const handleUpdateValuation = (newValuation: ValuationAssumptions) => {
     if (!report) return;
-    setReport({
+    const updated: AnalysisReport = {
       ...report,
       sectionF: {
         ...report.sectionF,
         valuation: newValuation,
       },
-    });
+    };
+    setReport(updated);
+    if (savedReportMeta?.isSaved) {
+      saveReportToServer(selectedStock.ticker, updated, savedReportMeta.generationModel);
+    }
   };
 
   const handleUpdateReport = (updatedReport: AnalysisReport) => {
     setReport(updatedReport);
+    if (savedReportMeta?.isSaved) {
+      saveReportToServer(selectedStock.ticker, updatedReport, savedReportMeta.generationModel);
+    }
   };
 
   return (
@@ -241,17 +362,34 @@ function HomeContent() {
               <Sparkles className={`h-5 w-5 ${isGenerating ? 'animate-spin' : 'animate-pulse'}`} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 font-heading">
-                <span>ValueX AI Engine:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                  {report?.generationModel || 'gemini-3.6-flash'}
-                </span>
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-gray-400">
-                {isGenerating
-                  ? <span className="text-emerald-700 dark:text-emerald-300 font-semibold animate-pulse">{generatingMsg}</span>
-                  : <>Lập báo cáo 4 phần A-B-C-D cho <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedStock.ticker}</span></>
-                }
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 font-heading">
+                  <span>ValueX AI Engine:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
+                    {savedReportMeta?.generationModel || report?.generationModel || 'gemini-3.6-flash'}
+                  </span>
+                </h3>
+                {savedReportMeta?.isSaved && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/20 px-2 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-500/30">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                    Bản lưu hệ thống (0 Token)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+                {isGenerating ? (
+                  <span className="text-emerald-700 dark:text-emerald-300 font-semibold animate-pulse">{generatingMsg}</span>
+                ) : savedReportMeta?.isSaved && savedReportMeta?.savedAt ? (
+                  <>
+                    <span>Đã phân tích lúc </span>
+                    <span className="font-semibold text-slate-700 dark:text-gray-300">
+                      {new Date(savedReportMeta.savedAt).toLocaleString('vi-VN')}
+                    </span>
+                    <span className="hidden sm:inline"> (Lưu trên server cho mọi người dùng. Bấm &apos;Phân Tích Lại&apos; để cập nhật)</span>
+                  </>
+                ) : (
+                  <>Lập báo cáo chuyên sâu cho <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedStock.ticker}</span></>
+                )}
               </p>
             </div>
           </div>
@@ -274,11 +412,22 @@ function HomeContent() {
               <span>
                 {isGenerating
                   ? 'Đang Phân Tích AI...'
-                  : report?.generationModel
+                  : (savedReportMeta?.isSaved || report?.generationModel)
                   ? '🔄 Phân Tích Lại Với AI'
                   : '🚀 Bắt Đầu Phân Tích AI'}
               </span>
             </button>
+
+            {savedReportMeta?.isSaved && (
+              <button
+                onClick={handleDeleteSavedReport}
+                title="Xóa bản lưu của mã này trên server để đặt lại về ban đầu"
+                className="flex items-center justify-center space-x-1 rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-3 py-2.5 text-xs font-bold text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Xóa bản lưu</span>
+              </button>
+            )}
 
             {report && (
               <button

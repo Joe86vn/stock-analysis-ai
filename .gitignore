@@ -43,3 +43,8 @@ scratch/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Runtime Data
+data/saved-reports/*.json
+!data/saved-reports/.gitkeep
+
