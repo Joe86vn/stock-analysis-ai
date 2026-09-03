@@ -106,14 +106,14 @@ export async function generateAnalysisReport(
   // If running in the browser, fetch from the server-side API route with extended timeout
   if (typeof window !== 'undefined') {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout for deep Gemini 3.6 Flash processing
+    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout for deep Gemini 3.8 Flash processing
     try {
       const response = await fetch('/api/analysis/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel: preferredModel || 'gemini-3.6-flash' }),
+        body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel: preferredModel || 'gemini-3.8-flash' }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -125,7 +125,7 @@ export async function generateAnalysisReport(
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
-        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini 3.6 Flash.');
+        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini 3.8 Flash.');
       }
       throw err;
     }
@@ -284,11 +284,11 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     const rawCandidates = [
       preferredModel,
       process.env.GEMINI_MODEL,
+      'gemini-3.8-flash',
       'gemini-3.6-flash',
       'gemini-3.5-flash-lite',
       'gemini-3.1-flash-lite',
       'gemini-flash-lite-latest',
-      'gemini-3.8-flash',
       'gemini-3.1-pro-preview',
     ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 

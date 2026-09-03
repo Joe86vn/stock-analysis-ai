@@ -48,11 +48,11 @@ export async function saveServerReport(
     ticker: cleanTicker,
     companyName: report.companyName || `Công ty Cổ phần ${cleanTicker}`,
     savedAt: new Date().toISOString(),
-    generationModel: model || report.generationModel || 'gemini-3.6-flash',
+    generationModel: model || report.generationModel || 'gemini-3.8-flash',
     report: {
       ...report,
       ticker: cleanTicker,
-      generationModel: model || report.generationModel || 'gemini-3.6-flash',
+      generationModel: model || report.generationModel || 'gemini-3.8-flash',
     },
   };
 
