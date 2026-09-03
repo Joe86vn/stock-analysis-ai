@@ -131,7 +131,32 @@ export async function generateAnalysisReport(
     }
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  let apiKey = process.env.GEMINI_API_KEY;
+
+  // On server runtime, if process.env.GEMINI_API_KEY is not loaded yet, try loading from .env.local as fallback
+  if (!apiKey && typeof window === 'undefined') {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const envPath = path.join(process.cwd(), '.env.local');
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf-8');
+        const match = content.match(/^GEMINI_API_KEY\s*=\s*([^\r\n#]+)/m);
+        if (match && match[1]) {
+          apiKey = match[1].trim();
+          process.env.GEMINI_API_KEY = apiKey;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  if (!apiKey) {
+    throw new Error(
+      'Chưa cấu hình GEMINI_API_KEY trên server (.env.local). Vui lòng cấu hình API Key từ Google AI Studio để thực hiện phân tích chuyên sâu.'
+    );
+  }
 
   let combinedText = uploadedFiles
     .map((f) => `--- File: ${f.name} (${f.type}) ---\n${f.content || 'Nội dung file PDF/Document'}`)
@@ -284,6 +309,9 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     const rawCandidates = [
       preferredModel,
       process.env.GEMINI_MODEL,
+      'gemini-3.7-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-latest',
       'gemini-3.8-flash',
       'gemini-3.6-flash',
       'gemini-3.5-flash-lite',
@@ -310,13 +338,13 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
           },
         });
 
-        // 45s timeout per model attempt to quickly fallback if Google AI servers encounter high traffic spikes
+        // 60s timeout per model attempt to quickly fallback if Google AI servers encounter high traffic spikes
         const generatePromise = model.generateContent({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
 
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error(`Model ${modelName} phản hồi quá lâu (>45s)`)), 45000);
+          setTimeout(() => reject(new Error(`Model ${modelName} phản hồi quá lâu (>60s)`)), 60000);
         });
 
         const result = await Promise.race([generatePromise, timeoutPromise]);
@@ -336,8 +364,7 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     throw new Error(`Lỗi Google AI Studio (Tất cả model [${candidateModels.join(', ')}] đều thất bại): ${lastError?.message || 'Không thể kết nối AI Studio'}`);
   }
 
-  // Fallback / High-quality Expert Default Engine when no API key is set
-  return generateDefaultExpertReport(ticker, marketData, uploadedFiles);
+  throw new Error('Chưa cấu hình GEMINI_API_KEY để gọi AI.');
 }
 
 function repairAndParseJson(jsonStr: string): any {

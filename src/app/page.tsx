@@ -266,26 +266,28 @@ function HomeContent() {
   };
 
   const runAnalysis = async (stock: StockMarketData, files: UploadedFile[]) => {
-    const defaultModel = 'gemini-3.8-flash';
+    const defaultModel = 'gemini-3.7-flash';
     setIsGenerating(true);
     setErrorMessage('');
     const fileCount = files.length;
     setGeneratingMsg(
       fileCount > 0
-        ? `Đang phân tích ${fileCount} tài liệu bằng ${defaultModel} cho ${stock.ticker}...`
-        : `Đang kết nối ${defaultModel} phân tích chuyên sâu cho ${stock.ticker} (quá trình mất ~40-60s)...`
+        ? `Đang phân tích ${fileCount} tài liệu bằng AI cho ${stock.ticker}...`
+        : `Đang kết nối Gemini AI phân tích chuyên sâu cho ${stock.ticker} (quá trình mất ~30-50s)...`
     );
     try {
       const generated = await generateAnalysisReport(stock.ticker, stock, files, defaultModel);
       setReport(generated);
       setErrorMessage('');
 
+      const actualModel = generated.generationModel || defaultModel;
+
       // Lưu lên server cho toàn bộ người dùng khác xem ngay lập tức
-      const saveResult = await saveReportToServer(stock.ticker, generated, defaultModel);
+      const saveResult = await saveReportToServer(stock.ticker, generated, actualModel);
       setSavedReportMeta({
         isSaved: true,
         savedAt: saveResult?.savedAt || new Date().toISOString(),
-        generationModel: defaultModel,
+        generationModel: actualModel,
       });
 
       // Scroll to report section after generation
@@ -399,7 +401,7 @@ function HomeContent() {
             <div className="flex items-center space-x-2 bg-white dark:bg-gray-950/80 border border-emerald-200 dark:border-emerald-500/30 rounded-xl px-3.5 py-2 shadow-xs">
               <Cpu className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                ⚡ Gemini 3.8 Flash
+                ⚡ {savedReportMeta?.generationModel || report?.generationModel || 'Gemini AI'}
               </span>
             </div>
 
