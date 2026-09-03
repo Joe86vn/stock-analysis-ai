@@ -3,7 +3,7 @@ import { executeVietcapScreener, ScreenerFilterCriteria } from '@/lib/vietcap-sc
 import { scoreDynamicStockList } from '@/lib/filter-rs-data';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Allow up to 60s for full market screening & batch scoring
+export const maxDuration = 180; // Cho phép lên tới 180s để quét toàn thị trường & chấm điểm toàn bộ danh sách Tầng 1
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
         meta: {
           totalMarketScanned: '1.600+ Cổ phiếu (3 sàn)',
           matchedCount: 0,
+          scoredCount: 0,
           tier1DurationMs,
           totalDurationMs: Date.now() - startTime,
         },
@@ -39,10 +40,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Giới hạn chấm điểm tối đa 60 mã dẫn đầu để đảm bảo phản hồi nhanh chóng
-    const candidateList = matchedStocks.slice(0, 60);
-
-    // TẦNG 2: Chấm điểm 3 trụ cột chuyên sâu ValueX (150đ) & Bóc tách LNST cốt lõi
+    // TẦNG 2: Chấm điểm 3 trụ cột chuyên sâu ValueX (150đ) & Bóc tách LNST cốt lõi cho TOÀN BỘ danh sách khớp Tầng 1
+    const candidateList = matchedStocks;
     const tier2Start = Date.now();
     const rankedData = await scoreDynamicStockList(candidateList);
     const tier2DurationMs = Date.now() - tier2Start;

@@ -23,7 +23,11 @@ import {
   Clock,
   Layers,
   Sparkles,
-  Filter
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 
 type SortField =
@@ -78,12 +82,21 @@ export default function RankingPage() {
   const [exchangeFilter, setExchangeFilter] = useState<'ALL' | 'HSX' | 'HNX' | 'UPCOM'>('ALL');
   const [scoreTierFilter, setScoreTierFilter] = useState<'ALL' | 'A_PLUS' | 'A' | 'B_PLUS' | 'B'>('ALL');
   const [coreEpsFilter, setCoreEpsFilter] = useState<'ALL' | '20' | '50' | '100'>('ALL');
-  const [coreProfitFilter, setCoreProfitFilter] = useState<'ALL' | '20' | '50'>('ALL');
+  const [coreProfitFilter, setCoreProfitFilter] = useState<'ALL' | '100' | '50' | '20' | '0'>('ALL');
   const [liquidityFilter, setLiquidityFilter] = useState<'ALL' | '10' | '50'>('ALL');
   const [rsFilter, setRsFilter] = useState<'ALL' | '70' | '80' | '90'>('ALL');
 
   const [sortField, setSortField] = useState<SortField>('totalScore');
   const [sortAsc, setSortAsc] = useState(false);
+
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number | 'ALL'>(50);
+
+  // Tự động reset về trang 1 khi thay đổi bộ lọc, tìm kiếm hoặc kích thước trang
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [mode, searchTerm, exchangeFilter, scoreTierFilter, coreEpsFilter, coreProfitFilter, liquidityFilter, rsFilter, pageSize]);
 
   // 1. Tải danh mục 75 mã chuẩn
   const fetchPresetRankings = async (forceRefresh = false) => {
@@ -177,8 +190,10 @@ export default function RankingPage() {
       if (coreEpsFilter === '100' && item.coreEpsGrowthYoY < 100) return false;
 
       // 5. Tăng trưởng LNST cốt lõi
-      if (coreProfitFilter === '20' && item.coreNetProfitGrowthYoY < 20) return false;
+      if (coreProfitFilter === '100' && item.coreNetProfitGrowthYoY < 100) return false;
       if (coreProfitFilter === '50' && item.coreNetProfitGrowthYoY < 50) return false;
+      if (coreProfitFilter === '20' && item.coreNetProfitGrowthYoY < 20) return false;
+      if (coreProfitFilter === '0' && item.coreNetProfitGrowthYoY <= 0) return false;
 
       // 6. Thanh khoản ADTV 20
       if (liquidityFilter === '10' && item.adtv20Billion < 10) return false;
@@ -207,6 +222,20 @@ export default function RankingPage() {
     });
     return list;
   }, [filteredRankings, sortField, sortAsc]);
+
+  // Phân trang
+  const totalPages = useMemo(() => {
+    if (pageSize === 'ALL' || sortedRankings.length === 0) return 1;
+    return Math.ceil(sortedRankings.length / pageSize);
+  }, [sortedRankings.length, pageSize]);
+
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedRankings = useMemo(() => {
+    if (pageSize === 'ALL') return sortedRankings;
+    const startIndex = (validCurrentPage - 1) * pageSize;
+    return sortedRankings.slice(startIndex, startIndex + pageSize);
+  }, [sortedRankings, validCurrentPage, pageSize]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -437,19 +466,19 @@ export default function RankingPage() {
                 </select>
               </div>
 
-              {/* Tăng trưởng EPS */}
+              {/* Tăng trưởng LNST Mẹ */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-gray-300 mb-1">
-                  Tăng Trưởng LNST / EPS (MRQ YoY)
+                  Tăng Trưởng LNST Cổ Đông Mẹ (MRQ YoY)
                 </label>
                 <select
                   value={tier1Criteria.epsGrowthMinYoY ?? 20}
                   onChange={(e) => setTier1Criteria({ ...tier1Criteria, epsGrowthMinYoY: Number(e.target.value) || undefined })}
                   className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-2 px-3 text-xs text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
                 >
-                  <option value="100">Tăng trưởng ≥ +100% YoY</option>
-                  <option value="50">Tăng trưởng ≥ +50% YoY</option>
-                  <option value="20">Tăng trưởng ≥ +20% YoY</option>
+                  <option value="100">LNST Mẹ ≥ +100% YoY</option>
+                  <option value="50">LNST Mẹ ≥ +50% YoY</option>
+                  <option value="20">LNST Mẹ ≥ +20% YoY</option>
                   <option value="0">Tất cả mức tăng trưởng</option>
                 </select>
               </div>
@@ -724,17 +753,18 @@ export default function RankingPage() {
               </select>
             </div>
 
-            {/* Core EPS Growth */}
+            {/* Core Net Profit Growth */}
             <div>
               <select
-                value={coreEpsFilter}
-                onChange={(e) => setCoreEpsFilter(e.target.value as any)}
-                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 py-2 px-2.5 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                value={coreProfitFilter}
+                onChange={(e) => setCoreProfitFilter(e.target.value as any)}
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 py-2 px-2.5 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none font-medium"
               >
-                <option value="ALL">EPS Core: Tất cả</option>
-                <option value="100">EPS Core ≥ +100%</option>
-                <option value="50">EPS Core ≥ +50%</option>
-                <option value="20">EPS Core ≥ +20%</option>
+                <option value="ALL">LNST Core: Tất cả</option>
+                <option value="100">LNST Core ≥ +100%</option>
+                <option value="50">LNST Core ≥ +50%</option>
+                <option value="20">LNST Core ≥ +20%</option>
+                <option value="0">LNST Core &gt; 0% (Dương)</option>
               </select>
             </div>
 
@@ -790,7 +820,8 @@ export default function RankingPage() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-gray-50/90 dark:bg-gray-800/80 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700/80 select-none">
                   <tr>
@@ -907,10 +938,11 @@ export default function RankingPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800/80">
-                  {sortedRankings.map((item, index) => {
-                    const isTop1 = index === 0;
-                    const isTop2 = index === 1;
-                    const isTop3 = index === 2;
+                  {paginatedRankings.map((item, index) => {
+                    const globalIndex = pageSize === 'ALL' ? index : (validCurrentPage - 1) * pageSize + index;
+                    const isTop1 = globalIndex === 0 && sortField === 'totalScore' && !sortAsc;
+                    const isTop2 = globalIndex === 1 && sortField === 'totalScore' && !sortAsc;
+                    const isTop3 = globalIndex === 2 && sortField === 'totalScore' && !sortAsc;
 
                     return (
                       <tr
@@ -933,7 +965,7 @@ export default function RankingPage() {
                             </span>
                           ) : (
                             <span className="text-gray-400 dark:text-gray-500 font-medium">
-                              {index + 1}
+                              {globalIndex + 1}
                             </span>
                           )}
                         </td>
@@ -1091,8 +1123,96 @@ export default function RankingPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+
+            {/* Pagination Controls Footer */}
+            {sortedRankings.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-850/60 text-xs text-gray-600 dark:text-gray-400">
+                {/* Thông tin số lượng hiển thị */}
+                <div className="flex items-center space-x-1.5">
+                  <span>
+                    Hiển thị{' '}
+                    <strong className="text-slate-900 dark:text-white font-bold">
+                      {pageSize === 'ALL'
+                        ? `1 - ${sortedRankings.length}`
+                        : `${(validCurrentPage - 1) * pageSize + 1} - ${Math.min(validCurrentPage * pageSize, sortedRankings.length)}`}
+                    </strong>{' '}
+                    trên tổng số{' '}
+                    <strong className="text-emerald-600 dark:text-emerald-400 font-bold">
+                      {sortedRankings.length}
+                    </strong>{' '}
+                    mã cổ phiếu
+                  </span>
+                </div>
+
+                {/* Tùy chọn kích thước trang & Nút điều hướng */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Dropdown số lượng mỗi trang */}
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500 dark:text-gray-400">Mỗi trang:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPageSize(val === 'ALL' ? 'ALL' : Number(val));
+                      }}
+                      className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-1 px-2.5 text-xs font-semibold text-slate-800 dark:text-gray-200 focus:outline-none focus:border-emerald-500 cursor-pointer shadow-2xs"
+                    >
+                      <option value={50}>50 mã</option>
+                      <option value={100}>100 mã</option>
+                      <option value="ALL">Tất cả ({sortedRankings.length} mã)</option>
+                    </select>
+                  </div>
+
+                  {/* Nút phân trang (chỉ hiện khi không chọn Tất cả và có > 1 trang) */}
+                  {pageSize !== 'ALL' && totalPages > 1 && (
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => setCurrentPage(1)}
+                        disabled={validCurrentPage === 1}
+                        title="Về trang đầu"
+                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                      >
+                        <ChevronsLeft className="h-3.5 w-3.5 text-slate-700 dark:text-gray-300" />
+                      </button>
+
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        disabled={validCurrentPage === 1}
+                        title="Trang trước"
+                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5 text-slate-700 dark:text-gray-300" />
+                      </button>
+
+                      <span className="px-2 font-medium text-slate-700 dark:text-gray-300">
+                        Trang <strong className="font-bold text-slate-900 dark:text-white">{validCurrentPage}</strong> / {totalPages}
+                      </span>
+
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        disabled={validCurrentPage === totalPages}
+                        title="Trang sau"
+                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                      >
+                        <ChevronRight className="h-3.5 w-3.5 text-slate-700 dark:text-gray-300" />
+                      </button>
+
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={validCurrentPage === totalPages}
+                        title="Đến trang cuối"
+                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                      >
+                        <ChevronsRight className="h-3.5 w-3.5 text-slate-700 dark:text-gray-300" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
       </main>
     </div>
   );

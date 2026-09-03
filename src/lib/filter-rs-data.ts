@@ -240,7 +240,7 @@ export async function scoreDynamicStockList(
   matchedList: VietcapScreenerMatchedStock[]
 ): Promise<StockRankingItem[]> {
   const results: StockRankingItem[] = [];
-  const batchSize = 6;
+  const batchSize = 8; // Tối ưu luồng song song để xử lý danh sách lớn nhanh chóng
 
   for (let i = 0; i < matchedList.length; i += batchSize) {
     const batch = matchedList.slice(i, i + batchSize);
