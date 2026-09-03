@@ -21,7 +21,6 @@ import {
   Globe,
   CheckCircle2,
   Clock,
-  Layers,
   Sparkles,
   Filter,
   ChevronLeft,
@@ -40,17 +39,11 @@ type SortField =
   | 'coreNetProfitGrowthYoY'
   | 'currentPrice'
   | 'adtv20Billion'
-  | 'roic'
+  | 'latestQuarter'
   | 'roe'
   | 'ticker';
 
-type RankingMode = 'PRESET_75' | 'LIVE_MARKET';
-
 export default function RankingPage() {
-  const [mode, setMode] = useState<RankingMode>('PRESET_75');
-  
-  // Dữ liệu cho 2 chế độ
-  const [presetRankings, setPresetRankings] = useState<StockRankingItem[]>([]);
   const [liveRankings, setLiveRankings] = useState<StockRankingItem[]>([]);
   const [liveMeta, setLiveMeta] = useState<{
     totalMarketScanned?: string;
@@ -62,7 +55,6 @@ export default function RankingPage() {
   } | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isScanningLive, setIsScanningLive] = useState(false);
   const [liveScanProgress, setLiveScanProgress] = useState<string>('');
 
@@ -96,37 +88,15 @@ export default function RankingPage() {
   // Tự động reset về trang 1 khi thay đổi bộ lọc, tìm kiếm hoặc kích thước trang
   useEffect(() => {
     setCurrentPage(1);
-  }, [mode, searchTerm, exchangeFilter, scoreTierFilter, coreEpsFilter, coreProfitFilter, liquidityFilter, rsFilter, pageSize]);
+  }, [searchTerm, exchangeFilter, scoreTierFilter, coreEpsFilter, coreProfitFilter, liquidityFilter, rsFilter, pageSize]);
 
-  // 1. Tải danh mục 75 mã chuẩn
-  const fetchPresetRankings = async (forceRefresh = false) => {
-    if (forceRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
-
-    try {
-      const url = forceRefresh ? '/api/ranking?refresh=true' : '/api/ranking';
-      const res = await fetch(url);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          setPresetRankings(json.data);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch preset ranking list:', err);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
-
-  // 2. Thực thi Quét 2 Tầng Toàn Thị Trường (1.600+ mã)
+  // Thực thi Quét 2 Tầng Toàn Thị Trường (1.600+ mã)
   const handleRunLiveMarketScreening = async () => {
     setIsScanningLive(true);
     setLiveScanProgress('Đang gửi điều kiện lọc tới Vietcap Screener Engine (1.600+ mã)...');
 
     try {
-      setLiveScanProgress('Tầng 1: Đang lọc các cổ phiếu đạt chuẩn RS, ADTV & EPS trên 3 sàn...');
+      setLiveScanProgress('Tầng 1: Đang lọc các cổ phiếu đạt chuẩn RS, ADTV & LNST trên 3 sàn...');
       const res = await fetch('/api/screening/live', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -143,7 +113,6 @@ export default function RankingPage() {
       if (json.success && Array.isArray(json.data)) {
         setLiveRankings(json.data);
         setLiveMeta(json.meta);
-        setMode('LIVE_MARKET');
       }
     } catch (err: any) {
       console.error('Error running live screening:', err);
@@ -151,15 +120,16 @@ export default function RankingPage() {
     } finally {
       setIsScanningLive(false);
       setLiveScanProgress('');
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPresetRankings();
+    handleRunLiveMarketScreening();
   }, []);
 
-  // Danh sách hiển thị theo chế độ
-  const activeRankings = mode === 'PRESET_75' ? presetRankings : liveRankings;
+  // Danh sách hiển thị trực tiếp từ kết quả quét toàn thị trường
+  const activeRankings = liveRankings;
 
   // Bộ lọc tìm kiếm & tiêu chí phụ
   const filteredRankings = useMemo(() => {
@@ -267,6 +237,7 @@ export default function RankingPage() {
     const headers = [
       'Xep_Hang',
       'Ma_CP',
+      'Ky_BCTC',
       'Ten_Doanh_Nghiep',
       'San',
       'Nganh_ICB',
@@ -286,6 +257,7 @@ export default function RankingPage() {
     const rows = sortedRankings.map((it, idx) => [
       idx + 1,
       it.ticker,
+      it.latestQuarter || 'Chưa rõ',
       `"${it.companyName.replace(/"/g, '""')}"`,
       it.exchange,
       `"${it.industry.replace(/"/g, '""')}"`,
@@ -307,7 +279,7 @@ export default function RankingPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `ValueX_Bang_Xep_Hang_${mode === 'PRESET_75' ? '75_Ma' : 'Toan_Thi_Truong'}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `ValueX_Bang_Xep_Hang_Thi_Truong_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -339,25 +311,14 @@ export default function RankingPage() {
           </div>
 
           <div className="flex items-center space-x-2 self-start md:self-auto">
-            {mode === 'PRESET_75' ? (
-              <button
-                onClick={() => fetchPresetRankings(true)}
-                disabled={isRefreshing || isLoading}
-                className="flex items-center space-x-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-xs disabled:opacity-50"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span>{isRefreshing ? 'Đang cập nhật...' : 'Làm mới 75 mã'}</span>
-              </button>
-            ) : (
-              <button
-                onClick={handleRunLiveMarketScreening}
-                disabled={isScanningLive}
-                className="flex items-center space-x-1.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 px-3.5 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition shadow-xs disabled:opacity-50"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isScanningLive ? 'animate-spin' : ''}`} />
-                <span>{isScanningLive ? 'Đang quét...' : 'Quét lại thị trường'}</span>
-              </button>
-            )}
+            <button
+              onClick={handleRunLiveMarketScreening}
+              disabled={isScanningLive}
+              className="flex items-center space-x-1.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 px-3.5 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition shadow-xs disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isScanningLive ? 'animate-spin' : ''}`} />
+              <span>{isScanningLive ? 'Đang quét...' : 'Quét lại thị trường'}</span>
+            </button>
 
             <button
               onClick={handleExportCSV}
@@ -370,52 +331,8 @@ export default function RankingPage() {
           </div>
         </div>
 
-        {/* 2-Mode Tab Switcher */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-1.5 rounded-2xl bg-gray-200/70 dark:bg-gray-900 border border-gray-300/60 dark:border-gray-800">
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={() => setMode('PRESET_75')}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-                mode === 'PRESET_75'
-                  ? 'bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Layers className="h-4 w-4" />
-              <span>Danh Mục 75 Mã Chuẩn Q2/2026</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-semibold">
-                75 mã
-              </span>
-            </button>
-
-            <button
-              onClick={() => setMode('LIVE_MARKET')}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-                mode === 'LIVE_MARKET'
-                  ? 'bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Globe className="h-4 w-4 text-indigo-500" />
-              <span>Quét Trực Tiếp Toàn Thị Trường (1.600+ Mã)</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-semibold">
-                Vietcap API
-              </span>
-            </button>
-          </div>
-
-          <div className="text-[11px] text-gray-500 dark:text-gray-400 px-3 py-1">
-            {mode === 'PRESET_75' ? (
-              <span>⚡ Đang hiển thị danh mục 75 mã trọng điểm đã bóc tách BCTC</span>
-            ) : (
-              <span>🚀 Quét trực tiếp thời gian thực kết nối Vietcap Screener Engine</span>
-            )}
-          </div>
-        </div>
-
         {/* Live Market Screener Config Panel (Tầng 1) */}
-        {mode === 'LIVE_MARKET' && (
-          <div className="rounded-2xl border border-indigo-200 dark:border-indigo-950/80 bg-gradient-to-r from-indigo-50/50 via-white to-emerald-50/50 dark:from-indigo-950/30 dark:via-gray-900 dark:to-emerald-950/30 p-5 shadow-xs space-y-4">
+        <div className="rounded-2xl border border-indigo-200 dark:border-indigo-950/80 bg-gradient-to-r from-indigo-50/50 via-white to-emerald-50/50 dark:from-indigo-950/30 dark:via-gray-900 dark:to-emerald-950/30 p-5 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 dark:border-indigo-900/60 pb-3">
               <div className="flex items-center space-x-2">
                 <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
@@ -526,7 +443,6 @@ export default function RankingPage() {
               </div>
             )}
           </div>
-        )}
 
         {/* KPI Stats Highlights */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -540,7 +456,7 @@ export default function RankingPage() {
               <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Cổ phiếu</span>
             </div>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-              {mode === 'PRESET_75' ? 'Danh mục 75 mã chuẩn Q2/2026' : 'Quét trực tiếp toàn thị trường'}
+              Quét trực tiếp toàn thị trường (Vietcap API)
             </p>
           </div>
 
@@ -834,6 +750,15 @@ export default function RankingPage() {
                       </div>
                     </th>
                     <th
+                      onClick={() => handleSort('latestQuarter')}
+                      className="py-3 px-3 font-semibold text-center cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 whitespace-nowrap"
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Kỳ BCTC</span>
+                        {sortField === 'latestQuarter' && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                      </div>
+                    </th>
+                    <th
                       onClick={() => handleSort('currentPrice')}
                       className="py-3 px-3 font-semibold text-right cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400"
                     >
@@ -975,6 +900,24 @@ export default function RankingPage() {
                           <div className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[220px]">
                             {item.companyName}
                           </div>
+                        </td>
+
+                        {/* Kỳ BCTC */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                              item.latestQuarter && item.latestQuarter.includes('Q2/2026')
+                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300/50'
+                                : 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300/50'
+                            }`}
+                            title={
+                              item.latestQuarter && item.latestQuarter.includes('Q2/2026')
+                                ? 'Đã có BCTC Q2/2026 mới nhất'
+                                : `Kỳ cũ: ${item.latestQuarter || 'Chưa rõ'} (Chưa công bố BCTC mới)`
+                            }
+                          >
+                            {item.latestQuarter || '—'}
+                          </span>
                         </td>
 
                         {/* Current Price */}

@@ -162,7 +162,7 @@ export async function calculateStockRankingItem(
     }
 
     const latest = quarters[quarters.length - 1] || ({} as ParsedVietcapQuarter);
-    const latestQuarterLabel = latest.year && latest.quarter ? `Q${latest.quarter}/${latest.year}` : 'Q2/2026';
+    const latestQuarterLabel = latest.year && latest.quarter ? `Q${latest.quarter}/${latest.year}` : 'Chưa rõ';
 
     const ltmQuarters = quarters.slice(-4);
     const ltmRev = ltmQuarters.reduce((s, c) => s + (c.revenue || 0), 0);

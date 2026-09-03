@@ -65,9 +65,6 @@ export function Header() {
             >
               <Trophy className="h-3.5 w-3.5 text-amber-500" />
               <span>Bộ Lọc & Xếp Hạng RS</span>
-              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 border border-emerald-300/40">
-                75 mã
-              </span>
             </Link>
           </nav>
         </div>
