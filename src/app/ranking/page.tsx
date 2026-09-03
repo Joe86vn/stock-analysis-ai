@@ -272,7 +272,7 @@ export default function RankingPage() {
       'Nganh_ICB',
       'Gia_Hien_Tai',
       'GTGD_20N_Ty',
-      'RS_6Thang',
+      'RS_1Thang',
       'Tong_Diem_150',
       'Hang_Chat_Luong',
       'Suc_Khoe_TC_50',
@@ -280,7 +280,6 @@ export default function RankingPage() {
       'Chat_Luong_DN_40',
       'Tang_Truong_EPS_Core_YoY_Pct',
       'Tang_Truong_LNST_Core_YoY_Pct',
-      'ROIC_Pct',
       'ROE_Pct',
     ];
 
@@ -300,7 +299,6 @@ export default function RankingPage() {
       it.businessQualityScore,
       it.coreEpsGrowthYoY,
       it.coreNetProfitGrowthYoY,
-      it.roic,
       it.roe,
     ]);
 
@@ -746,7 +744,7 @@ export default function RankingPage() {
                 onChange={(e) => setRsFilter(e.target.value as any)}
                 className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 py-2 px-2.5 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               >
-                <option value="ALL">RS (6T): Tất cả</option>
+                <option value="ALL">RS (1T): Tất cả</option>
                 <option value="90">RS ≥ 90 (Top 10%)</option>
                 <option value="80">RS ≥ 80 (Top 20%)</option>
                 <option value="70">RS ≥ 70 (Top 30%)</option>
@@ -858,7 +856,7 @@ export default function RankingPage() {
                       className="py-3 px-3 font-semibold text-center cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400"
                     >
                       <div className="flex items-center justify-center space-x-1">
-                        <span>RS (6T)</span>
+                        <span>RS (1T)</span>
                         {sortField === 'rsRating' && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                       </div>
                     </th>
@@ -914,15 +912,6 @@ export default function RankingPage() {
                       <div className="flex items-center justify-end space-x-1">
                         <span>LNST Core YoY</span>
                         {sortField === 'coreNetProfitGrowthYoY' && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
-                      </div>
-                    </th>
-                    <th
-                      onClick={() => handleSort('roic')}
-                      className="py-3 px-3 font-semibold text-right cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400"
-                    >
-                      <div className="flex items-center justify-end space-x-1">
-                        <span>ROIC</span>
-                        {sortField === 'roic' && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                       </div>
                     </th>
                     <th
@@ -1095,11 +1084,6 @@ export default function RankingPage() {
                           >
                             {item.coreNetProfitGrowthYoY > 0 ? `+${item.coreNetProfitGrowthYoY}%` : `${item.coreNetProfitGrowthYoY}%`}
                           </span>
-                        </td>
-
-                        {/* ROIC */}
-                        <td className="py-3 px-3 text-right font-medium text-slate-700 dark:text-gray-300">
-                          {item.roic > 0 ? `${item.roic}%` : '—'}
                         </td>
 
                         {/* ROE */}
