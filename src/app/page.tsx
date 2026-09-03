@@ -184,13 +184,21 @@ function HomeContent() {
         priceUpdatedStock.pe5YearMax = ratios.pe5YearMax;
         priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
       }
-      setSelectedStock(priceUpdatedStock);
+      if (savedServerData && savedServerData.report) {
+        if (savedServerData.report.companyName && priceUpdatedStock.companyName.startsWith('Công ty Cổ phần ')) {
+          priceUpdatedStock.companyName = savedServerData.report.companyName;
+        }
+        if (savedServerData.report.marketData?.industry && priceUpdatedStock.industry === 'Doanh nghiệp Niêm yết') {
+          priceUpdatedStock.industry = savedServerData.report.marketData.industry;
+        }
+        setSelectedStock(priceUpdatedStock);
 
-      if (savedServerData) {
         const restoredReport: AnalysisReport = {
           ...savedServerData.report,
+          companyName: savedServerData.report.companyName || priceUpdatedStock.companyName,
           marketData: {
-            ...savedServerData.report.marketData,
+            ...(savedServerData.report.marketData || {}),
+            ...priceUpdatedStock,
             currentPrice: priceUpdatedStock.currentPrice || savedServerData.report.marketData?.currentPrice || 0,
             pe5YearMin: priceUpdatedStock.pe5YearMin || savedServerData.report.marketData?.pe5YearMin || 0,
             pe5YearMax: priceUpdatedStock.pe5YearMax || savedServerData.report.marketData?.pe5YearMax || 0,
@@ -204,6 +212,7 @@ function HomeContent() {
           generationModel: savedServerData.generationModel,
         });
       } else {
+        setSelectedStock(priceUpdatedStock);
         setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFiles));
         setSavedReportMeta(null);
       }
@@ -226,13 +235,22 @@ function HomeContent() {
       priceUpdatedStock.pe5YearMax = ratios.pe5YearMax;
       priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
     }
-    setSelectedStock(priceUpdatedStock);
 
-    if (savedServerData) {
+    if (savedServerData && savedServerData.report) {
+      if (savedServerData.report.companyName && priceUpdatedStock.companyName.startsWith('Công ty Cổ phần ')) {
+        priceUpdatedStock.companyName = savedServerData.report.companyName;
+      }
+      if (savedServerData.report.marketData?.industry && priceUpdatedStock.industry === 'Doanh nghiệp Niêm yết') {
+        priceUpdatedStock.industry = savedServerData.report.marketData.industry;
+      }
+      setSelectedStock(priceUpdatedStock);
+
       const restoredReport: AnalysisReport = {
         ...savedServerData.report,
+        companyName: savedServerData.report.companyName || priceUpdatedStock.companyName,
         marketData: {
-          ...savedServerData.report.marketData,
+          ...(savedServerData.report.marketData || {}),
+          ...priceUpdatedStock,
           currentPrice: priceUpdatedStock.currentPrice || savedServerData.report.marketData?.currentPrice || 0,
           pe5YearMin: priceUpdatedStock.pe5YearMin || savedServerData.report.marketData?.pe5YearMin || 0,
           pe5YearMax: priceUpdatedStock.pe5YearMax || savedServerData.report.marketData?.pe5YearMax || 0,
@@ -246,6 +264,7 @@ function HomeContent() {
         generationModel: savedServerData.generationModel,
       });
     } else {
+      setSelectedStock(priceUpdatedStock);
       setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFilesRef.current));
       setSavedReportMeta(null);
     }

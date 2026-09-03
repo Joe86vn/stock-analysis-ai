@@ -309,15 +309,12 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     const rawCandidates = [
       preferredModel,
       process.env.GEMINI_MODEL,
-      'gemini-3.7-flash',
+      'gemini-3.5-flash-lite',
       'gemini-3.5-flash',
-      'gemini-flash-latest',
+      'gemini-3.7-flash',
       'gemini-3.8-flash',
       'gemini-3.6-flash',
-      'gemini-3.5-flash-lite',
-      'gemini-3.1-flash-lite',
-      'gemini-flash-lite-latest',
-      'gemini-3.1-pro-preview',
+      'gemini-flash-latest',
     ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
     // Deduplicate candidate models
@@ -334,7 +331,7 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
             responseMimeType: 'application/json',
             temperature: 0.2,
             topP: 0.8,
-            maxOutputTokens: 8192,
+            maxOutputTokens: 32768,
           },
         });
 
