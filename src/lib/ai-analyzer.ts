@@ -103,10 +103,11 @@ export async function generateAnalysisReport(
   uploadedFiles: UploadedFile[],
   preferredModel?: string
 ): Promise<AnalysisReport> {
-  // If running in the browser, fetch from the server-side API route with extended timeout
+  // If running in the browser, stream from the Edge Function API route
   if (typeof window !== 'undefined') {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout for deep Gemini 3.8 Flash processing
+    // 5-minute timeout — edge streaming keeps connection alive, so this is a safety net
+    const timeoutId = setTimeout(() => controller.abort(), 300000);
     const sanitizedFiles = (uploadedFiles || []).map((f) => ({
       ...f,
       content: typeof f.content === 'string' ? f.content.slice(0, 50000) : '',
@@ -115,9 +116,7 @@ export async function generateAnalysisReport(
     try {
       const response = await fetch('/api/analysis/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ticker,
           marketData,
@@ -127,49 +126,52 @@ export async function generateAnalysisReport(
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      if (response.ok) {
-        return await response.json();
+
+      if (!response.ok || !response.body) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `Lỗi từ server (${response.status}) khi khởi tạo báo cáo AI`);
       }
-      const errJson = await response.json().catch(() => ({}));
-      throw new Error(errJson.error || `Lỗi từ server (${response.status}) khi khởi tạo báo cáo AI`);
+
+      // Read streaming response: accumulate all chunks then parse JSON
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+      }
+      accumulated += decoder.decode(); // flush
+
+      // Check if the edge function returned an error payload
+      const parsed = repairAndParseJson(accumulated);
+      if (parsed && parsed.__error) {
+        throw new Error(parsed.__error);
+      }
+
+      return buildReportFromParsed(ticker, marketData, parsed);
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
-        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini AI.');
+        throw new Error('Quá thời gian kết nối (5 phút) khi tạo báo cáo bằng Gemini AI.');
       }
       if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
         throw new Error(
-          'Không thể kết nối đến máy chủ (Failed to fetch). Vui lòng đảm bảo server đang chạy hoặc kiểm tra lại đường truyền mạng.'
+          'Không thể kết nối đến máy chủ (Failed to fetch). Vui lòng kiểm tra kết nối mạng.'
         );
       }
       throw err;
     }
   }
 
-  let apiKey = process.env.GEMINI_API_KEY;
-
-  // On server runtime, if process.env.GEMINI_API_KEY is not loaded yet, try loading from .env.local as fallback
-  if (!apiKey && typeof window === 'undefined') {
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const envPath = path.join(process.cwd(), '.env.local');
-      if (fs.existsSync(envPath)) {
-        const content = fs.readFileSync(envPath, 'utf-8');
-        const match = content.match(/^GEMINI_API_KEY\s*=\s*([^\r\n#]+)/m);
-        if (match && match[1]) {
-          apiKey = match[1].trim();
-          process.env.GEMINI_API_KEY = apiKey;
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
+  // Server-side path (only reached in local dev / non-edge environments)
+  // In production on Netlify, all traffic goes through the Edge Function in route.ts
+  const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
     throw new Error(
-      'Chưa cấu hình GEMINI_API_KEY trên server (.env.local). Vui lòng cấu hình API Key từ Google AI Studio để thực hiện phân tích chuyên sâu.'
+      'Chưa cấu hình GEMINI_API_KEY. Vui lòng thêm vào Netlify Dashboard → Environment Variables.'
     );
   }
 
