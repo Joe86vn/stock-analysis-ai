@@ -78,3 +78,6 @@ https://iq.vietcap.com.vn/api/iq-insight-service/v1/sector-ranking/sectors/7500?
 
 RS Du lịch và giải trí
 https://iq.vietcap.com.vn/api/iq-insight-service/v1/sector-ranking/sectors/5700?icbLevel=2&adtv=3&value=3
+
+Bộ lọc screeners
+https://iq.vietcap.com.vn/api/iq-insight-service/v1/setting/screeners

@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stock-analysis-report-ai",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "pages_build_output_dir": ".worker-next",
+  // R2 Bucket binding cho lưu trữ báo cáo tài chính & phân tích AI
+  "r2_buckets": [
+    {
+      "binding": "REPORTS_BUCKET",
+      "bucket_name": "stock-analysis-reports"
+    }
+  ]
+}
