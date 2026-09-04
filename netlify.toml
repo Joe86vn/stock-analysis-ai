@@ -1,0 +1,16 @@
+# Cấu hình Netlify cho Next.js 15 (stock-analysis-report-ai)
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  node_bundler = "esbuild"
+  # Tăng thời gian timeout tối đa cho các hàm phân tích AI & quét thị trường
+  timeout = 26
+
+[build.environment]
+  NODE_VERSION = "20"
