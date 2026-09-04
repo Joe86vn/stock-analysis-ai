@@ -107,13 +107,23 @@ export async function generateAnalysisReport(
   if (typeof window !== 'undefined') {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout for deep Gemini 3.8 Flash processing
+    const sanitizedFiles = (uploadedFiles || []).map((f) => ({
+      ...f,
+      content: typeof f.content === 'string' ? f.content.slice(0, 50000) : '',
+    }));
+
     try {
       const response = await fetch('/api/analysis/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel: preferredModel || 'gemini-3.8-flash' }),
+        body: JSON.stringify({
+          ticker,
+          marketData,
+          uploadedFiles: sanitizedFiles,
+          preferredModel: preferredModel || 'gemini-3.8-flash',
+        }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -126,6 +136,11 @@ export async function generateAnalysisReport(
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
         throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini 3.8 Flash.');
+      }
+      if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
+        throw new Error(
+          'Không thể kết nối đến máy chủ (Failed to fetch). Vui lòng đảm bảo server đang chạy (npm run dev trên local) hoặc kiểm tra lại đường truyền mạng.'
+        );
       }
       throw err;
     }

@@ -44,7 +44,20 @@ export default {
     const url = new URL(request.url);
     const targetUrl = new URL(url.pathname + url.search, VERCEL_ORIGIN);
 
-    // 1. Kiểm tra Cache Edge đối với tài nguyên tĩnh (JS, CSS, Hình ảnh, Font)
+    // 1. Xử lý CORS OPTIONS Preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
+
+    // 2. Kiểm tra Cache Edge đối với tài nguyên tĩnh (JS, CSS, Hình ảnh, Font)
     const cache = caches.default;
     const isStaticAsset =
       url.pathname.startsWith("/_next/static/") ||
@@ -57,7 +70,7 @@ export default {
       }
     }
 
-    // 2. Chuyển tiếp Request sang Vercel
+    // 3. Chuyển tiếp Request sang Vercel
     const headers = new Headers(request.headers);
     headers.set("Host", new URL(VERCEL_ORIGIN).host);
     headers.set("X-Forwarded-Host", url.host);
