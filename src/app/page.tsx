@@ -285,7 +285,7 @@ function HomeContent() {
   };
 
   const runAnalysis = async (stock: StockMarketData, files: UploadedFile[]) => {
-    const defaultModel = 'gemini-3.6-flash';
+    const defaultModel = 'gemini-3.7-flash';
     setIsGenerating(true);
     setErrorMessage('');
     const fileCount = files.length;

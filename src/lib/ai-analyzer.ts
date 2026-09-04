@@ -122,7 +122,7 @@ export async function generateAnalysisReport(
           ticker,
           marketData,
           uploadedFiles: sanitizedFiles,
-          preferredModel: preferredModel || 'gemini-3.6-flash',
+          preferredModel: preferredModel || 'gemini-3.7-flash',
         }),
         signal: controller.signal,
       });
@@ -322,10 +322,10 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
       `;
 
     const rawCandidates = [
+      'gemini-3.7-flash',
       preferredModel,
       process.env.GEMINI_MODEL,
       'gemini-3.6-flash',
-      'gemini-3.7-flash',
       'gemini-3.8-flash',
       'gemini-3.5-flash-lite',
       'gemini-flash-latest',
