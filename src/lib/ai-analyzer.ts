@@ -122,7 +122,7 @@ export async function generateAnalysisReport(
           ticker,
           marketData,
           uploadedFiles: sanitizedFiles,
-          preferredModel: preferredModel || 'gemini-3.8-flash',
+          preferredModel: preferredModel || 'gemini-3.6-flash',
         }),
         signal: controller.signal,
       });
@@ -135,11 +135,11 @@ export async function generateAnalysisReport(
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
-        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini 3.8 Flash.');
+        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini AI.');
       }
       if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
         throw new Error(
-          'Không thể kết nối đến máy chủ (Failed to fetch). Vui lòng đảm bảo server đang chạy (npm run dev trên local) hoặc kiểm tra lại đường truyền mạng.'
+          'Không thể kết nối đến máy chủ (Failed to fetch). Vui lòng đảm bảo server đang chạy hoặc kiểm tra lại đường truyền mạng.'
         );
       }
       throw err;
@@ -324,11 +324,10 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     const rawCandidates = [
       preferredModel,
       process.env.GEMINI_MODEL,
-      'gemini-3.5-flash-lite',
-      'gemini-3.5-flash',
+      'gemini-3.6-flash',
       'gemini-3.7-flash',
       'gemini-3.8-flash',
-      'gemini-3.6-flash',
+      'gemini-3.5-flash-lite',
       'gemini-flash-latest',
     ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
@@ -350,13 +349,13 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
           },
         });
 
-        // 60s timeout per model attempt to quickly fallback if Google AI servers encounter high traffic spikes
+        // 50s timeout per model attempt to quickly fallback if Google AI servers encounter high traffic spikes
         const generatePromise = model.generateContent({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
 
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error(`Model ${modelName} phản hồi quá lâu (>60s)`)), 60000);
+          setTimeout(() => reject(new Error(`Model ${modelName} phản hồi quá lâu (>50s)`)), 50000);
         });
 
         const result = await Promise.race([generatePromise, timeoutPromise]);

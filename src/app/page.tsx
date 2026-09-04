@@ -126,7 +126,7 @@ function HomeContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           report: reportData,
-          model: modelName || reportData.generationModel || 'gemini-3.8-flash',
+          model: modelName || reportData.generationModel || 'gemini-3.6-flash',
         }),
       });
       if (response.ok) {
@@ -285,7 +285,7 @@ function HomeContent() {
   };
 
   const runAnalysis = async (stock: StockMarketData, files: UploadedFile[]) => {
-    const defaultModel = 'gemini-3.7-flash';
+    const defaultModel = 'gemini-3.6-flash';
     setIsGenerating(true);
     setErrorMessage('');
     const fileCount = files.length;
@@ -387,7 +387,7 @@ function HomeContent() {
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 font-heading">
                   <span>ValueX AI Engine:</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                    {savedReportMeta?.generationModel || report?.generationModel || 'gemini-3.8-flash'}
+                    {savedReportMeta?.generationModel || report?.generationModel || 'gemini-3.6-flash'}
                   </span>
                 </h3>
                 {savedReportMeta?.isSaved && (
