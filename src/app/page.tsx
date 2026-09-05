@@ -161,7 +161,7 @@ function HomeContent() {
   };
 
   const runAnalysis = async (stock: StockMarketData, files: UploadedFile[]) => {
-    const defaultModel = 'gemini-2.5-flash';
+    const defaultModel = 'gemini-3.6-flash';
     setIsGenerating(true);
     setErrorMessage('');
     const fileCount = files.length;
@@ -244,7 +244,7 @@ function HomeContent() {
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 font-heading">
                 <span>ValueX AI Engine:</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                  {report?.generationModel || 'gemini-2.5-flash'}
+                  {report?.generationModel || 'gemini-3.6-flash'}
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-gray-400">
@@ -261,7 +261,7 @@ function HomeContent() {
             <div className="flex items-center space-x-2 bg-white dark:bg-gray-950/80 border border-emerald-200 dark:border-emerald-500/30 rounded-xl px-3.5 py-2 shadow-xs">
               <Cpu className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                ⚡ Gemini 2.5 Flash
+                ⚡ Gemini 3.6 Flash
               </span>
             </div>
 
