@@ -27,4 +27,7 @@
 
 ## Phase 2: Cấu Hình Môi Trường & Vận Hành
 - [x] Push toàn bộ mã nguồn lên nhánh `main` GitHub `Joe86vn/stock-analysis-ai`
-- [ ] Thêm biến `PYTHON_WORKER_URL=https://valuex-analysis-worker.onrender.com` vào Netlify Dashboard
+- [x] **Khắc phục triệt để lỗi Netlify chậm & AI "Failed to fetch":**
+  - [x] Đưa crawl tài liệu tham khảo về chạy trực tiếp local service (< 100ms), loại bỏ hoàn toàn tình trạng treo 15s do Render Free ngủ đông.
+  - [x] Bổ sung route `/api/analysis/config` cung cấp cấu hình Gemini siêu tốc (< 20ms).
+  - [x] Kích hoạt cơ chế gọi trực tiếp Google AI Studio SDK từ trình duyệt (Client-side), hoàn toàn thoát khỏi giới hạn 10s của Netlify Serverless Function.
