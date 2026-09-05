@@ -15,9 +15,9 @@ export async function GET(request: NextRequest) {
     let parsedText = '';
 
     try {
-      // Fetch with timeout
+      // Fetch with fast timeout (5 seconds max per PDF to avoid hanging)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 seconds timeout
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(url, {
         signal: controller.signal,
@@ -32,7 +32,9 @@ export async function GET(request: NextRequest) {
       if (response.ok) {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        const parsed = await pdf(buffer);
+        // Chỉ trích xuất tối đa 15 trang đầu (chứa tóm tắt điều hành, số liệu & BCTC chính)
+        // Tránh CPU bị nghẽn bởi các file BCTN nặng 200-300 trang
+        const parsed = await pdf(buffer, { max: 15 });
         parsedText = parsed.text;
       } else {
         console.warn(`Failed to fetch PDF from URL: ${url}, status: ${response.status}`);
