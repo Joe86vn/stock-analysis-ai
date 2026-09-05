@@ -113,7 +113,7 @@ export async function generateAnalysisReport(
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel: preferredModel || 'gemini-3.6-flash' }),
+        body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel: preferredModel || 'gemini-2.5-flash' }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -125,7 +125,7 @@ export async function generateAnalysisReport(
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
-        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini 3.6 Flash.');
+        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini 2.5 Flash.');
       }
       throw err;
     }
@@ -284,12 +284,11 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     const rawCandidates = [
       preferredModel,
       process.env.GEMINI_MODEL,
-      'gemini-3.6-flash',
-      'gemini-3.5-flash-lite',
-      'gemini-3.1-flash-lite',
-      'gemini-flash-lite-latest',
-      'gemini-3.8-flash',
-      'gemini-3.1-pro-preview',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash',
     ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
     // Deduplicate candidate models
