@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: valuex-analysis-worker
+    runtime: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r worker/requirements.txt
+    startCommand: uvicorn worker.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9

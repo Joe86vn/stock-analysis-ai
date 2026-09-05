@@ -132,6 +132,7 @@ async def crawl_reference_documents(
         ]
 
     cache_expires = now + datetime.timedelta(hours=24)
+    agm_resolution_item = agm_resolutions[0] if agm_resolutions else None
 
     return {
         "ticker": upper_ticker,
@@ -143,11 +144,17 @@ async def crawl_reference_documents(
         "quarterlyFinancials": quarterly_financials,
         "agmResolutions": agm_resolutions,
         "brokerReports": broker_reports,
+        "documents": {
+            "annualReports": annual_reports,
+            "quarterlyFinancials": quarterly_financials,
+            "agmResolution": agm_resolution_item,
+            "brokerReports": broker_reports,
+        },
         "summary": {
-            "totalFound": len(annual_reports) + len(quarterly_financials) + len(agm_resolutions) + len(broker_reports),
+            "totalFound": len(annual_reports) + len(quarterly_financials) + (1 if agm_resolution_item else 0) + len(broker_reports),
             "annualReportsFound": len(annual_reports),
-            "quarterlyFinancialsFound": len(quarterly_financials),
-            "agmResolutionsFound": len(agm_resolutions),
+            "quarterlyReportsFound": len(quarterly_financials),
+            "agmResolutionFound": bool(agm_resolution_item),
             "brokerReportsFound": len(broker_reports)
         }
     }

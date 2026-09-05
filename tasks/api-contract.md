@@ -1,8 +1,8 @@
 # API Contract: Next.js Frontend ↔ Python Worker (FastAPI)
 
-> **Phiên bản:** 1.0 — Phase 0 xác nhận  
-> **Môi trường Worker:** Hugging Face Spaces (Docker) — `https://{username}-{space-name}.hf.space`  
-> **Auth:** Mọi request từ Next.js đến Worker phải kèm header `X-Worker-Secret: {WORKER_SECRET}` để tránh endpoint bị gọi công khai.
+> **Phiên bản:** 1.1 — Chuyển sang Render.com Free Web Service  
+> **Môi trường Worker:** Render.com Free Web Service (Singapore) — `https://valuex-analysis-worker.onrender.com`  
+> **Auth:** Mọi request từ Next.js đến Worker kèm header `X-Worker-Secret: {WORKER_SECRET}` để tránh endpoint bị gọi công khai.
 
 ---
 
