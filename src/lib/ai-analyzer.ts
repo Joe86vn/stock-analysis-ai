@@ -37,7 +37,25 @@ async function fetchVietcapFinancialContext(ticker: string, marketData: StockMar
   const defaultYear = new Date().getFullYear();
   try {
     const cleanTicker = ticker.trim().toUpperCase();
-    const items = await fetchFullVietcapData(cleanTicker);
+    let items: ParsedVietcapQuarter[] = [];
+
+    // Nếu chạy trên trình duyệt, gọi qua internal route /api/stocks/[ticker]/financials để tránh CORS Vietcap
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch(`/api/stocks/${encodeURIComponent(cleanTicker)}/financials`);
+        if (res.ok) {
+          const json = await res.json();
+          items = json.quarters || [];
+        }
+      } catch (_e) {
+        // Tiếp tục thử gọi hàm trực tiếp nếu fetch lỗi
+      }
+    }
+
+    if (items.length === 0) {
+      items = await fetchFullVietcapData(cleanTicker);
+    }
+
     if (!items || items.length === 0) return { text: '', year1: defaultYear, year2: defaultYear + 1, latestQuarter: '' };
 
     const { year1, year2, latestQuarter } = getForecastYearsFromItems(items);
@@ -103,79 +121,125 @@ export async function generateAnalysisReport(
   uploadedFiles: UploadedFile[],
   preferredModel?: string
 ): Promise<AnalysisReport> {
-  // If running in the browser, stream from the Edge Function API route
-  if (typeof window !== 'undefined') {
-    const controller = new AbortController();
-    // 5-minute timeout — edge streaming keeps connection alive, so this is a safety net
-    const timeoutId = setTimeout(() => controller.abort(), 300000);
-    const sanitizedFiles = (uploadedFiles || []).map((f) => ({
-      ...f,
-      content: typeof f.content === 'string' ? f.content.slice(0, 50000) : '',
-    }));
+  // Lấy API key từ biến môi trường hoặc từ endpoint /api/analysis/config (< 20ms)
+  let apiKey =
+    (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY)) ||
+    '';
+  let modelToUse = preferredModel || (typeof process !== 'undefined' && process.env.GEMINI_MODEL) || 'gemini-3.7-flash';
 
+  if (typeof window !== 'undefined' && !apiKey) {
     try {
-      const response = await fetch('/api/analysis/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ticker,
-          marketData,
-          uploadedFiles: sanitizedFiles,
-          preferredModel: preferredModel || 'gemini-3.7-flash',
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (!response.ok || !response.body) {
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error || `Lỗi từ server (${response.status}) khi khởi tạo báo cáo AI`);
+      const cfgRes = await fetch('/api/analysis/config', { cache: 'no-store' });
+      if (cfgRes.ok) {
+        const cfg = await cfgRes.json();
+        apiKey = cfg.apiKey || '';
+        if (cfg.preferredModel && !preferredModel) {
+          modelToUse = cfg.preferredModel;
+        }
       }
-
-      // Read streaming response: accumulate all chunks then parse JSON
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-      }
-      accumulated += decoder.decode(); // flush
-
-      // Check if the edge function returned an error payload
-      const parsed = repairAndParseJson(accumulated);
-      if (parsed && parsed.__error) {
-        throw new Error(parsed.__error);
-      }
-
-      return buildReportFromParsed(ticker, marketData, parsed);
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (err.name === 'AbortError') {
-        throw new Error('Quá thời gian kết nối (5 phút) khi tạo báo cáo bằng Gemini AI.');
-      }
-      if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
-        throw new Error(
-          'Không thể kết nối đến máy chủ (Failed to fetch). Vui lòng kiểm tra kết nối mạng.'
-        );
-      }
-      throw err;
+    } catch (e) {
+      console.warn('[AI Analyzer] Không thể lấy config từ /api/analysis/config:', e);
     }
   }
 
-  // Server-side path (only reached in local dev / non-edge environments)
-  // In production on Netlify, all traffic goes through the Edge Function in route.ts
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error(
-      'Chưa cấu hình GEMINI_API_KEY. Vui lòng thêm vào Netlify Dashboard → Environment Variables.'
-    );
+  // 1. NẾU CÓ API KEY: Chạy trực tiếp từ trình duyệt kết nối tới Google AI Studio!
+  // Hoàn toàn không qua trung gian Netlify 10s Serverless -> 100% không bao giờ bị timeout / Failed to fetch
+  if (apiKey) {
+    try {
+      console.log('[AI Analyzer] Đang thực hiện phân tích trực tiếp với Google AI Studio SDK...');
+      return await executeDirectGeminiAnalysis(ticker, marketData, uploadedFiles, apiKey, modelToUse);
+    } catch (directErr: any) {
+      console.warn('[AI Analyzer] Gọi trực tiếp Google AI thất bại, thử fallback qua server route:', directErr);
+      if (typeof window === 'undefined') {
+        throw directErr;
+      }
+    }
   }
 
-  let combinedText = uploadedFiles
+  // 2. FALLBACK QUA SERVER ROUTE (Nếu không có API key ở client hoặc gọi trực tiếp gặp lỗi mạng)
+  if (typeof window !== 'undefined') {
+    return await callServerRoute(ticker, marketData, uploadedFiles, modelToUse);
+  }
+
+  throw new Error('Chưa cấu hình GEMINI_API_KEY trên Netlify Environment Variables.');
+}
+
+async function callServerRoute(
+  ticker: string,
+  marketData: StockMarketData,
+  uploadedFiles: UploadedFile[],
+  preferredModel?: string
+): Promise<AnalysisReport> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+  const sanitizedFiles = (uploadedFiles || []).map((f) => ({
+    ...f,
+    content: typeof f.content === 'string' ? f.content.slice(0, 50000) : '',
+  }));
+
+  try {
+    const response = await fetch('/api/analysis/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ticker,
+        marketData,
+        uploadedFiles: sanitizedFiles,
+        preferredModel: preferredModel || 'gemini-3.7-flash',
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok || !response.body) {
+      const errJson = await response.json().catch(() => ({}));
+      throw new Error(errJson.error || `Lỗi từ server (${response.status}) khi khởi tạo báo cáo AI`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      accumulated += decoder.decode(value, { stream: true });
+    }
+    accumulated += decoder.decode();
+
+    const parsed = repairAndParseJson(accumulated);
+    if (parsed && parsed.__error) {
+      throw new Error(parsed.__error);
+    }
+
+    return buildReportFromParsed(ticker, marketData, parsed);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Quá thời gian kết nối server (2 phút) khi tạo báo cáo.');
+    }
+    if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
+      throw new Error(
+        'Không thể kết nối đến máy chủ AI (Failed to fetch). Vui lòng kiểm tra lại API Key hoặc đường truyền mạng.'
+      );
+    }
+    throw err;
+  }
+}
+
+async function executeDirectGeminiAnalysis(
+  ticker: string,
+  marketData: StockMarketData,
+  uploadedFiles: UploadedFile[],
+  apiKey: string,
+  preferredModel: string
+): Promise<AnalysisReport> {
+  const sanitizedFiles = (uploadedFiles || []).map((f) => ({
+    ...f,
+    content: typeof f.content === 'string' ? f.content.slice(0, 50000) : '',
+  }));
+
+  let combinedText = sanitizedFiles
     .map((f) => `--- File: ${f.name} (${f.type}) ---\n${f.content || 'Nội dung file PDF/Document'}`)
     .join('\n\n');
 
@@ -183,8 +247,7 @@ export async function generateAnalysisReport(
   const { text: vietcapContext, year1, year2, latestQuarter } = await fetchVietcapFinancialContext(ticker, marketData);
   combinedText = vietcapContext + '\n\n' + combinedText;
 
-  if (apiKey) {
-    const prompt = `
+  const prompt = `
 Bạn là chuyên gia phân tích đầu tư chứng khoán hàng đầu Việt Nam theo phương pháp ValueX chuẩn hóa (150 điểm Trụ cột Doanh nghiệp).
 Hãy lập BÁO CÁO PHÂN TÍCH ĐẦU TƯ hoàn chỉnh cho mã chứng khoán ${ticker} (${marketData.companyName}) dựa trên quy trình chuẩn và tài liệu đính kèm:
 
@@ -375,9 +438,6 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     }
 
     throw new Error(`Lỗi Google AI Studio (Tất cả model [${candidateModels.join(', ')}] đều thất bại): ${lastError?.message || 'Không thể kết nối AI Studio'}`);
-  }
-
-  throw new Error('Chưa cấu hình GEMINI_API_KEY để gọi AI.');
 }
 
 function repairAndParseJson(jsonStr: string): any {
