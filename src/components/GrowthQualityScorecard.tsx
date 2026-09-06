@@ -89,7 +89,7 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
     G: <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-400" />,
   };
 
-  const getSectionContentKey = (key: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'): keyof SectionD_GrowthQuality => {
+  const getSectionContentKey = (key: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'): 'partA_CurrentGrowth' | 'partB_VisibilityNext2To4Q' | 'partC_MarginDurability' | 'partD_GrowthRunway' | 'partE_GrowthToCash' | 'partF_MediumTermGrowth' | 'partG_RiskAdjustedSustainability' => {
     switch (key) {
       case 'A': return 'partA_CurrentGrowth';
       case 'B': return 'partB_VisibilityNext2To4Q';

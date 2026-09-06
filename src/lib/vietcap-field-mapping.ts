@@ -1189,3 +1189,156 @@ export async function fetchVietcapStockRs(ticker: string, icbCodeLv2?: string): 
   return null;
 }
 
+export { COMMON_HEADERS };
+
+export interface VietcapStatisticItem {
+  year: string | number;
+  quarter: number;
+  marketCap?: number;
+  pe?: number;
+  pb?: number;
+  ps?: number;
+  evToEbitda?: number;
+  roe?: number;
+  roa?: number;
+  roic?: number;
+  ebitda?: number;
+  ownersEquity?: number;
+  debtToEquity?: number;
+  numberOfSharesMktCap?: number;
+  eps?: number;
+  bvps?: number;
+}
+
+/**
+ * Lấy danh sách thống kê tài chính và các chỉ số định giá theo quý từ Vietcap IQ API
+ */
+export async function fetchVietcapStatisticsFinancial(ticker: string): Promise<VietcapStatisticItem[]> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  try {
+    const res = await fetch(
+      `https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/${cleanTicker}/statistics-financial`,
+      {
+        headers: COMMON_HEADERS,
+        next: { revalidate: 3600 },
+      }
+    );
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json?.data) ? json.data : [];
+  } catch (error) {
+    console.error(`[Vietcap API] fetchStatisticsFinancial failed for ${cleanTicker}:`, error);
+    return [];
+  }
+}
+
+export interface VietcapEventItem {
+  id: string;
+  organCode: string;
+  ticker: string;
+  eventCode: string; // 'DIV' | 'ISS' | 'AGME' ...
+  eventNameVi: string;
+  eventTitleVi: string;
+  displayDate1?: string;
+  publicDate?: string;
+  recordDate?: string;
+  exrightDate?: string;
+  payoutDate?: string;
+  valuePerShare?: number; // Cổ tức tiền mặt (VND)
+  exerciseRatio?: number; // Tỷ lệ phát hành hoặc cổ tức cổ phiếu
+  category?: string;
+}
+
+/**
+ * Lấy lịch sử sự kiện doanh nghiệp và trả cổ tức từ Vietcap IQ API
+ */
+export async function fetchVietcapEvents(
+  ticker: string,
+  options?: { fromDate?: string; toDate?: string; eventCodes?: string }
+): Promise<VietcapEventItem[]> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const fromDate = options?.fromDate || '20230101';
+  const toDate = options?.toDate || '20261231';
+  const eventCodes = options?.eventCodes || 'DIV,ISS';
+
+  try {
+    const url = `https://iq.vietcap.com.vn/api/iq-insight-service/v2/events?toDate=${toDate}&fromDate=${fromDate}&tickers=${cleanTicker}&eventCodes=${eventCodes}&page=0&size=50`;
+    const res = await fetch(url, {
+      headers: COMMON_HEADERS,
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const list = json.data?.content || json.data || [];
+    return Array.isArray(list) ? list : [];
+  } catch (error) {
+    console.error(`[Vietcap API] fetchVietcapEvents failed for ${cleanTicker}:`, error);
+    return [];
+  }
+}
+
+export interface VietcapGapChartBar {
+  time: number; // Unix timestamp in seconds
+  tradingDate: string; // YYYY-MM-DD
+  openPrice: number;
+  highestPrice: number;
+  lowestPrice: number;
+  closePrice: number;
+  volume: number;
+}
+
+/**
+ * Lấy lịch sử nến Nhật OHLC đã điều chỉnh cổ tức & chia tách (Adjusted Price) từ Vietcap Gap Chart API
+ * URL: https://api.vietcap.com.vn/ohlc-chart-service/v1/gap-chart
+ */
+export async function fetchVietcapGapChart(
+  ticker: string,
+  options: { countBack?: number; to?: number; timeFrame?: string } = {}
+): Promise<VietcapGapChartBar[]> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const countBack = options.countBack ?? 260; // 260 phiên giao dịch ~ 12 tháng
+  const to = options.to ?? Math.floor(Date.now() / 1000);
+  const timeFrame = options.timeFrame ?? 'ONE_DAY';
+
+  try {
+    const url = `https://api.vietcap.com.vn/ohlc-chart-service/v1/gap-chart?symbol=${cleanTicker}&to=${to}&timeFrame=${timeFrame}&countBack=${countBack}`;
+    const res = await fetch(url, {
+      headers: COMMON_HEADERS,
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const data = json?.data;
+    if (!data || !Array.isArray(data.t) || data.t.length === 0) return [];
+
+    const bars: VietcapGapChartBar[] = [];
+    const len = data.t.length;
+    for (let i = 0; i < len; i++) {
+      const timeSec = data.t[i];
+      const dt = new Date(timeSec * 1000);
+      const tradingDate = dt.toISOString().slice(0, 10);
+      const openPrice = Number(data.o?.[i] ?? 0);
+      const highestPrice = Number(data.h?.[i] ?? 0);
+      const lowestPrice = Number(data.l?.[i] ?? 0);
+      const closePrice = Number(data.c?.[i] ?? 0);
+      const volume = Number(data.v?.[i] ?? 0);
+
+      bars.push({
+        time: timeSec,
+        tradingDate,
+        openPrice,
+        highestPrice: Math.max(highestPrice, openPrice, closePrice),
+        lowestPrice: lowestPrice > 0 ? Math.min(lowestPrice, openPrice, closePrice) : Math.min(openPrice, closePrice),
+        closePrice,
+        volume,
+      });
+    }
+
+    return bars;
+  } catch (error) {
+    console.error(`[Vietcap API] fetchVietcapGapChart failed for ${cleanTicker}:`, error);
+    return [];
+  }
+}
+
+
