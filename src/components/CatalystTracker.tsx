@@ -1,7 +1,11 @@
-'use client';
-
-import React, { useState, useMemo } from 'react';
-import { AnalysisReport, CatalystItem, CatalystScorecardData, SectionCatalysts } from '@/types/analysis';
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  AnalysisReport,
+  CatalystItem,
+  CatalystScorecardData,
+  SectionCatalysts,
+  TimingScorecardData,
+} from '@/types/analysis';
 import {
   Sparkles,
   CheckCircle2,
@@ -12,7 +16,14 @@ import {
   HelpCircle,
   Clock,
   Zap,
+  Activity,
+  BarChart3,
+  TrendingUp,
+  RotateCcw,
+  Gauge,
+  Compass,
 } from 'lucide-react';
+import { computeTimingScoreD } from '@/lib/opportunity-scoring-engine';
 
 interface CatalystTrackerProps {
   report: AnalysisReport;
@@ -21,6 +32,7 @@ interface CatalystTrackerProps {
   onUpdateGrowthDriversText: (text: string) => void;
   onUpdateReport: (updatedReport: AnalysisReport) => void;
   renderMarkdown: (text: string) => React.ReactNode;
+  priceHistory?: any[];
 }
 
 // Dữ liệu mẫu chuẩn hóa cho Chất Xúc Tác 6-12 tháng theo từng cổ phiếu
@@ -172,6 +184,7 @@ export const CatalystTracker: React.FC<CatalystTrackerProps> = ({
   onUpdateGrowthDriversText,
   onUpdateReport,
   renderMarkdown,
+  priceHistory = [],
 }) => {
   // 1. Quản lý danh sách Chất Xúc Tác
   const [catalysts, setCatalysts] = useState<CatalystItem[]>(() => {
@@ -181,14 +194,34 @@ export const CatalystTracker: React.FC<CatalystTrackerProps> = ({
     return getDefaultCatalystsForTicker(report.ticker);
   });
 
+  // Quản lý lịch sử giá nến để tính toán chỉ báo kỹ thuật D3
+  const [history, setHistory] = useState<any[]>(priceHistory || []);
+  useEffect(() => {
+    if (priceHistory && priceHistory.length > 0) {
+      setHistory(priceHistory);
+    } else if (report.ticker) {
+      fetch(`/api/stocks/${report.ticker}/price-history`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && Array.isArray(data.history)) {
+            setHistory(data.history);
+          }
+        })
+        .catch((err) => console.warn('[CatalystTracker] Could not fetch price history:', err));
+    }
+  }, [priceHistory, report.ticker]);
+
+  // Quản lý điều chỉnh thủ công cho Mục D (Thời điểm)
+  const [timingOverrides, setTimingOverrides] = useState<Record<string, { overrideScore?: number; reason?: string }>>(
+    () => report.sectionCatalysts?.timingScorecard?.manualOverrides || {}
+  );
+
   // 2. Chấm điểm 25 điểm Chất Xúc Tác ValueX (theo Co-hoi-dau-tu-guide.md)
   const scorecard: CatalystScorecardData = useMemo(() => {
-    // Nếu trong report đã có sẵn scorecard do user tinh chỉnh
     if (report.sectionCatalysts?.scorecard) {
       return report.sectionCatalysts.scorecard;
     }
 
-    // Tự động tính điểm sơ bộ dựa trên chất lượng danh mục chất xúc tác
     let earningsScore = 0;
     let eventScore = 0;
     let certScore = 0;
@@ -228,11 +261,36 @@ export const CatalystTracker: React.FC<CatalystTrackerProps> = ({
     };
   }, [catalysts, report.sectionCatalysts?.scorecard]);
 
+  // 3. Chấm điểm 10 điểm Thời Điểm & Điểm Vào (Mục D - theo 4-thoi-diem-dau-tu.md)
+  const timingScorecard: TimingScorecardData = useMemo(() => {
+    return computeTimingScoreD({
+      currentPrice: report.marketData?.currentPrice || 10000,
+      priceHistory: history,
+      rsRating: report.marketData?.rsRating ?? report.marketData?.rs1Month ?? null,
+      rs1Month: report.marketData?.rs1Month ?? null,
+      growthMomentum: {
+        revenueGrowthYoY: report.sectionForecast8Q?.ttmForward?.revenueGrowthYoY ?? (report.sectionForecast8Q?.quarters?.[0]?.revenueGrowthQoQ ?? 18),
+        epsGrowthYoY: report.sectionForecast8Q?.ttmForward?.netProfitGrowthYoY ?? 22,
+        growthTier: report.sectionD?.rankGrade || (report.sectionD?.totalScore ? (report.sectionD.totalScore >= 48 ? 'A' : 'B') : 'B'),
+        forwardEpsGrowth: report.sectionForecast8Q?.ttmForward?.netProfitGrowthYoY,
+      },
+      consensusData: {
+        totalReports: report.qualitativeInsights?.sectionE_BrokerConsensusAndTheses?.reportsAnalyzed?.length || 3,
+        buyCount: report.qualitativeInsights?.sectionE_BrokerConsensusAndTheses?.reportsAnalyzed?.filter(
+          (r) => r.recommendation.toLowerCase().includes('mua') || r.recommendation.toLowerCase().includes('khả quan')
+        ).length || 2,
+        targetPriceTrend: 'UP',
+      },
+      catalysts,
+      manualOverrides: timingOverrides,
+    });
+  }, [report.marketData, report.sectionD, report.sectionForecast8Q, report.qualitativeInsights, history, catalysts, timingOverrides]);
+
   // Cập nhật danh sách chất xúc tác
   const handleUpdateCatalyst = (id: string, field: keyof CatalystItem, value: any) => {
     const updated = catalysts.map((c) => (c.id === id ? { ...c, [field]: value } : c));
     setCatalysts(updated);
-    saveSectionToReport(updated, growthDriversText, scorecard);
+    saveSectionToReport(updated, growthDriversText, scorecard, timingScorecard);
   };
 
   const handleAddCatalyst = () => {
@@ -250,24 +308,56 @@ export const CatalystTracker: React.FC<CatalystTrackerProps> = ({
     };
     const updated = [...catalysts, newItem];
     setCatalysts(updated);
-    saveSectionToReport(updated, growthDriversText, scorecard);
+    saveSectionToReport(updated, growthDriversText, scorecard, timingScorecard);
   };
 
   const handleDeleteCatalyst = (id: string) => {
     const updated = catalysts.filter((c) => c.id !== id);
     setCatalysts(updated);
-    saveSectionToReport(updated, growthDriversText, scorecard);
+    saveSectionToReport(updated, growthDriversText, scorecard, timingScorecard);
+  };
+
+  const handleUpdateTimingOverride = (id: string, overrideScore?: number, reason?: string) => {
+    const updated = {
+      ...timingOverrides,
+      [id]: { overrideScore, reason },
+    };
+    setTimingOverrides(updated);
+    const newTiming = computeTimingScoreD({
+      currentPrice: report.marketData?.currentPrice || 10000,
+      priceHistory: history,
+      rsRating: report.marketData?.rsRating ?? report.marketData?.rs1Month ?? null,
+      rs1Month: report.marketData?.rs1Month ?? null,
+      catalysts,
+      manualOverrides: updated,
+    });
+    saveSectionToReport(catalysts, growthDriversText, scorecard, newTiming);
+  };
+
+  const handleResetTimingOverrides = () => {
+    setTimingOverrides({});
+    const newTiming = computeTimingScoreD({
+      currentPrice: report.marketData?.currentPrice || 10000,
+      priceHistory: history,
+      rsRating: report.marketData?.rsRating ?? report.marketData?.rs1Month ?? null,
+      rs1Month: report.marketData?.rs1Month ?? null,
+      catalysts,
+      manualOverrides: {},
+    });
+    saveSectionToReport(catalysts, growthDriversText, scorecard, newTiming);
   };
 
   const saveSectionToReport = (
     catList: CatalystItem[],
     driversText: string,
-    sc: CatalystScorecardData
+    sc: CatalystScorecardData,
+    tc: TimingScorecardData = timingScorecard
   ) => {
     const updatedSection: SectionCatalysts = {
       growthDriversAnalysis: driversText,
       catalystList: catList,
       scorecard: sc,
+      timingScorecard: tc,
     };
     onUpdateReport({
       ...report,
@@ -277,6 +367,50 @@ export const CatalystTracker: React.FC<CatalystTrackerProps> = ({
 
   return (
     <div className="space-y-8 font-sans text-slate-800 dark:text-gray-200">
+      {/* EXECUTIVE MINI-BANNER: TỔNG HỢP CHẤT XÚC TÁC & TIMING (35 ĐIỂM) */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/5 via-emerald-500/5 to-transparent border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
+              G. Chất Xúc Tác &amp; Timing Đầu Tư
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+              Nhóm B (25đ) + Nhóm D (10đ)
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5">
+            Đánh giá sức mạnh chất xúc tác 6–12 tháng kết hợp cùng động lượng cơ bản, cấu trúc giá và sức mạnh giá RS 1M.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Điểm Chất Xúc Tác */}
+          <div className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-right">
+            <span className="text-[10px] uppercase text-slate-500 block">Chất Xúc Tác (B)</span>
+            <span className="text-sm font-bold font-mono text-amber-600 dark:text-amber-400">
+              {scorecard.totalScore} <span className="text-[10px] text-slate-400">/ 25.0đ</span>
+            </span>
+          </div>
+
+          {/* Điểm Timing */}
+          <div className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-right">
+            <span className="text-[10px] uppercase text-slate-500 block">Timing &amp; RS 1M (D)</span>
+            <span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400">
+              {timingScorecard.totalScore} <span className="text-[10px] text-slate-400">/ 10.0đ</span>
+            </span>
+          </div>
+
+          {/* Tổng Điểm Tab G */}
+          <div className="px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white text-right shadow-xs">
+            <span className="text-[10px] uppercase text-slate-300 block">Tổng Tab G</span>
+            <span className="text-sm font-bold font-mono text-emerald-400">
+              {(scorecard.totalScore + timingScorecard.totalScore).toFixed(1)} <span className="text-[10px] text-slate-400">/ 35.0đ</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* 1. KHỐI PHÂN TÍCH ĐỘNG LỰC TĂNG TRƯỞNG CỐT LÕI (TRIỂN VỌNG) */}
       <div className="border-b border-gray-200 dark:border-gray-800 pb-6">
         <div className="flex items-center space-x-2.5 mb-2">
@@ -554,6 +688,194 @@ export const CatalystTracker: React.FC<CatalystTrackerProps> = ({
               Thị trường chưa chiết khấu hết tiềm năng vào thị giá hiện tại.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* 4. ĐÁNH GIÁ THỜI ĐIỂM & ĐIỂM VÀO (MỤC D - 10 ĐIỂM VALUEX) */}
+      <div className="border-t border-gray-200 dark:border-gray-800 pt-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <Compass className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span>4. Đánh Giá Thời Điểm &amp; Điểm Vào Lệnh</span>
+              <span className="text-emerald-600 dark:text-emerald-400 text-xs font-extrabold bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-md">
+                {timingScorecard.totalScore} / 10.0 Điểm ({timingScorecard.tier})
+              </span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">
+              Quy chuẩn 10 điểm ValueX: Động lượng tăng trưởng cơ bản, kỳ vọng thị trường, cấu trúc giá/khối lượng (MA20/50 &amp; RS 1M) và khoảng cách tới chất xúc tác.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {Object.keys(timingOverrides).length > 0 && (
+              <button
+                type="button"
+                onClick={handleResetTimingOverrides}
+                className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-800 transition"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Đặt lại điểm tự động</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Dashboard Kỹ Thuật & Sức Mạnh Giá (D3) */}
+        {timingScorecard.technicalSummary && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Card 1: Xu Hướng Kỹ Thuật */}
+            <div className="p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/40 space-y-1">
+              <span className="text-[10px] uppercase font-medium text-slate-500 block">Cấu Trúc Xu Hướng</span>
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  {timingScorecard.technicalSummary.trendStatus}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500 font-mono block">
+                So MA20: {timingScorecard.technicalSummary.priceVsMa20Pct > 0 ? '+' : ''}{timingScorecard.technicalSummary.priceVsMa20Pct}%
+              </span>
+            </div>
+
+            {/* Card 2: Thanh Khoản & Dòng Tiền */}
+            <div className="p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/40 space-y-1">
+              <span className="text-[10px] uppercase font-medium text-slate-500 block">Xác Nhận Thanh Khoản</span>
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5 text-blue-500" />
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  Vol / V20: {timingScorecard.technicalSummary.volVsVol20Pct}%
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500 block">
+                {timingScorecard.technicalSummary.volVsVol20Pct >= 120 ? 'Dòng tiền chủ động' : 'Thanh khoản ổn định'}
+              </span>
+            </div>
+
+            {/* Card 3: Sức Mạnh Giá RS 1M */}
+            <div className="p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/40 space-y-1">
+              <span className="text-[10px] uppercase font-medium text-slate-500 block">Sức Mạnh Giá RS 1M</span>
+              <div className="flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5 text-amber-500" />
+                <span className={`text-xs font-bold ${
+                  (timingScorecard.technicalSummary.rs1Month || 75) >= 80
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : (timingScorecard.technicalSummary.rs1Month || 75) >= 65
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-slate-600 dark:text-gray-400'
+                }`}>
+                  RS Rating: {timingScorecard.technicalSummary.rs1Month || 75}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500 block">
+                {(timingScorecard.technicalSummary.rs1Month || 75) >= 80 ? 'Top 20% khỏe nhất thị trường' : 'Vận động cân bằng'}
+              </span>
+            </div>
+
+            {/* Card 4: Xung Lực RSI */}
+            <div className="p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/40 space-y-1">
+              <span className="text-[10px] uppercase font-medium text-slate-500 block">Chỉ Báo RSI (14)</span>
+              <div className="flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-purple-500" />
+                <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">
+                  {timingScorecard.technicalSummary.rsi14 || 55.0}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-500 block">
+                {(timingScorecard.technicalSummary.rsi14 || 55) > 70 ? 'Vùng quá mua' : (timingScorecard.technicalSummary.rsi14 || 55) < 35 ? 'Vùng quá bán' : 'Vùng vận động lành mạnh'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Bảng Chi Tiết 4 Tiêu Chí Mục D */}
+        <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl">
+          <table className="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/60 font-semibold text-slate-700 dark:text-gray-300">
+                <th className="py-2.5 px-3 min-w-[200px]">Tiêu chí đánh giá</th>
+                <th className="py-2.5 px-3 min-w-[180px]">Dữ liệu / Chỉ số</th>
+                <th className="py-2.5 px-2.5 text-center w-28">Đánh giá</th>
+                <th className="py-2.5 px-2 text-center w-24">Điểm tự động</th>
+                <th className="py-2.5 px-2.5 text-center w-36">Chỉnh sửa</th>
+                <th className="py-2.5 px-3 min-w-[200px]">Điểm cuối &amp; Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
+              {timingScorecard.items.map((item) => {
+                const isOverridden = typeof timingOverrides[item.id]?.overrideScore === 'number';
+                return (
+                  <tr key={item.id} className="hover:bg-gray-50/40 dark:hover:bg-gray-800/30 transition">
+                    <td className="py-2.5 px-3">
+                      <div className="font-bold text-slate-900 dark:text-white">{item.code}. {item.name}</div>
+                      <div className="text-[11px] text-slate-500 dark:text-gray-400">Tối đa: {item.maxScore} điểm</div>
+                    </td>
+                    <td className="py-2.5 px-3 font-mono text-[11px] text-slate-700 dark:text-gray-300">
+                      {item.displayValue}
+                    </td>
+                    <td className="py-2.5 px-2.5 text-center">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        item.grade === 'RẤT TỐT'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                          : item.grade === 'TỐT'
+                          ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400'
+                          : item.grade === 'TRUNG BÌNH'
+                          ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'
+                          : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400'
+                      }`}>
+                        {item.grade}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-2 text-center font-bold font-mono text-slate-700 dark:text-gray-300">
+                      {item.autoScore}
+                    </td>
+                    <td className="py-2.5 px-2.5 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max={item.maxScore}
+                          value={isOverridden ? timingOverrides[item.id]?.overrideScore : ''}
+                          placeholder={String(item.autoScore)}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? undefined : Number(e.target.value);
+                            handleUpdateTimingOverride(item.id, val, timingOverrides[item.id]?.reason);
+                          }}
+                          className="w-16 px-1.5 py-1 text-xs font-mono font-bold text-center rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 focus:outline-none focus:border-emerald-500"
+                        />
+                        {isOverridden && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateTimingOverride(item.id, undefined, undefined)}
+                            title="Xóa điều chỉnh thủ công"
+                            className="text-slate-400 hover:text-rose-500"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400 text-xs">
+                          {item.finalScore} / {item.maxScore}đ
+                        </span>
+                        {isOverridden && (
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 italic">
+                            (Điều chỉnh)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-gray-400 mt-0.5 leading-snug">
+                        {item.note}
+                      </p>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

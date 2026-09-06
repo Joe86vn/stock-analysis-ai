@@ -88,6 +88,9 @@ export interface StockMarketData {
   sectorType?: SectorType;
   currentPrice: number;
   sharesOutstanding?: number;
+  adtv1MonthBillion?: number;
+  rsRating?: number;
+  rs1Month?: number;
   pe5YearMin: number;
   pe5YearMax: number;
   pe5YearAvg: number;
@@ -319,6 +322,12 @@ export interface ValuationHubState {
   rrRatio: number;
   dispersion: number;
   expectedValue: number;
+  opportunityScorecard?: {
+    thesisStatus?: 'INTACT' | 'MONITOR' | 'BROKEN';
+    manualOverrides?: Record<string, { overrideScore?: number; reason?: string }>;
+    scoreA?: number;
+    scoreC?: number;
+  };
   lastUpdated?: string;
 }
 
@@ -341,6 +350,7 @@ export interface ForecastQuarterMetrics {
 
   // 2. Biên lợi nhuận & Lợi nhuận
   grossMargin: number; // Biên gộp (%)
+  grossProfit?: number; // Lợi nhuận gộp (tỷ đồng)
   ebitdaMargin: number; // Biên EBITDA (%)
   ebitda: number; // EBITDA (tỷ đồng)
   netProfit: number; // LNST cốt lõi (tỷ đồng)
@@ -457,10 +467,77 @@ export interface CatalystScorecardData {
   tier: 'Rất mạnh' | 'Khá' | 'Trung bình' | 'Yếu';
 }
 
+export interface TimingCriterionData {
+  id: string;
+  code: string;
+  name: string;
+  maxScore: number;
+  autoScore: number;
+  overrideScore?: number;
+  finalScore: number;
+  grade: 'RẤT TỐT' | 'TỐT' | 'TRUNG BÌNH' | 'YẾU';
+  displayValue: string;
+  note: string;
+  manualReason?: string;
+  warning?: string;
+}
+
+export interface TimingScorecardData {
+  items: TimingCriterionData[];
+  totalScore: number; // /10.0
+  maxScore: 10.0;
+  tier: 'Rất thuận lợi' | 'Khá' | 'Trung bình' | 'Chưa thuận lợi';
+  manualOverrides?: Record<string, { overrideScore?: number; reason?: string }>;
+  technicalSummary?: {
+    trendStatus: 'Tăng mạnh' | 'Tích lũy bứt phá' | 'Đi ngang' | 'Phân phối / Gãy xu hướng';
+    priceVsMa20Pct: number;
+    priceVsMa50Pct: number;
+    volVsVol20Pct: number;
+    rsi14?: number;
+    rs1Month?: number;
+  };
+}
+
+export type ThesisStatus = 'INTACT' | 'MONITOR' | 'BROKEN';
+
+export interface PostInvestmentFramework {
+  positionTier?: 'THĂM DÒ' | 'CHUẨN' | 'TẬP TRUNG' | 'QUAN SÁT';
+  targetWeightPct?: number;
+  currentWeightPct?: number;
+  buyZone?: string;
+  takeProfitZone?: string;
+  nextReviewDate?: string;
+  kpiTrackingList?: Array<{
+    id: string;
+    kpiName: string;
+    currentValue: string;
+    targetValue: string;
+    warningThreshold: string;
+    status: 'on_track' | 'warning' | 'alert';
+    notes?: string;
+  }>;
+  thesisBreakers?: Array<{
+    id: string;
+    variableName: string;
+    warningThreshold: string;
+    probability: number;
+    impact: 'Rất lớn' | 'Lớn' | 'Vừa';
+    actionIfViolated: string;
+    status: 'safe' | 'warning' | 'broken';
+  }>;
+  preTradeChecklist?: Array<{
+    id: string;
+    question: string;
+    passed: boolean;
+    note?: string;
+  }>;
+}
+
 export interface SectionCatalysts {
   growthDriversAnalysis: string; // Phân tích các yếu tố ảnh hưởng tăng trưởng (Sản lượng, Giá bán, Chi phí)
   catalystList: CatalystItem[]; // Danh sách ma trận theo dõi 6-12 tháng
   scorecard: CatalystScorecardData; // Bảng điểm 25 điểm ValueX
+  timingScorecard?: TimingScorecardData; // Bảng điểm 10 điểm Thời Điểm & Điểm Vào
 }
 
 // Giữ lại alias SectionD để tương thích ngược nếu cần
@@ -483,4 +560,5 @@ export interface AnalysisReport {
   generationModel?: string;
   qualitativeInsights?: import('@/types/qualitative').QualitativeInsights;
   isR2Synchronized?: boolean;
+  postInvestmentFramework?: PostInvestmentFramework;
 }

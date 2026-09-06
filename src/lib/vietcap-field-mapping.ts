@@ -466,8 +466,10 @@ export function parseVietcapQuarter(
   statItem: any = {},
   noteItem: any = {}
 ): ParsedVietcapQuarter {
-  const year = isItem.yearReport || bsItem.yearReport || cfItem.yearReport || statItem.yearReport || (typeof statItem.year === 'string' ? parseInt(statItem.year, 10) : 2026);
-  const quarter = isItem.lengthReport || bsItem.lengthReport || cfItem.lengthReport || statItem.quarter || 1;
+  const rawYear = isItem.yearReport || bsItem.yearReport || cfItem.yearReport || statItem.yearReport || statItem.year || 2025;
+  const year = Number(rawYear);
+  const rawQ = isItem.lengthReport || bsItem.lengthReport || cfItem.lengthReport || statItem.quarter || 1;
+  const quarter = Number(rawQ) >= 1 && Number(rawQ) <= 4 ? Number(rawQ) : 1;
   const period = `Q${quarter}/${year}`;
 
   const toBillion = (val: any) => {
@@ -728,24 +730,34 @@ export async function fetchFullVietcapData(ticker: string, options: { maxQuarter
     const statItems: any[] = Array.isArray(statJson?.data) ? statJson.data : [];
 
     // Lập bản đồ key: `${year}_${quarter}` để ghép nối chính xác các bảng báo cáo
+    // CHÚ Ý: Vietcap trả về lengthReport = 5 cho báo cáo năm/lũy kế, chỉ chấp nhận quý 1..4
+    const isValidQuarter = (lr: any) => {
+      const q = Number(lr);
+      return Number.isInteger(q) && q >= 1 && q <= 4;
+    };
+
     const quartersMap: Record<string, { is?: any; bs?: any; cf?: any; note?: any; stat?: any }> = {};
 
     isQuarters.forEach((it) => {
+      if (!isValidQuarter(it.lengthReport)) return;
       const key = `${it.yearReport}_${it.lengthReport}`;
       quartersMap[key] = { ...(quartersMap[key] || {}), is: it };
     });
 
     bsQuarters.forEach((it) => {
+      if (!isValidQuarter(it.lengthReport)) return;
       const key = `${it.yearReport}_${it.lengthReport}`;
       quartersMap[key] = { ...(quartersMap[key] || {}), bs: it };
     });
 
     cfQuarters.forEach((it) => {
+      if (!isValidQuarter(it.lengthReport)) return;
       const key = `${it.yearReport}_${it.lengthReport}`;
       quartersMap[key] = { ...(quartersMap[key] || {}), cf: it };
     });
 
     noteQuarters.forEach((it) => {
+      if (!isValidQuarter(it.lengthReport)) return;
       const key = `${it.yearReport}_${it.lengthReport}`;
       quartersMap[key] = { ...(quartersMap[key] || {}), note: it };
     });
@@ -753,7 +765,7 @@ export async function fetchFullVietcapData(ticker: string, options: { maxQuarter
     statItems.forEach((it) => {
       const y = it.yearReport || (typeof it.year === 'string' ? parseInt(it.year, 10) : it.year);
       const q = it.quarter || it.lengthReport;
-      if (y && q) {
+      if (y && isValidQuarter(q)) {
         const key = `${y}_${q}`;
         quartersMap[key] = { ...(quartersMap[key] || {}), stat: it };
       }

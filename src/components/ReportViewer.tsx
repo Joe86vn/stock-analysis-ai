@@ -9,8 +9,9 @@ import { GrowthQualityScorecard } from './GrowthQualityScorecard';
 import { BusinessQualityScorecard } from './BusinessQualityScorecard';
 import { QuarterlyForecastBridge } from './QuarterlyForecastBridge';
 import { CatalystTracker } from './CatalystTracker';
+import { InvestmentDecisionHub } from './InvestmentDecisionHub';
 import { ErrorBoundary } from './ErrorBoundary';
-import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw, TrendingUp, Award, Layers, Sparkles } from 'lucide-react';
+import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw, TrendingUp, Award, Layers, Sparkles, Compass } from 'lucide-react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -318,10 +319,11 @@ export function ReportViewer({
   onRegenerate,
   isGenerating,
 }: ReportViewerProps) {
-  const [activeTab, setActiveTab] = useState<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H'>('A');
+  const [activeTab, setActiveTab] = useState<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'>('A');
   const [isEditing, setIsEditing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [realQuarterlyFinancials, setRealQuarterlyFinancials] = useState<any[]>([]);
+  const [priceHistory, setPriceHistory] = useState<any[]>([]);
 
   // Fetch real BCTC quarterly data from Vietcap IQ API endpoint
   useEffect(() => {
@@ -334,6 +336,15 @@ export function ReportViewer({
           }
         })
         .catch((err) => console.warn('Failed to fetch real financials:', err));
+
+      fetch(`/api/stocks/${report.ticker}/price-history`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && Array.isArray(data.history)) {
+            setPriceHistory(data.history);
+          }
+        })
+        .catch((err) => console.warn('Failed to fetch price history:', err));
     }
   }, [report?.ticker]);
 
@@ -1130,7 +1141,7 @@ export function ReportViewer({
             }`}
         >
           <Sparkles className="h-4 w-4" />
-          <span>G. Chất Xúc Tác (25đ)</span>
+          <span>G. Chất Xúc Tác - Timing</span>
         </button>
 
         <button
@@ -1142,6 +1153,17 @@ export function ReportViewer({
         >
           <Target className="h-4 w-4" />
           <span>H. Định Giá &amp; Kịch Bản</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('I')}
+          className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'I'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            }`}
+        >
+          <Compass className="h-4 w-4" />
+          <span>I. Cơ Hội Đầu Tư</span>
         </button>
       </div>
 
@@ -1505,15 +1527,16 @@ export function ReportViewer({
           </ErrorBoundary>
         </div>
 
-        {/* TAB G: CHẤT XÚC TÁC & KHẢ NĂNG TÁI ĐỊNH GIÁ (25 ĐIỂM) */}
+        {/* TAB G: CHẤT XÚC TÁC & TIMING ĐẦU TƯ (35 ĐIỂM) */}
         <div className={`space-y-5 print:pt-6 ${activeTab === 'G' ? 'block' : 'hidden print:block'}`}>
-          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần G: Chất Xúc Tác">
+          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần G: Chất Xúc Tác & Timing">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-              G. CHẤT XÚC TÁC &amp; KHẢ NĂNG TÁI ĐỊNH GIÁ (25 ĐIỂM)
+              G. CHẤT XÚC TÁC &amp; TIMING ĐẦU TƯ (35 ĐIỂM)
             </h2>
             <CatalystTracker
               report={report}
               isEditing={isEditing}
+              priceHistory={priceHistory}
               growthDriversText={secFValuation.growthDriversRevenueAndCost}
               onUpdateGrowthDriversText={(newText) => {
                 setSecFValuation({ ...secFValuation, growthDriversRevenueAndCost: newText });
@@ -1546,6 +1569,22 @@ export function ReportViewer({
                 setSecFValuation(updatedReport.sectionF);
                 onUpdateReport(updatedReport);
               }}
+            />
+          </ErrorBoundary>
+        </div>
+
+        {/* TAB I: CƠ HỘI ĐẦU TƯ (PHIẾU TỔNG HỢP & QUYẾT ĐỊNH) */}
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'I' ? 'block' : 'hidden print:block'}`}>
+          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần I: Cơ Hội Đầu Tư">
+            <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
+              I. PHIẾU TỔNG HỢP &amp; QUYẾT ĐỊNH CƠ HỘI ĐẦU TƯ
+            </h2>
+            <InvestmentDecisionHub
+              report={report}
+              realQuarterlyFinancials={realQuarterlyFinancials}
+              priceHistory={priceHistory}
+              onNavigateToTab={(tabId) => setActiveTab(tabId)}
+              onUpdateReport={onUpdateReport}
             />
           </ErrorBoundary>
         </div>

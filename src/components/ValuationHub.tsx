@@ -15,11 +15,12 @@ import {
   aggregateScenarios,
   generateScenarioNarrative,
 } from '@/lib/valuation-engine';
-import { DataBridgeBanner } from './valuation-hub/DataBridgeBanner';
 import { MethodSelector } from './valuation-hub/MethodSelector';
 import { MethodDetailPanels } from './valuation-hub/MethodDetailPanels';
 import { ScenarioSummary } from './valuation-hub/ScenarioSummary';
 import { HistoricalValuationChart } from './valuation-hub/HistoricalValuationChart';
+import { OpportunityScorecard } from './valuation-hub/OpportunityScorecard';
+import { computeOpportunityScoreAC, ThesisStatus } from '@/lib/opportunity-scoring-engine';
 
 interface ValuationHubProps {
   report: AnalysisReport;
@@ -172,6 +173,16 @@ export function ValuationHub({
     base: report.sectionF?.valuationHub?.base?.narrative || '',
     bull: report.sectionF?.valuationHub?.bull?.narrative || '',
   });
+
+  // State Trạng thái Luận điểm Đầu tư & Điều chỉnh thủ công Điểm Cơ Hội (Mục A & C)
+  const [thesisStatus, setThesisStatus] = useState<ThesisStatus>(
+    (report.sectionF?.valuationHub?.opportunityScorecard?.thesisStatus as ThesisStatus) || 'INTACT'
+  );
+  const [manualOverrides, setManualOverrides] = useState<
+    Record<string, { overrideScore?: number; reason?: string }>
+  >(
+    report.sectionF?.valuationHub?.opportunityScorecard?.manualOverrides || {}
+  );
 
   // 1. Fetch dữ liệu thống kê lịch sử P/E, P/B, Top 3 peers và Lịch sử giá 6 tháng
   useEffect(() => {
@@ -355,7 +366,65 @@ export function ValuationHub({
     };
   }, [narratives, ticker, scenarioResults, computedMethods, epsForward, growthTier]);
 
-  // 5. Đồng bộ state lên report qua debounce (500ms) để tránh re-render lặp
+  // 5. Tính Điểm Cơ Hội Đầu Tư: Mục A (Định giá & Biên an toàn 40đ) và Mục C (Rủi ro / Luận điểm 25đ)
+  const opportunityScoreResult = useMemo(() => {
+    return computeOpportunityScoreAC({
+      baseUpsidePct: scenarioResults.base.updownPct,
+      bearDownsidePct: scenarioResults.bear.updownPct,
+      rrRatio: scenarioResults.rrRatio,
+      dispersion: scenarioResults.dispersion,
+      currentPe: currentPrice > 0 && epsForward > 0 ? Number((currentPrice / epsForward).toFixed(1)) : 15,
+      medianPe: historicalStats?.peMedian,
+      peerMedianPe: peerMedians?.pe,
+      currentPb: currentPrice > 0 && bvpsForward > 0 ? Number((currentPrice / bvpsForward).toFixed(2)) : 1.5,
+      medianPb: historicalStats?.pbMedian,
+      growthTier,
+      netDebt,
+      annualCashDividend: dividendPolicy.annualCashDividend,
+      payoutRatio: dividendPolicy.payoutRatio,
+      bvpsForward,
+      currentPrice,
+      adtvBillion: report.marketData?.adtv1MonthBillion,
+      thesisStatus,
+      manualOverrides,
+    });
+  }, [
+    scenarioResults.base.updownPct,
+    scenarioResults.bear.updownPct,
+    scenarioResults.rrRatio,
+    scenarioResults.dispersion,
+    currentPrice,
+    epsForward,
+    historicalStats?.peMedian,
+    historicalStats?.pbMedian,
+    peerMedians?.pe,
+    bvpsForward,
+    growthTier,
+    netDebt,
+    dividendPolicy.annualCashDividend,
+    dividendPolicy.payoutRatio,
+    report.marketData?.adtv1MonthBillion,
+    thesisStatus,
+    manualOverrides,
+  ]);
+
+  const handleUpdateOverride = (id: string, overrideScore?: number, reason?: string) => {
+    setManualOverrides((prev) => {
+      const next = { ...prev };
+      if (overrideScore === undefined) {
+        delete next[id];
+      } else {
+        next[id] = { overrideScore, reason };
+      }
+      return next;
+    });
+  };
+
+  const handleResetOverrides = () => {
+    setManualOverrides({});
+  };
+
+  // 6. Đồng bộ state lên report qua debounce (500ms) để tránh re-render lặp
   const isInitialMount = useRef(true);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -394,6 +463,12 @@ export function ValuationHub({
         rrRatio: scenarioResults.rrRatio,
         dispersion: scenarioResults.dispersion,
         expectedValue: scenarioResults.expectedValue,
+        opportunityScorecard: {
+          thesisStatus,
+          manualOverrides,
+          scoreA: opportunityScoreResult.sectionA.totalScore,
+          scoreC: opportunityScoreResult.sectionC.totalScore,
+        },
         lastUpdated: new Date().toISOString(),
       };
 
@@ -431,6 +506,9 @@ export function ValuationHub({
     historicalStats,
     scenarioResults,
     finalNarratives,
+    opportunityScoreResult,
+    thesisStatus,
+    manualOverrides,
   ]);
 
   // Handlers
@@ -471,21 +549,17 @@ export function ValuationHub({
 
   return (
     <div className="space-y-5">
-      {/* 1. Dữ Liệu Nền TTM Forward */}
-      <DataBridgeBanner
-        epsForward={epsForward}
-        ebitdaForward={ebitdaForward}
-        netProfitForward={netProfitForward}
-        bvpsForward={bvpsForward}
-        netDebt={netDebt}
-        sharesOutstanding={sharesOutstanding}
-        hasForecastData={hasForecastData}
-        payoutRatio={dividendPolicy.payoutRatio}
-        annualCashDividend={dividendPolicy.annualCashDividend}
-        onNavigateToForecast={() => onNavigateToTab?.('F')}
+      {/* 1. Điểm Cơ Hội Đầu Tư: Mục A (Định Giá & Biên An Toàn - 40đ) & Mục C (Rủi Ro / Luận Điểm - 25đ) */}
+      <OpportunityScorecard
+        scoreResult={opportunityScoreResult}
+        thesisStatus={thesisStatus}
+        onUpdateThesisStatus={setThesisStatus}
+        manualOverrides={manualOverrides}
+        onUpdateOverride={handleUpdateOverride}
+        onResetOverrides={handleResetOverrides}
       />
 
-      {/* 2. Phân Khu Tổng Hợp Trọng Tâm: 3 Kịch Bản, Thước Đo R/R & Biểu Đồ Giá 6 Tháng (Executive First) */}
+      {/* 2. Phân Khu Tổng Hợp Trọng Tâm: 3 Kịch Bản, Thước Đo R/R & Biểu Đồ Giá 12 Tháng (Executive First) */}
       <ScenarioSummary
         bear={{
           ...scenarioResults.bear,

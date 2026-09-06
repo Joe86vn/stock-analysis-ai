@@ -221,8 +221,7 @@ E. Chất lượng doanh nghiệp (ValueX Pillar 3 - 40 điểm):
   - partG_ShockResilience: Nhóm G - Khả năng chống chịu suy thoái và thích ứng công nghệ.
 
 F. Triển vọng kinh doanh & Định giá:
-  - growthDriversRevenueAndCost: Phân tích sâu sắc các yếu tố tăng trưởng tương lai: Sản lượng (Q), Giá bán (P) và Chi phí (C).
-  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH TÍNH TOÁN dự phóng theo quy trình Bottom-Up cho 2 năm NĂM 1 (${year1}) VÀ NĂM 2 (${year2}).
+  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH DỰ PHÓNG DOANH THU & LNST THEO CHUẨN VALUEX. Yêu cầu chi tiết: (1) Xác định 1-2 mảng kinh doanh cốt lõi (chiếm >= 75% doanh thu); (2) Bóc tách định tính 4 nhân tố điều chỉnh doanh thu trên mảng cốt lõi: Tác động Sản lượng/Công suất (tiến độ công suất mới, đơn hàng backlog), Giá bán bình quân ASP (khả năng chuyển giao chi phí, biến động giá thị trường), Cơ cấu sản phẩm/Thị phần/Nhu cầu, và Mùa vụ/Khác; (3) Cơ sở và xu hướng 3 Biên lợi nhuận (Biên gộp, EBITDA, LNST cốt lõi) so với mức trung bình 4 quý lịch sử (áp lực giá vốn COGS vs ASP, đòn bẩy hoạt động SG&A, khấu hao/lãi vay dự án mới); (4) Tuyệt đối KHÔNG chỉ chép lại các con số trần trụi từng quý mà phải cung cấp luận cứ kinh doanh và nguyên nhân tăng giảm cụ thể.
   - forecastYear1Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year1}.
   - forecastYear2Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year2}.
   - forecastQ1: LNST dự phóng cả năm ${year1} (số nguyên VND).
