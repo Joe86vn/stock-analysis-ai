@@ -293,9 +293,12 @@ export function ValuationCalculator({
   const currentQuarters = selectedYear === year1.toString() ? quartersYear1 : quartersYear2;
 
   // EPS = Total Net Profit (VND) / Shares Outstanding
-  const activeNetProfitVnd = activeSummary.totalNetProfit * 1000000000;
-  const sharesInMillions = valuation.sharesOutstanding || 5815;
-  const activeEps = Math.round(activeNetProfitVnd / (sharesInMillions * 1000000));
+  const activeNetProfitVnd = (activeSummary.totalNetProfit || 0) * 1000000000;
+  const rawShares = valuation?.sharesOutstanding;
+  const sharesInMillions = (typeof rawShares === 'number' && rawShares > 0)
+    ? rawShares
+    : Number(String(rawShares || 5815).replace(/,/g, '')) || 5815;
+  const activeEps = Math.max(0, Math.round(activeNetProfitVnd / (sharesInMillions * 1000000)));
 
   // Sync to parent report whenever values change, guarded against infinite loops
   const lastSyncedValuesRef = useRef<{ q1?: number; q2?: number; total?: number; eps?: number }>({});
@@ -308,10 +311,10 @@ export function ValuationCalculator({
 
     // Skip update if already matches existing valuation and last sync to prevent infinite loops
     if (
-      valuation.forecastNetProfitQ1 === q1 &&
-      valuation.forecastNetProfitQ2 === q2 &&
-      valuation.totalForecastProfit === total &&
-      valuation.epsForward === eps
+      valuation?.forecastNetProfitQ1 === q1 &&
+      valuation?.forecastNetProfitQ2 === q2 &&
+      valuation?.totalForecastProfit === total &&
+      valuation?.epsForward === eps
     ) {
       return;
     }
@@ -336,20 +339,27 @@ export function ValuationCalculator({
     });
   }, [summaryYear1.totalNetProfit, summaryYear2.totalNetProfit, activeNetProfitVnd, activeEps, valuation, onUpdateValuation]);
 
-  // Target prices
-  const priceBase = Math.round(activeEps * valuation.peBase);
-  const priceBull = Math.round(activeEps * valuation.peBull);
-  const priceBear = Math.round(activeEps * valuation.peBear);
+  // Target P/E Multipliers (strictly sanitized positive numbers)
+  const peBase = Math.max(0.1, Number(valuation?.peBase) || 15);
+  const peBull = Math.max(0.1, Number(valuation?.peBull) || 20);
+  const peBear = Math.max(0.1, Number(valuation?.peBear) || 10);
 
-  const upsideBase = currentPrice > 0 ? Math.round(((priceBase - currentPrice) / currentPrice) * 100) : 0;
-  const upsideBull = currentPrice > 0 ? Math.round(((priceBull - currentPrice) / currentPrice) * 100) : 0;
-  const upsideBear = currentPrice > 0 ? Math.round(((priceBear - currentPrice) / currentPrice) * 100) : 0;
+  // Target prices (guarded against NaN)
+  const priceBase = Math.max(0, Math.round(activeEps * peBase));
+  const priceBull = Math.max(0, Math.round(activeEps * peBull));
+  const priceBear = Math.max(0, Math.round(activeEps * peBear));
+
+  const validCurrentPrice = Number(currentPrice) > 0 ? Number(currentPrice) : 0;
+
+  const upsideBase = validCurrentPrice > 0 ? Math.round(((priceBase - validCurrentPrice) / validCurrentPrice) * 100) : 0;
+  const upsideBull = validCurrentPrice > 0 ? Math.round(((priceBull - validCurrentPrice) / validCurrentPrice) * 100) : 0;
+  const upsideBear = validCurrentPrice > 0 ? Math.round(((priceBear - validCurrentPrice) / validCurrentPrice) * 100) : 0;
 
   const chartData = [
-    { name: 'Giá Hiện Tại', price: currentPrice, color: '#64748B' },
-    { name: 'Thận Trọng (Bear)', price: priceBear, color: '#EF4444' },
-    { name: 'Cơ Sở (Base)', price: priceBase, color: '#3B82F6' },
-    { name: 'Tích Cực (Bull)', price: priceBull, color: '#10B981' },
+    { name: 'Giá Hiện Tại', price: validCurrentPrice, color: '#64748B' },
+    { name: 'Thận Trọng (Bear)', price: Number.isFinite(priceBear) ? priceBear : validCurrentPrice, color: '#EF4444' },
+    { name: 'Cơ Sở (Base)', price: Number.isFinite(priceBase) ? priceBase : validCurrentPrice, color: '#3B82F6' },
+    { name: 'Tích Cực (Bull)', price: Number.isFinite(priceBull) ? priceBull : validCurrentPrice, color: '#10B981' },
   ];
 
   return (
@@ -584,7 +594,7 @@ export function ValuationCalculator({
                 {upsideBear >= 0 ? '+' : ''}{upsideBear}%
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 dark:text-gray-500">P/E = {valuation.peBear}x</span>
+            <span className="text-[10px] text-slate-400 dark:text-gray-500">P/E = {peBear}x</span>
           </div>
 
           <div className="rounded-xl border border-blue-200 dark:border-sky-500/30 bg-blue-50/50 dark:bg-sky-500/10 p-3.5 flex flex-col justify-between text-center shadow-2xs">
@@ -597,7 +607,7 @@ export function ValuationCalculator({
                 {upsideBase >= 0 ? '+' : ''}{upsideBase}%
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 dark:text-gray-400">P/E = {valuation.peBase}x</span>
+            <span className="text-[10px] text-slate-400 dark:text-gray-400">P/E = {peBase}x</span>
           </div>
 
           <div className="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-500/10 p-3.5 flex flex-col justify-between text-center shadow-2xs">
@@ -610,7 +620,7 @@ export function ValuationCalculator({
                 {upsideBull >= 0 ? '+' : ''}{upsideBull}%
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 dark:text-gray-400">P/E = {valuation.peBull}x</span>
+            <span className="text-[10px] text-slate-400 dark:text-gray-400">P/E = {peBull}x</span>
           </div>
         </div>
       </div>
