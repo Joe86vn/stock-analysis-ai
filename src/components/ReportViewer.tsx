@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AnalysisReport, SectionA, SectionB, SectionC, SectionD_GrowthQuality, SectionE_BusinessQuality, SectionF_Valuation, SectorType } from '@/types/analysis';
 import { ValuationCalculator } from './ValuationCalculator';
 import { FinancialHealthScorecard } from './FinancialHealthScorecard';
 import { GrowthQualityScorecard } from './GrowthQualityScorecard';
 import { BusinessQualityScorecard } from './BusinessQualityScorecard';
+import { ErrorBoundary } from './ErrorBoundary';
 import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw, TrendingUp, Award } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -347,22 +348,27 @@ export function ReportViewer({
     }
   );
 
-  // Sync internal states when report prop updates
+  // Sync internal states when report prop updates (guarded by sync key to avoid state cascade)
+  const reportSyncIdRef = useRef<string>('');
   useEffect(() => {
-    setSecA(report.sectionA);
-    setSecB(report.sectionB);
-    setSecC(report.sectionC);
-    setSecD(report.sectionD || {});
-    setSecE(report.sectionE || {});
-    setSecFValuation(
-      report.sectionF || {
-        growthDriversRevenueAndCost: (report as any).sectionD?.growthDriversRevenueAndCost || '',
-        quarterlyForecastReasoning: (report as any).sectionD?.quarterlyForecastReasoning || '',
-        valuation: (report as any).sectionD?.valuation || {} as any,
-      }
-    );
-    setIsEditing(false);
-  }, [report]);
+    const syncId = `${report.ticker}-${report.createdDate}-${report.generationModel || 'default'}-${report.isR2Synchronized ? 'r2' : 'nor2'}`;
+    if (reportSyncIdRef.current !== syncId) {
+      reportSyncIdRef.current = syncId;
+      setSecA(report.sectionA);
+      setSecB(report.sectionB);
+      setSecC(report.sectionC);
+      setSecD(report.sectionD || {});
+      setSecE(report.sectionE || {});
+      setSecFValuation(
+        report.sectionF || {
+          growthDriversRevenueAndCost: (report as any).sectionD?.growthDriversRevenueAndCost || '',
+          quarterlyForecastReasoning: (report as any).sectionD?.quarterlyForecastReasoning || '',
+          valuation: (report as any).sectionD?.valuation || {} as any,
+        }
+      );
+      setIsEditing(false);
+    }
+  }, [report.ticker, report.createdDate, report.generationModel, report.isR2Synchronized, report.sectionA, report.sectionB, report.sectionC, report.sectionD, report.sectionE, report.sectionF]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -1153,465 +1159,477 @@ export function ReportViewer({
       <div className="mt-5">
         {/* TAB A: TỔNG QUAN DOANH NGHIỆP */}
         <div className={`space-y-5 ${activeTab === 'A' ? 'block' : 'hidden print:block'}`}>
-          <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-            A. TỔNG QUAN DOANH NGHIỆP
-          </h2>
-          <SectionCard title="1. Tổng quan doanh nghiệp" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={6}
-                value={secA.historyAndOverview}
-                onChange={(e) => setSecA({ ...secA, historyAndOverview: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed animate-fade-in">
-                {renderMarkdown(secA.historyAndOverview)}
-              </div>
-            )}
-          </SectionCard>
+          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần A: Tổng Quan Doanh Nghiệp">
+            <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
+              A. TỔNG QUAN DOANH NGHIỆP
+            </h2>
+            <SectionCard title="1. Tổng quan doanh nghiệp" isEditing={isEditing}>
+              {isEditing ? (
+                <textarea
+                  rows={6}
+                  value={secA.historyAndOverview}
+                  onChange={(e) => setSecA({ ...secA, historyAndOverview: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                />
+              ) : (
+                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed animate-fade-in">
+                  {renderMarkdown(secA.historyAndOverview)}
+                </div>
+              )}
+            </SectionCard>
 
-          <SectionCard title="2. Cơ cấu cổ đông & ban lãnh đạo" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={4}
-                value={secA.shareholdersAndManagement}
-                onChange={(e) => setSecA({ ...secA, shareholdersAndManagement: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                {renderMarkdown(secA.shareholdersAndManagement)}
-              </div>
-            )}
-          </SectionCard>
+            <SectionCard title="2. Cơ cấu cổ đông & ban lãnh đạo" isEditing={isEditing}>
+              {isEditing ? (
+                <textarea
+                  rows={4}
+                  value={secA.shareholdersAndManagement}
+                  onChange={(e) => setSecA({ ...secA, shareholdersAndManagement: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                />
+              ) : (
+                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
+                  {renderMarkdown(secA.shareholdersAndManagement)}
+                </div>
+              )}
+            </SectionCard>
 
-          <SectionCard title="3. Cơ cấu doanh nghiệp & Công ty liên kết (trọng số lớn)" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={4}
-                value={secA.subsidiariesAndAffiliates}
-                onChange={(e) => setSecA({ ...secA, subsidiariesAndAffiliates: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                {renderMarkdown(secA.subsidiariesAndAffiliates)}
-              </div>
-            )}
-          </SectionCard>
+            <SectionCard title="3. Cơ cấu doanh nghiệp & Công ty liên kết (trọng số lớn)" isEditing={isEditing}>
+              {isEditing ? (
+                <textarea
+                  rows={4}
+                  value={secA.subsidiariesAndAffiliates}
+                  onChange={(e) => setSecA({ ...secA, subsidiariesAndAffiliates: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                />
+              ) : (
+                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
+                  {renderMarkdown(secA.subsidiariesAndAffiliates)}
+                </div>
+              )}
+            </SectionCard>
+          </ErrorBoundary>
         </div>
 
         {/* TAB B: HOẠT ĐỘNG KINH DOANH & CHUỖI GIÁ TRỊ */}
         <div className={`space-y-5 print:pt-6 ${activeTab === 'B' ? 'block' : 'hidden print:block'}`}>
-          <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-            B. HOẠT ĐỘNG KINH DOANH &amp; CHUỖI GIÁ TRỊ
-          </h2>
-          <SupplyChainFlowchart ticker={report.ticker} sectorType={report.marketData.sectorType} />
+          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần B: Hoạt Động Kinh Doanh & Chuỗi Giá Trị">
+            <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
+              B. HOẠT ĐỘNG KINH DOANH &amp; CHUỖI GIÁ TRỊ
+            </h2>
+            <SupplyChainFlowchart ticker={report.ticker} sectorType={report.marketData.sectorType} />
 
-          <SectionCard title="1. Chuỗi giá trị: Đầu vào (Yếu tố chi phí & Nhà cung cấp)" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={5}
-                value={secB.valueChainInput}
-                onChange={(e) => setSecB({ ...secB, valueChainInput: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                {renderMarkdown(secB.valueChainInput)}
-              </div>
-            )}
-          </SectionCard>
-
-          <SectionCard title="2. Quy trình vận hành & Năng lực công suất" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={5}
-                value={secB.valueChainProduction}
-                onChange={(e) => setSecB({ ...secB, valueChainProduction: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                {renderMarkdown(secB.valueChainProduction)}
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Section 3: Đầu ra + Pie Chart tích hợp bên dưới */}
-          <SectionCard title="3. Đầu ra (Cơ cấu doanh thu & Phân tích sản phẩm chính)" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={5}
-                value={secB.valueChainOutput}
-                onChange={(e) => setSecB({ ...secB, valueChainOutput: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="space-y-4">
+            <SectionCard title="1. Chuỗi giá trị: Đầu vào (Yếu tố chi phí & Nhà cung cấp)" isEditing={isEditing}>
+              {isEditing ? (
+                <textarea
+                  rows={5}
+                  value={secB.valueChainInput}
+                  onChange={(e) => setSecB({ ...secB, valueChainInput: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                />
+              ) : (
                 <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                  {renderMarkdown(secB.valueChainOutput)}
+                  {renderMarkdown(secB.valueChainInput)}
                 </div>
+              )}
+            </SectionCard>
 
-                {/* Pie Chart nhúng ngay dưới phân tích đầu ra */}
-                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-1.5 font-heading">
-                    <BarChart2 className="h-4 w-4" />
-                    Biểu đồ Cơ cấu Doanh thu Đầu ra (%)
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                    {/* Legend list bên trái */}
-                    <div className="space-y-2">
-                      {getProductMixData(report.ticker).map((entry, i) => (
-                        <div key={i} className="flex items-center gap-2.5">
-                          <span
-                            className="inline-block h-3 w-3 rounded-full shrink-0"
-                            style={{ backgroundColor: entry.color }}
-                          />
-                          <span className="text-xs text-slate-800 dark:text-gray-300 flex-1 font-medium">{entry.name}</span>
-                          <span
-                            className="text-xs font-bold tabular-nums"
-                            style={{ color: entry.color }}
-                          >
-                            {entry.value}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+            <SectionCard title="2. Quy trình vận hành & Năng lực công suất" isEditing={isEditing}>
+              {isEditing ? (
+                <textarea
+                  rows={5}
+                  value={secB.valueChainProduction}
+                  onChange={(e) => setSecB({ ...secB, valueChainProduction: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                />
+              ) : (
+                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
+                  {renderMarkdown(secB.valueChainProduction)}
+                </div>
+              )}
+            </SectionCard>
 
-                    {/* Pie chart bên phải */}
-                    {isMounted ? (
-                      <div className="h-52 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={getProductMixData(report.ticker)}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={85}
-                              paddingAngle={3}
-                              dataKey="value"
-                              label={({ cx, cy, midAngle, outerRadius, value, name }) => {
-                                const RADIAN = Math.PI / 180;
-                                const radius = outerRadius + 16;
-                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                return (
-                                  <text
-                                    x={x}
-                                    y={y}
-                                    fill="#64748B"
-                                    textAnchor={x > cx ? 'start' : 'end'}
-                                    dominantBaseline="central"
-                                    style={{ fontSize: '10px', fontWeight: '700' }}
-                                  >
-                                    {`${value}%`}
-                                  </text>
-                                );
-                              }}
-                              labelLine={{ stroke: '#94A3B8', strokeWidth: 1 }}
-                            >
-                              {getProductMixData(report.ticker).map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
-                              itemStyle={{ color: '#fff', fontSize: '11px' }}
-                              formatter={(value: number, name: string) => [`${value}%`, name]}
+            {/* Section 3: Đầu ra + Pie Chart tích hợp bên dưới */}
+            <SectionCard title="3. Đầu ra (Cơ cấu doanh thu & Phân tích sản phẩm chính)" isEditing={isEditing}>
+              {isEditing ? (
+                <textarea
+                  rows={5}
+                  value={secB.valueChainOutput}
+                  onChange={(e) => setSecB({ ...secB, valueChainOutput: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                />
+              ) : (
+                <div className="space-y-4">
+                  <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
+                    {renderMarkdown(secB.valueChainOutput)}
+                  </div>
+
+                  {/* Pie Chart nhúng ngay dưới phân tích đầu ra */}
+                  <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-1.5 font-heading">
+                      <BarChart2 className="h-4 w-4" />
+                      Biểu đồ Cơ cấu Doanh thu Đầu ra (%)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                      {/* Legend list bên trái */}
+                      <div className="space-y-2">
+                        {getProductMixData(report.ticker).map((entry, i) => (
+                          <div key={i} className="flex items-center gap-2.5">
+                            <span
+                              className="inline-block h-3 w-3 rounded-full shrink-0"
+                              style={{ backgroundColor: entry.color }}
                             />
-                          </PieChart>
-                        </ResponsiveContainer>
+                            <span className="text-xs text-slate-800 dark:text-gray-300 flex-1 font-medium">{entry.name}</span>
+                            <span
+                              className="text-xs font-bold tabular-nums"
+                              style={{ color: entry.color }}
+                            >
+                              {entry.value}%
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ) : (
-                      <div className="h-52 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
-                    )}
+
+                      {/* Pie chart bên phải */}
+                      {isMounted && activeTab === 'B' ? (
+                        <div className="h-52 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={getProductMixData(report.ticker)}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={50}
+                                outerRadius={85}
+                                paddingAngle={3}
+                                dataKey="value"
+                                label={({ cx, cy, midAngle, outerRadius, value, name }) => {
+                                  const RADIAN = Math.PI / 180;
+                                  const radius = outerRadius + 16;
+                                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                  return (
+                                    <text
+                                      x={x}
+                                      y={y}
+                                      fill="#64748B"
+                                      textAnchor={x > cx ? 'start' : 'end'}
+                                      dominantBaseline="central"
+                                      style={{ fontSize: '10px', fontWeight: '700' }}
+                                    >
+                                      {`${value}%`}
+                                    </text>
+                                  );
+                                }}
+                                labelLine={{ stroke: '#94A3B8', strokeWidth: 1 }}
+                              >
+                                {getProductMixData(report.ticker).map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
+                                itemStyle={{ color: '#fff', fontSize: '11px' }}
+                                formatter={(value: number, name: string) => [`${value}%`, name]}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-52 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Section 4: Danh mục Dự án Mở rộng & CAPEX Trọng điểm (Bóc tách từ R2) */}
-          {report.qualitativeInsights?.sectionC_GrowthProjectsAndExpansion && report.qualitativeInsights.sectionC_GrowthProjectsAndExpansion.length > 0 && (
-            <SectionCard title="4. Danh mục Dự án Mở rộng & Kế hoạch CAPEX Trọng điểm" isEditing={false}>
-              <div className="space-y-3">
-                <p className="text-xs text-slate-600 dark:text-gray-400">
-                  Dữ liệu bóc tách chuẩn xác từ Báo Cáo Thường Niên, Nghị Quyết ĐHCĐ và Báo Cáo Phân Tích CTCK (Nguồn: Cloudflare R2):
-                </p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-200 dark:border-gray-800 text-slate-700 dark:text-gray-300 font-bold">
-                        <th className="py-2 px-2.5">Dự án</th>
-                        <th className="py-2 px-2">Phân loại</th>
-                        <th className="py-2 px-2 text-right">Tổng vốn (Tỷ)</th>
-                        <th className="py-2 px-2.5">Tiến độ thực tế &amp; Giải ngân</th>
-                        <th className="py-2 px-2">Vận hành dự kiến</th>
-                        <th className="py-2 px-2.5">Kỳ vọng đóng góp</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
-                      {report.qualitativeInsights.sectionC_GrowthProjectsAndExpansion.map((proj, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
-                          <td className="py-2.5 px-2.5 font-semibold text-slate-900 dark:text-gray-100">
-                            {proj.projectName}
-                            {proj.sourceDocument && (
-                              <span className="block text-[10px] text-slate-400 dark:text-gray-500 font-normal">
-                                {proj.sourceDocument}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-2 text-slate-600 dark:text-gray-400">{proj.projectType}</td>
-                          <td className="py-2.5 px-2 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                            {proj.totalCapexOrInvestmentBillion > 0 ? `${proj.totalCapexOrInvestmentBillion.toLocaleString('vi-VN')} tỷ` : '---'}
-                          </td>
-                          <td className="py-2.5 px-2.5 text-slate-700 dark:text-gray-300">
-                            <div>{proj.currentConstructionOrLegalProgress}</div>
-                            {proj.disbursedToDatePct && (
-                              <div className="text-[10px] text-slate-500 dark:text-gray-400">{proj.disbursedToDatePct}</div>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-2 text-slate-700 dark:text-gray-300 font-medium">{proj.expectedCommercialStart}</td>
-                          <td className="py-2.5 px-2.5 text-slate-700 dark:text-gray-300 leading-snug">
-                            {proj.estimatedRevenueOrProfitImpact || proj.capacityOrScaleAddition || '---'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              )}
             </SectionCard>
-          )}
+
+            {/* Section 4: Danh mục Dự án Mở rộng & CAPEX Trọng điểm (Bóc tách từ R2) */}
+            {report.qualitativeInsights?.sectionC_GrowthProjectsAndExpansion && report.qualitativeInsights.sectionC_GrowthProjectsAndExpansion.length > 0 && (
+              <SectionCard title="4. Danh mục Dự án Mở rộng & Kế hoạch CAPEX Trọng điểm" isEditing={false}>
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-600 dark:text-gray-400">
+                    Dữ liệu bóc tách chuẩn xác từ Báo Cáo Thường Niên, Nghị Quyết ĐHCĐ và Báo Cáo Phân Tích CTCK (Nguồn: Cloudflare R2):
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-800 text-slate-700 dark:text-gray-300 font-bold">
+                          <th className="py-2 px-2.5">Dự án</th>
+                          <th className="py-2 px-2">Phân loại</th>
+                          <th className="py-2 px-2 text-right">Tổng vốn (Tỷ)</th>
+                          <th className="py-2 px-2.5">Tiến độ thực tế &amp; Giải ngân</th>
+                          <th className="py-2 px-2">Vận hành dự kiến</th>
+                          <th className="py-2 px-2.5">Kỳ vọng đóng góp</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
+                        {report.qualitativeInsights.sectionC_GrowthProjectsAndExpansion.map((proj, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
+                            <td className="py-2.5 px-2.5 font-semibold text-slate-900 dark:text-gray-100">
+                              {proj.projectName}
+                              {proj.sourceDocument && (
+                                <span className="block text-[10px] text-slate-400 dark:text-gray-500 font-normal">
+                                  {proj.sourceDocument}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-2 text-slate-600 dark:text-gray-400">{proj.projectType}</td>
+                            <td className="py-2.5 px-2 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                              {Number(proj.totalCapexOrInvestmentBillion) > 0 ? `${Number(proj.totalCapexOrInvestmentBillion).toLocaleString('vi-VN')} tỷ` : '---'}
+                            </td>
+                            <td className="py-2.5 px-2.5 text-slate-700 dark:text-gray-300">
+                              <div>{proj.currentConstructionOrLegalProgress}</div>
+                              {proj.disbursedToDatePct && (
+                                <div className="text-[10px] text-slate-500 dark:text-gray-400">{proj.disbursedToDatePct}</div>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-2 text-slate-700 dark:text-gray-300 font-medium">{proj.expectedCommercialStart}</td>
+                            <td className="py-2.5 px-2.5 text-slate-700 dark:text-gray-300 leading-snug">
+                              {proj.estimatedRevenueOrProfitImpact || proj.capacityOrScaleAddition || '---'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </SectionCard>
+            )}
+          </ErrorBoundary>
         </div>
 
         {/* TAB C: SỨC KHỎE TÀI CHÍNH (50 ĐIỂM - 6 NHÓM A ĐẾN F) */}
         <div className={`space-y-5 print:pt-6 ${activeTab === 'C' ? 'block' : 'hidden print:block'}`}>
-          <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-            C. SỨC KHỎE TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
-          </h2>
-          <FinancialHealthScorecard
-            ticker={report.ticker}
-            sectionC={secC}
-            realQuarterlyFinancials={realQuarterlyFinancials}
-            isEditing={isEditing}
-            onSectionCChange={setSecC}
-            renderMarkdown={renderMarkdown}
-          />
+          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần C: Sức Khỏe Tài Chính">
+            <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
+              C. SỨC KHỎE TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
+            </h2>
+            <FinancialHealthScorecard
+              ticker={report.ticker}
+              sectionC={secC}
+              realQuarterlyFinancials={realQuarterlyFinancials}
+              isEditing={isEditing}
+              onSectionCChange={setSecC}
+              renderMarkdown={renderMarkdown}
+            />
+          </ErrorBoundary>
         </div>
 
         {/* TAB D: CHẤT LƯỢNG TĂNG TRƯỞNG & CẦU NỐI CORE (60 ĐIỂM - 7 NHÓM A ĐẾN G) */}
         <div className={`space-y-5 print:pt-6 ${activeTab === 'D' ? 'block' : 'hidden print:block'}`}>
-          <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-            D. CHẤT LƯỢNG TĂNG TRƯỞNG &amp; CẦU NỐI CORE (60 ĐIỂM)
-          </h2>
-          <GrowthQualityScorecard
-            ticker={report.ticker}
-            sectionD={secD}
-            realQuarterlyFinancials={realQuarterlyFinancials}
-            isEditing={isEditing}
-            onSectionDChange={setSecD}
-            renderMarkdown={renderMarkdown}
-          />
+          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần D: Chất Lượng Tăng Trưởng">
+            <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
+              D. CHẤT LƯỢNG TĂNG TRƯỞNG &amp; CẦU NỐI CORE (60 ĐIỂM)
+            </h2>
+            <GrowthQualityScorecard
+              ticker={report.ticker}
+              sectionD={secD}
+              realQuarterlyFinancials={realQuarterlyFinancials}
+              isEditing={isEditing}
+              onSectionDChange={setSecD}
+              renderMarkdown={renderMarkdown}
+            />
+          </ErrorBoundary>
         </div>
 
         {/* TAB E: CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT & COMPOUNDER (40 ĐIỂM - 7 NHÓM A ĐẾN G) */}
         <div className={`space-y-5 print:pt-6 ${activeTab === 'E' ? 'block' : 'hidden print:block'}`}>
-          <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-            E. CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT &amp; COMPOUNDER (40 ĐIỂM)
-          </h2>
-          <BusinessQualityScorecard
-            ticker={report.ticker}
-            sectionE={secE}
-            realQuarterlyFinancials={realQuarterlyFinancials}
-            isEditing={isEditing}
-            onSectionEChange={setSecE}
-            renderMarkdown={renderMarkdown}
-          />
+          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần E: Chất Lượng Doanh Nghiệp">
+            <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
+              E. CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT &amp; COMPOUNDER (40 ĐIỂM)
+            </h2>
+            <BusinessQualityScorecard
+              ticker={report.ticker}
+              sectionE={secE}
+              realQuarterlyFinancials={realQuarterlyFinancials}
+              isEditing={isEditing}
+              onSectionEChange={setSecE}
+              renderMarkdown={renderMarkdown}
+            />
 
-          {/* Section: Tổng hợp Khuyến nghị & Luận điểm từ các Báo cáo CTCK (Bóc tách từ R2) */}
-          {report.qualitativeInsights?.sectionE_BrokerConsensusAndTheses?.reportsAnalyzed && report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.reportsAnalyzed.length > 0 && (
-            <SectionCard title="Tổng hợp Khuyến nghị & Luận điểm từ các Báo cáo CTCK" isEditing={false}>
-              <div className="space-y-4">
-                {report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.consensusSummary && (
-                  <div className="text-xs text-slate-700 dark:text-gray-300 leading-relaxed font-medium pb-2 border-b border-gray-100 dark:border-gray-800">
-                    <span className="font-bold text-slate-900 dark:text-gray-100">Điểm đồng thuận chung: </span>
-                    {report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.consensusSummary}
-                  </div>
-                )}
+            {/* Section: Tổng hợp Khuyến nghị & Luận điểm từ các Báo cáo CTCK (Bóc tách từ R2) */}
+            {report.qualitativeInsights?.sectionE_BrokerConsensusAndTheses?.reportsAnalyzed && report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.reportsAnalyzed.length > 0 && (
+              <SectionCard title="Tổng hợp Khuyến nghị & Luận điểm từ các Báo cáo CTCK" isEditing={false}>
+                <div className="space-y-4">
+                  {report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.consensusSummary && (
+                    <div className="text-xs text-slate-700 dark:text-gray-300 leading-relaxed font-medium pb-2 border-b border-gray-100 dark:border-gray-800">
+                      <span className="font-bold text-slate-900 dark:text-gray-100">Điểm đồng thuận chung: </span>
+                      {report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.consensusSummary}
+                    </div>
+                  )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.reportsAnalyzed.map((rep, idx) => (
-                    <div key={idx} className="p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-slate-900 dark:text-white font-heading">{rep.brokerName}</span>
-                        <span className="text-[10px] text-slate-500 dark:text-gray-400">{rep.reportDate}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">{rep.recommendation}</span>
-                        {rep.targetPrice > 0 && (
-                          <span className="font-mono text-slate-700 dark:text-gray-300 font-bold">
-                            Mục tiêu: {rep.targetPrice.toLocaleString('vi-VN')} đ
-                          </span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.reportsAnalyzed.map((rep, idx) => (
+                      <div key={idx} className="p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-slate-900 dark:text-white font-heading">{rep.brokerName}</span>
+                          <span className="text-[10px] text-slate-500 dark:text-gray-400">{rep.reportDate}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">{rep.recommendation}</span>
+                          {Number(rep.targetPrice) > 0 && (
+                            <span className="font-mono text-slate-700 dark:text-gray-300 font-bold">
+                              Mục tiêu: {Number(rep.targetPrice).toLocaleString('vi-VN')} đ
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-700 dark:text-gray-300 line-clamp-3 leading-snug">
+                          {rep.keyThesis}
+                        </p>
+                        {(rep.catalysts?.volumeDriversQ || rep.catalysts?.priceAndMarginDriversP || rep.catalysts?.costEfficiencyDriversC) && (
+                          <div className="text-[10px] text-slate-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-1.5 space-y-0.5">
+                            {rep.catalysts.volumeDriversQ && <div>• Sản lượng (Q): {rep.catalysts.volumeDriversQ}</div>}
+                            {rep.catalysts.priceAndMarginDriversP && <div>• Giá/Biên (P): {rep.catalysts.priceAndMarginDriversP}</div>}
+                            {rep.catalysts.costEfficiencyDriversC && <div>• Chi phí (C): {rep.catalysts.costEfficiencyDriversC}</div>}
+                          </div>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-700 dark:text-gray-300 line-clamp-3 leading-snug">
-                        {rep.keyThesis}
-                      </p>
-                      {(rep.catalysts?.volumeDriversQ || rep.catalysts?.priceAndMarginDriversP || rep.catalysts?.costEfficiencyDriversC) && (
-                        <div className="text-[10px] text-slate-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-1.5 space-y-0.5">
-                          {rep.catalysts.volumeDriversQ && <div>• Sản lượng (Q): {rep.catalysts.volumeDriversQ}</div>}
-                          {rep.catalysts.priceAndMarginDriversP && <div>• Giá/Biên (P): {rep.catalysts.priceAndMarginDriversP}</div>}
-                          {rep.catalysts.costEfficiencyDriversC && <div>• Chi phí (C): {rep.catalysts.costEfficiencyDriversC}</div>}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </SectionCard>
-          )}
+              </SectionCard>
+            )}
+          </ErrorBoundary>
         </div>
 
         {/* TAB F: TRIỂN VỌNG KINH DOANH & ĐỊNH GIÁ 3 KỊCH BẢN */}
         <div className={`space-y-5 print:pt-6 ${activeTab === 'F' ? 'block' : 'hidden print:block'}`}>
-          <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
-            F. TRIỂN VỌNG KINH DOANH &amp; ĐỊNH GIÁ
-          </h2>
-          <SectionCard title="1. Phân tích yếu tố ảnh hưởng tăng trưởng (Sản lượng, Giá bán, Chi phí)" isEditing={isEditing}>
-            {isEditing ? (
-              <textarea
-                rows={6}
-                value={secFValuation.growthDriversRevenueAndCost}
-                onChange={(e) => setSecFValuation({ ...secFValuation, growthDriversRevenueAndCost: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-              />
-            ) : (
-              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                {renderMarkdown(secFValuation.growthDriversRevenueAndCost)}
-              </div>
-            )}
-          </SectionCard>
+          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần F: Triển Vọng & Định Giá">
+            <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
+              F. TRIỂN VỌNG KINH DOANH &amp; ĐỊNH GIÁ
+            </h2>
+            <SectionCard title="1. Phân tích yếu tố ảnh hưởng tăng trưởng (Sản lượng, Giá bán, Chi phí)" isEditing={isEditing}>
+              {isEditing ? (
+                <textarea
+                  rows={6}
+                  value={secFValuation.growthDriversRevenueAndCost}
+                  onChange={(e) => setSecFValuation({ ...secFValuation, growthDriversRevenueAndCost: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                />
+              ) : (
+                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
+                  {renderMarkdown(secFValuation.growthDriversRevenueAndCost)}
+                </div>
+              )}
+            </SectionCard>
 
-          <SectionCard title="2. Luận điểm ước lượng KQKD & Bộ tính toán định giá" isEditing={false}>
-            <div className="space-y-6">
-              <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                {renderMarkdown(secFValuation.quarterlyForecastReasoning)}
-              </div>
+            <SectionCard title="2. Luận điểm ước lượng KQKD & Bộ tính toán định giá" isEditing={false}>
+              <div className="space-y-6">
+                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
+                  {renderMarkdown(secFValuation.quarterlyForecastReasoning)}
+                </div>
 
-              <div className="border-t border-gray-200 dark:border-gray-800 pt-5">
-                <ValuationCalculator
-                  valuation={secFValuation.valuation}
-                  currentPrice={report.marketData.currentPrice}
-                  ticker={report.ticker}
-                  historicalQuarters={getFinancialsQuarterlyData(report.ticker)}
-                  forecastReasoningText={secFValuation.quarterlyForecastReasoning}
-                  realQuarterlyFinancials={realQuarterlyFinancials}
-                  onUpdateValuation={(newVal) => {
-                    setSecFValuation({
-                      ...secFValuation,
-                      valuation: newVal,
-                    });
-                    onUpdateReport({
-                      ...report,
-                      sectionF: {
+                <div className="border-t border-gray-200 dark:border-gray-800 pt-5">
+                  <ValuationCalculator
+                    valuation={secFValuation.valuation}
+                    currentPrice={report.marketData.currentPrice}
+                    ticker={report.ticker}
+                    historicalQuarters={getFinancialsQuarterlyData(report.ticker)}
+                    forecastReasoningText={secFValuation.quarterlyForecastReasoning}
+                    realQuarterlyFinancials={realQuarterlyFinancials}
+                    onUpdateValuation={(newVal) => {
+                      setSecFValuation({
                         ...secFValuation,
                         valuation: newVal,
-                      },
-                    });
-                  }}
-                />
-              </div>
+                      });
+                      onUpdateReport({
+                        ...report,
+                        sectionF: {
+                          ...secFValuation,
+                          valuation: newVal,
+                        },
+                      });
+                    }}
+                  />
+                </div>
 
-              {/* 2 Biểu đồ Dự phóng độc lập (Năm và Quý) hiển thị đầy đủ tiêu chí */}
-              <div className="border-t border-gray-200 dark:border-gray-800 pt-5 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-2 flex items-center gap-1.5 font-heading">
-                  <BarChart2 className="h-4 w-4 text-blue-600 dark:text-sky-400" />
-                  Biểu đồ Dự phóng Tài chính & Chỉ số Định giá (2026 - 2027)
-                </h4>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  {/* Biểu đồ 1: Dự phóng theo Năm */}
-                  <div className="bg-gray-50 dark:bg-[#0b1324]/40 p-4 rounded-xl border border-gray-200 dark:border-gray-850 shadow-2xs">
-                    <h5 className="text-[11px] font-bold text-slate-700 dark:text-gray-400 mb-3 flex items-center gap-1 font-heading">
-                      Doanh thu, LNST & Chỉ số Định giá theo Năm
-                    </h5>
-                    {isMounted ? (
-                      <div className="h-64 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={getForecastAnnualData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
-                            <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
-                            <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
-                            <YAxis yAxisId="right" orientation="right" stroke="#D97706" style={{ fontSize: '10px' }} />
-                            <Tooltip
-                              contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
-                              itemStyle={{ color: '#FFF', fontSize: '11px' }}
-                            />
-                            <Legend
-                              iconSize={8}
-                              formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
-                            />
-                            <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={24}>
-                              <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
-                            </Bar>
-                            <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={24}>
-                              <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
-                            </Bar>
-                            <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
-                            <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
-                            <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#DC2626" strokeWidth={2} activeDot={{ r: 4 }} />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
-                    )}
-                  </div>
+                {/* 2 Biểu đồ Dự phóng độc lập (Năm và Quý) hiển thị đầy đủ tiêu chí */}
+                <div className="border-t border-gray-200 dark:border-gray-800 pt-5 space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400 mb-2 flex items-center gap-1.5 font-heading">
+                    <BarChart2 className="h-4 w-4 text-blue-600 dark:text-sky-400" />
+                    Biểu đồ Dự phóng Tài chính & Chỉ số Định giá (2026 - 2027)
+                  </h4>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    {/* Biểu đồ 1: Dự phóng theo Năm */}
+                    <div className="bg-gray-50 dark:bg-[#0b1324]/40 p-4 rounded-xl border border-gray-200 dark:border-gray-850 shadow-2xs">
+                      <h5 className="text-[11px] font-bold text-slate-700 dark:text-gray-400 mb-3 flex items-center gap-1 font-heading">
+                        Doanh thu, LNST & Chỉ số Định giá theo Năm
+                      </h5>
+                      {isMounted && activeTab === 'F' ? (
+                        <div className="h-64 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={getForecastAnnualData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
+                              <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="right" orientation="right" stroke="#D97706" style={{ fontSize: '10px' }} />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
+                                itemStyle={{ color: '#FFF', fontSize: '11px' }}
+                              />
+                              <Legend
+                                iconSize={8}
+                                formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
+                              />
+                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={24}>
+                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
+                              </Bar>
+                              <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={24}>
+                                <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
+                              </Bar>
+                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#DC2626" strokeWidth={2} activeDot={{ r: 4 }} />
+                            </ComposedChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
+                      )}
+                    </div>
 
-                  {/* Biểu đồ 2: Dự phóng theo Quý */}
-                  <div className="bg-gray-50 dark:bg-[#0b1324]/40 p-4 rounded-xl border border-gray-200 dark:border-gray-850 shadow-2xs">
-                    <h5 className="text-[11px] font-bold text-slate-700 dark:text-gray-400 mb-3 flex items-center gap-1 font-heading">
-                      Doanh thu, LNST & Chỉ số Định giá theo Quý (2026 - 2027)
-                    </h5>
-                    {isMounted ? (
-                      <div className="h-64 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={getForecastQuarterlyData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
-                            <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
-                            <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
-                            <YAxis yAxisId="right" orientation="right" stroke="#D97706" style={{ fontSize: '10px' }} />
-                            <Tooltip
-                              contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
-                              itemStyle={{ color: '#FFF', fontSize: '11px' }}
-                            />
-                            <Legend
-                              iconSize={8}
-                              formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
-                            />
-                            <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={20}>
-                              <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
-                            </Bar>
-                            <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={20}>
-                              <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
-                            </Bar>
-                            <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
-                            <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
-                            <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#DC2626" strokeWidth={2} activeDot={{ r: 4 }} />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
-                    )}
+                    {/* Biểu đồ 2: Dự phóng theo Quý */}
+                    <div className="bg-gray-50 dark:bg-[#0b1324]/40 p-4 rounded-xl border border-gray-200 dark:border-gray-850 shadow-2xs">
+                      <h5 className="text-[11px] font-bold text-slate-700 dark:text-gray-400 mb-3 flex items-center gap-1 font-heading">
+                        Doanh thu, LNST & Chỉ số Định giá theo Quý (2026 - 2027)
+                      </h5>
+                      {isMounted && activeTab === 'F' ? (
+                        <div className="h-64 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={getForecastQuarterlyData(report.ticker)} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" opacity={0.2} />
+                              <XAxis dataKey="period" stroke="#64748B" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="left" stroke="#64748B" style={{ fontSize: '10px' }} />
+                              <YAxis yAxisId="right" orientation="right" stroke="#D97706" style={{ fontSize: '10px' }} />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', color: '#FFF' }}
+                                itemStyle={{ color: '#FFF', fontSize: '11px' }}
+                              />
+                              <Legend
+                                iconSize={8}
+                                formatter={(value) => <span className="text-[10px] text-slate-700 dark:text-gray-300 font-medium">{value}</span>}
+                              />
+                              <Bar dataKey="Doanh thu" yAxisId="left" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={20}>
+                                <LabelList dataKey="Doanh thu" position="top" style={{ fill: '#2563EB', fontSize: '9px', fontWeight: 'bold' }} />
+                              </Bar>
+                              <Bar dataKey="LNST" yAxisId="left" fill="#10B981" radius={[4, 4, 0, 0]} barSize={20}>
+                                <LabelList dataKey="LNST" position="top" style={{ fill: '#059669', fontSize: '9px', fontWeight: 'bold' }} />
+                              </Bar>
+                              <Line dataKey="Biên gộp (%)" yAxisId="right" type="monotone" stroke="#D97706" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="EPS (k VNĐ)" yAxisId="right" type="monotone" stroke="#9333EA" strokeWidth={2} activeDot={{ r: 4 }} />
+                              <Line dataKey="PE (lần)" yAxisId="right" type="monotone" stroke="#DC2626" strokeWidth={2} activeDot={{ r: 4 }} />
+                            </ComposedChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-64 w-full bg-gray-100 dark:bg-gray-950/20 rounded-xl animate-pulse" />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
+          </ErrorBoundary>
         </div>
       </div>
     </div>

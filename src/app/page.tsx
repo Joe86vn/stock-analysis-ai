@@ -10,6 +10,7 @@ import { MarketDataSummary } from '@/components/MarketDataSummary';
 import { ValuationCalculator } from '@/components/ValuationCalculator';
 import { ReportViewer } from '@/components/ReportViewer';
 import { ExportModal } from '@/components/ExportModal';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import { getStockData, POPULAR_STOCKS } from '@/lib/stock-data';
 import { generateDefaultExpertReport } from '@/lib/default-report';
@@ -376,15 +377,17 @@ function HomeContent() {
           </div>
         )}
 
-        {/* 4-Section Report Viewer (A, B, C, D) */}
+        {/* 6-Section Report Viewer (A, B, C, D, E, F) */}
         <div ref={reportSectionRef}>
           {report && (
-            <ReportViewer
-              report={report}
-              onUpdateReport={handleUpdateReport}
-              onRegenerate={() => runAnalysis(selectedStock, uploadedFilesRef.current)}
-              isGenerating={isGenerating}
-            />
+            <ErrorBoundary fallbackTitle="Không thể hiển thị Báo cáo Phân tích">
+              <ReportViewer
+                report={report}
+                onUpdateReport={handleUpdateReport}
+                onRegenerate={() => runAnalysis(selectedStock, uploadedFilesRef.current)}
+                isGenerating={isGenerating}
+              />
+            </ErrorBoundary>
           )}
         </div>
 

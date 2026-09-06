@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ValuationAssumptions, ForecastQuarterData } from '@/types/analysis';
 import { Calculator, Calendar, TrendingUp, Layers } from 'lucide-react';
 import {
@@ -200,7 +200,7 @@ export function ValuationCalculator({
     return initial;
   });
 
-  // Re-sync when ticker, forecast reasoning text, realQuarterlyFinancials, or valuation change
+  // Re-sync when ticker, forecast reasoning text, or realQuarterlyFinancials change
   useEffect(() => {
     setSelectedYear(year2.toString());
     const parsed = parseForecastNetProfitFromText(forecastReasoningText);
@@ -209,7 +209,15 @@ export function ValuationCalculator({
       initial[period] = getQuarterFinancialsWithRealData(ticker, period, parsed, realQuarterlyFinancials, valuation);
     });
     setFinancials(initial);
-  }, [ticker, forecastReasoningText, realQuarterlyFinancials, valuation]);
+  }, [
+    ticker,
+    forecastReasoningText,
+    realQuarterlyFinancials,
+    valuation?.year1,
+    valuation?.year2,
+    valuation?.forecastYear1Data,
+    valuation?.forecastYear2Data,
+  ]);
 
   // Update specific field (revenue, grossMargin, netProfit) for a quarter
   const handleFinancialChange = (
@@ -289,16 +297,44 @@ export function ValuationCalculator({
   const sharesInMillions = valuation.sharesOutstanding || 5815;
   const activeEps = Math.round(activeNetProfitVnd / (sharesInMillions * 1000000));
 
-  // Sync to parent report whenever values change
+  // Sync to parent report whenever values change, guarded against infinite loops
+  const lastSyncedValuesRef = useRef<{ q1?: number; q2?: number; total?: number; eps?: number }>({});
+
   useEffect(() => {
+    const q1 = summaryYear1.totalNetProfit * 1000000000;
+    const q2 = summaryYear2.totalNetProfit * 1000000000;
+    const total = activeNetProfitVnd;
+    const eps = activeEps;
+
+    // Skip update if already matches existing valuation and last sync to prevent infinite loops
+    if (
+      valuation.forecastNetProfitQ1 === q1 &&
+      valuation.forecastNetProfitQ2 === q2 &&
+      valuation.totalForecastProfit === total &&
+      valuation.epsForward === eps
+    ) {
+      return;
+    }
+
+    if (
+      lastSyncedValuesRef.current.q1 === q1 &&
+      lastSyncedValuesRef.current.q2 === q2 &&
+      lastSyncedValuesRef.current.total === total &&
+      lastSyncedValuesRef.current.eps === eps
+    ) {
+      return;
+    }
+
+    lastSyncedValuesRef.current = { q1, q2, total, eps };
+
     onUpdateValuation({
       ...valuation,
-      forecastNetProfitQ1: summaryYear1.totalNetProfit * 1000000000,
-      forecastNetProfitQ2: summaryYear2.totalNetProfit * 1000000000,
-      totalForecastProfit: activeNetProfitVnd,
-      epsForward: activeEps,
+      forecastNetProfitQ1: q1,
+      forecastNetProfitQ2: q2,
+      totalForecastProfit: total,
+      epsForward: eps,
     });
-  }, [financials, selectedYear]);
+  }, [summaryYear1.totalNetProfit, summaryYear2.totalNetProfit, activeNetProfitVnd, activeEps, valuation, onUpdateValuation]);
 
   // Target prices
   const priceBase = Math.round(activeEps * valuation.peBase);
