@@ -12,7 +12,7 @@ import { ReportViewer } from '@/components/ReportViewer';
 import { ExportModal } from '@/components/ExportModal';
 
 import { getStockData, POPULAR_STOCKS } from '@/lib/stock-data';
-import { generateAnalysisReport, generateDefaultExpertReport } from '@/lib/ai-analyzer';
+import { generateDefaultExpertReport } from '@/lib/default-report';
 import { AnalysisReport, StockMarketData, UploadedFile, ValuationAssumptions } from '@/types/analysis';
 
 import { Sparkles, Download, RefreshCw, FileText, CheckCircle2, ChevronDown, ChevronUp, Cpu, AlertTriangle } from 'lucide-react';
@@ -50,10 +50,40 @@ function HomeContent() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [qualitativeStatus, setQualitativeStatus] = useState<{
+    hasData: boolean;
+    ticker: string;
+    analyzedAt?: string;
+    industryModel?: string;
+    documentSources?: string[];
+    totalProjects?: number;
+    totalBrokerReports?: number;
+  } | null>(null);
+
   // useRef to always have fresh uploadedFiles in closures
   const uploadedFilesRef = useRef<UploadedFile[]>(uploadedFiles);
   uploadedFilesRef.current = uploadedFiles;
   const reportSectionRef = useRef<HTMLDivElement>(null);
+
+  // Kiểm tra trạng thái dữ liệu định tính R2 khi đổi mã cổ phiếu
+  useEffect(() => {
+    let isCancelled = false;
+    const checkR2 = async () => {
+      try {
+        const res = await fetch(`/api/analysis/qualitative-status?ticker=${selectedStock.ticker}`);
+        if (res.ok && !isCancelled) {
+          const json = await res.json();
+          setQualitativeStatus(json);
+        }
+      } catch {
+        if (!isCancelled) setQualitativeStatus(null);
+      }
+    };
+    checkR2();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedStock.ticker]);
 
   const fetchLatestPrice = async (ticker: string): Promise<number | null> => {
     try {
@@ -165,13 +195,34 @@ function HomeContent() {
     setIsGenerating(true);
     setErrorMessage('');
     const fileCount = files.length;
+    const isR2Ready = qualitativeStatus?.hasData;
     setGeneratingMsg(
-      fileCount > 0
+      isR2Ready
+        ? `Đang tổng hợp báo cáo ValueX 150 điểm từ dữ liệu định tính R2 & Vietcap IQ API cho ${stock.ticker}...`
+        : fileCount > 0
         ? `Đang phân tích ${fileCount} tài liệu bằng ${defaultModel} cho ${stock.ticker}...`
-        : `Đang kết nối ${defaultModel} phân tích chuyên sâu cho ${stock.ticker} (quá trình mất ~40-60s)...`
+        : `Đang kết nối ${defaultModel} phân tích chuyên sâu cho ${stock.ticker}...`
     );
     try {
-      const generated = await generateAnalysisReport(stock.ticker, stock, files, defaultModel);
+      const response = await fetch('/api/analysis/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ticker: stock.ticker,
+          marketData: stock,
+          uploadedFiles: files,
+          preferredModel: defaultModel,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Lỗi từ máy chủ (${response.status}) khi phân tích AI`);
+      }
+
+      const generated = await response.json();
       setReport(generated);
       setErrorMessage('');
       // Scroll to report section after generation
@@ -248,10 +299,19 @@ function HomeContent() {
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-gray-400">
-                {isGenerating
-                  ? <span className="text-emerald-700 dark:text-emerald-300 font-semibold animate-pulse">{generatingMsg}</span>
-                  : <>Lập báo cáo 4 phần A-B-C-D cho <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedStock.ticker}</span></>
-                }
+                {isGenerating ? (
+                  <span className="text-emerald-700 dark:text-emerald-300 font-semibold animate-pulse">{generatingMsg}</span>
+                ) : (
+                  <>
+                    Lập báo cáo 6 phần chuẩn ValueX 150 điểm cho{' '}
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedStock.ticker}</span>
+                    {qualitativeStatus?.hasData && (
+                      <span className="block mt-0.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                        ✓ Đã có dữ liệu định tính chuyên sâu từ R2 ({qualitativeStatus.analyzedAt} • {qualitativeStatus.totalProjects || 0} dự án • {qualitativeStatus.totalBrokerReports || 0} báo cáo CTCK)
+                      </span>
+                    )}
+                  </>
+                )}
               </p>
             </div>
           </div>

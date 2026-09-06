@@ -1034,11 +1034,18 @@ export function ReportViewer({
 
       {/* Header & Tabs (Screen view only) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-4 gap-3 print:hidden">
-        <div className="flex items-center space-x-2">
-          <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-          <h2 className="text-base font-bold text-slate-900 dark:text-white font-heading">
-            Báo Cáo Phân Tích Chuyên Sâu ValueX
-          </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="flex items-center space-x-2">
+            <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <h2 className="text-base font-bold text-slate-900 dark:text-white font-heading">
+              Báo Cáo Phân Tích Chuyên Sâu ValueX
+            </h2>
+          </div>
+          {report.isR2Synchronized && report.qualitativeInsights && (
+            <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+              ✓ Đã đồng bộ dữ liệu định tính R2 ({report.qualitativeInsights.analyzedAt})
+            </span>
+          )}
         </div>
 
         <div className="flex items-center space-x-2">
@@ -1326,6 +1333,59 @@ export function ReportViewer({
               </div>
             )}
           </SectionCard>
+
+          {/* Section 4: Danh mục Dự án Mở rộng & CAPEX Trọng điểm (Bóc tách từ R2) */}
+          {report.qualitativeInsights?.sectionC_GrowthProjectsAndExpansion && report.qualitativeInsights.sectionC_GrowthProjectsAndExpansion.length > 0 && (
+            <SectionCard title="4. Danh mục Dự án Mở rộng & Kế hoạch CAPEX Trọng điểm" isEditing={false}>
+              <div className="space-y-3">
+                <p className="text-xs text-slate-600 dark:text-gray-400">
+                  Dữ liệu bóc tách chuẩn xác từ Báo Cáo Thường Niên, Nghị Quyết ĐHCĐ và Báo Cáo Phân Tích CTCK (Nguồn: Cloudflare R2):
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-800 text-slate-700 dark:text-gray-300 font-bold">
+                        <th className="py-2 px-2.5">Dự án</th>
+                        <th className="py-2 px-2">Phân loại</th>
+                        <th className="py-2 px-2 text-right">Tổng vốn (Tỷ)</th>
+                        <th className="py-2 px-2.5">Tiến độ thực tế &amp; Giải ngân</th>
+                        <th className="py-2 px-2">Vận hành dự kiến</th>
+                        <th className="py-2 px-2.5">Kỳ vọng đóng góp</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
+                      {report.qualitativeInsights.sectionC_GrowthProjectsAndExpansion.map((proj, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
+                          <td className="py-2.5 px-2.5 font-semibold text-slate-900 dark:text-gray-100">
+                            {proj.projectName}
+                            {proj.sourceDocument && (
+                              <span className="block text-[10px] text-slate-400 dark:text-gray-500 font-normal">
+                                {proj.sourceDocument}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-2 text-slate-600 dark:text-gray-400">{proj.projectType}</td>
+                          <td className="py-2.5 px-2 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                            {proj.totalCapexOrInvestmentBillion > 0 ? `${proj.totalCapexOrInvestmentBillion.toLocaleString('vi-VN')} tỷ` : '---'}
+                          </td>
+                          <td className="py-2.5 px-2.5 text-slate-700 dark:text-gray-300">
+                            <div>{proj.currentConstructionOrLegalProgress}</div>
+                            {proj.disbursedToDatePct && (
+                              <div className="text-[10px] text-slate-500 dark:text-gray-400">{proj.disbursedToDatePct}</div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-2 text-slate-700 dark:text-gray-300 font-medium">{proj.expectedCommercialStart}</td>
+                          <td className="py-2.5 px-2.5 text-slate-700 dark:text-gray-300 leading-snug">
+                            {proj.estimatedRevenueOrProfitImpact || proj.capacityOrScaleAddition || '---'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </SectionCard>
+          )}
         </div>
 
         {/* TAB C: SỨC KHỎE TÀI CHÍNH (50 ĐIỂM - 6 NHÓM A ĐẾN F) */}
@@ -1371,6 +1431,49 @@ export function ReportViewer({
             onSectionEChange={setSecE}
             renderMarkdown={renderMarkdown}
           />
+
+          {/* Section: Tổng hợp Khuyến nghị & Luận điểm từ các Báo cáo CTCK (Bóc tách từ R2) */}
+          {report.qualitativeInsights?.sectionE_BrokerConsensusAndTheses?.reportsAnalyzed && report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.reportsAnalyzed.length > 0 && (
+            <SectionCard title="Tổng hợp Khuyến nghị & Luận điểm từ các Báo cáo CTCK" isEditing={false}>
+              <div className="space-y-4">
+                {report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.consensusSummary && (
+                  <div className="text-xs text-slate-700 dark:text-gray-300 leading-relaxed font-medium pb-2 border-b border-gray-100 dark:border-gray-800">
+                    <span className="font-bold text-slate-900 dark:text-gray-100">Điểm đồng thuận chung: </span>
+                    {report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.consensusSummary}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {report.qualitativeInsights.sectionE_BrokerConsensusAndTheses.reportsAnalyzed.map((rep, idx) => (
+                    <div key={idx} className="p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-slate-900 dark:text-white font-heading">{rep.brokerName}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400">{rep.reportDate}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">{rep.recommendation}</span>
+                        {rep.targetPrice > 0 && (
+                          <span className="font-mono text-slate-700 dark:text-gray-300 font-bold">
+                            Mục tiêu: {rep.targetPrice.toLocaleString('vi-VN')} đ
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-700 dark:text-gray-300 line-clamp-3 leading-snug">
+                        {rep.keyThesis}
+                      </p>
+                      {(rep.catalysts?.volumeDriversQ || rep.catalysts?.priceAndMarginDriversP || rep.catalysts?.costEfficiencyDriversC) && (
+                        <div className="text-[10px] text-slate-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-1.5 space-y-0.5">
+                          {rep.catalysts.volumeDriversQ && <div>• Sản lượng (Q): {rep.catalysts.volumeDriversQ}</div>}
+                          {rep.catalysts.priceAndMarginDriversP && <div>• Giá/Biên (P): {rep.catalysts.priceAndMarginDriversP}</div>}
+                          {rep.catalysts.costEfficiencyDriversC && <div>• Chi phí (C): {rep.catalysts.costEfficiencyDriversC}</div>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+          )}
         </div>
 
         {/* TAB F: TRIỂN VỌNG KINH DOANH & ĐỊNH GIÁ 3 KỊCH BẢN */}

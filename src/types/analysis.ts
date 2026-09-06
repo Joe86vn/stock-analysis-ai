@@ -231,4 +231,6 @@ export interface AnalysisReport {
   sectionF: SectionF_Valuation;
   marketData: StockMarketData;
   generationModel?: string;
+  qualitativeInsights?: import('@/types/qualitative').QualitativeInsights;
+  isR2Synchronized?: boolean;
 }

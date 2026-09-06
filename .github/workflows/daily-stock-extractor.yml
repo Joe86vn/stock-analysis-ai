@@ -1,0 +1,85 @@
+name: Daily Stock Qualitative Extractor
+
+on:
+  schedule:
+    # 11:00 UTC = 18:00 ICT (Thứ Hai đến Thứ Sáu) sau khi phiên giao dịch kết thúc
+    - cron: '0 11 * * 1-5'
+
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Chế độ chạy trích xuất'
+        required: true
+        default: 'auto-adtv5'
+        type: choice
+        options:
+          - 'auto-adtv5'
+          - 'single'
+          - 'batch'
+      ticker:
+        description: 'Mã cổ phiếu (khi chọn mode single, ví dụ: HPG, MBB, HDC)'
+        required: false
+        default: 'HPG'
+      custom_batch:
+        description: 'Danh sách mã phân tách bằng dấu phẩy (khi chọn mode batch, ví dụ: HPG,MBB,MWG)'
+        required: false
+        default: 'HPG,MBB,MWG'
+      limit:
+        description: 'Giới hạn số lượng mã tối đa cần xử lý (ví dụ: 10 để test nhanh)'
+        required: false
+        default: ''
+      force:
+        description: 'Bắt buộc trích xuất lại kể cả khi đã có dữ liệu hôm nay'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  extract-qualitative:
+    name: Extract Qualitative Insights & Upload to R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 180 # Cho phép chạy batch nhiều mã
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Stage 1 Batch Extractor
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME || 'stock-analysis-reports' }}
+          GEMINI_MODEL: 'gemini-2.5-flash'
+        run: |
+          MODE="${{ github.event.inputs.mode || 'auto-adtv5' }}"
+          LIMIT_FLAG=""
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            LIMIT_FLAG="--limit=${{ github.event.inputs.limit }}"
+          fi
+
+          FORCE_FLAG=""
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+
+          echo "🚀 Starting Qualitative Extractor (Mode: $MODE)..."
+
+          if [ "$MODE" = "single" ]; then
+            npx tsx scripts/extract-qualitative-data.ts --ticker=${{ github.event.inputs.ticker }} $FORCE_FLAG
+          elif [ "$MODE" = "batch" ]; then
+            npx tsx scripts/extract-qualitative-data.ts --batch=${{ github.event.inputs.custom_batch }} $FORCE_FLAG $LIMIT_FLAG
+          else
+            # Default: auto-adtv5 (Toàn bộ cổ phiếu có ADTV 20 ngày >= 5 Tỷ)
+            npx tsx scripts/extract-qualitative-data.ts --auto-adtv5 $FORCE_FLAG $LIMIT_FLAG
+          fi
