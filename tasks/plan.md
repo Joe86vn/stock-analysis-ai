@@ -1,111 +1,66 @@
-# Kế Hoạch Triển Khai: Two-Stage AI Pipeline (ValueX 150 Điểm)
+# Implementation Plan: Tối Ưu Hóa Pipeline AI (Full Report Caching & Prompt Pruning)
 
-> Căn cứ: Biên bản bàn giao kỹ thuật `docs/session-handoff.md`, đặc tả `docs/prompt-1-extractor.md`, module `src/lib/industry-extractor-templates.ts` và hệ thống dữ liệu Vietcap IQ API.
-
----
-
-## 1. Tổng Quan Kiến Trúc (Architecture Overview)
-
-Hệ thống giải quyết triệt để vấn đề thời gian chờ và giới hạn Vercel Serverless (timeout 60s) bằng việc tách biệt 2 giai đoạn:
-
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 1: BATCH QUALITATIVE EXTRACTOR (GitHub Actions / Scheduled Batch)                │
-│                                                                                        │
-│  Mã CP (Ticker)                                                                       │
-│     │                                                                                  │
-│     ├─► 1. Vietcap Details API: Lấy icbCodeLv2                                         │
-│     │      └─► industry-extractor-templates: Lấy hướng dẫn bóc tách theo ngành         │
-│     │                                                                                  │
-│     ├─► 2. crawl-report-service: Lấy danh mục URLs & Metadata CTCK từ Simplize         │
-│     │      └─► Tải PDFs (BCTN, NQ ĐHCĐ, 2-3 Báo cáo CTCK mới nhất)                    │
-│     │                                                                                  │
-│     ├─► 3. GoogleAIFileManager: Upload PDF trực tiếp lên Gemini Native File API        │
-│     │                                                                                  │
-│     ├─► 4. Prompt 1 (Zero-Loss Extractor): Gemini 2.5 Flash đọc PDF & trích xuất       │
-│     │      └─► JSON 6 Section (sectionA -> sectionF) chuẩn schema                      │
-│     │                                                                                  │
-│     └─► 5. r2-storage: Lưu JSON vào Cloudflare R2 (stock-reports/{ticker}/latest.json) │
-└────────────────────────────────────────┬───────────────────────────────────────────────┘
-                                         │
-                                         ▼
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 2: REAL-TIME VALUEX SYNTHESIZER (Web App / Next.js on Vercel)                    │
-│                                                                                        │
-│  User bấm "Phân tích AI" tại Web UI                                                    │
-│     │                                                                                  │
-│     ├─► 1. r2-storage: Đọc JSON định tính (Section A-F) từ R2 (< 0.2s)                 │
-│     │                                                                                  │
-│     ├─► 2. vietcap-field-mapping: Lấy 12-20 quý tài chính & P/E thực tế (< 0.5s)       │
-│     │                                                                                  │
-│     ├─► 3. Prompt 2 (ValueX Synthesizer): Gemini 2.5 Flash tổng hợp báo cáo 150 điểm   │
-│     │      └─► Không cần upload PDF nặng nề, tốc độ < 8s, chất lượng đỉnh cao          │
-│     │                                                                                  │
-│     └─► 4. Render Báo Cáo ValueX 150 Điểm: Đầy đủ chuỗi giá trị, dự án, định giá       │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-```
+## Overview
+Kế hoạch nâng cấp và tối ưu hóa toàn diện luồng phân tích AI của hệ thống ValueX. Giải quyết triệt để vấn đề hạn mức API Gemini (RPM / RPD / Token Limits) bằng cách kết hợp:
+1. **Option B (Full Report Caching)**: Lưu trữ báo cáo hoàn chỉnh vào Cloudflare R2 & Local Disk Cache (TTL 7 ngày), giảm 80-90% số lượt gọi API trùng lặp cho cùng một mã cổ phiếu.
+2. **Option A (Prompt Pruning & Smart Merge)**: Tái sử dụng 100% dữ liệu Section A (Lịch sử, Cổ đông) và Section B (Chuỗi giá trị) đã có sẵn từ Cloudflare R2; chỉ yêu cầu Gemini tập trung luận giải Section C, D, E (150 điểm ValueX) và Section F (Dự phóng 4 quý & Định giá). Giảm 50% Output Token và giảm 50% thời gian phản hồi.
 
 ---
 
-## 2. Quyết Định Kỹ Thuật (Architecture Decisions)
+## Architecture Decisions
 
-1. **Gemini Native File API (`GoogleAIFileManager`)**:
-   - Sử dụng package có sẵn `@google/generative-ai/server` để upload PDF trực tiếp lên Gemini File API.
-   - Không cần tách trang PDF thành ảnh (tiết kiệm thời gian, chi phí và độ phức tạp mã nguồn).
-   - Tự động xóa file trên Gemini sau khi trích xuất để giải phóng tài nguyên.
+- **Decision 1 (Two-Tier Cache Hierarchy)**:
+  - Tầng 1: Local Cache (`data/reports/{ticker}.json`) cho tốc độ đọc siêu tốc < 5ms.
+  - Tầng 2: Cloudflare R2 Storage (`stock-reports/{ticker}/full-report-latest.json`) để đồng bộ xuyên suốt các phiên và các môi trường (Vercel Serverless).
+  - TTL: 7 ngày (168 giờ). Sau 7 ngày hoặc khi người dùng yêu cầu `forceRefresh`, hệ thống mới kích hoạt Gemini chạy lại.
 
-2. **Cloudflare R2 Storage (`@aws-sdk/client-s3`)**:
-   - Tận dụng `@aws-sdk/client-s3` đã có sẵn trong dự án để tương tác với Cloudflare R2 S3-compatible API.
-   - Đường dẫn chuẩn hóa: `stock-reports/{ticker}/qualitative-latest.json`.
-   - Cơ chế Local Cache Fallback: Khi chạy ở môi trường phát triển (chưa có credentials R2) hoặc offline, tự động lưu và đọc từ `data/insights/{ticker}.json`.
+- **Decision 2 (Smart Merge Pattern)**:
+  - Khi `qualitativeInsights` đã có trên R2 (từ Stage 1 Batch Extractor), loại bỏ chỉ dẫn yêu cầu sinh Section A và Section B khỏi prompt gửi tới Gemini.
+  - Sau khi nhận JSON Section C, D, E, F từ Gemini, hàm `buildReportFromParsed` sẽ tự động ghép Section A và Section B từ R2 vào báo cáo cuối cùng. Đảm bảo dữ liệu chi tiết, không bị AI tóm tắt ngắn cụt, đồng thời tiết kiệm hàng ngàn token.
 
-3. **Bảo toàn Metadata Simplize (Nguyên tắc Zero-Loss)**:
-   - Các trường `source`, `issueDate`, `title`, `targetPrice`, `recommend` từ Simplize API được inject trực tiếp vào JSON, tuyệt đối không để AI đoán lại nhằm loại trừ hoàn toàn ảo giác (hallucination).
-
-4. **16 Ngành ICB Level 2 Tự Động**:
-   - Tự động map `icbCodeLv2` từ Vietcap API qua `getIndustryTemplate()` để hướng dẫn Gemini tập trung đúng bản chất mô hình kinh doanh (ví dụ: Chứng khoán bóc tách 4 mảng doanh thu Margin/Tự doanh/Môi giới/IB; Bất động sản bóc tách Quỹ đất/Pháp lý/Presales).
+- **Decision 3 (Explicit User Control - Force Refresh)**:
+  - Bổ sung nút "Phân tích lại (Bắt buộc)" trên giao diện để người dùng có thể xóa cache và ép AI phân tích lại khi có tin tức mới.
+  - Hiển thị nhãn trực quan: `⚡ Báo cáo từ bộ nhớ đệm (Cache: [Thời gian])` hoặc `✨ Phân tích mới từ Gemini 3.7 Flash`.
 
 ---
 
-## 3. Danh Sách Nhiệm Vụ Chi Tiết (Phased Task Breakdown)
+## Task List
 
-### Phase 1: Foundation & Types & Storage Client (Infra & Backend)
-- **Task 1: Định nghĩa Type Definitions cho Qualitative Insights** (`src/types/qualitative.ts`)
-  - Định nghĩa đầy đủ TypeScript interfaces cho JSON 6 Section theo đặc tả `docs/prompt-1-extractor.md`.
-- **Task 2: Xây dựng Module Quản Lý Storage Cloudflare R2 & Local Fallback** (`src/lib/r2-storage.ts`)
-  - Hàm `putQualitativeReport(ticker, data)`: Ghi lên R2 và đồng bộ local cache.
-  - Hàm `getQualitativeReport(ticker)`: Đọc từ R2 với fallback đọc local cache.
+### Phase 1: Full Report Caching Engine (Option B)
+- [ ] **Task 1**: Bổ sung hàm lưu & đọc Full Report Cache trong `src/lib/r2-storage.ts` (`putFullReportCache`, `getFullReportCache`).
+- [ ] **Task 2**: Tích hợp Cache vào API Route `/api/analysis/generate/route.ts` (hỗ trợ cờ `forceRefresh` và tự động ghi cache sau khi sinh).
+- [ ] **Task 3**: Cập nhật Frontend UI (`src/app/page.tsx`, `src/components/ReportViewer.tsx`) hiển thị trạng thái Cache và nút "Phân tích lại (Bắt buộc)".
 
-### Phase 2: Core Batch Extractor Script (Stage 1)
-- **Task 3: Xây dựng Downloader & Gemini File API Manager** (`scripts/lib/gemini-file-uploader.ts`)
-  - Tải file PDF từ URLs (Cafef, Vietstock, Simplize CDN) với retry và timeout an toàn.
-  - Upload file lên Gemini File API và cung cấp hàm dọn dẹp file tự động.
-- **Task 4: Xây dựng Script Extractor Hoàn Chỉnh** (`scripts/extract-qualitative-data.ts`)
-  - CLI runner: Hỗ trợ `--ticker=XXX`, `--batch=AAA,BBB,CCC`, hoặc `--auto-adtv5` (tự động lấy toàn bộ danh sách cổ phiếu có ADTV 20 ngày >= 5 Tỷ từ Vietcap Screener API `executeVietcapScreener({ adtvMinBillion: 5 })`).
-  - Tích hợp Vietcap ICB, Template 16 ngành, Simplize metadata, Prompt 1 Master, JSON validator và R2 persistence.
+### Checkpoint 1: Caching Engine Verification
+- [ ] Chạy kiểm thử API `/api/analysis/generate` lần 1: Tạo báo cáo và ghi nhận cache.
+- [ ] Chạy kiểm thử lần 2: Báo cáo trả về tức thì (< 100ms), không tiêu tốn token Gemini.
+- [ ] Test nút Force Refresh: Hệ thống xóa cache cũ và gọi AI sinh mới.
 
-### Phase 3: Synthesizer & Web Integration (Stage 2)
-- **Task 5: Nâng cấp Prompt 2 trong `src/lib/ai-analyzer.ts` để đọc Qualitative Data từ R2**
-  - Tích hợp `getQualitativeReport(ticker)` vào luồng phân tích.
-  - Khi có dữ liệu R2: Inject vào prompt để tổng hợp báo cáo 150 điểm siêu tốc (<8s) với luận điểm chuyên sâu.
-  - Khi chưa có dữ liệu R2: Tự động fallback êm dịu theo luồng hiện tại.
-- **Task 6: Xây dựng API Route Trạng Thái Qualitative** (`src/app/api/analysis/qualitative-status/route.ts`)
-  - Endpoint `GET /api/analysis/qualitative-status?ticker=XXX` trả về trạng thái dữ liệu định tính đã có sẵn hay chưa.
-- **Task 7: Cập nhật Web UI Hiển Thị Nguồn Dữ Liệu R2** (`src/app/page.tsx`, `src/components/StockAnalysisReport.tsx`)
-  - Hiển thị badge trạng thái tự nhiên, trang nhã (không dùng viền thô, không dùng hộp màu mè, tuân thủ typography tự nhiên).
+### Phase 2: Prompt Pruning & Smart Merge R2 (Option A)
+- [ ] **Task 4**: Tinh gọn Prompt Stage 2 trong `src/lib/ai-analyzer.ts`: bỏ qua Section A & B khi đã có dữ liệu R2.
+- [ ] **Task 5**: Xây dựng cơ chế Smart Merge trong `buildReportFromParsed`: kế thừa trực tiếp Section A & B từ R2 ghép cùng Section C, D, E, F từ AI.
+- [ ] **Task 6**: Chuẩn hóa sâu chỉ dẫn Section F (Cầu nối dự phóng 4 nhân tố: Q, P, Thị phần, Mùa vụ & 3 Biên LN).
 
-### Phase 4: Automation CI/CD (GitHub Actions)
-- **Task 8: Xây dựng GitHub Actions Workflow Tự Động Hóa** (`.github/workflows/daily-stock-extractor.yml`)
-  - Lịch chạy định kỳ 18:00 ICT (11:00 UTC) các ngày giao dịch.
-  - Hỗ trợ `workflow_dispatch` để trích xuất thủ công 1 mã bất kỳ hoặc danh sách top RS.
+### Checkpoint 2: Token & Output Quality Verification
+- [ ] Đo lường kích thước Output JSON (giảm từ ~4.500 xuống ~2.000 tokens).
+- [ ] Đo lường thời gian sinh báo cáo (giảm ~50%).
+- [ ] Kiểm tra tính toàn vẹn của 6 Tabs hiển thị trên `ReportViewer.tsx`.
+
+### Phase 3: Final Validation & Clean Code
+- [ ] **Task 7**: Typecheck `npx tsc --noEmit` & Next.js production build `npm run build`.
+- [ ] **Task 8**: Đồng bộ tài liệu kỹ thuật `TECH_ARCHITECTURE.md` và `docs/session-handoff.md`.
 
 ---
 
-## 4. Quản Lý Rủi Ro & Giải Pháp (Risks & Mitigations)
+## Risks and Mitigations
 
-| Rủi Ro | Mức Độ | Giải Pháp |
-| :--- | :--- | :--- |
-| **PDF bị lỗi hoặc link không tải được** | Trung bình | Cơ chế retry 3 lần; nếu 1 file PDF hỏng, tiếp tục với các file còn lại thay vì dừng toàn bộ tiến trình. |
-| **Gemini File API rate limit khi chạy batch lớn** | Trung bình | Giãn cách gọi giữa các mã (delay 5s giữa mỗi ticker), xử lý tuần tự từng mã. |
-| **Chưa có biến môi trường R2 ở local** | Thấp | Tự động chuyển sang chế độ Local Cache tại `data/insights/{ticker}.json`, không làm gián đoạn việc phát triển. |
-| **JSON trả về bị thiếu trường** | Thấp | Viết validator schema đảm bảo fallback các trường rỗng an toàn, không làm crash Prompt 2. |
+| Rủi ro | Mức độ | Biện pháp giảm thiểu |
+| :--- | :---: | :--- |
+| **Dữ liệu R2 cũ không đồng bộ với quý mới nhất** | Trung bình | Cache có TTL 7 ngày; nếu phát hiện quý thực tế từ Vietcap mới hơn thời điểm cache, tự động hủy cache để phân tích lại. |
+| **Cổ phiếu chưa có dữ liệu trên R2** | Thấp | Fallback tự động: Nếu chưa có R2, prompt sẽ quay lại sinh đầy đủ cả Section A, B như trước mà không gây lỗi. |
+| **Lỗi mạng khi upload lên Cloudflare R2** | Thấp | Luôn ghi bản copy vào Local Disk Cache trước; nếu R2 lỗi mạng thì vẫn dùng được Local Cache an toàn. |
+
+---
+
+## Open Questions
+- Không có (Đã thống nhất hướng kết hợp A + B).

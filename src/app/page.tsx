@@ -191,15 +191,17 @@ function HomeContent() {
     setUploadedFiles(files);
   };
 
-  const runAnalysis = async (stock: StockMarketData, files: UploadedFile[]) => {
+  const runAnalysis = async (stock: StockMarketData, files: UploadedFile[], forceRefresh: boolean = false) => {
     const defaultModel = 'gemini-3.7-flash';
     setIsGenerating(true);
     setErrorMessage('');
     const fileCount = files.length;
     const isR2Ready = qualitativeStatus?.hasData;
     setGeneratingMsg(
-      isR2Ready
-        ? `Đang tổng hợp báo cáo ValueX 150 điểm từ dữ liệu định tính R2 & Vietcap IQ API cho ${stock.ticker}...`
+      forceRefresh
+        ? `Đang yêu cầu ${defaultModel} phân tích mới lại toàn diện cho ${stock.ticker}...`
+        : isR2Ready
+        ? `Đang kiểm tra bộ nhớ đệm và tổng hợp báo cáo ValueX cho ${stock.ticker}...`
         : fileCount > 0
         ? `Đang phân tích ${fileCount} tài liệu bằng ${defaultModel} cho ${stock.ticker}...`
         : `Đang kết nối ${defaultModel} phân tích chuyên sâu cho ${stock.ticker}...`
@@ -215,6 +217,7 @@ function HomeContent() {
           marketData: stock,
           uploadedFiles: files,
           preferredModel: defaultModel,
+          forceRefresh,
         }),
       });
 
@@ -322,24 +325,39 @@ function HomeContent() {
             <div className="flex items-center space-x-2 bg-white dark:bg-gray-950/80 border border-emerald-200 dark:border-emerald-500/30 rounded-xl px-3.5 py-2 shadow-xs">
               <Cpu className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                ⚡ Gemini 3.6 Flash
+                ⚡ Gemini 3.7 Flash
               </span>
             </div>
 
+            {/* Nút Phân tích chính (Tự động ưu tiên Cache nếu có) */}
             <button
-              onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current)}
+              onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current, false)}
               disabled={isGenerating}
-              className="flex items-center justify-center space-x-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 text-xs font-extrabold text-white shadow-md shadow-emerald-600/25 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-xs font-extrabold text-white shadow-md shadow-emerald-600/25 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              title="Phân tích cổ phiếu (Tự động tải từ Cache nếu đã phân tích trong 7 ngày để tiết kiệm token)"
             >
-              <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+              <Sparkles className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
               <span>
                 {isGenerating
-                  ? 'Đang Phân Tích AI...'
+                  ? 'Đang Xử Lý...'
                   : report?.generationModel
-                  ? '🔄 Phân Tích Lại Với AI'
+                  ? '⚡ Xem Lại / Cập Nhật'
                   : '🚀 Bắt Đầu Phân Tích AI'}
               </span>
             </button>
+
+            {/* Nút Ép Phân tích lại từ đầu (Bỏ qua Cache) */}
+            {report && (
+              <button
+                onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current, true)}
+                disabled={isGenerating}
+                className="flex items-center justify-center space-x-1.5 rounded-xl border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-950/30 px-3.5 py-2.5 text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition disabled:opacity-50"
+                title="Bỏ qua bộ nhớ đệm, gọi trực tiếp Gemini 3.7 Flash để phân tích mới lại 100%"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                <span>Phân Tích Lại (Bắt Buộc)</span>
+              </button>
+            )}
 
             {report && (
               <button

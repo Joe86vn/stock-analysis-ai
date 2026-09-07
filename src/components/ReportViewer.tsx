@@ -1063,6 +1063,21 @@ export function ReportViewer({
             {report.generationModel || 'gemini-3.7-flash'}
           </span>
         </div>
+
+        {report.isFromCache ? (
+          <div className="flex items-center space-x-1.5 text-xs text-amber-300 bg-amber-950/50 border border-amber-500/30 px-3 py-1 rounded-lg">
+            <span>⚡ Đã tải từ bộ nhớ đệm (Tiết kiệm Token)</span>
+            {report.cachedAt && (
+              <span className="text-amber-400/80 text-[11px]">
+                • {new Date(report.cachedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} {new Date(report.cachedAt).toLocaleDateString('vi-VN')}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center space-x-1.5 text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 px-3 py-1 rounded-lg">
+            <span>✨ Phân tích mới</span>
+          </div>
+        )}
       </div>
 
       {/* Navigation Tabs for A, B, C, D, E, F (Screen view only) */}

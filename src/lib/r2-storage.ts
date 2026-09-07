@@ -7,6 +7,7 @@ import {
   HeadObjectCommand,
 } from '@aws-sdk/client-s3';
 import { QualitativeInsights } from '@/types/qualitative';
+import { AnalysisReport } from '@/types/analysis';
 
 /**
  * Lấy cấu hình Cloudflare R2 từ biến môi trường
@@ -66,6 +67,24 @@ export function getR2ObjectKey(ticker: string): string {
 export function getLocalCacheFilePath(ticker: string): string {
   const cleanTicker = ticker.trim().toUpperCase();
   const dir = path.join(process.cwd(), 'data', 'insights');
+  return path.join(dir, `${cleanTicker}.json`);
+}
+
+/**
+ * Đường dẫn R2 Object Key cho Báo Cáo Hoàn Chỉnh (Full Report Cache)
+ * Ví dụ: stock-reports/HPG/full-report-latest.json
+ */
+export function getFullReportR2ObjectKey(ticker: string): string {
+  return `stock-reports/${ticker.trim().toUpperCase()}/full-report-latest.json`;
+}
+
+/**
+ * Đường dẫn file cache local cho Báo Cáo Hoàn Chỉnh
+ * Ví dụ: data/reports/HPG.json
+ */
+export function getLocalFullReportFilePath(ticker: string): string {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const dir = path.join(process.cwd(), 'data', 'reports');
   return path.join(dir, `${cleanTicker}.json`);
 }
 
@@ -220,4 +239,143 @@ export async function checkQualitativeReportExists(ticker: string): Promise<bool
   }
 
   return false;
+}
+
+/**
+ * Lưu trữ Báo Cáo Hoàn Chỉnh vào Local Disk Cache + Cloudflare R2
+ */
+export async function putFullReportCache(
+  ticker: string,
+  report: AnalysisReport
+): Promise<{ success: boolean; destination: 'r2' | 'local' | 'both'; error?: string }> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const cachedReport: AnalysisReport = {
+    ...report,
+    cachedAt: new Date().toISOString(),
+    isFromCache: true,
+  };
+  const jsonString = JSON.stringify(cachedReport, null, 2);
+
+  // 1. Luôn lưu vào Local Disk Cache
+  try {
+    const localPath = getLocalFullReportFilePath(cleanTicker);
+    ensureLocalDirExists(localPath);
+    fs.writeFileSync(localPath, jsonString, 'utf-8');
+  } catch (localErr: any) {
+    console.warn(`[Full Report Cache] Warning writing local cache for ${cleanTicker}:`, localErr.message);
+  }
+
+  // 2. Upload lên Cloudflare R2 nếu đã cấu hình
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (!s3 || !config.isConfigured) {
+    return {
+      success: true,
+      destination: 'local',
+    };
+  }
+
+  try {
+    const objectKey = getFullReportR2ObjectKey(cleanTicker);
+    const command = new PutObjectCommand({
+      Bucket: config.bucketName,
+      Key: objectKey,
+      Body: jsonString,
+      ContentType: 'application/json; charset=utf-8',
+    });
+
+    await s3.send(command);
+    console.log(`[Full Report Cache] Successfully cached full report for ${cleanTicker} to R2 (${config.bucketName}/${objectKey})`);
+    return {
+      success: true,
+      destination: 'both',
+    };
+  } catch (r2Err: any) {
+    console.error(`[Full Report Cache] Failed uploading full report to R2 for ${cleanTicker}:`, r2Err.message);
+    return {
+      success: true,
+      destination: 'local',
+      error: r2Err.message,
+    };
+  }
+}
+
+/**
+ * Đọc Báo Cáo Hoàn Chỉnh từ Cache (Ưu tiên Local Cache -> R2)
+ * @param ticker Mã cổ phiếu
+ * @param maxAgeHours Số giờ tối đa mà cache còn hợp lệ (mặc định 168 giờ = 7 ngày)
+ */
+export async function getFullReportCache(
+  ticker: string,
+  maxAgeHours: number = 168
+): Promise<AnalysisReport | null> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const now = Date.now();
+  const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+
+  // 1. Thử đọc từ Local Disk Cache trước
+  try {
+    const localPath = getLocalFullReportFilePath(cleanTicker);
+    if (fs.existsSync(localPath)) {
+      const stats = fs.statSync(localPath);
+      const isFresh = (now - stats.mtimeMs) < maxAgeMs;
+      if (isFresh) {
+        const content = fs.readFileSync(localPath, 'utf-8');
+        const parsed = JSON.parse(content) as AnalysisReport;
+        parsed.isFromCache = true;
+        return parsed;
+      }
+    }
+  } catch (localErr: any) {
+    console.warn(`[Full Report Cache] Error reading local cache for ${cleanTicker}:`, localErr.message);
+  }
+
+  // 2. Thử đọc từ Cloudflare R2
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (s3 && config.isConfigured) {
+    try {
+      const objectKey = getFullReportR2ObjectKey(cleanTicker);
+      const command = new GetObjectCommand({
+        Bucket: config.bucketName,
+        Key: objectKey,
+      });
+
+      const response = await s3.send(command);
+      if (response.Body) {
+        const bodyText = await response.Body.transformToString();
+        const parsed = JSON.parse(bodyText) as AnalysisReport;
+
+        // Kiểm tra thời hạn cache nếu có cachedAt
+        if (parsed.cachedAt) {
+          const cachedTime = new Date(parsed.cachedAt).getTime();
+          if (!isNaN(cachedTime) && (now - cachedTime) > maxAgeMs) {
+            console.log(`[Full Report Cache] Cache on R2 for ${cleanTicker} has expired (${maxAgeHours}h)`);
+            return null;
+          }
+        }
+
+        parsed.isFromCache = true;
+
+        // Lưu ngược về local cache
+        try {
+          const localPath = getLocalFullReportFilePath(cleanTicker);
+          ensureLocalDirExists(localPath);
+          fs.writeFileSync(localPath, bodyText, 'utf-8');
+        } catch {
+          // ignore
+        }
+
+        return parsed;
+      }
+    } catch (r2Err: any) {
+      if (r2Err.name !== 'NoSuchKey') {
+        console.warn(`[Full Report Cache] Error fetching full report for ${cleanTicker} from R2:`, r2Err.message);
+      }
+    }
+  }
+
+  return null;
 }

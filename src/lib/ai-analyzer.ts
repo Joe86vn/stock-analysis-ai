@@ -106,19 +106,26 @@ export async function generateAnalysisReport(
   ticker: string,
   marketData: StockMarketData,
   uploadedFiles: UploadedFile[],
-  preferredModel?: string
+  preferredModel?: string,
+  forceRefresh?: boolean
 ): Promise<AnalysisReport> {
   // If running in the browser, fetch from the server-side API route with extended timeout
   if (typeof window !== 'undefined') {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout for deep Gemini 3.6 Flash processing
+    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout for deep processing
     try {
       const response = await fetch('/api/analysis/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel: preferredModel || 'gemini-3.7-flash' }),
+        body: JSON.stringify({
+          ticker,
+          marketData,
+          uploadedFiles,
+          preferredModel: preferredModel || 'gemini-3.7-flash',
+          forceRefresh: Boolean(forceRefresh),
+        }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -163,10 +170,49 @@ export async function generateAnalysisReport(
   }
 
   if (apiKey) {
+    const hasR2 = Boolean(qualitativeInsights);
+
+    const sectionA_Req = hasR2 ? '' : `
+A. Tổng quan doanh nghiệp:
+  - historyAndOverview: Lịch sử hình thành chi tiết, cột mốc lớn, địa bàn hoạt động, sản phẩm chính, đối thủ cạnh tranh chính kèm số liệu thị phần.
+  - shareholdersAndManagement: Cơ cấu cổ đông lớn, ban lãnh đạo.
+  - subsidiariesAndAffiliates: Cơ cấu công ty con, công ty liên kết.
+`;
+
+    const sectionB_Req = hasR2 ? '' : `
+B. Hoạt động kinh doanh & Chuỗi giá trị:
+  - valueChainInput: Chuỗi giá trị Đầu vào (tỷ trọng chi phí, nhà cung cấp).
+  - valueChainProduction: Quy trình sản xuất/vận hành & Năng lực công suất.
+  - valueChainOutput: Đầu ra (Cơ cấu doanh thu sản phẩm/dịch vụ).
+  - revenueBreakdown: Mảng JSON các phân khúc doanh thu.
+`;
+
+    const jsonSchemaA = hasR2 ? '' : `  "sectionA": {
+    "historyAndOverview": "...",
+    "shareholdersAndManagement": "...",
+    "subsidiariesAndAffiliates": "..."
+  },
+`;
+
+    const jsonSchemaB = hasR2 ? '' : `  "sectionB": {
+    "valueChainInput": "...",
+    "valueChainProduction": "...",
+    "valueChainOutput": "...",
+    "revenueBreakdown": [{"name": "Phân khúc 1", "value": 60}, {"name": "Phân khúc 2", "value": 30}, {"name": "Khác", "value": 10}]
+  },
+`;
+
     const prompt = `
 Bạn là chuyên gia phân tích đầu tư chứng khoán hàng đầu Việt Nam theo phương pháp ValueX chuẩn hóa (150 điểm Trụ cột Doanh nghiệp).
 Hãy lập BÁO CÁO PHÂN TÍCH ĐẦU TƯ hoàn chỉnh cho mã chứng khoán ${ticker} (${marketData.companyName}) dựa trên quy trình chuẩn và tài liệu đính kèm:
-${qualitativeInsights ? '\nĐẶC BIỆT LƯU Ý: Đã có sẵn DỮ LIỆU ĐỊNH TÍNH CHUYÊN SÂU TỪ R2 (đính kèm phía dưới). BẮT BUỘC sử dụng các dự án mở rộng công suất, tiến độ đầu tư, luận điểm CTCK và phân tích chuỗi giá trị này kết hợp với số liệu Vietcap IQ để tổng hợp báo cáo siêu tốc, chính xác 100%.' : ''}
+${hasR2 ? `
+⚡ ĐẶC BIỆT LƯU Ý VỀ TỐI ƯU HÓA TOKEN & R2 SMART MERGE:
+- Đã có sẵn DỮ LIỆU ĐỊNH TÍNH CHUYÊN SÂU TỪ R2 (đính kèm phía dưới).
+- Bạn KHÔNG CẦN xuất lại "sectionA" và "sectionB" trong kết quả JSON (hệ thống sẽ tự động kế thừa nguyên bản từ R2).
+- Hãy dồn 100% năng lực tư duy tài chính vào:
+  1. Section C, D, E: Luận giải 3 Trụ cột 150 điểm ValueX kết hợp với số liệu Vietcap IQ.
+  2. Section F: Dự phóng kinh doanh 4 quý và kịch bản định giá P/E chuyên sâu.
+` : ''}
 
 YÊU CẦU BẮT BUỘC VỀ NỘI DUNG VÀ ĐỊNH DẠNG:
 - Phân tích súc tích, chuyên sâu, giàu dữ liệu định lượng (mỗi trường văn bản khoảng 80-150 từ, có dẫn chứng số liệu rõ ràng).
@@ -182,18 +228,8 @@ THÔNG SỐ THỊ TRƯỜNG & DỰ PHÓNG NĂM (${year1} VÀ ${year2}):
 - P/E Cao nhất (Bull / Max) các quý thực tế từ Vietcap IQ API: ${marketData.pe5YearMax || 0}x
 - P/E Thấp nhất (Bear / Min) các quý thực tế từ Vietcap IQ API: ${marketData.pe5YearMin || 0}x
 
-YÊU CẦU CẤU TRÚC BÁO CÁO (JSON 6 PHẦN):
-A. Tổng quan doanh nghiệp:
-  - historyAndOverview: Lịch sử hình thành chi tiết, cột mốc lớn, địa bàn hoạt động, sản phẩm chính, đối thủ cạnh tranh chính kèm số liệu thị phần.
-  - shareholdersAndManagement: Cơ cấu cổ đông lớn, ban lãnh đạo.
-  - subsidiariesAndAffiliates: Cơ cấu công ty con, công ty liên kết.
-
-B. Hoạt động kinh doanh & Chuỗi giá trị:
-  - valueChainInput: Chuỗi giá trị Đầu vào (tỷ trọng chi phí, nhà cung cấp).
-  - valueChainProduction: Quy trình sản xuất/vận hành & Năng lực công suất.
-  - valueChainOutput: Đầu ra (Cơ cấu doanh thu sản phẩm/dịch vụ).
-  - revenueBreakdown: Mảng JSON các phân khúc doanh thu.
-
+YÊU CẦU CẤU TRÚC BÁO CÁO (JSON ${hasR2 ? '4 PHẦN: C, D, E, F' : '6 PHẦN: A, B, C, D, E, F'}):
+${sectionA_Req}${sectionB_Req}
 C. Sức khỏe tài chính (ValueX Pillar 1 - 50 điểm):
   - partA_LiquidityAndDebt: Nhóm A - Thanh khoản & Trả nợ (Current/Quick Ratio, Net Debt/EBITDA, Interest Coverage).
   - partB_CashFlowAndEarnings: Nhóm B - Dòng tiền & Chuyển đổi lợi nhuận (CFO/LNST core, FCF sau CAPEX, CFO/EBITDA, tính bền vững dòng tiền).
@@ -221,7 +257,18 @@ E. Chất lượng doanh nghiệp (ValueX Pillar 3 - 40 điểm):
   - partG_ShockResilience: Nhóm G - Khả năng chống chịu suy thoái và thích ứng công nghệ.
 
 F. Triển vọng kinh doanh & Định giá:
-  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH DỰ PHÓNG DOANH THU & LNST THEO CHUẨN VALUEX. Yêu cầu chi tiết: (1) Xác định 1-2 mảng kinh doanh cốt lõi (chiếm >= 75% doanh thu); (2) Bóc tách định tính 4 nhân tố điều chỉnh doanh thu trên mảng cốt lõi: Tác động Sản lượng/Công suất (tiến độ công suất mới, đơn hàng backlog), Giá bán bình quân ASP (khả năng chuyển giao chi phí, biến động giá thị trường), Cơ cấu sản phẩm/Thị phần/Nhu cầu, và Mùa vụ/Khác; (3) Cơ sở và xu hướng 3 Biên lợi nhuận (Biên gộp, EBITDA, LNST cốt lõi) so với mức trung bình 4 quý lịch sử (áp lực giá vốn COGS vs ASP, đòn bẩy hoạt động SG&A, khấu hao/lãi vay dự án mới); (4) Tuyệt đối KHÔNG chỉ chép lại các con số trần trụi từng quý mà phải cung cấp luận cứ kinh doanh và nguyên nhân tăng giảm cụ thể.
+  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH DỰ PHÓNG DOANH THU & LNST THEO CHUẨN VALUEX. BẮT BUỘC gồm 3 nội dung:
+    (1) **Mảng kinh doanh cốt lõi:** Xác định 1-2 mảng chiếm >= 75% doanh thu;
+    (2) **Bóc tách 4 nhân tố điều chỉnh doanh thu cốt lõi:**
+       • Yếu tố Sản lượng / Công suất (Q): Tiến độ dự án mới, tỷ lệ lấp đầy, đơn hàng backlog.
+       • Yếu tố Giá bán bình quân (ASP - P): Khả năng chuyển giao chi phí, biến động giá thị trường.
+       • Yếu tố Thị phần / Cơ cấu sản phẩm / Nhu cầu ngành: Xu hướng tiêu thụ, cạnh tranh.
+       • Mùa vụ & Yếu tố khác: Quý cao điểm, điều kiện thời tiết, tỷ giá.
+    (3) **Cơ sở 3 Biên lợi nhuận:**
+       • Biên lợi nhuận gộp: Biến động giá vốn COGS vs ASP.
+       • Biên EBITDA: Hiệu ứng đòn bẩy hoạt động Operating Leverage, chi phí SG&A.
+       • Biên LNST cốt lõi: Khấu hao và chi phí lãi vay từ các dự án mở rộng.
+    (Tuyệt đối KHÔNG chỉ chép lại số liệu trần trụi mà phải có luận cứ kinh doanh và nguyên nhân tăng giảm cụ thể).
   - forecastYear1Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year1}.
   - forecastYear2Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year2}.
   - forecastQ1: LNST dự phóng cả năm ${year1} (số nguyên VND).
@@ -238,18 +285,7 @@ ${combinedText.slice(0, 300000)}
 
 Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
 {
-  "sectionA": {
-    "historyAndOverview": "...",
-    "shareholdersAndManagement": "...",
-    "subsidiariesAndAffiliates": "..."
-  },
-  "sectionB": {
-    "valueChainInput": "...",
-    "valueChainProduction": "...",
-    "valueChainOutput": "...",
-    "revenueBreakdown": [{"name": "Phân khúc 1", "value": 60}, {"name": "Phân khúc 2", "value": 30}, {"name": "Khác", "value": 10}]
-  },
-  "sectionC": {
+${jsonSchemaA}${jsonSchemaB}  "sectionC": {
     "partA_LiquidityAndDebt": "...",
     "partB_CashFlowAndEarnings": "...",
     "partC_ProfitabilityAndROIC": "...",
@@ -462,15 +498,21 @@ function buildReportFromParsed(
     companyName: marketData.companyName,
     createdDate: new Date().toLocaleDateString('vi-VN'),
     sectionA: {
-      historyAndOverview: parsed.sectionA?.historyAndOverview || 'Thành lập và phát triển trong ngành...',
-      shareholdersAndManagement: parsed.sectionA?.shareholdersAndManagement || 'Ban lãnh đạo và cơ cấu cổ đông...',
-      subsidiariesAndAffiliates: parsed.sectionA?.subsidiariesAndAffiliates || 'Sở hữu hệ thống các công ty con nòng cốt...',
+      historyAndOverview: qualitativeInsights?.sectionA_CorporateOverview
+        ? `${qualitativeInsights.sectionA_CorporateOverview.businessHistoryAndMilestones}\n\n**Địa bàn & Quy mô:** ${qualitativeInsights.sectionA_CorporateOverview.operatingFootprint}\n\n**Vị thế cạnh tranh & Thị phần:** ${qualitativeInsights.sectionA_CorporateOverview.competitiveLandscapeAndMarketShare}`
+        : parsed.sectionA?.historyAndOverview || 'Thành lập và phát triển trong ngành...',
+      shareholdersAndManagement: qualitativeInsights?.sectionA_CorporateOverview?.keyManagementAndShareholders || parsed.sectionA?.shareholdersAndManagement || 'Ban lãnh đạo và cơ cấu cổ đông...',
+      subsidiariesAndAffiliates: qualitativeInsights?.sectionA_CorporateOverview?.majorSubsidiariesAndAffiliates || parsed.sectionA?.subsidiariesAndAffiliates || 'Sở hữu hệ thống các công ty con nòng cốt...',
     },
     sectionB: {
-      valueChainInput: parsed.sectionB?.valueChainInput || 'Phụ thuộc vào các yếu tố nguyên liệu đầu vào...',
-      valueChainProduction: parsed.sectionB?.valueChainProduction || 'Quy mô sản xuất và công suất vận hành...',
-      valueChainOutput: parsed.sectionB?.valueChainOutput || 'Sản phẩm đầu ra và thị trường tiêu thụ...',
-      revenueBreakdown: Array.isArray(parsed.sectionB?.revenueBreakdown) && parsed.sectionB.revenueBreakdown.length > 0
+      valueChainInput: qualitativeInsights?.sectionB_IndustrySpecificValueChain?.inputOrFundingEngine || parsed.sectionB?.valueChainInput || 'Phụ thuộc vào các yếu tố nguyên liệu đầu vào...',
+      valueChainProduction: qualitativeInsights?.sectionB_IndustrySpecificValueChain
+        ? `${qualitativeInsights.sectionB_IndustrySpecificValueChain.modelDescription}\n\n**Năng lực & Công suất:** ${qualitativeInsights.sectionB_IndustrySpecificValueChain.operationOrProductionCapacity}`
+        : parsed.sectionB?.valueChainProduction || 'Quy mô sản xuất và công suất vận hành...',
+      valueChainOutput: qualitativeInsights?.sectionB_IndustrySpecificValueChain?.outputOrRevenueStreams || parsed.sectionB?.valueChainOutput || 'Sản phẩm đầu ra và thị trường tiêu thụ...',
+      revenueBreakdown: (qualitativeInsights?.sectionB_IndustrySpecificValueChain?.revenueBreakdownEstimate && qualitativeInsights.sectionB_IndustrySpecificValueChain.revenueBreakdownEstimate.length > 0)
+        ? qualitativeInsights.sectionB_IndustrySpecificValueChain.revenueBreakdownEstimate.map(it => ({ name: it.segment, value: it.percentage }))
+        : (Array.isArray(parsed.sectionB?.revenueBreakdown) && parsed.sectionB.revenueBreakdown.length > 0)
         ? parsed.sectionB.revenueBreakdown
         : undefined,
     },

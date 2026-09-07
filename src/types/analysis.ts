@@ -561,4 +561,6 @@ export interface AnalysisReport {
   qualitativeInsights?: import('@/types/qualitative').QualitativeInsights;
   isR2Synchronized?: boolean;
   postInvestmentFramework?: PostInvestmentFramework;
+  cachedAt?: string;
+  isFromCache?: boolean;
 }
