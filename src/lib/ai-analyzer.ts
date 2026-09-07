@@ -118,7 +118,7 @@ export async function generateAnalysisReport(
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel: preferredModel || 'gemini-3.6-flash' }),
+        body: JSON.stringify({ ticker, marketData, uploadedFiles, preferredModel: preferredModel || 'gemini-3.7-flash' }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -305,18 +305,17 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
     const rawCandidates = [
       preferredModel,
       process.env.GEMINI_MODEL,
-      'gemini-3.6-flash',
       'gemini-3.7-flash',
+      'gemini-3.6-flash',
       'gemini-3.5-flash-lite',
       'gemini-3.1-flash-lite',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
     ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
     // Deduplicate candidate models
     const candidateModels = Array.from(new Set(rawCandidates));
     const genAI = new GoogleGenerativeAI(apiKey);
     let lastError: any = null;
+    let isQuotaDepleted = false;
 
     for (const modelName of candidateModels) {
       try {
@@ -351,7 +350,14 @@ Hãy trả về định dạng JSON thuần túy có cấu trúc sau:
       } catch (err: any) {
         console.warn(`[AI Analyzer] Model ${modelName} failed, trying next fallback:`, err.message || err);
         lastError = err;
+        if (err?.message?.includes('prepayment credits') || err?.message?.includes('429')) {
+          isQuotaDepleted = true;
+        }
       }
+    }
+
+    if (isQuotaDepleted) {
+      throw new Error(`Lỗi Google AI Studio (429 - Hết hạn mức/Credit): API Key đã hết ngân sách hoặc vượt quota. Vui lòng cập nhật API Key mới tại Google AI Studio.`);
     }
 
     throw new Error(`Lỗi Google AI Studio (Tất cả model [${candidateModels.join(', ')}] đều thất bại): ${lastError?.message || 'Không thể kết nối AI Studio'}`);
