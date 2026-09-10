@@ -1,9 +1,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { AnalysisReport, StockMarketData, UploadedFile } from '@/types/analysis';
-import { fetchFullVietcapData, ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
+import { AnalysisReport, StockMarketData, UploadedFile, CatalystItem, GoogleAiInsightData, HeadwindRiskItem } from '@/types/analysis';
+import { fetchFullVietcapData, fetchVietcapCompanyDetails, ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
 import { getQualitativeReport } from '@/lib/r2-storage';
 import { QualitativeInsights } from '@/types/qualitative';
 import { generateDefaultExpertReport } from '@/lib/default-report';
+import { fetchGoogleAIGroundedInsights } from '@/lib/crawl-report-service';
 
 export { generateDefaultExpertReport };
 
@@ -160,9 +161,51 @@ export async function generateAnalysisReport(
     console.warn(`[AI Analyzer] Không thể tải dữ liệu định tính từ R2 cho ${ticker}:`, r2Err);
   }
 
+  // 1.1 Tự động lấy thông tin ngành và mã ICB Cấp 2 & Cấp 4 từ Vietcap API
+  try {
+    const companyDetails = await fetchVietcapCompanyDetails(ticker);
+    if (companyDetails) {
+      marketData.icbCodeLv2 = companyDetails.icbCodeLv2;
+      marketData.icbCodeLv4 = companyDetails.icbCodeLv4;
+      marketData.industry = companyDetails.industryVi || marketData.industry;
+      marketData.companyName = companyDetails.companyNameVi || marketData.companyName;
+      if (companyDetails.currentPrice > 0) {
+        marketData.currentPrice = companyDetails.currentPrice;
+      }
+      if (companyDetails.totalShares > 0 && !marketData.sharesOutstanding) {
+        marketData.sharesOutstanding = Math.round(companyDetails.totalShares / 1e6);
+      }
+    }
+  } catch (compErr) {
+    console.warn(`[AI Analyzer] Không thể tải chi tiết công ty cho ${ticker}:`, compErr);
+  }
+
   // Fetch real Vietcap quarterly financial data & real P/E ratios & dynamic forecast years
   const { text: vietcapContext, year1, year2, latestQuarter } = await fetchVietcapFinancialContext(ticker, marketData);
   combinedText = vietcapContext + '\n\n' + combinedText;
+
+  // 1.2 Tự động kiểm tra hoặc nạp dữ liệu Google AI Search Grounding mới nhất
+  let googleInsightData: GoogleAiInsightData | null = null;
+  const googleFile = uploadedFiles.find((f) => f.type === 'GOOGLE_INSIGHT');
+
+  if (googleFile && googleFile.content) {
+    console.log(`[AI Analyzer] ✓ Đã tìm thấy dữ liệu Google AI Insight từ danh sách file nạp của ${ticker}`);
+    combinedText = `=== DỮ LIỆU THỜI SỰ & TRIỂN VỌNG MỚI NHẤT TỪ GOOGLE AI SEARCH GROUNDING ===\n${googleFile.content}\n\n` + combinedText;
+  } else {
+    try {
+      console.log(`[AI Analyzer] Tự động nạp dữ liệu Google AI Search Grounding cho ${ticker}...`);
+      googleInsightData = await fetchGoogleAIGroundedInsights(ticker, marketData.companyName);
+      if (googleInsightData && googleInsightData.overview) {
+        const citationsText = (googleInsightData.citations || [])
+          .map((c) => `- [${c.title}](${c.url}) - Nguồn: ${c.domain || 'Báo chí'}`)
+          .join('\n');
+        const formattedInsight = `--- DỮ LIỆU THỜI SỰ & TRIỂN VỌNG DO GOOGLE AI GROUNDING THU THẬP ---\nTừ khóa tìm kiếm: "${googleInsightData.query}"\nThời điểm tạo: ${googleInsightData.generatedAt}\n\nTỔNG QUAN NỘI DUNG:\n${googleInsightData.overview}\n\nCÁC NGUỒN BÁO CHÍ THAM CHIẾU:\n${citationsText}`;
+        combinedText = `=== DỮ LIỆU THỜI SỰ & TRIỂN VỌNG MỚI NHẤT TỪ GOOGLE AI SEARCH GROUNDING ===\n${formattedInsight}\n\n` + combinedText;
+      }
+    } catch (gErr) {
+      console.warn(`[AI Analyzer] Không thể tự động lấy Google AI insights cho ${ticker}:`, gErr);
+    }
+  }
 
   if (qualitativeInsights) {
     combinedText += `\n\n=== DỮ LIỆU ĐỊNH TÍNH CHUYÊN SÂU ĐÃ BÓC TÁCH (PDF BCTN, NQ ĐHCĐ, BÁO CÁO CTCK TỪ CLOUDFLARE R2) ===\n`;
@@ -239,9 +282,9 @@ C. Sức khỏe tài chính (ValueX Pillar 1 - 50 điểm):
   - partF_EarningsQualityAndAccounting: Nhóm F - Chất lượng lợi nhuận & Kế toán (Tỷ trọng LNST cốt lõi, loại trừ một lần, kiểm toán và giao dịch bên liên quan).
 
 D. Chất lượng tăng trưởng (ValueX Pillar 2 - 60 điểm):
-  - partA_CurrentGrowth: Nhóm A - Tăng trưởng doanh thu và EPS core hiện tại qua Cầu nối Core.
-  - partB_VisibilityNext2To4Q: Nhóm B - Độ chắc chắn 2-4 quý tới (Backlog, công suất mở rộng, chỉ báo cầu).
-  - partC_MarginDurability: Nhóm C - Độ bền biên lợi nhuận (Gross margin, EBIT margin, Pricing power).
+  - partA_CurrentGrowth: Nhóm A - Tăng trưởng doanh thu và EPS core hiện tại qua Cầu nối Core. NẾU CÓ DỮ LIỆU THỜI SỰ TỪ GOOGLE AI: Bắt buộc tích hợp các số liệu kinh doanh mới nhất (doanh thu lũy kế, mức tăng trưởng % so với cùng kỳ, đà hồi phục các mảng cốt lõi).
+  - partB_VisibilityNext2To4Q: Nhóm B - Độ chắc chắn 2-4 quý tới (Backlog, tiến độ công suất mở rộng, sản phẩm/thị trường mới, chỉ báo sức cầu từ tin tức Google AI).
+  - partC_MarginDurability: Nhóm C - Độ bền biên lợi nhuận (Gross margin, EBIT margin, Pricing power, xu hướng biên lợi nhuận mới nhất).
   - partD_GrowthRunway: Nhóm D - Dư địa tăng trưởng (Dư địa công suất, thị phần TAM/SAM, thị trường mới).
   - partE_GrowthToCash: Nhóm E - Tăng trưởng chuyển thành tiền (CFO, hiệu quả ROIC của vốn tăng trưởng mới).
   - partF_MediumTermGrowth: Nhóm F - Tăng trưởng trung hạn (CAGR 3Y, dư địa tái đầu tư).
@@ -257,8 +300,8 @@ E. Chất lượng doanh nghiệp (ValueX Pillar 3 - 40 điểm):
   - partG_ShockResilience: Nhóm G - Khả năng chống chịu suy thoái và thích ứng công nghệ.
 
 F. Triển vọng kinh doanh & Định giá:
-  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH DỰ PHÓNG DOANH THU & LNST THEO CHUẨN VALUEX. BẮT BUỘC gồm 3 nội dung:
-    (1) **Mảng kinh doanh cốt lõi:** Xác định 1-2 mảng chiếm >= 75% doanh thu;
+  - quarterlyForecastReasoning: Trình bày LUẬN ĐIỂM VÀ GIẢ ĐỊNH DỰ PHÓNG DOANH THU & LNST THEO CHUẨN VALUEX (Tab F). BẮT BUỘC gồm 3 nội dung:
+    (1) **Mảng kinh doanh cốt lõi:** Xác định 1-2 mảng chiếm >= 75% doanh thu của ${ticker};
     (2) **Bóc tách 4 nhân tố điều chỉnh doanh thu cốt lõi:**
        • Yếu tố Sản lượng / Công suất (Q): Tiến độ dự án mới, tỷ lệ lấp đầy, đơn hàng backlog.
        • Yếu tố Giá bán bình quân (ASP - P): Khả năng chuyển giao chi phí, biến động giá thị trường.
@@ -268,7 +311,11 @@ F. Triển vọng kinh doanh & Định giá:
        • Biên lợi nhuận gộp: Biến động giá vốn COGS vs ASP.
        • Biên EBITDA: Hiệu ứng đòn bẩy hoạt động Operating Leverage, chi phí SG&A.
        • Biên LNST cốt lõi: Khấu hao và chi phí lãi vay từ các dự án mở rộng.
-    (Tuyệt đối KHÔNG chỉ chép lại số liệu trần trụi mà phải có luận cứ kinh doanh và nguyên nhân tăng giảm cụ thể).
+    (Tuyệt đối KHÔNG chỉ chép lại số liệu trần trụi mà phải có luận cứ kinh doanh và nguyên nhân tăng giảm cụ thể từ tài liệu tham khảo).
+  - growthDriversRevenueAndCost: ĐÁNH GIÁ CHIỀU SÂU VỀ 3 TRỤC VẬN HÀNH TĂNG TRƯỞNG CỐT LÕI (Dành cho Tab G - Mục 1):
+    (1) **Trục 1: Sản lượng / Công suất (Volume - Q):** Năng lực công suất hiện hữu, tiến độ đưa công suất/nhà máy/dự án mới vào vận hành thương mại, tỷ lệ sử dụng công suất và tăng trưởng sản lượng tiêu thụ.
+    (2) **Trục 2: Giá bán bình quân (ASP & Pricing Power - P):** Vị thế định giá, xu hướng giá bán sản phẩm cốt lõi theo thị trường trong nước & thế giới, khả năng chuyển biến động chi phí vào giá bán.
+    (3) **Trục 3: Cơ cấu chi phí & Biên lợi nhuận (Cost & Margin - C):** Biến động giá nguyên vật liệu đầu vào, đòn bẩy hoạt động (operating leverage), chi phí SG&A và triển vọng duy trì hoặc mở rộng biên lợi nhuận gộp/EBITDA.
   - forecastYear1Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year1}.
   - forecastYear2Data: Đối tượng JSON gồm 4 quý (q1, q2, q3, q4) cho Năm ${year2}.
   - forecastQ1: LNST dự phóng cả năm ${year1} (số nguyên VND).
@@ -279,6 +326,34 @@ F. Triển vọng kinh doanh & Định giá:
   - peBase: BẮT BUỘC dùng P/E Trung bình thực tế từ Vietcap IQ API: ${marketData.pe5YearAvg || 0}.
   - peBull: BẮT BUỘC dùng P/E Cao nhất thực tế từ Vietcap IQ API: ${marketData.pe5YearMax || 0}.
   - peBear: BẮT BUỘC dùng P/E Thấp nhất thực tế từ Vietcap IQ API: ${marketData.pe5YearMin || 0}.
+
+G. Chất xúc tác & Tái định giá 6–12 tháng (Dành cho Tab G - Mục 2):
+  - catalystList: Trích xuất chính xác 3 đến 5 CHẤT XÚC TÁC THỰC TẾ TRONG 6–12 THÁNG của chính doanh nghiệp ${ticker} từ tài liệu đính kèm (BCTN, NQ ĐHCĐ, Báo cáo CTCK, TIẾN ĐỘ DỰ ÁN VÀ DỮ LIỆU THỜI SỰ GOOGLE AI). Tuyệt đối không sao chép dữ liệu của cổ phiếu khác.
+    NẾU CÓ DỮ LIỆU GOOGLE AI: Ưu tiên bóc tách các sự kiện thời sự (như mở rộng danh mục độc quyền, kế hoạch chi trả cổ tức tiền mặt, sự kiện doanh nghiệp, dự báo từ các CTCK như Vietcap, SSI, KAFI, DNSE...) thành các chất xúc tác cụ thể.
+    Mỗi chất xúc tác gồm các trường:
+    • id: "cat-${ticker.toLowerCase()}-1", "cat-${ticker.toLowerCase()}-2"...
+    • name: Tên sự kiện/chất xúc tác ngắn gọn, súc tích (VD: Đưa nhà máy mới vào COD, Mở rộng mảng kinh doanh mới, Kế hoạch cổ tức tiền mặt, Dự phóng tăng trưởng từ CTCK...).
+    • type: Chọn 1 trong 5 loại: "Lợi nhuận" | "Dự án / Mở rộng" | "M&A / Sự kiện" | "Chính sách / Ngành" | "Cổ tức / Tái cấu trúc".
+    • expectedTiming: Mốc thời gian dự kiến (VD: "Q3/2026", "6–12 tháng", "Cuối 2026").
+    • probability: Số nguyên xác suất % khả thi (50 đến 95).
+    • impactLevel: "Rất lớn" | "Lớn" | "Vừa" | "Nhỏ".
+    • pricedInStatus: "Chưa phản ánh" | "Phản ánh một phần" | "Đã phản ánh hết".
+    • evidenceSource: Bằng chứng/Nguồn cụ thể từ tài liệu tham chiếu hoặc báo chí (VD: NQ ĐHCĐ 2026, BCTN 2025, Theo Vietstock, Theo Bnews, Theo DNSE...).
+    • verificationKPI: Chỉ số/Sự kiện kiểm chứng cụ thể (VD: Doanh thu mảng mới đạt X tỷ, Hoàn tất chi trả cổ tức Y%, Biên gộp vượt Z%...).
+    • status: "on_track".
+
+H. Ma trận Rủi ro & Thách thức thời sự (Dành cho Tab I - Cân bằng 2 chiều trước quyết định Mua/Bán):
+  - headwindRisks: Trích xuất chính xác 3 đến 4 RỦI RO & THÁCH THỨC THỜI SỰ TRONG 6–12 THÁNG của chính doanh nghiệp ${ticker} từ dữ liệu thời sự Google AI và báo cáo phân tích CTCK (ví dụ: áp lực tỷ giá USD/VND đối với hàng nhập khẩu, biến động giá chip nhớ/linh kiện đầu vào, cạnh tranh gay gắt về giá, sức mua một số phân khúc chậm lại, rủi ro nợ vay/chi phí lãi vay...).
+    Mỗi rủi ro gồm các trường:
+    • id: "risk-${ticker.toLowerCase()}-1", "risk-${ticker.toLowerCase()}-2"...
+    • name: Tên rủi ro ngắn gọn, trực diện (VD: Áp lực tỷ giá USD/VND lên biên gộp, Biến động giá chip nhớ & linh kiện, Cạnh tranh giá mảng bán lẻ...).
+    • category: Chọn 1 trong 4 loại: "Vĩ mô & Tỷ giá" | "Ngành & Cạnh tranh" | "Vận hành & Chi phí" | "Pháp lý & Quản trị".
+    • severity: "Cao" | "Trung bình" | "Thấp".
+    • probability: Số nguyên xác suất % (20 đến 80).
+    • impactedMetric: Chỉ số chịu ảnh hưởng trực tiếp (VD: "Biên lợi nhuận gộp", "Chi phí tài chính", "Doanh thu ICT"...).
+    • headwindDetail: Luận giải ngắn gọn rủi ro thực tế (1-2 câu).
+    • defenseAction: Hành động phòng vệ / Ngưỡng cắt giảm rủi ro trước khi ra quyết định đầu tư (VD: "Đặt stoploss 7%, theo dõi sát tỷ giá liên ngân hàng...").
+    • evidenceSource: Nguồn trích dẫn (VD: Báo cáo Vietstock, Báo cáo CTCK MBS, Tin thời sự Google AI...).
 
 Tài liệu đính kèm:
 ${combinedText.slice(0, 300000)}
@@ -334,6 +409,37 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
     "peBase": ${marketData.pe5YearAvg || 0},
     "peBull": ${marketData.pe5YearMax || 0},
     "peBear": ${marketData.pe5YearMin || 0}
+  },
+  "sectionCatalysts": {
+    "catalystList": [
+      {
+        "id": "cat-1",
+        "name": "...",
+        "type": "Dự án / Mở rộng",
+        "expectedTiming": "6–12 tháng",
+        "probability": 80,
+        "impactLevel": "Lớn",
+        "pricedInStatus": "Chưa phản ánh",
+        "evidenceSource": "...",
+        "verificationKPI": "...",
+        "status": "on_track"
+      }
+    ]
+  },
+  "sectionRisks": {
+    "headwindRisks": [
+      {
+        "id": "risk-1",
+        "name": "...",
+        "category": "Vĩ mô & Tỷ giá",
+        "severity": "Trung bình",
+        "probability": 45,
+        "impactedMetric": "Biên lợi nhuận gộp",
+        "headwindDetail": "...",
+        "defenseAction": "...",
+        "evidenceSource": "..."
+      }
+    ]
   }
 }
       `;
@@ -381,6 +487,9 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
         const parsed = repairAndParseJson(text);
         const report = buildReportFromParsed(ticker, marketData, parsed, year1, year2, qualitativeInsights);
         report.generationModel = modelName;
+        if (googleInsightData) {
+          report.googleAiInsights = googleInsightData;
+        }
         console.log(`[AI Analyzer] Successfully generated report using model: ${modelName}`);
         return report;
       } catch (err: any) {
@@ -493,6 +602,67 @@ function buildReportFromParsed(
   const peBull = valSection.peBull || marketData.pe5YearMax || 0;
   const peBear = valSection.peBear || marketData.pe5YearMin || 0;
 
+  // Trích xuất danh mục chất xúc tác từ AI (Section G) hoặc kế thừa từ QualitativeInsights
+  let extractedCatalysts: CatalystItem[] = [];
+  const rawCatalysts = parsed.sectionCatalysts?.catalystList || parsed.catalystList || [];
+  if (Array.isArray(rawCatalysts) && rawCatalysts.length > 0) {
+    extractedCatalysts = rawCatalysts.map((c: any, idx: number) => ({
+      id: c.id || `cat-${ticker.toLowerCase()}-${idx + 1}`,
+      name: c.name || 'Chất xúc tác tăng trưởng doanh nghiệp',
+      type: ['Lợi nhuận', 'Dự án / Mở rộng', 'M&A / Sự kiện', 'Chính sách / Ngành', 'Cổ tức / Tái cấu trúc'].includes(c.type)
+        ? c.type
+        : 'Lợi nhuận',
+      expectedTiming: c.expectedTiming || '6–12 tháng',
+      probability: typeof c.probability === 'number' ? Math.min(100, Math.max(0, c.probability)) : 75,
+      impactLevel: ['Rất lớn', 'Lớn', 'Vừa', 'Nhỏ'].includes(c.impactLevel) ? c.impactLevel : 'Lớn',
+      pricedInStatus: ['Chưa phản ánh', 'Phản ánh một phần', 'Đã phản ánh hết'].includes(c.pricedInStatus)
+        ? c.pricedInStatus
+        : 'Chưa phản ánh',
+      evidenceSource: c.evidenceSource || 'Tài liệu phân tích doanh nghiệp',
+      verificationKPI: c.verificationKPI || 'Tăng trưởng doanh thu và lợi nhuận cốt lõi',
+      status: 'on_track' as const,
+    }));
+  } else if (qualitativeInsights) {
+    // Nếu có R2 nhưng AI chưa xuất catalystList, tự động tổng hợp từ dự án mở rộng của chính doanh nghiệp
+    if (qualitativeInsights.sectionC_GrowthProjectsAndExpansion && qualitativeInsights.sectionC_GrowthProjectsAndExpansion.length > 0) {
+      qualitativeInsights.sectionC_GrowthProjectsAndExpansion.slice(0, 3).forEach((p, idx) => {
+        extractedCatalysts.push({
+          id: `cat-${ticker.toLowerCase()}-proj-${idx + 1}`,
+          name: `Dự án: ${p.projectName}`,
+          type: 'Dự án / Mở rộng',
+          expectedTiming: p.expectedCommercialStart || '6–12 tháng',
+          probability: 80,
+          impactLevel: 'Lớn',
+          pricedInStatus: 'Chưa phản ánh',
+          evidenceSource: p.sourceDocument || 'Báo cáo thường niên & ĐHCĐ',
+          verificationKPI: p.capacityOrScaleAddition || p.estimatedRevenueOrProfitImpact || 'Tiến độ hoàn thành dự án',
+          status: 'on_track',
+        });
+      });
+    }
+  }
+
+  // Trích xuất danh mục rủi ro thời sự (Headwinds) dành cho Tab I (Cân bằng 2 chiều trước quyết định Mua/Bán)
+  let extractedRisks: HeadwindRiskItem[] = [];
+  const rawRisks = parsed.sectionRisks?.headwindRisks || parsed.headwindRisks || [];
+  if (Array.isArray(rawRisks) && rawRisks.length > 0) {
+    extractedRisks = rawRisks.map((r: any, idx: number) => ({
+      id: r.id || `risk-${ticker.toLowerCase()}-${idx + 1}`,
+      name: r.name || 'Rủi ro biến động thị trường & vận hành',
+      category: ['Vĩ mô & Tỷ giá', 'Ngành & Cạnh tranh', 'Vận hành & Chi phí', 'Pháp lý & Quản trị'].includes(r.category)
+        ? r.category
+        : 'Ngành & Cạnh tranh',
+      severity: ['Cao', 'Trung bình', 'Thấp'].includes(r.severity) ? r.severity : 'Trung bình',
+      probability: typeof r.probability === 'number' ? Math.min(95, Math.max(10, r.probability)) : 40,
+      impactedMetric: r.impactedMetric || 'Biên lợi nhuận & Lợi nhuận ròng',
+      headwindDetail: r.headwindDetail || 'Áp lực cạnh tranh và biến động chi phí đầu vào ảnh hưởng đến đà tăng trưởng.',
+      defenseAction: r.defenseAction || 'Thiết lập ngưỡng cắt lỗ bảo toàn vốn và theo dõi sát diễn biến kết quả kinh doanh quý.',
+      evidenceSource: r.evidenceSource || 'Tổng hợp phân tích thời sự Google AI & Báo cáo CTCK',
+    }));
+  }
+
+  const growthDriversAnalysis = valSection.growthDriversRevenueAndCost || parsed.sectionCatalysts?.growthDriversAnalysis || '';
+
   return {
     ticker,
     companyName: marketData.companyName,
@@ -543,8 +713,8 @@ function buildReportFromParsed(
       partG_ShockResilience: parsed.sectionE?.partG_ShockResilience || 'Khả năng chống chịu suy thoái và thích ứng công nghệ...',
     },
     sectionF: {
-      growthDriversRevenueAndCost: valSection.growthDriversRevenueAndCost || 'Luận điểm tăng trưởng doanh thu và chi phí.',
-      quarterlyForecastReasoning: valSection.quarterlyForecastReasoning || 'Lập luận dự phóng kết quả kinh doanh.',
+      growthDriversRevenueAndCost: valSection.growthDriversRevenueAndCost || 'Đang cập nhật phân tích 3 trục động lực tăng trưởng (Sản lượng, Giá bán, Chi phí)...',
+      quarterlyForecastReasoning: valSection.quarterlyForecastReasoning || valSection.growthDriversRevenueAndCost || 'Đang cập nhật luận điểm và giả định dự phóng KQKD 8 quý...',
       valuation: {
         year1,
         year2,
@@ -564,9 +734,27 @@ function buildReportFromParsed(
         peBear,
       },
     },
+    sectionCatalysts: extractedCatalysts.length > 0 ? {
+      growthDriversAnalysis: growthDriversAnalysis,
+      catalystList: extractedCatalysts,
+      scorecard: {
+        earningsCatalystScore: 6.0,
+        corporateEventScore: 3.5,
+        certaintyScore: 4.0,
+        timingScore: 3.5,
+        unpricedScore: 3.5,
+        totalScore: 20.5,
+        tier: 'Khá',
+      },
+    } : undefined,
     qualitativeInsights: qualitativeInsights || undefined,
     isR2Synchronized: Boolean(qualitativeInsights),
+    icbCodeLv2: marketData.icbCodeLv2,
+    icbCodeLv4: marketData.icbCodeLv4,
     marketData,
+    postInvestmentFramework: {
+      headwindRisks: extractedRisks,
+    },
   };
 }
 

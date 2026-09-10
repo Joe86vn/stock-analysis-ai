@@ -22,10 +22,11 @@ export async function GET(
 
     const cleanTicker = ticker.trim().toUpperCase();
     const { searchParams } = new URL(request.url);
-    let icbCode = searchParams.get('icbCode');
+    let icbCodeLv4 = searchParams.get('icbCodeLv4') || searchParams.get('icbCode4');
+    let icbCodeLv2 = searchParams.get('icbCodeLv2') || searchParams.get('icbCode');
 
     // 1. Nếu chưa có icbCode truyền vào, tự lấy từ company details
-    if (!icbCode) {
+    if (!icbCodeLv4 || !icbCodeLv2) {
       try {
         const detailsRes = await fetch(
           `https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/details?ticker=${cleanTicker}`,
@@ -33,14 +34,15 @@ export async function GET(
         );
         if (detailsRes.ok) {
           const json = await detailsRes.json();
-          icbCode = json.data?.icbCodeLv2 || json.data?.icbCodeLv4 || null;
+          if (!icbCodeLv4) icbCodeLv4 = json.data?.icbCodeLv4 || null;
+          if (!icbCodeLv2) icbCodeLv2 = json.data?.icbCodeLv2 || null;
         }
       } catch (err) {
         console.warn(`[Peers API] Could not auto-fetch icbCode for ${cleanTicker}:`, err);
       }
     }
 
-    if (!icbCode) {
+    if (!icbCodeLv4 && !icbCodeLv2) {
       return NextResponse.json({
         ticker: cleanTicker,
         icbCode: null,
@@ -50,16 +52,37 @@ export async function GET(
       });
     }
 
-    // 2. Lấy danh sách cổ phiếu trong ngành từ Vietcap Sector Ranking API
-    const sectorStocks = await fetchVietcapSectorRs(icbCode);
-    const candidateTickers = sectorStocks
-      .map((s) => s.ticker)
-      .filter((t) => t && t !== cleanTicker);
+    // 2. Ưu tiên cấp 4 để tìm đối thủ cạnh tranh trực tiếp nhất, fallback cấp 2 nếu danh sách quá ít
+    let sectorStocks: any[] = [];
+    let usedIcb = icbCodeLv4 || icbCodeLv2;
+    let usedLevel = 2;
+
+    if (icbCodeLv4) {
+      sectorStocks = await fetchVietcapSectorRs(icbCodeLv4, 4);
+      usedLevel = 4;
+      usedIcb = icbCodeLv4;
+    }
+
+    if ((!sectorStocks || sectorStocks.length <= 1) && icbCodeLv2) {
+      const lv2Stocks = await fetchVietcapSectorRs(icbCodeLv2, 2);
+      if (lv2Stocks && lv2Stocks.length > 0) {
+        sectorStocks = lv2Stocks;
+        usedLevel = 2;
+        usedIcb = icbCodeLv2;
+      }
+    }
+
+    const candidateTickers = (sectorStocks || [])
+      .map((s: any) => s.ticker)
+      .filter((t: string) => t && t !== cleanTicker);
 
     if (candidateTickers.length === 0) {
       return NextResponse.json({
         ticker: cleanTicker,
-        icbCode,
+        icbCode: usedIcb,
+        icbCodeLv2,
+        icbCodeLv4,
+        icbLevel: usedLevel,
         peers: [],
         medians: null,
         warning: 'Không tìm thấy cổ phiếu đối thủ nào cùng nhóm ngành',
@@ -116,7 +139,10 @@ export async function GET(
 
     return NextResponse.json({
       ticker: cleanTicker,
-      icbCode,
+      icbCode: usedIcb,
+      icbCodeLv2,
+      icbCodeLv4,
+      icbLevel: usedLevel,
       peers: top3Peers,
       medians,
     });

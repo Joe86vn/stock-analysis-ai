@@ -20,7 +20,7 @@ export function Header() {
         <div className="flex items-center space-x-6">
           {/* Official ValueX Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <div className="relative h-9 w-36 sm:h-10 sm:w-40">
+            <div className="relative h-9 w-36 sm:h-10 sm:w-40" suppressHydrationWarning>
               {mounted && theme === 'light' ? (
                 <Image
                   src="/brand/logo/logo-full-light.svg"

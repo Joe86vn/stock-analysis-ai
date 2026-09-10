@@ -1,0 +1,118 @@
+{
+  "ticker": "HPG",
+  "companyName": "Công ty Cổ phần Tập đoàn Hòa Phát",
+  "createdDate": "7/9/2026",
+  "sectionA": {
+    "historyAndOverview": "**1. Lịch sử & Cột mốc phát triển:** Thành lập từ năm 1992, HPG khởi đầu từ công ty thương mại thiết bị phụ tùng, chính thức chuyển sang sản xuất thép từ năm 2001. HPG hiện là Tập đoàn công nghiệp sản xuất thép hàng đầu Việt Nam. Các cột mốc chiến lược bao gồm việc đưa Khu liên hợp (KLH) Thép Hải Dương vào hoạt động (2007-2016), KLH Dung Quất 1 (2019-2021) và đang triển khai KLH Dung Quất 2 (2022-2026).\n**2. Thị phần & Địa bàn hoạt động:** HPG giữ vị thế số 1 tuyệt đối tại Việt Nam với hơn 35% thị phần thép xây dựng và dẫn đầu thị phần ống thép (~30%). Thị trường phân phối phủ rộng 63 tỉnh thành và xuất khẩu sang hơn 30 quốc gia (EU, Mỹ, Đông Nam Á).\n**3. Sản phẩm & Đối thủ:** Sản phẩm chủ lực bao gồm thép cuộn cán nóng (HRC), thép xây dựng, phôi thép, ống thép, tôn mạ, container và nông nghiệp/BĐS. Đối thủ chính gồm Formosa Hà Tĩnh, HSG, NKG, Pomina.",
+    "shareholdersAndManagement": "**1. Cơ cấu cổ đông:** Cơ cấu sở hữu tập trung và cô đặc. Chủ tịch HĐQT Trần Đình Long và gia đình nắm giữ khoảng 35% cổ phần chi phối. Cổ đông tổ chức và quỹ đầu tư nước ngoài (Dragon Capital, VinaCapital...) nắm giữ khoảng 20-25%, cổ đông cá nhân trong nước nắm phần còn lại.\n**2. Ban lãnh đạo:** Ban quản trị là những nhà sáng lập gắn bó hơn 30 năm, có năng lực quản trị công nghiệp vượt trội, kỷ luật tài chính cao và tầm nhìn chiến lược xuất sắc trong việc mở rộng công suất đúng chu kỳ ngành.",
+    "subsidiariesAndAffiliates": "**1. Cấu trúc mô hình:** HPG hoạt động theo mô hình Tổng công ty holdings quản lý 4 Tổng công ty con chuyên trách gồm: Tổng công ty Thép, Tổng công ty Sản phẩm Thép, Tổng công ty Nông nghiệp và Tổng công ty Bất động sản.\n**2. Công ty con trọng yếu:** Công ty CP Thép Hòa Phát Dung Quất (đơn vị vận hành KLH Dung Quất 1 & 2, đóng góp >70% tài sản và lợi nhuận), Công ty CP Thép Hòa Phát Hải Dương, Công ty TNHH Điện lạnh Hòa Phát và Công ty CP Phát triển BĐS Hòa Phát."
+  },
+  "sectionB": {
+    "valueChainInput": "**1. Chi phí đầu vào:** Chi phí nguyên vật liệu chiếm khoảng 75-80% tổng giá vốn hàng bán (COGS). Các nguyên liệu chính bao gồm quặng sắt (chiếm 30-35%), than cốc/than mỡ (chiếm 30-35%), thép phế liệu và điện năng.\n**2. Nhà cung cấp & Khả năng đàm phán:** HPG nhập khẩu quặng sắt từ các tập đoàn khoáng sản hàng đầu thế giới tại Úc (BHP, Rio Tinto), Brazil (Vale) và than từ Úc. Lợi thế quy mô đơn hàng khổng lồ giúp HPG đàm phán được giá mua ưu đãi và tối ưu hóa chi phí logistics nhờ hệ thống cảng biển nước sâu Dung Quất đón được tàu tải trọng lớn đến 200.000 tấn.",
+    "valueChainProduction": "**1. Quy trình sản xuất:** HPG sử dụng công nghệ lò cao BOF khép kín đi từ quặng sắt, giúp chi phí sản xuất mỗi tấn thép thô thấp hơn 10-15% so với công nghệ lò điện EAF dùng thép phế liệu.\n**2. Năng lực công suất:** Tổng công suất thép thô hiện tại đạt ~8.5 triệu tấn/năm. Dự án KLH Dung Quất 2 bổ sung thêm 5.6 triệu tấn HRC/năm, đưa tổng công suất thép thô của HPG lên vượt 14.0 triệu tấn/năm khi đi vào vận hành tối đa.",
+    "valueChainOutput": "**1. Cơ cấu sản phẩm:** Thép cuộn cán nóng (HRC) và Thép xây dựng đóng vai trò hạt nhân, chiếm trên 85% tổng sản lượng tiêu thụ.\n**2. Kênh phân phối:** HPG sở hữu hệ thống đại lý cấp 1 sâu rộng trên toàn quốc, cung cấp trực tiếp cho các công trình hạ tầng trọng điểm quốc gia (cao tốc, sân bay) và xuất khẩu sản phẩm HRC, tôn mạ sang các thị trường khó tính như Mỹ, EU, Australia.",
+    "revenueBreakdown": [
+      {
+        "name": "Thép xây dựng & Phôi thép",
+        "value": 50
+      },
+      {
+        "name": "Thép cuộn cán nóng (HRC)",
+        "value": 35
+      },
+      {
+        "name": "Sản phẩm thép khác (Ống thép, Tôn mạ, Container)",
+        "value": 10
+      },
+      {
+        "name": "Nông nghiệp & Bất động sản",
+        "value": 5
+      }
+    ]
+  },
+  "sectionC": {
+    "partA_LiquidityAndDebt": "**1. Chỉ số thanh khoản:** Current Ratio đạt 1.25x và Quick Ratio đạt 0.65x tại Q2/2026. Chỉ số phản ánh đặc trưng doanh nghiệp sản xuất quy mô lớn với lượng tồn kho nguyên vật liệu và thành phẩm chiếm tỷ trọng cao.\n**2. Khả năng trả nợ:** Dù tổng nợ vay tăng lên 173.892,7 tỷ VNĐ tại Q2/2026 để tài trợ Dung Quất 2, chỉ số Net Debt/EBITDA vẫn duy trì an toàn ở mức ~2.1x nhờ dòng tiền HĐKD vững mạnh. Interest Coverage Ratio đạt trên 5.5x, đảm bảo an toàn tuyệt đối cho các nghĩa vụ nợ.",
+    "partB_CashFlowAndEarnings": "**1. Dòng tiền hoạt động (CFO):** CFO ghi nhận bứt phá kỷ lục đạt 10.762,2 tỷ VNĐ trong Q1/2026 và 7.184,7 tỷ VNĐ trong Q2/2026, nhờ biên lợi nhuận gộp mở rộng lên 19.0%.\n**2. Dòng tiền tự do (FCF):** FCF chuyển sang trạng thái dương mạnh mẽ khi đỉnh điểm chi tiêu CAPEX cho Dung Quất 2 đã qua. Tỷ lệ CFO/LNST duy trì trên 1.1x, khẳng định chất lượng lợi nhuận cốt lõi cực kỳ vững chắc.",
+    "partC_ProfitabilityAndROIC": "**1. Hiệu suất vốn:** ROIC đạt ~13.5%-15.0%, vượt xa chi phí sử dụng vốn bình quân WACC (~9.5%), tạo ra giá trị kinh tế gia tăng (EVA) lớn cho cổ đông.\n**2. ROE & Biên lợi nhuận:** ROE cải thiện ấn tượng lên 17.4% tại Q2/2026. Biên gộp đạt 19.0% và biên EBIT đạt 14.2% nhờ giá quặng sắt và than hạ nhiệt nhanh hơn đà giảm giá bán thép.",
+    "partD_WorkingCapitalAndAssetQuality": "**1. Quản lý vốn lưu động:** Chu kỳ tiền mặt (CCC) duy trì tối ưu ở mức 75-80 ngày. Số ngày thu tiền bình quân (DSO) ngắn (~15 ngày) do chính sách thu tiền chặt chẽ; DIO đạt ~95 ngày đảm bảo nguyên liệu sản xuất liên tục.\n**2. Chất lượng tài sản:** Tài sản cố định và XDCB dở dang chiếm >55% tổng tài sản. Đồ dở dang tài sản giảm dần khi dự án Dung Quất 2 bắt đầu kết chuyển sang tài sản cố định để trích khấu hao.",
+    "partE_CapitalStructureAndFunding": "**1. Đòn bẩy tài chính:** Tỷ lệ D/E duy trì ở mức 1.1x tại Q2/2026, là mức hợp lý trong giai đoạn mở rộng công suất lớn. Cơ cấu nợ gồm nợ ngắn hạn lưu động và nợ dài hạn tín dụng thương mại lãi suất ưu đãi.\n**2. Khả năng tự tài trợ:** HPG sở hữu 9.768,3 tỷ VNĐ tiền mặt và tiền gửi ngân hàng tại Q2/2026, tạo nguồn vốn đối ứng dồi dào cho các đợt trả nợ gốc và tài trợ CAPEX bổ sung.",
+    "partF_EarningsQualityAndAccounting": "**1. Chất lượng lợi nhuận:** LNST cốt lõi chiếm >95% tổng lợi nhuận, thể hiện tínhền vững cao. Các khoản thu nhập một lần hay chênh lệch tỷ giá không đáng kể.\n**2. Minh bạch kế toán:** Kiểm toán Big4 (KPMG) đưa ra ý kiến chấp nhận toàn bộ. Không phát hiện các giao dịch bên liên quan phức tạp hay có dấu hiệu chuyển giá."
+  },
+  "sectionD": {
+    "partA_CurrentGrowth": "**",
+    "partB_VisibilityNext2To4Q": "Độ chắc chắn 2-4 quý tới từ Backlog và công suất mới...",
+    "partC_MarginDurability": "Độ bền biên lợi nhuận gộp và đòn bẩy hoạt động...",
+    "partD_GrowthRunway": "Dư địa tăng trưởng công suất và mở rộng thị phần...",
+    "partE_GrowthToCash": "Tăng trưởng đi kèm dòng tiền CFO thực chất...",
+    "partF_MediumTermGrowth": "Tăng trưởng kép trung hạn CAGR 3Y và tái đầu tư...",
+    "partG_RiskAdjustedSustainability": "Tính bền vững sau điều chỉnh rủi ro chu kỳ..."
+  },
+  "sectionE": {
+    "partA_EconomicMoat": "Hào kinh tế (Moat) chi phí thấp và tài sản vô hình...",
+    "partB_IndustryPosition": "Vị thế đầu ngành và xu hướng thị phần 3 năm...",
+    "partC_BusinessModel": "Mô hình kinh doanh hiệu quả và tính lặp lại của doanh thu...",
+    "partD_ManagementAndCapitalAllocation": "Năng lực thực thi của ban lãnh đạo và kỷ luật phân bổ vốn...",
+    "partE_CorporateGovernance": "Quản trị công ty và bảo vệ quyền lợi cổ đông thiểu số...",
+    "partF_RoicSustenance": "Khả năng duy trì ROIC cao qua chu kỳ và cơ hội tái đầu tư...",
+    "partG_ShockResilience": "Khả năng chống chịu suy thoái và thích ứng công nghệ..."
+  },
+  "sectionF": {
+    "growthDriversRevenueAndCost": "Đang cập nhật phân tích 3 trục động lực tăng trưởng (Sản lượng, Giá bán, Chi phí)...",
+    "quarterlyForecastReasoning": "Đang cập nhật luận điểm và giả định dự phóng KQKD 8 quý...",
+    "valuation": {
+      "year1": 2026,
+      "year2": 2027,
+      "forecastNetProfitQ1": 0,
+      "forecastNetProfitQ2": 0,
+      "forecastNetProfitQ3": 0,
+      "forecastNetProfitQ4": 0,
+      "totalForecastProfit": 0,
+      "sharesOutstanding": 8442.96,
+      "epsForward": 0,
+      "peBase": 27.7,
+      "peBull": 236.4,
+      "peBear": 3.6
+    }
+  },
+  "isR2Synchronized": false,
+  "icbCodeLv2": "1700",
+  "icbCodeLv4": "1757",
+  "marketData": {
+    "ticker": "HPG",
+    "companyName": "Công ty Cổ phần Tập đoàn Hòa Phát",
+    "industry": "Tài nguyên Cơ bản",
+    "sectorType": "manufacturing",
+    "currentPrice": 21700,
+    "pe5YearMin": 3.6,
+    "pe5YearMax": 236.4,
+    "pe5YearAvg": 27.7,
+    "peIndustry": 11.2,
+    "pbIndustry": 1.4,
+    "peCompetitors": [
+      {
+        "name": "NKG (Thép Nam Kim)",
+        "pe": 12.4
+      },
+      {
+        "name": "HSG (Hoa Sen)",
+        "pe": 11.8
+      }
+    ],
+    "pbCompetitors": [
+      {
+        "name": "NKG",
+        "pb": 1.2
+      },
+      {
+        "name": "HSG",
+        "pb": 1.3
+      }
+    ],
+    "icbCodeLv2": "1700",
+    "icbCodeLv4": "1757",
+    "sharesOutstanding": 8442.96
+  },
+  "generationModel": "gemini-3.6-flash",
+  "cachedAt": "2026-09-07T10:00:56.416Z",
+  "isFromCache": true
+}

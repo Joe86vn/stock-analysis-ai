@@ -2,10 +2,24 @@ export interface UploadedFile {
   id: string;
   name: string;
   size: number;
-  type: 'BCTC' | 'BCTN' | 'BROKER_REPORT' | 'NGHI_QUYET_DHCD' | 'OTHER';
+  type: 'BCTC' | 'BCTN' | 'BROKER_REPORT' | 'NGHI_QUYET_DHCD' | 'GOOGLE_INSIGHT' | 'OTHER';
   content?: string;
   sourceUrl?: string;
   isAutoFetched?: boolean;
+}
+
+export interface GoogleAiCitation {
+  title: string;
+  url: string;
+  domain?: string;
+}
+
+export interface GoogleAiInsightData {
+  ticker: string;
+  query: string;
+  overview: string;
+  generatedAt: string;
+  citations: GoogleAiCitation[];
 }
 
 export interface AnnualReportItem {
@@ -66,6 +80,7 @@ export interface ReferenceDocumentCatalogData {
     quarterlyFinancials: QuarterlyBCTCItem[];
     agmResolution: AGMResolutionItem | null;
     brokerReports: BrokerReportItem[];
+    googleAiInsights?: GoogleAiInsightData | null;
   };
 }
 
@@ -98,6 +113,10 @@ export interface StockMarketData {
   pbIndustry: number;
   peCompetitors: { name: string; pe: number }[];
   pbCompetitors: { name: string; pb: number }[];
+  icbCode?: string;
+  icbCodeLv2?: string;
+  icbCodeLv4?: string;
+  icbName?: string;
 }
 
 export interface SectionA {
@@ -292,6 +311,8 @@ export interface ValuationQuarterPoint {
 export interface ValuationHubState {
   sectorType: string;
   icbCode?: string;
+  icbCodeLv2?: string;
+  icbCodeLv4?: string;
   currentPrice: number;
   sharesOutstanding: number;
   netDebt?: number;
@@ -500,6 +521,18 @@ export interface TimingScorecardData {
 
 export type ThesisStatus = 'INTACT' | 'MONITOR' | 'BROKEN';
 
+export interface HeadwindRiskItem {
+  id: string;
+  name: string;
+  category: 'Vĩ mô & Tỷ giá' | 'Ngành & Cạnh tranh' | 'Vận hành & Chi phí' | 'Pháp lý & Quản trị';
+  severity: 'Cao' | 'Trung bình' | 'Thấp';
+  probability: number; // 20 - 80%
+  impactedMetric: string; // Chỉ số bị ảnh hưởng (Biên gộp, Doanh thu, Chi phí tài chính...)
+  headwindDetail: string; // Chi tiết rủi ro thời sự từ báo chí/CTCK
+  defenseAction: string; // Hành động phòng vệ trước khi ra quyết định Mua/Bán
+  evidenceSource?: string; // Nguồn trích dẫn (Google AI, Vietstock, CTCK...)
+}
+
 export interface PostInvestmentFramework {
   positionTier?: 'THĂM DÒ' | 'CHUẨN' | 'TẬP TRUNG' | 'QUAN SÁT';
   targetWeightPct?: number;
@@ -531,6 +564,7 @@ export interface PostInvestmentFramework {
     passed: boolean;
     note?: string;
   }>;
+  headwindRisks?: HeadwindRiskItem[];
 }
 
 export interface SectionCatalysts {
@@ -543,9 +577,69 @@ export interface SectionCatalysts {
 // Giữ lại alias SectionD để tương thích ngược nếu cần
 export type SectionD = SectionD_GrowthQuality;
 
+export interface ExecutiveSummaryItem {
+  id: string;
+  title: string;
+  content: string;
+  tag?: string;
+  impact?: 'Cao' | 'Trung bình' | 'Thấp' | 'Tích cực' | 'Tiêu cực';
+}
+
+export interface ExecutiveSummaryData {
+  // 1. Tổng quan doanh nghiệp
+  overviewSummary: string;
+  coreBusiness: string;
+  mainProducts: string[];
+
+  // 2. Chuỗi giá trị
+  valueChainInput: string;
+  valueChainProduction: string;
+  valueChainOutput: string;
+  revenueStructureSummary?: string;
+
+  // 3. Tình hình tài chính & Năng lực hoạt động
+  financialHealthSummary: string;
+  growthQualitySummary: string;
+  competitiveMoatSummary: string;
+  managementGovernanceSummary: string;
+  scores?: {
+    financialScore: number;     // /50
+    growthScore: number;        // /60
+    businessScore: number;      // /40
+    catalystScore: number;      // /25
+    timingScore?: number;       // /10
+  };
+
+  // 4. Triển vọng & Luận điểm đầu tư
+  investmentTheses: ExecutiveSummaryItem[];
+  catalysts: ExecutiveSummaryItem[];
+
+  // 5. Dự phóng & Định giá
+  forecastSummary: string;
+  valuationScenarios: {
+    bear: { price: number; pe: number; upsidePct: number };
+    base: { price: number; pe: number; upsidePct: number };
+    bull: { price: number; pe: number; upsidePct: number };
+  };
+  recommendation: 'MUA' | 'KHẢ QUAN' | 'THEO DÕI' | 'BÁN';
+  targetHorizon: string; // ví dụ: "12 tháng"
+
+  // 6. Rủi ro trọng yếu
+  keyRisks: ExecutiveSummaryItem[];
+
+  // 7. Lời bình chuyên viên & Miễn trừ trách nhiệm
+  analystNote?: string;
+  disclaimer: string;
+  preparedBy?: string;
+  reportDate?: string;
+}
+
 export interface AnalysisReport {
   ticker: string;
   companyName: string;
+  industry?: string;
+  icbCodeLv2?: string;
+  icbCodeLv4?: string;
   createdDate: string;
   sectionA: SectionA;
   sectionB: SectionB;
@@ -559,8 +653,11 @@ export interface AnalysisReport {
   marketData: StockMarketData;
   generationModel?: string;
   qualitativeInsights?: import('@/types/qualitative').QualitativeInsights;
+  googleAiInsights?: GoogleAiInsightData;
   isR2Synchronized?: boolean;
   postInvestmentFramework?: PostInvestmentFramework;
+  executiveSummary?: ExecutiveSummaryData;
   cachedAt?: string;
   isFromCache?: boolean;
 }
+

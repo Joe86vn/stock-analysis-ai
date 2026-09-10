@@ -35,146 +35,32 @@ interface CatalystTrackerProps {
   priceHistory?: any[];
 }
 
-// Dữ liệu mẫu chuẩn hóa cho Chất Xúc Tác 6-12 tháng theo từng cổ phiếu
-const getDefaultCatalystsForTicker = (ticker: string): CatalystItem[] => {
-  const t = ticker.toUpperCase();
-  if (t === 'HPG') {
-    return [
-      {
-        id: 'cat-hpg-1',
-        name: 'Vận hành thương mại Dung Quất 2 (Phân kỳ 1)',
-        type: 'Dự án / Mở rộng',
-        expectedTiming: 'Q1/2026',
-        probability: 90,
-        impactLevel: 'Rất lớn',
-        pricedInStatus: 'Phản ánh một phần',
-        evidenceSource: 'Nghị quyết ĐHCĐ 2025 & Báo cáo tiến độ xây dựng',
-        verificationKPI: 'Lò cao 1 chạy thử nghiệm và đạt 50% công suất thiết kế',
-        status: 'on_track',
-      },
-      {
-        id: 'cat-hpg-2',
-        name: 'Biên lợi nhuận gộp HRC phục hồi nhờ thuế chống bán phá giá',
-        type: 'Chính sách / Ngành',
-        expectedTiming: '6–12 tháng',
-        probability: 75,
-        impactLevel: 'Lớn',
-        pricedInStatus: 'Chưa phản ánh',
-        evidenceSource: 'Quyết định điều tra AD03 của Bộ Công Thương',
-        verificationKPI: 'Biên gộp mảng thép cuộn cán nóng HRC vượt 15%',
-        status: 'on_track',
-      },
-      {
-        id: 'cat-hpg-3',
-        name: 'Cung cấp thép đường ray tàu cao tốc Bắc - Nam',
-        type: 'Lợi nhuận',
-        expectedTiming: 'Cuối 2026',
-        probability: 65,
-        impactLevel: 'Lớn',
-        pricedInStatus: 'Chưa phản ánh',
-        evidenceSource: 'Biên bản làm việc với Bộ Giao thông Vận tải',
-        verificationKPI: 'Ký kết hợp đồng khung cung cấp ray thép kỹ thuật cao',
-        status: 'on_track',
-      },
-    ];
+// Tự động phân giải danh mục Chất Xúc Tác thực tế từ AI hoặc dữ liệu định tính R2 (Tuyệt đối không hardcode)
+const resolveInitialCatalysts = (report: AnalysisReport): CatalystItem[] => {
+  // 1. Ưu tiên danh mục chất xúc tác đã được AI trích xuất từ tài liệu tham chiếu
+  if (report.sectionCatalysts?.catalystList && report.sectionCatalysts.catalystList.length > 0) {
+    return report.sectionCatalysts.catalystList;
   }
 
-  if (t === 'FPT') {
-    return [
-      {
-        id: 'cat-fpt-1',
-        name: 'Doanh thu ký mới dịch vụ CNTT Nước Ngoài vượt mốc 1.5 tỷ USD',
-        type: 'Lợi nhuận',
-        expectedTiming: 'Q4/2025 - Q1/2026',
-        probability: 85,
-        impactLevel: 'Lớn',
-        pricedInStatus: 'Phản ánh một phần',
-        evidenceSource: 'Báo cáo KQKD định kỳ hàng tháng & Backlog hợp đồng',
-        verificationKPI: 'Tăng trưởng doanh thu ký mới tại Nhật Bản & Mỹ duy trì trên 25%',
-        status: 'on_track',
-      },
-      {
-        id: 'cat-fpt-2',
-        name: 'Mở rộng trung tâm dữ liệu AI Factory hợp tác cùng NVIDIA',
-        type: 'Dự án / Mở rộng',
-        expectedTiming: '6–12 tháng',
-        probability: 80,
-        impactLevel: 'Lớn',
-        pricedInStatus: 'Chưa phản ánh',
-        evidenceSource: 'Thông cáo báo chí thỏa thuận chiến lược với NVIDIA',
-        verificationKPI: 'Tỷ lệ lấp đầy cụm máy chủ GPU đạt trên 70%',
-        status: 'on_track',
-      },
-      {
-        id: 'cat-fpt-3',
-        name: 'Chính sách cổ tức tiền mặt đều đặn & tăng vốn cổ phần',
-        type: 'Cổ tức / Tái cấu trúc',
-        expectedTiming: 'Q2/2026',
-        probability: 95,
-        impactLevel: 'Vừa',
-        pricedInStatus: 'Đã phản ánh hết',
-        evidenceSource: 'Kế hoạch phân phối lợi nhuận thường niên',
-        verificationKPI: 'Cổ tức tiền mặt 20% + Cổ tức cổ phiếu 15%',
-        status: 'on_track',
-      },
-    ];
-  }
-
-  if (t === 'PHP') {
-    return [
-      {
-        id: 'cat-php-1',
-        name: 'Đưa bến cảng container nước sâu Lạch Huyện 3 & 4 vào khai thác',
-        type: 'Dự án / Mở rộng',
-        expectedTiming: 'Q1/2026',
-        probability: 85,
-        impactLevel: 'Rất lớn',
-        pricedInStatus: 'Chưa phản ánh',
-        evidenceSource: 'Nghị quyết ĐHCĐ & Báo cáo giám sát đầu tư Hải Phòng Port',
-        verificationKPI: 'Tiếp nhận tàu mẹ container trọng tải đến 100.000 DWT cập bến',
-        status: 'on_track',
-      },
-      {
-        id: 'cat-php-2',
-        name: 'Nhận tiền bồi thường di dời cảng Hoàng Diệu phục vụ cầu Nguyễn Trãi',
-        type: 'Lợi nhuận',
-        expectedTiming: '6–12 tháng',
-        probability: 70,
-        impactLevel: 'Lớn',
-        pricedInStatus: 'Chưa phản ánh',
-        evidenceSource: 'Quyết định phê duyệt phương án bồi thường của UBND TP Hải Phòng',
-        verificationKPI: 'Dòng tiền bồi thường được hạch toán vào báo cáo tài chính',
-        status: 'on_track',
-      },
-    ];
-  }
-
-  return [
-    {
-      id: 'cat-gen-1',
-      name: 'Mở rộng công suất hoặc kênh phân phối mới đi vào hoạt động',
+  // 2. Kế thừa từ dữ liệu định tính chuyên sâu R2 / Stage 1 Extractor (nếu có dự án mở rộng thực tế của chính doanh nghiệp)
+  const qi = report.qualitativeInsights;
+  if (qi?.sectionC_GrowthProjectsAndExpansion && qi.sectionC_GrowthProjectsAndExpansion.length > 0) {
+    return qi.sectionC_GrowthProjectsAndExpansion.slice(0, 4).map((p, idx) => ({
+      id: `cat-${report.ticker.toLowerCase()}-r2-${idx + 1}`,
+      name: `Dự án: ${p.projectName}`,
       type: 'Dự án / Mở rộng',
-      expectedTiming: '6–12 tháng',
-      probability: 75,
+      expectedTiming: p.expectedCommercialStart || '6–12 tháng',
+      probability: 80,
       impactLevel: 'Lớn',
       pricedInStatus: 'Chưa phản ánh',
-      evidenceSource: 'Nghị quyết ĐHCĐ & Báo cáo thường niên',
-      verificationKPI: 'Sản lượng tiêu thụ tăng trưởng trên 15% so với cùng kỳ',
+      evidenceSource: p.sourceDocument || 'Báo cáo thường niên & ĐHCĐ',
+      verificationKPI: p.capacityOrScaleAddition || p.estimatedRevenueOrProfitImpact || 'Tiến độ hoàn thành dự án',
       status: 'on_track',
-    },
-    {
-      id: 'cat-gen-2',
-      name: 'Hưởng lợi từ chu kỳ giá bán hoặc nhu cầu ngành phục hồi',
-      type: 'Lợi nhuận',
-      expectedTiming: '2–4 quý tới',
-      probability: 70,
-      impactLevel: 'Vừa',
-      pricedInStatus: 'Phản ánh một phần',
-      evidenceSource: 'Báo cáo phân tích ngành của các công ty chứng khoán',
-      verificationKPI: 'Biên lợi nhuận gộp cốt lõi mở rộng từ 1–2% điểm phần trăm',
-      status: 'on_track',
-    },
-  ];
+    }));
+  }
+
+  // 3. Không hardcode nội dung của bất kỳ mã nào: trả về mảng rỗng để giao diện hiển thị trạng thái chờ AI trích xuất
+  return [];
 };
 
 export const CatalystTracker: React.FC<CatalystTrackerProps> = ({
@@ -187,12 +73,13 @@ export const CatalystTracker: React.FC<CatalystTrackerProps> = ({
   priceHistory = [],
 }) => {
   // 1. Quản lý danh sách Chất Xúc Tác
-  const [catalysts, setCatalysts] = useState<CatalystItem[]>(() => {
-    if (report.sectionCatalysts?.catalystList && report.sectionCatalysts.catalystList.length > 0) {
-      return report.sectionCatalysts.catalystList;
-    }
-    return getDefaultCatalystsForTicker(report.ticker);
-  });
+  const [catalysts, setCatalysts] = useState<CatalystItem[]>(() => resolveInitialCatalysts(report));
+
+  // Đồng bộ State khi report.ticker hoặc report.sectionCatalysts thay đổi (xóa bỏ 100% lỗi kẹt state)
+  useEffect(() => {
+    setCatalysts(resolveInitialCatalysts(report));
+    setTimingOverrides(report.sectionCatalysts?.timingScorecard?.manualOverrides || {});
+  }, [report.ticker, report.sectionCatalysts?.catalystList, report.qualitativeInsights]);
 
   // Quản lý lịch sử giá nến để tính toán chỉ báo kỹ thuật D3
   const [history, setHistory] = useState<any[]>(priceHistory || []);
@@ -465,146 +352,159 @@ export const CatalystTracker: React.FC<CatalystTrackerProps> = ({
           </button>
         </div>
 
-        <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl">
-          <table className="w-full text-xs text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/60 font-semibold text-slate-700 dark:text-gray-300">
-                <th className="py-2.5 px-3 min-w-[200px]">Chất xúc tác</th>
-                <th className="py-2.5 px-2.5 min-w-[130px]">Loại</th>
-                <th className="py-2.5 px-2.5 min-w-[90px]">Thời gian</th>
-                <th className="py-2.5 px-2 text-center w-16">Xác suất</th>
-                <th className="py-2.5 px-2 text-center w-20">Tác động</th>
-                <th className="py-2.5 px-2.5 min-w-[120px]">Phản ánh vào giá</th>
-                <th className="py-2.5 px-3 min-w-[160px]">Bằng chứng / Nguồn</th>
-                <th className="py-2.5 px-3 min-w-[160px]">KPI xác nhận</th>
-                <th className="py-2.5 px-2.5 text-center min-w-[110px]">Trạng thái</th>
-                <th className="py-2.5 px-2 text-center w-10"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
-              {catalysts.map((cat) => (
-                <tr key={cat.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-850/40 text-slate-800 dark:text-gray-200">
-                  {/* Tên chất xúc tác */}
-                  <td className="py-2.5 px-3 font-medium">
-                    <input
-                      type="text"
-                      value={cat.name}
-                      onChange={(e) => handleUpdateCatalyst(cat.id, 'name', e.target.value)}
-                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none text-xs text-slate-900 dark:text-white"
-                    />
-                  </td>
-
-                  {/* Loại */}
-                  <td className="py-2.5 px-2.5">
-                    <select
-                      value={cat.type}
-                      onChange={(e) => handleUpdateCatalyst(cat.id, 'type', e.target.value as any)}
-                      className="bg-transparent border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs text-slate-800 dark:text-gray-200 focus:outline-none"
-                    >
-                      <option value="Lợi nhuận">Lợi nhuận</option>
-                      <option value="Dự án / Mở rộng">Dự án / Mở rộng</option>
-                      <option value="M&A / Sự kiện">M&A / Sự kiện</option>
-                      <option value="Chính sách / Ngành">Chính sách / Ngành</option>
-                      <option value="Cổ tức / Tái cấu trúc">Cổ tức / Tái cấu trúc</option>
-                    </select>
-                  </td>
-
-                  {/* Thời gian */}
-                  <td className="py-2.5 px-2.5">
-                    <input
-                      type="text"
-                      value={cat.expectedTiming}
-                      onChange={(e) => handleUpdateCatalyst(cat.id, 'expectedTiming', e.target.value)}
-                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none text-xs"
-                    />
-                  </td>
-
-                  {/* Xác suất */}
-                  <td className="py-2.5 px-2 text-center tabular-nums">
-                    <input
-                      type="number"
-                      value={cat.probability}
-                      onChange={(e) => handleUpdateCatalyst(cat.id, 'probability', parseInt(e.target.value, 10) || 0)}
-                      className="w-12 text-center bg-transparent border border-gray-200 dark:border-gray-700 rounded p-1 text-xs"
-                    />
-                    <span className="text-[10px] text-slate-500 ml-0.5">%</span>
-                  </td>
-
-                  {/* Mức tác động */}
-                  <td className="py-2.5 px-2 text-center">
-                    <select
-                      value={cat.impactLevel}
-                      onChange={(e) => handleUpdateCatalyst(cat.id, 'impactLevel', e.target.value as any)}
-                      className="bg-transparent border border-gray-200 dark:border-gray-700 rounded px-1.5 py-1 text-xs text-slate-800 dark:text-gray-200"
-                    >
-                      <option value="Rất lớn">Rất lớn</option>
-                      <option value="Lớn">Lớn</option>
-                      <option value="Vừa">Vừa</option>
-                      <option value="Nhỏ">Nhỏ</option>
-                    </select>
-                  </td>
-
-                  {/* Đã phản ánh vào giá */}
-                  <td className="py-2.5 px-2.5">
-                    <select
-                      value={cat.pricedInStatus}
-                      onChange={(e) => handleUpdateCatalyst(cat.id, 'pricedInStatus', e.target.value as any)}
-                      className="bg-transparent border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs text-slate-800 dark:text-gray-200"
-                    >
-                      <option value="Chưa phản ánh">Chưa phản ánh</option>
-                      <option value="Phản ánh một phần">Phản ánh một phần</option>
-                      <option value="Đã phản ánh hết">Đã phản ánh hết</option>
-                    </select>
-                  </td>
-
-                  {/* Bằng chứng / Nguồn */}
-                  <td className="py-2.5 px-3">
-                    <input
-                      type="text"
-                      value={cat.evidenceSource}
-                      onChange={(e) => handleUpdateCatalyst(cat.id, 'evidenceSource', e.target.value)}
-                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none text-xs text-slate-600 dark:text-gray-400"
-                    />
-                  </td>
-
-                  {/* KPI xác nhận */}
-                  <td className="py-2.5 px-3">
-                    <input
-                      type="text"
-                      value={cat.verificationKPI}
-                      onChange={(e) => handleUpdateCatalyst(cat.id, 'verificationKPI', e.target.value)}
-                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none text-xs text-slate-600 dark:text-gray-400"
-                    />
-                  </td>
-
-                  {/* Trạng thái */}
-                  <td className="py-2.5 px-2.5 text-center">
-                    <select
-                      value={cat.status}
-                      onChange={(e) => handleUpdateCatalyst(cat.id, 'status', e.target.value as any)}
-                      className="bg-transparent border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs font-medium"
-                    >
-                      <option value="on_track">🟢 Đúng hạn</option>
-                      <option value="delayed">🟡 Chậm tiến độ</option>
-                      <option value="broken">🔴 Bị hủy</option>
-                    </select>
-                  </td>
-
-                  {/* Nút xóa */}
-                  <td className="py-2.5 px-2 text-center">
-                    <button
-                      onClick={() => handleDeleteCatalyst(cat.id)}
-                      className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition"
-                      title="Xóa chất xúc tác"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </td>
+        {catalysts.length === 0 ? (
+          <div className="p-8 text-center rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30 space-y-2">
+            <p className="text-xs font-semibold text-slate-700 dark:text-gray-300">
+              Chưa có danh mục chất xúc tác cho mã {report.ticker}
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-gray-400 max-w-lg mx-auto leading-relaxed">
+              Hệ thống không sử dụng dữ liệu giả định viết cứng. Vui lòng nhấn nút <strong>&ldquo;Tạo Báo Cáo / Phân Tích Lại Bằng Gemini&rdquo;</strong> ở đầu trang để AI tự động đọc tài liệu tham chiếu (BCTN, NQ ĐHCĐ, BCTC, CTCK) và trích xuất ma trận chất xúc tác thực tế 6–12 tháng, hoặc bấm <strong>&ldquo;+ Thêm Chất Xúc Tác&rdquo;</strong> ở trên để bổ sung thủ công.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/60 font-semibold text-slate-700 dark:text-gray-300">
+                  <th className="py-2.5 px-3 min-w-[200px]">Chất xúc tác</th>
+                  <th className="py-2.5 px-2.5 min-w-[130px]">Loại</th>
+                  <th className="py-2.5 px-2.5 min-w-[90px]">Thời gian</th>
+                  <th className="py-2.5 px-2 text-center w-16">Xác suất</th>
+                  <th className="py-2.5 px-2 text-center w-20">Tác động</th>
+                  <th className="py-2.5 px-2.5 min-w-[120px]">Phản ánh vào giá</th>
+                  <th className="py-2.5 px-3 min-w-[160px]">Bằng chứng / Nguồn</th>
+                  <th className="py-2.5 px-3 min-w-[160px]">KPI xác nhận</th>
+                  <th className="py-2.5 px-2.5 text-center min-w-[110px]">Trạng thái</th>
+                  <th className="py-2.5 px-2 text-center w-10"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">
+                {catalysts.map((cat) => (
+                  <tr key={cat.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-850/40 text-slate-800 dark:text-gray-200">
+                    {/* Tên chất xúc tác */}
+                    <td className="py-2.5 px-3 font-medium">
+                      <input
+                        type="text"
+                        value={cat.name}
+                        onChange={(e) => handleUpdateCatalyst(cat.id, 'name', e.target.value)}
+                        className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none text-xs text-slate-900 dark:text-white"
+                      />
+                    </td>
+
+                    {/* Loại */}
+                    <td className="py-2.5 px-2.5">
+                      <select
+                        value={cat.type}
+                        onChange={(e) => handleUpdateCatalyst(cat.id, 'type', e.target.value as any)}
+                        className="bg-transparent border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs text-slate-800 dark:text-gray-200 focus:outline-none"
+                      >
+                        <option value="Lợi nhuận">Lợi nhuận</option>
+                        <option value="Dự án / Mở rộng">Dự án / Mở rộng</option>
+                        <option value="M&A / Sự kiện">M&A / Sự kiện</option>
+                        <option value="Chính sách / Ngành">Chính sách / Ngành</option>
+                        <option value="Cổ tức / Tái cấu trúc">Cổ tức / Tái cấu trúc</option>
+                      </select>
+                    </td>
+
+                    {/* Thời gian */}
+                    <td className="py-2.5 px-2.5">
+                      <input
+                        type="text"
+                        value={cat.expectedTiming}
+                        onChange={(e) => handleUpdateCatalyst(cat.id, 'expectedTiming', e.target.value)}
+                        className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none text-xs"
+                      />
+                    </td>
+
+                    {/* Xác suất */}
+                    <td className="py-2.5 px-2 text-center">
+                      <div className="flex items-center justify-center space-x-1">
+                        <input
+                          type="number"
+                          value={cat.probability}
+                          onChange={(e) => handleUpdateCatalyst(cat.id, 'probability', parseInt(e.target.value, 10) || 0)}
+                          className="w-10 text-center bg-transparent border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 text-xs font-semibold"
+                        />
+                        <span className="text-slate-400 text-[10px]">%</span>
+                      </div>
+                    </td>
+
+                    {/* Tác động */}
+                    <td className="py-2.5 px-2 text-center">
+                      <select
+                        value={cat.impactLevel}
+                        onChange={(e) => handleUpdateCatalyst(cat.id, 'impactLevel', e.target.value as any)}
+                        className="bg-transparent border border-gray-200 dark:border-gray-700 rounded px-1.5 py-1 text-xs font-semibold"
+                      >
+                        <option value="Rất lớn">Rất lớn</option>
+                        <option value="Lớn">Lớn</option>
+                        <option value="Vừa">Vừa</option>
+                        <option value="Nhỏ">Nhỏ</option>
+                      </select>
+                    </td>
+
+                    {/* Phản ánh vào giá */}
+                    <td className="py-2.5 px-2.5">
+                      <select
+                        value={cat.pricedInStatus}
+                        onChange={(e) => handleUpdateCatalyst(cat.id, 'pricedInStatus', e.target.value as any)}
+                        className="bg-transparent border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs text-slate-800 dark:text-gray-200"
+                      >
+                        <option value="Chưa phản ánh">Chưa phản ánh</option>
+                        <option value="Phản ánh một phần">Phản ánh một phần</option>
+                        <option value="Đã phản ánh hết">Đã phản ánh hết</option>
+                      </select>
+                    </td>
+
+                    {/* Bằng chứng / Nguồn */}
+                    <td className="py-2.5 px-3">
+                      <input
+                        type="text"
+                        value={cat.evidenceSource}
+                        onChange={(e) => handleUpdateCatalyst(cat.id, 'evidenceSource', e.target.value)}
+                        className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none text-xs text-slate-600 dark:text-gray-400"
+                      />
+                    </td>
+
+                    {/* KPI xác nhận */}
+                    <td className="py-2.5 px-3">
+                      <input
+                        type="text"
+                        value={cat.verificationKPI}
+                        onChange={(e) => handleUpdateCatalyst(cat.id, 'verificationKPI', e.target.value)}
+                        className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none text-xs text-slate-600 dark:text-gray-400"
+                      />
+                    </td>
+
+                    {/* Trạng thái */}
+                    <td className="py-2.5 px-2.5 text-center">
+                      <select
+                        value={cat.status}
+                        onChange={(e) => handleUpdateCatalyst(cat.id, 'status', e.target.value as any)}
+                        className="bg-transparent border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs font-medium"
+                      >
+                        <option value="on_track">🟢 Đúng hạn</option>
+                        <option value="delayed">🟡 Chậm tiến độ</option>
+                        <option value="broken">🔴 Bị hủy</option>
+                      </select>
+                    </td>
+
+                    {/* Nút xóa */}
+                    <td className="py-2.5 px-2 text-center">
+                      <button
+                        onClick={() => handleDeleteCatalyst(cat.id)}
+                        className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition"
+                        title="Xóa chất xúc tác"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* 3. BẢNG ĐIỂM CHẤT XÚC TÁC & TÁI ĐỊNH GIÁ (25 ĐIỂM VALUEX) */}

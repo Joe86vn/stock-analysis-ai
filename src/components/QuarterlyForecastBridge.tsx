@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   AnalysisReport,
   ForecastQuarterMetrics,
@@ -26,6 +26,16 @@ import {
   ChevronUp,
   PieChart,
 } from 'lucide-react';
+import {
+  analyzeHistoricalMargins,
+  computeAdaptiveForecastMargins,
+  cascadeMarginsFromGross,
+  MarginConversionRatios,
+} from '@/lib/forecast-margin-engine';
+import {
+  generateDynamicRevenueBridgeQuarters,
+  DynamicRevenueBridgeResult,
+} from '@/lib/dynamic-revenue-bridge-engine';
 
 interface QuarterlyForecastBridgeProps {
   report: AnalysisReport;
@@ -81,6 +91,20 @@ function extractHistoricalQuarters(
         { period: 'Q1/2025', revenue: 16058, netProfit: 2174, grossMargin: 39.0, ebitda: 3150, cfo: 2100, shares: 1460 },
         { period: 'Q2/2025', revenue: 17200, netProfit: 2450, grossMargin: 39.4, ebitda: 3500, cfo: 2500, shares: 1460 },
       ];
+    } else if (t === 'DGW') {
+      baseQuarters = [
+        { period: 'Q3/2025', revenue: 7391, netProfit: 166, grossMargin: 9.8, ebitda: 250, cfo: 200, shares: sharesCount || 223 },
+        { period: 'Q4/2025', revenue: 7990, netProfit: 159, grossMargin: 9.9, ebitda: 260, cfo: 210, shares: sharesCount || 223 },
+        { period: 'Q1/2026', revenue: 8500, netProfit: 200, grossMargin: 9.5, ebitda: 280, cfo: 240, shares: sharesCount || 223 },
+        { period: 'Q2/2026', revenue: 7273, netProfit: 310, grossMargin: 13.0, ebitda: 390, cfo: 783, shares: sharesCount || 223 },
+      ];
+    } else if (t === 'PHP') {
+      baseQuarters = [
+        { period: 'Q3/2025', revenue: 700, netProfit: 261, grossMargin: 50.1, ebitda: 350, cfo: 280, shares: sharesCount || 327 },
+        { period: 'Q4/2025', revenue: 794, netProfit: 227, grossMargin: 40.8, ebitda: 320, cfo: 250, shares: sharesCount || 327 },
+        { period: 'Q1/2026', revenue: 745, netProfit: 311, grossMargin: 56.5, ebitda: 410, cfo: 330, shares: sharesCount || 327 },
+        { period: 'Q2/2026', revenue: 950, netProfit: 425, grossMargin: 59.4, ebitda: 520, cfo: 450, shares: sharesCount || 327 },
+      ];
     } else {
       baseQuarters = [
         { period: 'Q3/2024', revenue: 1000, netProfit: 120, grossMargin: 20.0, ebitda: 180, cfo: 110, shares: sharesCount || 100 },
@@ -96,11 +120,34 @@ function extractHistoricalQuarters(
   return baseQuarters.map((q, idx) => {
     const rev = q.revenue > 1e6 ? Math.round(q.revenue / 1e9) : Math.round(q.revenue || 0);
     const np = q.netProfit > 1e6 ? Math.round(q.netProfit / 1e9) : Math.round(q.netProfit || 0);
-    const gm = q.grossMargin || 15.0;
+
+    // Tính Lợi nhuận gộp & Biên lợi nhuận gộp chuẩn xác từ số liệu quý
+    let rawGp = 0;
+    if (q.grossProfit !== undefined && q.grossProfit !== null && q.grossProfit !== 0) {
+      rawGp = q.grossProfit > 1e6 ? Math.round(q.grossProfit / 1e9) : Math.round(q.grossProfit);
+    } else if (q.cogs || q.costOfGoodsSold) {
+      const cogsVal = (q.cogs || q.costOfGoodsSold) > 1e6 ? Math.round((q.cogs || q.costOfGoodsSold) / 1e9) : Math.round(q.cogs || q.costOfGoodsSold);
+      rawGp = rev - Math.abs(cogsVal);
+    }
+
+    const gm =
+      rev > 0 && rawGp > 0
+        ? Math.round(((rawGp / rev) * 100) * 10) / 10
+        : q.grossMargin || 15.0;
+
     const eb = q.ebitda ? (q.ebitda > 1e6 ? Math.round(q.ebitda / 1e9) : Math.round(q.ebitda)) : Math.round(np * 1.4);
     const ebMargin = rev > 0 ? Math.round((eb / rev) * 1000) / 10 : 18.0;
     const netM = rev > 0 ? Math.round((np / rev) * 1000) / 10 : 10.0;
-    const cfoVal = q.cfo ? (q.cfo > 1e6 ? Math.round(q.cfo / 1e9) : Math.round(q.cfo)) : Math.round(np * 0.9);
+
+    // Trích xuất CFO chính xác từ Vietcap (q.netOperatingCashFlow / cfa18 hoặc q.cfo)
+    const rawCfo = q.cfo !== undefined && q.cfo !== null
+      ? q.cfo
+      : q.netOperatingCashFlow !== undefined && q.netOperatingCashFlow !== null
+      ? q.netOperatingCashFlow
+      : null;
+    const cfoVal = rawCfo !== null
+      ? (Math.abs(rawCfo) > 1e6 ? Math.round(rawCfo / 1e9) : Math.round(rawCfo))
+      : Math.round(np * 0.8);
     const epsVal = shares > 0 ? Math.round((np * 1e9) / (shares * 1e6)) : 0;
     const bvpsVal = Math.round(epsVal * 6.5);
     const peVal = epsVal > 0 && currentPrice > 0 ? Math.round((currentPrice / (epsVal * 4)) * 10) / 10 : 12.5;
@@ -123,13 +170,13 @@ function extractHistoricalQuarters(
       impactSeasonalityOther: idx === 0 ? 0 : qoq > 0 ? Math.round(qoq * 0.05 * 10) / 10 : 0,
       revenueBridgeGrowth: qoq,
       grossMargin: gm,
-      grossProfit: Math.round(rev * (gm / 100)),
+      grossProfit: rawGp > 0 ? rawGp : Math.round(rev * (gm / 100)),
       ebitdaMargin: ebMargin,
       ebitda: eb,
       netProfit: np,
       netMargin: netM,
       cfo: cfoVal,
-      cfoToNetProfit: np > 0 ? Math.round((cfoVal / np) * 100) : 90,
+      cfoToNetProfit: np !== 0 ? Math.round((cfoVal / np) * 100) : 0,
       sharesOutstanding: shares,
       eps: epsVal,
       bvps: bvpsVal,
@@ -138,6 +185,64 @@ function extractHistoricalQuarters(
       evEbitda: evVal,
     };
   });
+}
+
+export function getDefaultCapacityData(ticker: string): CapacityExpansionData {
+  const t = (ticker || '').toUpperCase();
+  if (t === 'HPG') {
+    return {
+      hasNewFactory: true,
+      existingDesignCapacity: 8.5,
+      existingUtilizationRateQ0: 92,
+      capacityUnit: 'triệu tấn thép thô/năm',
+      newDesignCapacity: 5.6,
+      commercialOperationQuarter: 'Q1/2026',
+      quartersToTargetCapacity: 4,
+      totalInvestmentCapital: 85000,
+      mainFundingSource: 'Vốn tự có (60%) + Nợ vay thương mại dài hạn (40%)',
+      progressNote: 'Dung Quất 2 phân kỳ 1 chạy thử lò cao Q1/2026, phân kỳ 2 chạy thử Q3/2026; thiết bị công nghệ hiện đại từ Ý/Đức.',
+    };
+  }
+  if (t === 'DGW') {
+    return {
+      hasNewFactory: true,
+      existingDesignCapacity: 20000,
+      existingUtilizationRateQ0: 88,
+      capacityUnit: 'điểm bán & trung tâm phân phối',
+      newDesignCapacity: 5000,
+      commercialOperationQuarter: 'Q3/2026',
+      quartersToTargetCapacity: 3,
+      totalInvestmentCapital: 1200,
+      mainFundingSource: 'Vốn tự có & Thặng dư giữ lại (100%)',
+      progressNote: 'Mở rộng trung tâm logistics DCare hiện đại, phát triển mạng lưới phân phối AI Server, thiết bị gia dụng và chuỗi Brandshop.',
+    };
+  }
+  if (t === 'PHP') {
+    return {
+      hasNewFactory: true,
+      existingDesignCapacity: 100,
+      existingUtilizationRateQ0: 92,
+      capacityUnit: 'triệu tấn bốc xếp/năm',
+      newDesignCapacity: 30,
+      commercialOperationQuarter: 'Q1/2026',
+      quartersToTargetCapacity: 4,
+      totalInvestmentCapital: 2500,
+      mainFundingSource: 'Vốn tự có (60%) + Nợ vay thương mại dài hạn (40%)',
+      progressNote: 'Dự án mở rộng bến bãi và cầu tàu mới đúng kế hoạch, chuẩn bị nghiệm thu đưa vào khai thác.',
+    };
+  }
+  return {
+    hasNewFactory: false,
+    existingDesignCapacity: 100,
+    existingUtilizationRateQ0: 90,
+    capacityUnit: 'đơn vị/năm',
+    newDesignCapacity: 0,
+    commercialOperationQuarter: 'Q1/2026',
+    quartersToTargetCapacity: 4,
+    totalInvestmentCapital: 0,
+    mainFundingSource: 'Vốn tự có',
+    progressNote: 'Duy trì năng lực vận hành ổn định theo kế hoạch kinh doanh.',
+  };
 }
 
 export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = ({
@@ -156,6 +261,11 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
 
   const growthScore = growthScorecard.totalScore || 45;
   const growthTier = growthScorecard.rankGrade || 'B+';
+
+  // 1.1 Phân tích hệ số chuyển đổi biên (Margin Conversion Ratios) & Mùa vụ từ chuỗi 20 quý
+  const historicalMarginRatios: MarginConversionRatios = useMemo(() => {
+    return analyzeHistoricalMargins(realQuarterlyFinancials || []);
+  }, [realQuarterlyFinancials]);
 
   // 2. Trích xuất 4 quý lịch sử Q-3..Q0 từ Vietcap IQ API
   const historical4Q: ForecastQuarterMetrics[] = useMemo(() => {
@@ -210,20 +320,9 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
   const [isCapacityExpanded, setIsCapacityExpanded] = useState<boolean>(false);
 
   // State Phân tích công suất mở rộng
-  const [capacityData, setCapacityData] = useState<CapacityExpansionData>({
-    hasNewFactory: report.ticker.toUpperCase() === 'HPG' || report.ticker.toUpperCase() === 'PHP',
-    existingDesignCapacity: report.ticker.toUpperCase() === 'HPG' ? 8.5 : 100,
-    existingUtilizationRateQ0: 92,
-    capacityUnit: report.ticker.toUpperCase() === 'HPG' ? 'triệu tấn thép thô/năm' : 'triệu đơn vị/năm',
-    newDesignCapacity: report.ticker.toUpperCase() === 'HPG' ? 5.6 : 30,
-    commercialOperationQuarter: 'Q1/2026',
-    quartersToTargetCapacity: 4,
-    totalInvestmentCapital: report.ticker.toUpperCase() === 'HPG' ? 85000 : 2500,
-    mainFundingSource: 'Vốn tự có (60%) + Nợ vay thương mại dài hạn (40%)',
-    progressNote: report.ticker.toUpperCase() === 'HPG'
-      ? 'Dung Quất 2 phân kỳ 1 chạy thử lò cao Q1/2026, phân kỳ 2 chạy thử Q3/2026; thiết bị công nghệ hiện đại từ Ý/Đức.'
-      : 'Dự án mở rộng bến bãi và cầu tàu mới đúng kế hoạch, chuẩn bị nghiệm thu đưa vào khai thác.',
-  });
+  const [capacityData, setCapacityData] = useState<CapacityExpansionData>(() =>
+    getDefaultCapacityData(report.ticker)
+  );
 
   // State 4 Quý Dự Phóng Q+1..Q+4
   const q0Period = q0Item.period || 'Q2/2026';
@@ -244,19 +343,53 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
     const p4 = getNextQuarter(p3);
     const periods = [p1, p2, p3, p4];
 
-    // Lấy nền biên thực tế từ Q0 của chính doanh nghiệp
-    const initGM = baseQ0.grossMargin > 0 ? baseQ0.grossMargin : 20.0;
-    const initEbitdaM = baseQ0.ebitdaMargin > 0 ? baseQ0.ebitdaMargin : 22.0;
-    const initNetM = baseQ0.netMargin > 0 ? baseQ0.netMargin : 15.0;
+    // Chạy Động cơ dự phóng biên lợi nhuận thích ứng toàn diện (Universal Adaptive Margin Engine)
+    // Kết hợp: Chuỗi 20 quý lịch sử + Mùa vụ Sq + Hồi quy chu kỳ Mean-Reversion + Tỷ lệ liên kết
+    const { forecastMargins } = computeAdaptiveForecastMargins({
+      historicalQuarters: realQuarterlyFinancials || [],
+      baseQ0: {
+        period: q0P,
+        grossMargin: baseQ0.grossMargin > 0 ? baseQ0.grossMargin : 15.0,
+        ebitdaMargin: baseQ0.ebitdaMargin,
+        netMargin: baseQ0.netMargin,
+      },
+      forecastPeriods: periods,
+    });
 
-    const growthSteps = [0.04, 0.06, 0.07, 0.05];
+    // Chạy Động cơ dự phóng cầu nối doanh thu động (Dynamic Revenue Bridge Engine)
+    // Phân rã 4 yếu tố: Sản lượng (HTK + Vòng quay), ASP (Biên gộp + Cung cầu), Cơ cấu & Đơn hàng trước, Mùa vụ (20Q)
+    const dynamicRevenueBridge = generateDynamicRevenueBridgeQuarters({
+      historicalQuarters: realQuarterlyFinancials || [],
+      report,
+      capacityData,
+      forecastPeriods: periods,
+    });
+
+    // Tính tỷ lệ chuyển đổi dòng tiền thực tế từ lịch sử (LTM Cash Conversion Ratio)
+    let defaultConversionRate = 80;
+    if (realQuarterlyFinancials && realQuarterlyFinancials.length >= 4) {
+      const last4 = realQuarterlyFinancials.slice(-4);
+      const sumCfo = last4.reduce((s, q) => s + (q.cfo ?? q.netOperatingCashFlow ?? 0), 0);
+      const sumNp = last4.reduce((s, q) => s + (q.netProfit || 0), 0);
+      if (sumNp > 0 && sumCfo !== 0) {
+        defaultConversionRate = Math.min(150, Math.max(30, Math.round((sumCfo / sumNp) * 100)));
+      }
+    }
 
     return periods.map((period, idx) => {
-      const step = growthSteps[idx] || 0.05;
-      const volImpact = Math.round(step * 0.6 * 1000) / 10;
-      const aspImpact = Math.round(step * 0.25 * 1000) / 10;
-      const mixImpact = Math.round(step * 0.15 * 1000) / 10;
-      const bridgeGrowth = Math.round((volImpact + aspImpact + mixImpact) * 10) / 10;
+      const bridgeItem = dynamicRevenueBridge.quarters[idx] || {
+        impactVolumeCapacity: 2.2,
+        impactAverageSellingPrice: 1.0,
+        impactMixDemandShare: 1.0,
+        impactSeasonalityOther: 0,
+        revenueBridgeGrowth: 4.2,
+      };
+
+      const marginItem = forecastMargins[idx] || {
+        grossMargin: 15.0,
+        ebitdaMargin: 9.8,
+        netMargin: 5.2,
+      };
 
       return {
         period: `${period}F`,
@@ -264,19 +397,19 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
         revenue: 0,
         abnormalRevenue: 0,
         normalizedRevenue: 0,
-        revenueGrowthQoQ: bridgeGrowth,
-        impactVolumeCapacity: volImpact,
-        impactAverageSellingPrice: aspImpact,
-        impactMixDemandShare: mixImpact,
-        impactSeasonalityOther: 0,
-        revenueBridgeGrowth: bridgeGrowth,
-        grossMargin: Math.round((initGM + idx * 0.3) * 10) / 10,
-        ebitdaMargin: Math.round((initEbitdaM + idx * 0.2) * 10) / 10,
+        revenueGrowthQoQ: bridgeItem.revenueBridgeGrowth,
+        impactVolumeCapacity: bridgeItem.impactVolumeCapacity,
+        impactAverageSellingPrice: bridgeItem.impactAverageSellingPrice,
+        impactMixDemandShare: bridgeItem.impactMixDemandShare,
+        impactSeasonalityOther: bridgeItem.impactSeasonalityOther,
+        revenueBridgeGrowth: bridgeItem.revenueBridgeGrowth,
+        grossMargin: marginItem.grossMargin,
+        ebitdaMargin: marginItem.ebitdaMargin,
         ebitda: 0,
         netProfit: 0,
-        netMargin: Math.round((initNetM + idx * 0.15) * 10) / 10,
+        netMargin: marginItem.netMargin,
         cfo: 0,
-        cfoToNetProfit: 90,
+        cfoToNetProfit: defaultConversionRate,
         sharesOutstanding: shares,
         eps: 0,
         bvps: 0,
@@ -301,14 +434,36 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
   });
 
   // Tự động đồng bộ lại khi q0Item (dữ liệu thực tế từ Vietcap IQ API) tải xong hoặc khi đổi mã
+  const currentTickerRef = useRef(report.ticker);
   useEffect(() => {
+    // Nếu đổi ticker sang cổ phiếu khác: lập tức làm mới 100% capacity và forecast
+    if (currentTickerRef.current !== report.ticker) {
+      currentTickerRef.current = report.ticker;
+      setCapacityData(getDefaultCapacityData(report.ticker));
+      setForecastQuarters(buildDefaultForecastQuarters(q0Item, sharesCount));
+      return;
+    }
+
     if (q0Item && q0Item.grossMargin > 0) {
       const expectedQ1 = `${getNextQuarter(q0Item.period || 'Q2/2026')}F`;
       const isPeriodMismatch = forecastQuarters[0]?.period !== expectedQ1;
       const isMarginStale = Math.abs((forecastQuarters[0]?.grossMargin || 0) - q0Item.grossMargin) > 15;
       const isSharesStale = Math.abs((forecastQuarters[0]?.sharesOutstanding || 0) - sharesCount) > 100;
 
-      if (isPeriodMismatch || isMarginStale || isSharesStale) {
+      // Nhận diện dữ liệu cũ bị tăng dốc tuyến tính nhân tạo (+0.3 liên tục mỗi quý)
+      const isOldArtificialStep =
+        forecastQuarters.length === 4 &&
+        Math.abs((forecastQuarters[1]?.grossMargin || 0) - (forecastQuarters[0]?.grossMargin || 0) - 0.3) < 0.02 &&
+        Math.abs((forecastQuarters[2]?.grossMargin || 0) - (forecastQuarters[1]?.grossMargin || 0) - 0.3) < 0.02;
+
+      // Nhận diện dữ liệu mẫu cứng cũ (Volume 2.4, ASP 1.0, Mix 0.6) để tự động cập nhật sang Động cơ Động
+      const isOldHardcodedPattern =
+        forecastQuarters.length === 4 &&
+        forecastQuarters[0]?.impactVolumeCapacity === 2.4 &&
+        forecastQuarters[0]?.impactAverageSellingPrice === 1.0 &&
+        forecastQuarters[0]?.impactMixDemandShare === 0.6;
+
+      if (isPeriodMismatch || isMarginStale || isSharesStale || isOldArtificialStep || isOldHardcodedPattern) {
         setForecastQuarters(buildDefaultForecastQuarters(q0Item, sharesCount));
       }
     }
@@ -382,6 +537,23 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
   const full8Quarters = useMemo(() => {
     return [...historical4Q, ...computedForecastQuarters];
   }, [historical4Q, computedForecastQuarters]);
+
+  // Động cơ Cầu Nối Doanh Thu Động (Phân tích chẩn đoán phục vụ giải trình)
+  const dynamicBridgeDiagnostics: DynamicRevenueBridgeResult = useMemo(() => {
+    const q0P = q0Item.period || 'Q2/2026';
+    const p1 = getNextQuarter(q0P);
+    const p2 = getNextQuarter(p1);
+    const p3 = getNextQuarter(p2);
+    const p4 = getNextQuarter(p3);
+    const periods = [p1, p2, p3, p4];
+
+    return generateDynamicRevenueBridgeQuarters({
+      historicalQuarters: realQuarterlyFinancials || [],
+      report,
+      capacityData,
+      forecastPeriods: periods,
+    });
+  }, [realQuarterlyFinancials, report, capacityData, q0Item.period]);
 
   // Tổng hợp 4 quý tới (TTM Forward) vs TTM Thực tế
   const ttmHistorical = useMemo(() => {
@@ -488,6 +660,22 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
     });
   };
 
+  // Cập nhật Biên Lợi Nhuận Gộp kèm liên kết liên hoàn (Margin Cascading)
+  // Khi Biên Gộp thay đổi -> Biên EBITDA và Biên LNST Cốt Lõi tự động tính toán lại tỷ lệ thuận theo hệ số lịch sử
+  const handleUpdateGrossMargin = (quarterIdx: number, newGM: number) => {
+    const { ebitdaMargin, netMargin } = cascadeMarginsFromGross(newGM, historicalMarginRatios);
+    setForecastQuarters((prev) => {
+      const next = [...prev];
+      next[quarterIdx] = {
+        ...next[quarterIdx],
+        grossMargin: newGM,
+        ebitdaMargin,
+        netMargin,
+      };
+      return next;
+    });
+  };
+
   // Đồng bộ số liệu sang Tab Định Giá (ValuationCalculator)
   const handleSyncToValuation = () => {
     const updatedReport: AnalysisReport = {
@@ -578,6 +766,13 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
               <span className="text-[11px] text-slate-500 dark:text-gray-400 block">Nền Tham Chiếu Q+1</span>
               <span className="text-base font-extrabold text-slate-900 dark:text-white">
                 {suggestedBaselineQ1.toLocaleString('vi-VN')} tỷ đồng
+              </span>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-medium">
+                {suggestedMode === 'PHA TRỘN'
+                  ? `60% Q0 (${q0Item.normalizedRevenue.toLocaleString('vi-VN')} tỷ) + 40% TB 3Q (${avg3QRevenue.toLocaleString('vi-VN')} tỷ)`
+                  : suggestedMode === 'NÂNG NỀN'
+                  ? `Kế thừa 100% Q0 (${q0Item.normalizedRevenue.toLocaleString('vi-VN')} tỷ)`
+                  : `TB 4Q lịch sử (${avg4QRevenue.toLocaleString('vi-VN')} tỷ)`}
               </span>
             </div>
             <button
@@ -780,7 +975,15 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
             </h3>
           </div>
           <div className="flex items-center space-x-3 text-[11px] text-slate-500 dark:text-gray-400">
-            <span>Dự phóng 3 biên: TB 4Q lịch sử ± Triển vọng ngành</span>
+            <span className="hidden sm:inline">Dự phóng thích ứng: Vòng quay HTK + Cung cầu &amp; Chu kỳ + Cơ cấu &amp; Tiền cọc + Mùa vụ 20Q</span>
+            <button
+              onClick={() => setForecastQuarters(buildDefaultForecastQuarters(q0Item, sharesCount))}
+              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors font-medium shadow-xs"
+              title="Tính toán lại 4 quý dự phóng tự động theo Động cơ Cầu nối Doanh thu & Biên thích ứng"
+            >
+              <RotateCcw className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              <span>Tái dự phóng Cầu nối &amp; Biên AI</span>
+            </button>
           </div>
         </div>
 
@@ -887,9 +1090,38 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
                 <td className="py-1.5 px-3 text-right tabular-nums text-slate-500">-</td>
               </tr>
 
+              {/* Nền doanh thu tham chiếu xuất phát */}
+              <tr className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 bg-emerald-50/20 dark:bg-emerald-950/15 text-emerald-800 dark:text-emerald-300 font-medium">
+                <td className="py-1.5 px-3 pl-6">
+                  • Nền tham chiếu xuất phát
+                  <span className="text-[10px] font-normal text-emerald-600/80 ml-1">({suggestedMode})</span>
+                </td>
+                <td className="py-1.5 px-2 text-center text-slate-500">tỷ</td>
+                {historical4Q.map((q, i) => (
+                  <td key={i} className="py-1.5 px-3 text-right tabular-nums text-slate-400 bg-slate-50/20 dark:bg-slate-950/10">
+                    {i === historical4Q.length - 1 ? q.normalizedRevenue.toLocaleString('vi-VN') : '-'}
+                  </td>
+                ))}
+                {computedForecastQuarters.map((q, i) => {
+                  const baseVal = i === 0
+                    ? suggestedBaselineQ1 + (manualAdjustmentQ1 || 0)
+                    : computedForecastQuarters[i - 1].revenue;
+                  return (
+                    <td key={i} className="py-1.5 px-3 text-right tabular-nums font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/30">
+                      {baseVal.toLocaleString('vi-VN')}
+                    </td>
+                  );
+                })}
+                <td className="py-1.5 px-3 text-right tabular-nums text-slate-400 bg-gray-50/50 dark:bg-gray-850/30">-</td>
+                <td className="py-1.5 px-3 text-right tabular-nums text-slate-400">-</td>
+              </tr>
+
               {/* - Ảnh hưởng Sản lượng % */}
               <tr className="hover:bg-gray-50/40 dark:hover:bg-gray-850/40 text-slate-600 dark:text-gray-400 bg-slate-50/20 dark:bg-slate-900/10">
-                <td className="py-1.5 px-3 pl-8 text-slate-700 dark:text-gray-300">• Ảnh hưởng Sản lượng %</td>
+                <td className="py-1.5 px-3 pl-8 text-slate-700 dark:text-gray-300">
+                  • Ảnh hưởng Sản lượng %
+                  <span className="text-[10px] font-normal text-slate-400 ml-1.5">(vòng quay + tồn kho)</span>
+                </td>
                 <td className="py-1.5 px-2 text-center text-slate-500">%</td>
                 {historical4Q.map((q, i) => (
                   <td key={i} className="py-1.5 px-3 text-right tabular-nums text-slate-400">
@@ -913,7 +1145,10 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
 
               {/* - Ảnh hưởng Giá bán ASP % */}
               <tr className="hover:bg-gray-50/40 dark:hover:bg-gray-850/40 text-slate-600 dark:text-gray-400 bg-slate-50/20 dark:bg-slate-900/10">
-                <td className="py-1.5 px-3 pl-8 text-slate-700 dark:text-gray-300">• Ảnh hưởng Giá bán ASP %</td>
+                <td className="py-1.5 px-3 pl-8 text-slate-700 dark:text-gray-300">
+                  • Ảnh hưởng Giá bán ASP %
+                  <span className="text-[10px] font-normal text-slate-400 ml-1.5">(biên gộp + chu kỳ)</span>
+                </td>
                 <td className="py-1.5 px-2 text-center text-slate-500">%</td>
                 {historical4Q.map((q, i) => (
                   <td key={i} className="py-1.5 px-3 text-right tabular-nums text-slate-400">
@@ -935,9 +1170,12 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
                 <td className="py-1.5 px-3 text-right tabular-nums text-slate-500">-</td>
               </tr>
 
-              {/* - Ảnh hưởng Cơ cấu/Cầu % */}
+              {/* - Ảnh hưởng Cơ cấu & Đơn hàng trước % */}
               <tr className="hover:bg-gray-50/40 dark:hover:bg-gray-850/40 text-slate-600 dark:text-gray-400 bg-slate-50/20 dark:bg-slate-900/10">
-                <td className="py-1.5 px-3 pl-8 text-slate-700 dark:text-gray-300">• Ảnh hưởng Cơ cấu/Cầu %</td>
+                <td className="py-1.5 px-3 pl-8 text-slate-700 dark:text-gray-300">
+                  • Ảnh hưởng Cơ cấu &amp; Đơn hàng trước %
+                  <span className="text-[10px] font-normal text-slate-400 ml-1.5">(danh mục + tiền cọc BS)</span>
+                </td>
                 <td className="py-1.5 px-2 text-center text-slate-500">%</td>
                 {historical4Q.map((q, i) => (
                   <td key={i} className="py-1.5 px-3 text-right tabular-nums text-slate-400">
@@ -961,7 +1199,10 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
 
               {/* - Ảnh hưởng Mùa vụ % */}
               <tr className="hover:bg-gray-50/40 dark:hover:bg-gray-850/40 text-slate-600 dark:text-gray-400 bg-slate-50/20 dark:bg-slate-900/10">
-                <td className="py-1.5 px-3 pl-8 text-slate-700 dark:text-gray-300">• Ảnh hưởng Mùa vụ %</td>
+                <td className="py-1.5 px-3 pl-8 text-slate-700 dark:text-gray-300">
+                  • Ảnh hưởng Mùa vụ %
+                  <span className="text-[10px] font-normal text-slate-400 ml-1.5">(chuỗi 20 quý)</span>
+                </td>
                 <td className="py-1.5 px-2 text-center text-slate-500">%</td>
                 {historical4Q.map((q, i) => (
                   <td key={i} className="py-1.5 px-3 text-right tabular-nums text-slate-400">
@@ -1004,13 +1245,21 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
               {/* ==================== 2. BIÊN LỢI NHUẬN (%) ==================== */}
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 font-bold text-slate-800 dark:text-gray-200">
                 <td colSpan={12} className="py-2 px-3 text-xs tracking-wider uppercase font-bold text-slate-800 dark:text-gray-100">
-                  2. Biên Lợi Nhuận (%)
+                  <div className="flex items-center justify-between">
+                    <span>2. Biên Lợi Nhuận (%)</span>
+                    <span className="text-[10px] font-normal text-emerald-700 dark:text-emerald-400 lowercase tracking-normal">
+                      (liên kết liên hoàn: k_EBITDA = {historicalMarginRatios.kEbitda}, k_LNST = {historicalMarginRatios.kNet})
+                    </span>
+                  </div>
                 </td>
               </tr>
 
               {/* - Biên Lợi Nhuận Gộp */}
               <tr className="hover:bg-gray-50/40 dark:hover:bg-gray-850/40 text-slate-800 dark:text-gray-200">
-                <td className="py-2 px-3 pl-6 font-medium">- Biên Lợi Nhuận Gộp</td>
+                <td className="py-2 px-3 pl-6 font-medium">
+                  - Biên Lợi Nhuận Gộp
+                  <span className="text-[10px] font-normal text-emerald-600 dark:text-emerald-400 ml-1.5">(tự động liên kết)</span>
+                </td>
                 <td className="py-2 px-2 text-center text-slate-500">%</td>
                 {historical4Q.map((q, i) => (
                   <td key={i} className="py-2 px-3 text-right tabular-nums bg-slate-50/20 dark:bg-slate-950/10">
@@ -1023,8 +1272,9 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
                       type="number"
                       step="0.1"
                       value={q.grossMargin || 0}
-                      onChange={(e) => handleUpdateForecastCell(i, 'grossMargin', parseFloat(e.target.value) || 0)}
-                      className="w-16 text-right rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs text-slate-900 dark:text-white font-medium"
+                      onChange={(e) => handleUpdateGrossMargin(i, parseFloat(e.target.value) || 0)}
+                      className="w-16 text-right rounded border border-emerald-300 dark:border-emerald-700 bg-transparent px-1 py-0.5 text-xs text-slate-900 dark:text-white font-medium focus:ring-1 focus:ring-emerald-500"
+                      title="Sửa Biên Gộp sẽ tự động tính toán lại Biên EBITDA và LNST Cốt Lõi theo hệ số chuyển đổi lịch sử"
                     />
                   </td>
                 ))}
@@ -1164,12 +1414,12 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
                 <td className="py-2 px-3 pl-6">- Dòng tiền KD (CFO)</td>
                 <td className="py-2 px-2 text-center text-slate-500">tỷ</td>
                 {historical4Q.map((q, i) => (
-                  <td key={i} className="py-2 px-3 text-right tabular-nums bg-slate-50/20 dark:bg-slate-950/10">
+                  <td key={i} className={`py-2 px-3 text-right tabular-nums bg-slate-50/20 dark:bg-slate-950/10 ${q.cfo < 0 ? 'text-rose-600 dark:text-rose-400 font-semibold' : ''}`}>
                     {q.cfo.toLocaleString('vi-VN')}
                   </td>
                 ))}
                 {computedForecastQuarters.map((q, i) => (
-                  <td key={i} className="py-2 px-3 text-right tabular-nums bg-emerald-50/20 dark:bg-emerald-950/10 text-emerald-600">
+                  <td key={i} className={`py-2 px-3 text-right tabular-nums bg-emerald-50/20 dark:bg-emerald-950/10 ${q.cfo < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {q.cfo.toLocaleString('vi-VN')}
                   </td>
                 ))}
@@ -1183,16 +1433,19 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
               <tr className="hover:bg-gray-50/40 dark:hover:bg-gray-850/40 text-slate-600 dark:text-gray-400">
                 <td className="py-1.5 px-3 pl-8 text-[11px]">• Tỷ lệ CFO / LNST cốt lõi</td>
                 <td className="py-1.5 px-2 text-center text-slate-500">%</td>
-                {historical4Q.map((q, i) => (
-                  <td key={i} className="py-1.5 px-3 text-right tabular-nums bg-slate-50/20 dark:bg-slate-950/10">
-                    {q.cfoToNetProfit}%
-                  </td>
-                ))}
+                {historical4Q.map((q, i) => {
+                  const cfoRatio = q.cfoToNetProfit ?? 0;
+                  return (
+                    <td key={i} className={`py-1.5 px-3 text-right tabular-nums bg-slate-50/20 dark:bg-slate-950/10 ${cfoRatio < 0 ? 'text-rose-600 dark:text-rose-400 font-medium' : ''}`}>
+                      {q.cfoToNetProfit !== undefined ? `${q.cfoToNetProfit}%` : '—'}
+                    </td>
+                  );
+                })}
                 {computedForecastQuarters.map((q, i) => (
                   <td key={i} className="py-1.5 px-3 text-right bg-emerald-50/20 dark:bg-emerald-950/10">
                     <input
                       type="number"
-                      value={q.cfoToNetProfit || 90}
+                      value={q.cfoToNetProfit ?? 80}
                       onChange={(e) => handleUpdateForecastCell(i, 'cfoToNetProfit', parseFloat(e.target.value) || 0)}
                       className="w-16 text-right rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs text-slate-900 dark:text-white"
                     />
@@ -1338,6 +1591,65 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
               </tr>
             </tbody>
           </table>
+        </div>
+
+        {/* 📌 Căn cứ Định Lượng & Vĩ Mô Cho 4 Yếu Tố Điều Chỉnh (Dynamic Bridge Rationale) */}
+        <div className="border border-emerald-200/80 dark:border-emerald-900/60 rounded-xl p-3.5 bg-emerald-50/25 dark:bg-emerald-950/20 text-xs space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 font-semibold text-emerald-800 dark:text-emerald-300">
+            <span className="flex items-center space-x-1.5">
+              <Sparkles className="h-4 w-4 text-emerald-600" />
+              <span>Căn Cứ Định Lượng &amp; Vĩ Mô Cho 4 Yếu Tố Điều Chỉnh Doanh Thu (Dynamic Revenue Bridge)</span>
+            </span>
+            <span className="text-[10px] font-normal text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-900/50 px-2 py-0.5 rounded w-fit">
+              Trạng thái Tồn kho: {dynamicBridgeDiagnostics.diagnostics.inventoryQuadrantLabel}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-[11px] text-slate-700 dark:text-gray-300">
+            <div className="p-2.5 rounded-lg bg-white dark:bg-gray-900/80 border border-emerald-100 dark:border-emerald-900/40 space-y-1">
+              <div className="font-semibold text-slate-900 dark:text-gray-100 flex items-center justify-between">
+                <span>1. Sản lượng (Volume)</span>
+                <span className="text-[10px] font-normal text-slate-500">Vòng quay: {dynamicBridgeDiagnostics.diagnostics.inventoryTurnoverSpeed} vòng/năm</span>
+              </div>
+              <p className="text-slate-600 dark:text-gray-400">
+                HTK tăng trưởng {dynamicBridgeDiagnostics.diagnostics.inventoryGrowthYoY > 0 ? '+' : ''}{dynamicBridgeDiagnostics.diagnostics.inventoryGrowthYoY}%, Vòng quay kho đạt {dynamicBridgeDiagnostics.diagnostics.inventoryTurnoverSpeed} vòng/năm (so với Median 3 năm {dynamicBridgeDiagnostics.diagnostics.medianTurnoverSpeed} vòng).
+                {capacityData.hasNewFactory ? ' Đã tích hợp tiến độ vận hành mở rộng công suất mới từ dự án.' : ''}
+              </p>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-white dark:bg-gray-900/80 border border-emerald-100 dark:border-emerald-900/40 space-y-1">
+              <div className="font-semibold text-slate-900 dark:text-gray-100 flex items-center justify-between">
+                <span>2. Giá bán ASP</span>
+                <span className="text-[10px] font-normal text-slate-500">Biên gộp: {dynamicBridgeDiagnostics.diagnostics.grossMarginLatest}%</span>
+              </div>
+              <p className="text-slate-600 dark:text-gray-400">
+                Biên gộp thực tế {dynamicBridgeDiagnostics.diagnostics.grossMarginLatest}% (Median chu kỳ {dynamicBridgeDiagnostics.diagnostics.grossMarginMedian}%).
+                {dynamicBridgeDiagnostics.diagnostics.grossMarginStatus === 'PEAK_CYCLE'
+                  ? ' Cảnh báo đang ở vùng đỉnh chu kỳ hàng hóa, kích hoạt cơ chế hồi quy hạ nhiệt ASP dần.'
+                  : ' Vị thế định giá ổn định, giá bán trượt giá tự nhiên theo cung cầu thị trường.'}
+              </p>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-white dark:bg-gray-900/80 border border-emerald-100 dark:border-emerald-900/40 space-y-1">
+              <div className="font-semibold text-slate-900 dark:text-gray-100 flex items-center justify-between">
+                <span>3. Cơ cấu danh mục &amp; Đơn hàng trước</span>
+                <span className="text-[10px] font-normal text-slate-500">Cọc BS: {dynamicBridgeDiagnostics.diagnostics.customerAdvancesGrowth > 0 ? '+' : ''}{dynamicBridgeDiagnostics.diagnostics.customerAdvancesGrowth}%</span>
+              </div>
+              <p className="text-slate-600 dark:text-gray-400">
+                Dịch chuyển danh mục sang sản phẩm biên cao (Thuyết minh BCTC) kết hợp tốc độ tăng trưởng tiền người mua trả trước trên Bảng CĐKT ({dynamicBridgeDiagnostics.diagnostics.customerAdvancesGrowth > 0 ? '+' : ''}{dynamicBridgeDiagnostics.diagnostics.customerAdvancesGrowth}%).
+              </p>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-white dark:bg-gray-900/80 border border-emerald-100 dark:border-emerald-900/40 space-y-1">
+              <div className="font-semibold text-slate-900 dark:text-gray-100 flex items-center justify-between">
+                <span>4. Mùa vụ (Chuỗi 20 quý)</span>
+                <span className="text-[10px] font-normal text-slate-500">Khử trend dài hạn</span>
+              </div>
+              <p className="text-slate-600 dark:text-gray-400">
+                Độ lệch mùa vụ chu kỳ: Q1 ({dynamicBridgeDiagnostics.diagnostics.seasonalityVector[1] > 0 ? '+' : ''}{dynamicBridgeDiagnostics.diagnostics.seasonalityVector[1]}%), Q2 ({dynamicBridgeDiagnostics.diagnostics.seasonalityVector[2] > 0 ? '+' : ''}{dynamicBridgeDiagnostics.diagnostics.seasonalityVector[2]}%), Q3 ({dynamicBridgeDiagnostics.diagnostics.seasonalityVector[3] > 0 ? '+' : ''}{dynamicBridgeDiagnostics.diagnostics.seasonalityVector[3]}%), Q4 ({dynamicBridgeDiagnostics.diagnostics.seasonalityVector[4] > 0 ? '+' : ''}{dynamicBridgeDiagnostics.diagnostics.seasonalityVector[4]}%).
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

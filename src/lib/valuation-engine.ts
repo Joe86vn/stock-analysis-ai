@@ -6,6 +6,7 @@ import {
   ValuationHubState,
   PeerData,
 } from '@/types/analysis';
+import { calculateDCFFairValue } from './dcf-engine';
 
 /**
  * 7 Nhóm ngành chính của ValueX Framework
@@ -125,19 +126,49 @@ export function detectValueXSector(icbCode?: string, sectorName?: string): Value
   const code = (icbCode || '').trim();
   const name = (sectorName || '').toLowerCase();
 
-  if (code === '8300' || code === '8700' || name.includes('ngân hàng') || name.includes('tài chính') || name.includes('chứng khoán')) {
+  // 1. Kiểm tra theo mã ICB (hỗ trợ cả cấp 2 và cấp 4 qua 2 số đầu)
+  if (code.startsWith('83') || code.startsWith('87') || code.startsWith('85') || code === '8300' || code === '8700' || code === '8500') {
     return 'NGÂN HÀNG_TÀI CHÍNH';
   }
-  if (code === '8600' || name.includes('bất động sản') || name.includes('địa ốc')) {
+  if (code.startsWith('86') || code === '8600') {
     return 'BẤT ĐỘNG SẢN';
   }
-  if (code === '1700' || code === '1300' || name.includes('thép') || name.includes('tài nguyên') || name.includes('hóa chất') || name.includes('khoáng sản')) {
+  if (code.startsWith('17') || code.startsWith('13') || code === '1700' || code === '1300') {
     return 'TÀI NGUYÊN_CHU KỲ';
   }
-  if (code === '7500' || name.includes('điện') || name.includes('nước') || name.includes('tiện ích') || name.includes('năng lượng') || name.includes('cảng')) {
+  if (code.startsWith('75') || code.startsWith('05') || code === '7500' || code === '0500') {
     return 'TIỆN ÍCH_HẠ TẦNG';
   }
-  if (code === '5300' || code === '3500' || code === '3700' || name.includes('bán lẻ') || name.includes('tiêu dùng') || name.includes('thực phẩm')) {
+  if (
+    code.startsWith('53') ||
+    code.startsWith('35') ||
+    code.startsWith('37') ||
+    code.startsWith('33') ||
+    code === '5300' ||
+    code === '3500' ||
+    code === '3700' ||
+    code === '3300'
+  ) {
+    return 'TIÊU DÙNG_BÁN LẺ';
+  }
+  if (code.startsWith('27') || code.startsWith('23') || code === '2700' || code === '2300' || code.startsWith('95')) {
+    return 'CÔNG NGHIỆP_SẢN XUẤT';
+  }
+
+  // 2. Kiểm tra theo tên ngành / sectorType
+  if (name.includes('ngân hàng') || name.includes('tài chính') || name.includes('chứng khoán') || name === 'finance') {
+    return 'NGÂN HÀNG_TÀI CHÍNH';
+  }
+  if (name.includes('bất động sản') || name.includes('địa ốc') || name.includes('real estate')) {
+    return 'BẤT ĐỘNG SẢN';
+  }
+  if (name.includes('thép') || name.includes('tài nguyên') || name.includes('hóa chất') || name.includes('khoáng sản')) {
+    return 'TÀI NGUYÊN_CHU KỲ';
+  }
+  if (name.includes('điện') || name.includes('nước') || name.includes('tiện ích') || name.includes('năng lượng') || name.includes('cảng') || name === 'energy' || name === 'logistics_port') {
+    return 'TIỆN ÍCH_HẠ TẦNG';
+  }
+  if (name.includes('bán lẻ') || name.includes('tiêu dùng') || name.includes('thực phẩm') || name === 'retail' || name === 'consumer_goods') {
     return 'TIÊU DÙNG_BÁN LẺ';
   }
   if (name.includes('tập đoàn') || name.includes('đa ngành')) {
@@ -218,6 +249,10 @@ export function computeMethodFairValue(
     sharesOutstanding: number;
     bvpsForward: number;
     currentPrice: number;
+    cfoForward?: number;
+    capexForward?: number;
+    netProfitForward?: number;
+    revenueGrowthForecast?: number;
   }
 ): { bear: number; base: number; bull: number } {
   const { method, targetBear, targetBase, targetBull } = config;
@@ -278,28 +313,170 @@ export function computeMethodFairValue(
     }
 
     case 'DCF': {
-      // DCF sử dụng bảng độ nhạy hoặc giá trị tính từ ma trận
-      const baseDcfPrice = currentPrice > 0 ? currentPrice : 30000;
+      // Nếu người dùng đã chọn một ô cụ thể trong ma trận hoặc nhập tay Base (> 500 đ)
+      if (config.fairValueBase > 500) {
+        return {
+          bear:
+            config.fairValueBear > 0 && config.fairValueBear !== config.fairValueBase
+              ? config.fairValueBear
+              : Math.round(config.fairValueBase * 0.81),
+          base: config.fairValueBase,
+          bull:
+            config.fairValueBull > 0 && config.fairValueBull !== config.fairValueBase
+              ? config.fairValueBull
+              : Math.round(config.fairValueBase * 1.26),
+        };
+      }
+
+      // Ngược lại, tính toán tự động chuẩn xác từ Động cơ FCFF/DCF
+      const np = inputs.netProfitForward || Math.round((epsForward * shares) / 1000);
+      const cfo = inputs.cfoForward || Math.round(np * 0.8);
+      const capex = inputs.capexForward || Math.max(50, Math.round(cfo * 0.22));
+
+      const dcfRes = calculateDCFFairValue({
+        cfoForward: cfo,
+        capexForward: capex,
+        netProfitForward: np,
+        netDebt,
+        sharesOutstanding: shares,
+        currentPrice,
+        revenueGrowthForecast: inputs.revenueGrowthForecast || 12,
+        wacc: 12.0,
+        terminalGrowth: 4.0,
+      });
+
+      const bearVal = dcfRes.sensitivityMatrix[2]?.columns[0]?.fairValue || Math.round(dcfRes.fairValuePerShare * 0.81);
+      const bullVal = dcfRes.sensitivityMatrix[0]?.columns[2]?.fairValue || Math.round(dcfRes.fairValuePerShare * 1.26);
+
       return {
-        bear: Math.round(baseDcfPrice * (targetBear > 0 ? targetBear : 0.8)),
-        base: Math.round(baseDcfPrice * (targetBase > 0 ? targetBase : 1.15)),
-        bull: Math.round(baseDcfPrice * (targetBull > 0 ? targetBull : 1.4)),
+        bear: bearVal,
+        base: dcfRes.fairValuePerShare,
+        bull: bullVal,
       };
     }
 
     case 'RNAV':
     case 'SOTP': {
-      const baseNavPrice = currentPrice > 0 ? currentPrice : 30000;
+      const baseNavPrice =
+        config.fairValueBase > 0
+          ? config.fairValueBase
+          : config.targetBase > 500
+          ? config.targetBase
+          : currentPrice > 0
+          ? currentPrice
+          : 30000;
       return {
-        bear: Math.round(baseNavPrice * (targetBear > 0 ? targetBear : 0.85)),
-        base: Math.round(baseNavPrice * (targetBase > 0 ? targetBase : 1.2)),
-        bull: Math.round(baseNavPrice * (targetBull > 0 ? targetBull : 1.5)),
+        bear: Math.round(baseNavPrice * (config.targetBear > 0 && config.targetBear < 5 ? config.targetBear : 0.85)),
+        base: Math.round(baseNavPrice * (config.targetBase > 0 && config.targetBase < 5 ? config.targetBase : 1.2)),
+        bull: Math.round(baseNavPrice * (config.targetBull > 0 && config.targetBull < 5 ? config.targetBull : 1.5)),
       };
     }
 
     default:
       return { bear: 0, base: 0, bull: 0 };
   }
+}
+
+/**
+ * Tự động tính toán và điền hệ số mục tiêu cho các phương pháp định giá
+ * dựa trên 20 quý lịch sử thực tế, Top Peers và Hạng Tăng Trưởng (Tab D).
+ */
+export function applyAutoMultiplesToMethods(
+  methods: ValuationMethodConfig[],
+  params: {
+    historicalStats?: any;
+    growthTier?: string;
+    peerMedians?: any;
+    currentPrice?: number;
+    cfoForward?: number;
+    capexForward?: number;
+    netProfitForward?: number;
+    netDebt?: number;
+    sharesOutstanding?: number;
+  }
+): ValuationMethodConfig[] {
+  const { historicalStats, growthTier = 'B+', peerMedians, currentPrice = 0 } = params;
+
+  return methods.map((m) => {
+    let targetBear = m.targetBear;
+    let targetBase = m.targetBase;
+    let targetBull = m.targetBull;
+    let fairValueBear = m.fairValueBear;
+    let fairValueBase = m.fairValueBase;
+    let fairValueBull = m.fairValueBull;
+
+    if (m.method === 'P_E' && historicalStats?.peMedian) {
+      const calc = computeTargetMultiples({
+        median: historicalStats.peMedian,
+        std: historicalStats.peStd || 2.0,
+        growthTier,
+        peerMax: peerMedians?.maxPe,
+      });
+      targetBear = calc.bear;
+      targetBase = calc.base;
+      targetBull = calc.bull;
+    } else if (m.method === 'P_B' && historicalStats?.pbMedian) {
+      const calc = computeTargetMultiples({
+        median: historicalStats.pbMedian,
+        std: historicalStats.pbStd || 0.3,
+        growthTier,
+      });
+      targetBear = calc.bear;
+      targetBase = calc.base;
+      targetBull = calc.bull;
+    } else if (m.method === 'EV_EBITDA') {
+      const baseMedian =
+        peerMedians?.evEbitda && peerMedians.evEbitda > 0
+          ? peerMedians.evEbitda
+          : targetBase > 0
+          ? targetBase
+          : 8.5;
+
+      // Điều chỉnh theo Hạng tăng trưởng Tab D:
+      let mult = 1.0;
+      if (growthTier === 'A+') mult = 1.15;
+      else if (growthTier === 'A') mult = 1.075;
+      else if (growthTier === 'B') mult = 0.925;
+      else if (growthTier === 'C') mult = 0.85;
+      else if (growthTier === 'D') mult = 0.75;
+
+      targetBase = Number((baseMedian * mult).toFixed(1));
+      targetBear = Number((targetBase * 0.82).toFixed(1));
+      targetBull = Number((targetBase * 1.22).toFixed(1));
+    } else if (m.method === 'DCF') {
+      const cfo = params.cfoForward || (params.netProfitForward ? Math.round(params.netProfitForward * 0.8) : (currentPrice > 0 ? Math.round((currentPrice * 0.08 * (params.sharesOutstanding || 100)) / 1000) : 500));
+      const capex = params.capexForward || Math.max(50, Math.round(cfo * 0.22));
+      const np = params.netProfitForward || cfo;
+      const dcfRes = calculateDCFFairValue({
+        cfoForward: cfo,
+        capexForward: capex,
+        netProfitForward: np,
+        netDebt: params.netDebt || 0,
+        sharesOutstanding: params.sharesOutstanding || 100,
+        currentPrice,
+        revenueGrowthForecast: 12,
+        wacc: 12.0,
+        terminalGrowth: 4.0,
+      });
+
+      if (!fairValueBase || fairValueBase <= 500) {
+        fairValueBase = dcfRes.fairValuePerShare;
+        fairValueBear = dcfRes.sensitivityMatrix[2]?.columns[0]?.fairValue || Math.round(fairValueBase * 0.81);
+        fairValueBull = dcfRes.sensitivityMatrix[0]?.columns[2]?.fairValue || Math.round(fairValueBase * 1.26);
+        targetBase = fairValueBase;
+      }
+    }
+
+    return {
+      ...m,
+      targetBear,
+      targetBase,
+      targetBull,
+      fairValueBear,
+      fairValueBase,
+      fairValueBull,
+    };
+  });
 }
 
 /**

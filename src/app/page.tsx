@@ -400,6 +400,7 @@ function HomeContent() {
           {report && (
             <ErrorBoundary fallbackTitle="Không thể hiển thị Báo cáo Phân tích">
               <ReportViewer
+                key={report.ticker}
                 report={report}
                 onUpdateReport={handleUpdateReport}
                 onRegenerate={() => runAnalysis(selectedStock, uploadedFilesRef.current)}

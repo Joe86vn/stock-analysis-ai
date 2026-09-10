@@ -159,8 +159,20 @@ h1, h2, h3, h4, h5, h6 {
     color: #1e293b !important;
   }
 
-  .print-page-break {
-    page-break-before: always !important;
-    break-before: page !important;
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  .factsheet-page-1 {
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+
+  .memo-section {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }
+
+

@@ -1,0 +1,305 @@
+{
+  "ticker": "PHP",
+  "companyName": "Công ty Cổ phần Cảng Hải Phòng",
+  "createdDate": "8/9/2026",
+  "sectionA": {
+    "historyAndOverview": "• **Lịch sử hình thành và cột mốc lớn:** Công ty Cổ phần Cảng Hải Phòng (Mã CK: PHP) có tiền thân là Bến Sáu Kho được xây dựng từ năm 1876. Trải qua hơn một thế kỷ phát triển, PHP chính thức chuyển đổi thành công ty cổ phần năm 2014 và giao dịch trên UPCoM từ năm 2022. Cột mốc chiến lược là việc đưa bến 3&4 cảng nước sâu Lạch Huyện vào khai thác từ Q2/2025, nâng tổng công suất thiết kế toàn hệ thống lên 3,2 triệu TEU/năm.\n• **Địa bàn hoạt động và sản phẩm chính:** PHP là doanh nghiệp cảng biển dẫn đầu khu vực miền Bắc, vận hành chuỗi cảng chiến lược gồm Tân Vũ, Đình Vũ, Chùa Vẽ và bến nước sâu Lạch Huyện. Hoạt động cốt lõi tập trung vào bốc xếp container, hàng rời và cho thuê hạ tầng cảng nước sâu.",
+    "shareholdersAndManagement": "• **Cơ cấu cổ đông cô đặc:** Tổng công ty Hàng hải Việt Nam (VIMC) nắm giữ chi phối tới 92,56% vốn điều lệ, trong khi tỷ lệ tự do chuyển nhượng (free-float) duy trì ở mức thấp khoảng 7,44%. Việc VIMC nắm giữ tỷ trọng lớn giúp doanh nghiệp thuận lợi trong việc phối hợp với các cơ quan quản lý nhà nước để triển khai các dự án hạ tầng trọng điểm.\n• **Ban lãnh đạo giàu kinh nghiệm:** Ban điều hành và Hội đồng quản trị PHP có nhiều năm kinh nghiệm quản trị hàng hải, duy trì sự ổn định trong chiến lược phát triển dài hạn và định hướng tối ưu hóa hệ sinh thái logistics gắn liền với các hãng tàu lớn quốc tế.",
+    "subsidiariesAndAffiliates": "• **Hệ thống công ty con và liên kết:** PHP sở hữu mạng lưới hoàn chỉnh với 5 công ty con trực thuộc (như Cảng Hoàng Diệu - Chùa Vẽ, Cảng Đình Vũ, Lai dắt và Vận tải Cảng Hải Phòng) và hơn 10 công ty liên kết hoạt động trong lĩnh vực logistics, kho bãi, lai dắt tàu biển.\n• **Điểm nhấn chiến lược TIL Port (HTIT):** Công ty liên doanh Cảng Quốc tế TIL Cảng Hải Phòng (HTIT) vận hành bến 3&4 Lạch Huyện (PHP sở hữu 51%) với đối tác chiến lược Terminal Investment Limited (thuộc hãng tàu lớn nhất thế giới MSC) đóng vai trò là động lực cốt lõi gia tăng lợi nhuận hợp nhất."
+  },
+  "sectionB": {
+    "valueChainInput": "• **Tỷ trọng cấu trúc chi phí:** Chi phí đầu vào của PHP chủ yếu bao gồm chi phí nhân công (chiếm khoảng 45% - 48% tổng chi phí sản xuất do đặc thù sử dụng nhiều lao động vận hành), tiếp theo là chi phí dịch vụ mua ngoài, chi phí điện nước, và chi phí khấu hao tài sản cố định gia tăng từ chu kỳ đầu tư hạ tầng mới.\n• **Quan hệ với nhà cung cấp:** PHP duy trì mối quan hệ bền chặt với các nhà cung cấp thiết bị nâng hạ lớn (Kalmar, Liebherr), nhà cung cấp năng lượng và các nhà thầu nạo vét luồng hàng hải để đảm bảo hạ tầng luồng lạch luôn đạt chuẩn an toàn cho tàu lớn cập cảng.",
+    "valueChainProduction": "• **Quy trình vận hành tiên tiến:** PHP vận hành chuỗi dịch vụ khép kín từ hoa tiêu, lai dắt tàu biển, bốc xếp hàng hóa tại cầu cảng, lưu kho bãi container đến dịch vụ kiểm định và sửa chữa container.\n• **Năng lực công suất toàn hệ thống:** Với việc đưa bến 3&4 Lạch Huyện vào khai thác, tổng công suất thiết kế đạt 3,2 triệu TEU/năm đối với container và hàng triệu tấn hàng rời, cho phép PHP tiếp nhận các dòng tàu mẹ trọng tải lớn đến 165.000 DWT (14.000 TEU) chạy tuyến xa đi châu Âu và châu Mỹ.",
+    "valueChainOutput": "• **Cơ cấu sản phẩm đầu ra:** Doanh thu và sản lượng đầu ra được đóng góp chủ yếu từ mảng bốc dỡ và khai thác container (chiếm trên 76% tổng doanh thu), hàng rời, hàng RORO và dịch vụ cho thuê cơ sở hạ tầng bến cảng nước sâu.\n• **Tệp khách hàng chiến lược:** Khách hàng đầu ra là các hãng tàu container nội địa và quốc tế lớn (như SITC, MSC thông qua liên doanh TIL), các doanh nghiệp sản xuất khu công nghiệp và doanh nghiệp FDI tại khu vực kinh tế trọng điểm miền Bắc.",
+    "revenueBreakdown": [
+      {
+        "name": "Khai thác container",
+        "value": 76.4
+      },
+      {
+        "name": "Hàng rời",
+        "value": 13.2
+      },
+      {
+        "name": "Cho thuê cơ sở hạ tầng",
+        "value": 7.3
+      },
+      {
+        "name": "Hàng RORO & Khác",
+        "value": 3.1
+      }
+    ]
+  },
+  "sectionC": {
+    "partA_LiquidityAndDebt": "• **Thanh khoản và khả năng trả nợ vững chắc:** Các hệ số thanh khoản hiện hành (Current Ratio) và thanh khoản nhanh (Quick Ratio) duy trì ở mức an toàn cao lần lượt là 2.9x và 2.8x tính đến hết Q2/2026.\n• **Đòn bẩy tài chính lành mạnh:** Dù có gia tăng vay nợ dài hạn để tài trợ dự án bến 3&4 Lạch Huyện (tổng dư nợ vay đạt khoảng 1.707 tỷ đến 1.892 tỷ đồng), hệ số Net Debt/EBITDA ở mức thấp và khả năng thanh toán lãi vay (Interest Coverage Ratio) đạt trên 33x, phản ánh dòng tiền hoạt động đủ sức gánh vác nghĩa vụ nợ.",
+    "partB_CashFlowAndEarnings": "• **Dòng tiền kinh doanh dồi dào:** Lưu chuyển tiền thuần từ hoạt động kinh doanh (CFO) ghi nhận mức bứt phá mạnh mẽ, đạt hơn 808 tỷ đồng riêng trong Q2/2026 nhờ lợi nhuận ròng tăng trưởng bằng lần và hiệu quả thu hồi công nợ tối ưu.\n• **Chất lượng chuyển đổi lợi nhuận cao:** Dòng tiền tự do (FCF) sau khi trừ chi phí đầu tư CAPEX bắt đầu bước vào giai đoạn thặng dư lớn khi dự án trọng điểm Lạch Huyện đã hoàn tất giai đoạn xây dựng cơ bản dở dang và chuyển sang khai thác thương mại sinh lời.",
+    "partC_ProfitabilityAndROIC": "• **Hiệu quả sinh lời bứt phá kỷ lục:** Biên lợi nhuận gộp Q2/2026 thiết lập đỉnh lịch sử ở mức 54,9% (tăng mạnh so với mức 43,1% cùng kỳ 2025) nhờ đóng góp từ mảng cho thuê hạ tầng bến nước sâu có biên lợi nhuận ròng rất cao (~80%) và tối ưu hóa chi phí nhân sự.\n• **Chỉ số ROE và ROIC cải thiện vượt bậc:** ROE quý gần nhất vọt lên mức 19,8% và ROA đạt trên 11%, phản ánh hiệu quả sử dụng vốn chủ sở hữu và tài sản đã bước sang một chu kỳ tăng trưởng mới nhờ đòn bẩy hoạt động từ cảng nước sâu.",
+    "partD_WorkingCapitalAndAssetQuality": "• **Quản trị vốn lưu động hiệu quả:** Kỳ thu tiền bình quân (DSO) được cải thiện tích cực xuống còn khoảng 79 ngày, trong khi vòng quay hàng tồn kho duy trì ổn định, giúp chu kỳ chuyển đổi tiền mặt (CCC) được kiểm soát chặt chẽ.\n• **Chất lượng tài sản chuyển dịch tích cực:** Tài sản dở dang dài hạn giảm mạnh từ hơn 3.400 tỷ đồng xuống mức thấp khi các hạng mục bến 3&4 Lạch Huyện chính thức chuyển thành tài sản cố định và bất động sản đầu tư hạ tầng cho thuê, củng cố nền tảng tài sản minh bạch.",
+    "partE_CapitalStructureAndFunding": "• **Cơ cấu vốn an toàn:** Vốn chủ sở hữu đạt trên 7.422 tỷ đồng, chiếm hơn 70% tổng nguồn vốn, trong khi tổng nợ vay chỉ tương đương khoảng 0.23x lần vốn chủ sở hữu, cho thấy cấu trúc tài chính độc lập và rất an toàn.\n• **Khả năng tự tài trợ cao:** Với lượng tiền mặt và tiền gửi ngắn hạn dồi dào trên 2.200 tỷ đồng, PHP hoàn toàn có khả năng tự tài trợ vốn đối ứng cho các dự án mở rộng tiếp theo (như dự án cảng KCN Bạch Đằng) mà không chịu áp lực pha loãng hay vay nợ quá mức.",
+    "partF_EarningsQualityAndAccounting": "• **Chất lượng lợi nhuận cốt lõi cao:** Lợi nhuận sau thuế tăng trưởng đột biến (tăng hơn 110% YoY trong Q2/2026) chủ yếu đến từ hoạt động kinh doanh cốt lõi của hệ thống cảng và phần lãi chia từ công ty liên doanh liên kết (HTIT), loại trừ hoàn toàn các khoản thu nhập bất thường.\n• **Minح bạch kế toán và kiểm toán:** Báo cáo tài chính năm gần nhất đã đạt ý kiến kiểm toán chấp nhận toàn phần, giải quyết dứt điểm các quan ngại về ngoại trừ trước đây, củng cố niềm tin vững chắc cho cổ đông và các tổ chức tài chính."
+  },
+  "sectionD": {
+    "partA_CurrentGrowth": "• **Tăng trưởng kỷ lục 6 tháng đầu năm 2026:** Doanh thu thuần hợp nhất 6M/2026 đạt 1.694,6 tỷ đồng (+37% YoY), lợi nhuận trước thuế đạt 1.012,8 tỷ đồng (+93% YoY) và LNST cổ đông công ty mẹ đạt 735,7 tỷ đồng (+155,5% YoY), hoàn thành hơn 67% kế hoạch lợi nhuận năm.\n• **Đà hồi phục toàn diện:** Động lực tăng trưởng được thúc đẩy bởi sản lượng toàn hệ thống đạt 24,33 triệu tấn (+26,7% YoY), trong đó sản lượng container đạt 1,22 triệu TEU (+31,5% YoY) nhờ sự bứt phá vượt kỳ vọng từ bến cảng nước sâu Lạch Huyện và việc tăng khung giá dịch vụ bốc dỡ 10% từ đầu năm 2026.",
+    "partB_VisibilityNext2To4Q": "• **Độ chắc chắn cao trong 2-4 quý tới:** Quý 3 và Quý 4 hàng năm là mùa cao điểm xuất nhập khẩu của miền Bắc phục vụ đơn hàng lễ Tết tại Mỹ và châu Âu, đảm bảo sức cầu ổn định cho toàn hệ thống.\n• **Sản lượng bến 3&4 tăng tốc:** Kế hoạch sản lượng qua bến 3&4 Lạch Huyện năm 2026 đạt khoảng 700.000 TEU (gấp 3 lần năm 2025), cùng sự hậu thuẫn từ hãng tàu mẹ MSC, tạo tầm nhìn rõ ràng cho việc hoàn thành vượt mức kế hoạch kinh doanh cả năm.",
+    "partC_MarginDurability": "• **Sức mạnh định giá và biên lợi nhuận bền vững:** Biên gộp duy trì ở mức cao kỷ lục ~54,9% nhờ tỷ trọng đóng góp lớn từ mảng cho thuê hạ tầng bến nước sâu (không tốn chi phí vận hành trực tiếp) và việc áp dụng biểu giá dịch vụ bốc dỡ mới tăng 10% theo Quyết định của Bộ Xây dựng.\n• **Kiểm soát chi phí hiệu quả:** Chính sách tinh gọn nhân sự (~20% so với cuối 2024) giúp PHP kiểm soát tốt chi phí nhân công và tối ưu đòn bẩy hoạt động.",
+    "partD_GrowthRunway": "• **Dư địa tăng trưởng dài hạn lớn:** Công suất thiết kế bến 3&4 Lạch Huyện đạt 1,1 triệu TEU/năm, dự kiến sẽ được lấp đầy nhanh chóng lên mức 90%-100% trong giai đoạn 2027-2028 nhờ xu hướng dịch chuyển tàu mẹ trọng tải lớn ra cảng nước sâu.\n• **Mở rộng không gian kinh doanh:** Kế hoạch đầu tư dự án cảng tổng hợp tại KCN Bạch Đằng (Quảng Ninh) với tổng vốn 4.200 tỷ đồng (PHP góp 640 tỷ đồng) sẽ mở rộng quy mô ra ngoài địa bàn Hải Phòng từ năm 2027-2028.",
+    "partE_GrowthToCash": "• **Chuyển hóa lợi nhuận thành tiền mặt mạnh mẽ:** Lưu chuyển tiền thuần từ hoạt động kinh doanh 6 tháng đầu năm ghi nhận hàng trăm tỷ đồng thặng dư, cho phép doanh nghiệp duy trì dòng tiền mặt ròng dồi dào trên 2.200 tỷ đồng.\n• **Hiệu quả phân bổ vốn cao:** Vốn đầu tư vào các dự án mở rộng nhanh chóng phát sinh doanh thu và có lãi ngay từ năm đầu vận hành (như HTIT thoát lỗ sớm), đảm bảo suất sinh lời trên vốn đầu tư bổ sung (ROIC) ở mức rất cao.",
+    "partF_MediumTermGrowth": "• **Tăng trưởng kép trung hạn tích cực:** Tốc độ tăng trưởng kép (CAGR) giai đoạn 2026-2030 được kỳ vọng duy trì ổn định ở mức hai chữ số đối với lợi nhuận ròng, nhờ sự đóng góp trọn vẹn của cụm cảng nước sâu và sự phục hồi của kim ngạch xuất nhập khẩu miền Bắc (tăng trưởng trung bình 8-12%/năm).\n• **Dư địa tái đầu tư rộng mở:** Nền tảng tài chính không nợ ròng là bệ phóng vững chắc để PHP tiếp tục thực hiện các dự án cảng biển lớn tiếp theo mà không sợ rủi ro mất cân đối dòng tiền.",
+    "partG_RiskAdjustedSustainability": "• **Khả năng chống chịu chu kỳ kinh tế tốt:** Ngành cảng biển gắn liền với kim ngạch xuất nhập khẩu quốc gia; tuy nhiên, vị thế độc tôn số 1 miền Bắc và cơ cấu doanh thu cho thuê hạ tầng cố định giúp PHP giảm thiểu đáng kể tính chu kỳ so với các doanh nghiệp vận tải thuần túy.\n• **Quản trị rủi ro pha loãng:** Cơ cấu vốn chủ sở hữu vững chắc và tỷ lệ cổ tức tiền mặt đều đặn (8%-9%/năm) đảm bảo quyền lợi tối ưu cho cổ đông trong mọi kịch bản thị trường."
+  },
+  "sectionE": {
+    "partA_EconomicMoat": "• **Lợi thế mạng lưới và vị thế độc tôn:** PHP sở hữu hệ thống cảng trải dài từ thượng nguồn sông Cấm ra đến cảng nước sâu quốc tế Lạch Huyện, tạo ra rào cản gia nhập ngành rất lớn đối với các đối thủ mới.\n• **Quan hệ đối tác chiến lược toàn cầu:** Việc bắt tay với Terminal Investment Limited (thuộc hãng tàu lớn nhất thế giới MSC) giúp bến 3&4 Lạch Huyện nắm giữ lợi thế tuyệt đối trong việc thu hút các tuyến tàu mẹ xuyên lục địa trực tiếp đi châu Âu, châu Mỹ.",
+    "partB_IndustryPosition": "• **Vua cảng biển miền Bắc:** PHP chiếm giữ khoảng 25% - 26% thị phần khai thác container toàn khu vực Hải Phòng, giữ vai trò xương sống trong huyết mạch logistics phục vụ các khu công nghiệp FDI lớn tại Bắc Ninh, Bắc Giang, Hải Phòng.\n• **Hưởng lợi từ xu hướng dịch chuyển nước sâu:** Khi các hãng tàu liên tục gia tăng kích cỡ tàu để tối ưu chi phí vận tải, hệ thống cảng nước sâu Lạch Huyện của PHP trở thành điểm đến bắt buộc thay thế cho các cảng sông nông truyền thống.",
+    "partC_BusinessModel": "• **Mô hình kinh doanh kết hợp đa dạng:** PHP kết hợp linh hoạt giữa khai thác cảng truyền thống (bốc xếp, lưu kho, lai dắt) và cho thuê cơ sở hạ tầng bến cảng nước sâu dài hạn.\n• **Hiệu quả kinh tế đơn vị cao:** Mô hình cho thuê hạ tầng bến 3&4 mang lại biên lợi nhuận gộp vượt trội ~80% và không phát sinh chi phí vận hành trực tiếp lớn, giúp nâng cao toàn diện hiệu quả sinh lời trên mỗi mét cầu bến.",
+    "partD_ManagementAndCapitalAllocation": "• **Kỷ luật phân bổ vốn xuất sắc:** Ban lãnh đạo thực hiện chiến lược đầu tư trọng điểm, đúng thời điểm vào hạ tầng nước sâu Lạch Huyện, giúp dự án đi vào hoạt động có lãi ngay năm đầu và bứt phá mạnh mẽ trong năm 2026.\n• **Chính sách cổ tức tiền mặt nhất quán:** PHP duy trì truyền thống chi trả cổ tức bằng tiền mặt đều đặn (8%-9%/năm), đảm bảo hài hòa giữa lợi ích cổ đông và việc tích lũy nguồn vốn cho đầu tư phát triển dài hạn.",
+    "partE_CorporateGovernance": "• **Quản trị công ty theo chuẩn mực niêm yết:** Hoạt động công bố thông tin minh bạch, tuân thủ chặt chẽ các quy định pháp luật của Ủy ban Chứng khoán Nhà nước.\n• **Bảo vệ quyền lợi cổ đông thiểu số:** Dù Tổng công ty VIMC nắm giữ cổ phần chi phối (92,56%), PHP vẫn đảm bảo quyền lợi cho các cổ đông nhỏ thông qua cổ tức tiền mặt đều đặn và kế hoạch nâng cao tính thanh khoản (free-float) qua các đợt thoái vốn của nhà nước.",
+    "partF_RoicSustenance": "• **Duy trì ROIC vượt trội qua chu kỳ:** Suất sinh lời trên vốn đầu tư (ROIC) và ROE của PHP được duy trì ở mức cao trên 15% - 20%, nhờ các tài sản đầu tư mới nhanh chóng đạt hiệu suất khai thác cao và tạo dòng tiền thặng dư.\n• **Cơ hội tái đầu tư hấp dẫn:** Dòng tiền dồi dào từ hoạt động kinh doanh cung cấp nguồn lực tài chính liên tục để PHP tái đầu tư vào các dự án chiến lược mới như cảng Bạch Đằng.",
+    "partG_ShockResilience": "• **Sức chống chịu suy thoái mạnh mẽ:** Nhờ lượng tiền mặt ròng lớn (>2.200 tỷ đồng) và tỷ lệ nợ vay thấp, PHP hoàn toàn miễn nhiễm trước các biến động tiêu cực của thị trường tín dụng hay lãi suất cao.\n• **Thích ứng linh hoạt với công nghệ:** Doanh nghiệp liên tục số hóa quy trình quản lý cảng, ứng dụng công nghệ thông tin trong khai thác container nhằm tối ưu hóa thời gian thông quan và giảm thiểu chi phí vận hành."
+  },
+  "sectionF": {
+    "growthDriversRevenueAndCost": "• **Trục 1: Sản lượng / Công suất (Volume - Q):** Động lực tăng trưởng chủ lực đến từ bến 3&4 Lạch Huyện với công suất thiết kế 1,1 triệu TEU, dự kiến đạt sản lượng khoảng 700.000 TEU trong năm 2026 (gấp 3 lần năm 2025) và hướng tới lấp đầy >90% vào năm 2027 nhờ sự hậu thuẫn từ hãng tàu MSC.\n• **Trục 2: Giá bán bình quân (ASP & Pricing Power - P):** Hưởng lợi lớn từ Quyết định của Bộ Xây dựng cho phép điều chỉnh tăng 10% khung giá dịch vụ bốc dỡ container tại cụm cảng nước sâu Lạch Huyện từ tháng 2/2026, giúp PHP cải thiện đáng kể doanh thu bình quân trên mỗi TEU.\n• **Trục 3: Cơ cấu chi phí & Biên lợi nhuận (Cost & Margin - C):** Biên lợi nhuận gộp bứt phá mạnh lên vùng 54,8% - 54,9% nhờ tỷ trọng doanh thu cho thuê hạ tầng bến nước sâu (biên lợi nhuận ~80%) gia tăng và hiệu ứng đòn bẩy hoạt động từ việc kiểm soát tốt chi phí nhân công, khấu hao.",
+    "quarterlyForecastReasoning": "• **(1) Mảng kinh doanh cốt lõi:** Mảng khai thác cảng container, hàng rời và cho thuê hạ tầng cảng nước sâu chiếm tới trên 90% tổng doanh thu hợp nhất của PHP.\n• **(2) Bóc tách 4 nhân tố điều chỉnh:** (i) Sản lượng Q tăng mạnh nhờ bến 3&4 Lạch Huyện và dự án nạo vét luồng -8,5m tại Tân Vũ - Đình Vũ; (ii) Giá bán ASP tăng 10% theo khung giá mới của Bộ Xây dựng; (iii) Thị phần được củng cố nhờ liên minh chiến lược với hãng tàu lớn MSC và SITC; (iv) Mùa cao điểm xuất nhập khẩu cuối năm thúc đẩy mạnh sản lượng Q3 và Q4.\n• **(3) Cơ sở 3 Biên lợi nhuận:** Biên gộp duy trì trên 52%-54% nhờ doanh thu cho thuê hạ tầng giá trị cao; biên EBITDA và biên LNST cốt lõi mở rộng mạnh mẽ nhờ đòn bẩy vận hành, bất chấp chi phí lãi vay và khấu hao tăng thêm từ giai đoạn đầu tư.",
+    "valuation": {
+      "year1": 2026,
+      "year2": 2027,
+      "forecastYear1Data": {
+        "q1": {
+          "revenue": 745,
+          "grossMargin": 54.9,
+          "netProfit": 310.7
+        },
+        "q2": {
+          "revenue": 949.7,
+          "grossMargin": 54.8,
+          "netProfit": 424.1
+        },
+        "q3": {
+          "revenue": 985,
+          "grossMargin": 52.5,
+          "netProfit": 365.2
+        },
+        "q4": {
+          "revenue": 981.3,
+          "grossMargin": 51,
+          "netProfit": 365
+        }
+      },
+      "forecastYear2Data": {
+        "q1": {
+          "revenue": 950,
+          "grossMargin": 52,
+          "netProfit": 310
+        },
+        "q2": {
+          "revenue": 1010,
+          "grossMargin": 52.5,
+          "netProfit": 330
+        },
+        "q3": {
+          "revenue": 1050,
+          "grossMargin": 53,
+          "netProfit": 340
+        },
+        "q4": {
+          "revenue": 1077,
+          "grossMargin": 53,
+          "netProfit": 343
+        }
+      },
+      "forecast2026": {
+        "q1": {
+          "revenue": 745,
+          "grossMargin": 54.9,
+          "netProfit": 310.7
+        },
+        "q2": {
+          "revenue": 949.7,
+          "grossMargin": 54.8,
+          "netProfit": 424.1
+        },
+        "q3": {
+          "revenue": 985,
+          "grossMargin": 52.5,
+          "netProfit": 365.2
+        },
+        "q4": {
+          "revenue": 981.3,
+          "grossMargin": 51,
+          "netProfit": 365
+        }
+      },
+      "forecast2027": {
+        "q1": {
+          "revenue": 950,
+          "grossMargin": 52,
+          "netProfit": 310
+        },
+        "q2": {
+          "revenue": 1010,
+          "grossMargin": 52.5,
+          "netProfit": 330
+        },
+        "q3": {
+          "revenue": 1050,
+          "grossMargin": 53,
+          "netProfit": 340
+        },
+        "q4": {
+          "revenue": 1077,
+          "grossMargin": 53,
+          "netProfit": 343
+        }
+      },
+      "forecastNetProfitQ1": 1465000000000,
+      "forecastNetProfitQ2": 1323000000000,
+      "forecastNetProfitQ3": 0,
+      "forecastNetProfitQ4": 0,
+      "totalForecastProfit": 1465000000000,
+      "sharesOutstanding": 326.96,
+      "epsForward": 4481,
+      "peBase": 13.2,
+      "peBull": 17.7,
+      "peBear": 8.2
+    }
+  },
+  "sectionCatalysts": {
+    "growthDriversAnalysis": "• **Trục 1: Sản lượng / Công suất (Volume - Q):** Động lực tăng trưởng chủ lực đến từ bến 3&4 Lạch Huyện với công suất thiết kế 1,1 triệu TEU, dự kiến đạt sản lượng khoảng 700.000 TEU trong năm 2026 (gấp 3 lần năm 2025) và hướng tới lấp đầy >90% vào năm 2027 nhờ sự hậu thuẫn từ hãng tàu MSC.\n• **Trục 2: Giá bán bình quân (ASP & Pricing Power - P):** Hưởng lợi lớn từ Quyết định của Bộ Xây dựng cho phép điều chỉnh tăng 10% khung giá dịch vụ bốc dỡ container tại cụm cảng nước sâu Lạch Huyện từ tháng 2/2026, giúp PHP cải thiện đáng kể doanh thu bình quân trên mỗi TEU.\n• **Trục 3: Cơ cấu chi phí & Biên lợi nhuận (Cost & Margin - C):** Biên lợi nhuận gộp bứt phá mạnh lên vùng 54,8% - 54,9% nhờ tỷ trọng doanh thu cho thuê hạ tầng bến nước sâu (biên lợi nhuận ~80%) gia tăng và hiệu ứng đòn bẩy hoạt động từ việc kiểm soát tốt chi phí nhân công, khấu hao.",
+    "catalystList": [
+      {
+        "id": "cat-php-1",
+        "name": "Bứt phá sản lượng và lợi nhuận từ bến 3&4 Lạch Huyện",
+        "type": "Dự án / Mở rộng",
+        "expectedTiming": "Q3-Q4/2026",
+        "probability": 90,
+        "impactLevel": "Rất lớn",
+        "pricedInStatus": "Phản ánh một phần",
+        "evidenceSource": "Báo cáo KQKD Q2/2026 & Báo cáo FPTS/SHS",
+        "verificationKPI": "Sản lượng bến 3&4 đạt 700.000 TEU, lợi nhuận liên doanh HTIT đóng góp >150 tỷ đồng",
+        "status": "on_track"
+      },
+      {
+        "id": "cat-php-2",
+        "name": "Lộ trình thoái vốn Nhà nước của VIMC theo Quyết định 40/2026/QĐ-TTg",
+        "type": "Cổ tức / Tái cấu trúc",
+        "expectedTiming": "Q4/2026 - H1/2027",
+        "probability": 75,
+        "impactLevel": "Lớn",
+        "pricedInStatus": "Chưa phản ánh",
+        "evidenceSource": "Quyết định 40/2026/QĐ-TTg & Báo cáo SHS",
+        "verificationKPI": "VIMC công bố kế hoạch chi tiết giảm sở hữu xuống mức sàn 65%, tăng tỷ lệ free-float",
+        "status": "on_track"
+      },
+      {
+        "id": "cat-php-3",
+        "name": "Hiệu ứng tăng 10% khung giá dịch vụ bốc dỡ cảng nước sâu",
+        "type": "Lợi nhuận",
+        "expectedTiming": "6–12 tháng",
+        "probability": 95,
+        "impactLevel": "Lớn",
+        "pricedInStatus": "Phản ánh một phần",
+        "evidenceSource": "Quyết định 2506/QĐ-BXD & Báo cáo VNDIRECT",
+        "verificationKPI": "Biên lợi nhuận gộp toàn hệ thống duy trì trên mức 52% - 54%",
+        "status": "on_track"
+      },
+      {
+        "id": "cat-php-4",
+        "name": "Tiến độ triển khai dự án cảng tổng hợp KCN Bạch Đằng",
+        "type": "Dự án / Mở rộng",
+        "expectedTiming": "Cuối 2026 - 2027",
+        "probability": 70,
+        "impactLevel": "Vừa",
+        "pricedInStatus": "Chưa phản ánh",
+        "evidenceSource": "Nghị quyết ĐHCĐ 2026 & Báo cáo FPTS",
+        "verificationKPI": "Phê duyệt chủ trương đầu tư và hoàn tất góp vốn 640 tỷ đồng thành lập pháp nhân",
+        "status": "on_track"
+      }
+    ],
+    "scorecard": {
+      "earningsCatalystScore": 6,
+      "corporateEventScore": 3.5,
+      "certaintyScore": 4,
+      "timingScore": 3.5,
+      "unpricedScore": 3.5,
+      "totalScore": 20.5,
+      "tier": "Khá"
+    }
+  },
+  "isR2Synchronized": false,
+  "icbCodeLv2": "2700",
+  "icbCodeLv4": "2777",
+  "marketData": {
+    "ticker": "PHP",
+    "companyName": "Công ty Cổ phần Cảng Hải Phòng",
+    "industry": "Hàng & Dịch vụ Công nghiệp",
+    "sectorType": "logistics_port",
+    "currentPrice": 45800,
+    "pe5YearMin": 8.2,
+    "pe5YearMax": 17.7,
+    "pe5YearAvg": 13.2,
+    "peIndustry": 13.5,
+    "pbIndustry": 1.6,
+    "peCompetitors": [
+      {
+        "name": "GMD (Gemadept)",
+        "pe": 15.2
+      },
+      {
+        "name": "HAH (Hàng Hải Hà Nội)",
+        "pe": 11.8
+      }
+    ],
+    "pbCompetitors": [
+      {
+        "name": "GMD",
+        "pb": 2
+      },
+      {
+        "name": "HAH",
+        "pb": 1.4
+      }
+    ],
+    "icbCodeLv2": "2700",
+    "icbCodeLv4": "2777",
+    "sharesOutstanding": 326.96
+  },
+  "postInvestmentFramework": {
+    "headwindRisks": [
+      {
+        "id": "risk-php-1",
+        "name": "Áp lực dư thừa công suất tại khu vực cảng biển Hải Phòng",
+        "category": "Ngành & Cạnh tranh",
+        "severity": "Cao",
+        "probability": 60,
+        "impactedMetric": "Sản lượng & Giá cước cạnh tranh",
+        "headwindDetail": "Hàng loạt dự án cảng mới tại Lạch Huyện và Nam Đình Vũ đi vào hoạt động tạo áp lực dư cung lớn, gia tăng cạnh tranh giành nguồn hàng.",
+        "defenseAction": "Tập trung khai thác lợi thế liên minh với hãng tàu lớn MSC và SITC, giữ vững chất lượng dịch vụ nước sâu.",
+        "evidenceSource": "Báo cáo phân tích FPTS & SHS"
+      },
+      {
+        "id": "risk-php-2",
+        "name": "Rủi ro từ các vấn đề kiểm toán và minh bạch pháp lý tài sản",
+        "category": "Pháp lý & Quản trị",
+        "severity": "Trung bình",
+        "probability": 40,
+        "impactedMetric": "Tâm lý nhà đầu tư & Kế hoạch chuyển sàn",
+        "headwindDetail": "Lịch sử ý kiến ngoại trừ liên quan đến tài sản cầu cảng số 4, 5 Chùa Vẽ dù đã có kiểm toán toàn phần năm 2025 nhưng vẫn cần văn bản xử lý dứt điểm từ cơ quan nhà nước.",
+        "defenseAction": "Theo dõi sát sao các quyết định hành chính liên quan từ UBND TP. Hải Phòng và Bộ GTVT.",
+        "evidenceSource": "Báo cáo thường niên & Báo cáo SHS"
+      },
+      {
+        "id": "risk-php-3",
+        "name": "Áp lực chi phí tài chính và khấu hao trong chu kỳ đầu tư lớn",
+        "category": "Vận hành & Chi phí",
+        "severity": "Trung bình",
+        "probability": 45,
+        "impactedMetric": "Chi phí tài chính & LNST",
+        "headwindDetail": "Dư nợ vay dài hạn gia tăng phục vụ dự án Lạch Huyện và kế hoạch vốn cho dự án Bạch Đằng làm tăng chi phí lãi vay khi hết thời gian vốn hóa.",
+        "defenseAction": "Duy trì dòng tiền mặt ròng dồi dào trên 2.200 tỷ đồng để chủ động trả nợ gốc và giảm thiểu rủi ro lãi suất.",
+        "evidenceSource": "Báo cáo tài chính Q2/2026 & Báo cáo VNDIRECT"
+      }
+    ]
+  },
+  "generationModel": "gemini-3.5-flash-lite",
+  "cachedAt": "2026-09-08T09:12:39.639Z",
+  "isFromCache": true
+}

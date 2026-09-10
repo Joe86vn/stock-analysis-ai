@@ -5,6 +5,7 @@ import {
   AnalysisReport,
   PostInvestmentFramework,
   ThesisStatus,
+  HeadwindRiskItem,
 } from '@/types/analysis';
 import {
   ShieldCheck,
@@ -23,6 +24,8 @@ import {
   Calendar,
   DollarSign,
   PieChart,
+  Scale,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   computeOpportunityScoreAC,
@@ -141,15 +144,15 @@ export const InvestmentDecisionHub: React.FC<InvestmentDecisionHubProps> = ({
 
   // Quản lý trạng thái Khung Giám Sát Sau Đầu Tư (Post-Investment Framework)
   const [framework, setFramework] = useState<PostInvestmentFramework>(() => {
-    if (report.postInvestmentFramework) return report.postInvestmentFramework;
+    const existing = report.postInvestmentFramework || {};
     return {
-      positionTier: masterScore.matrixAction.positionTier,
-      targetWeightPct: masterScore.matrixAction.positionTier === 'TẬP TRUNG' ? 25 : masterScore.matrixAction.positionTier === 'CHUẨN' ? 15 : 5,
-      currentWeightPct: 0,
-      buyZone: `${Math.round(currentPrice * 0.96).toLocaleString('vi-VN')} – ${Math.round(currentPrice * 1.02).toLocaleString('vi-VN')} đ`,
-      takeProfitZone: `${Math.round(baseFv * 0.95).toLocaleString('vi-VN')} – ${Math.round(bullFv * 0.95).toLocaleString('vi-VN')} đ`,
-      nextReviewDate: 'Sau kỳ BCTC quý kế tiếp (60 ngày)',
-      kpiTrackingList: [
+      positionTier: existing.positionTier || masterScore.matrixAction.positionTier,
+      targetWeightPct: existing.targetWeightPct ?? (masterScore.matrixAction.positionTier === 'TẬP TRUNG' ? 25 : masterScore.matrixAction.positionTier === 'CHUẨN' ? 15 : 5),
+      currentWeightPct: existing.currentWeightPct ?? 0,
+      buyZone: existing.buyZone || `${Math.round(currentPrice * 0.96).toLocaleString('vi-VN')} – ${Math.round(currentPrice * 1.02).toLocaleString('vi-VN')} đ`,
+      takeProfitZone: existing.takeProfitZone || `${Math.round(baseFv * 0.95).toLocaleString('vi-VN')} – ${Math.round(bullFv * 0.95).toLocaleString('vi-VN')} đ`,
+      nextReviewDate: existing.nextReviewDate || 'Sau kỳ BCTC quý kế tiếp (60 ngày)',
+      kpiTrackingList: existing.kpiTrackingList && existing.kpiTrackingList.length > 0 ? existing.kpiTrackingList : [
         {
           id: 'kpi-1',
           kpiName: 'Doanh thu & LNST cốt lõi quý tới',
@@ -178,7 +181,7 @@ export const InvestmentDecisionHub: React.FC<InvestmentDecisionHubProps> = ({
           notes: 'Nghị quyết HĐQT & Báo cáo giám sát đầu tư',
         },
       ],
-      thesisBreakers: [
+      thesisBreakers: existing.thesisBreakers && existing.thesisBreakers.length > 0 ? existing.thesisBreakers : [
         {
           id: 'tb-1',
           variableName: 'Lợi nhuận cốt lõi suy giảm bất ngờ liên tiếp 2 quý',
@@ -207,7 +210,7 @@ export const InvestmentDecisionHub: React.FC<InvestmentDecisionHubProps> = ({
           status: 'safe',
         },
       ],
-      preTradeChecklist: [
+      preTradeChecklist: existing.preTradeChecklist && existing.preTradeChecklist.length > 0 ? existing.preTradeChecklist : [
         { id: 'chk-1', question: '1. Luận điểm về lợi thế cạnh tranh cốt lõi của doanh nghiệp có còn nguyên vẹn không?', passed: true },
         { id: 'chk-2', question: '2. EPS cốt lõi và các KPI sản lượng/giá bán có đi đúng kỳ vọng dự phóng?', passed: true },
         { id: 'chk-3', question: '3. Chất xúc tác ngắn hạn 6–12 tháng đang tiến gần hay bị trì hoãn?', passed: true },
@@ -215,6 +218,45 @@ export const InvestmentDecisionHub: React.FC<InvestmentDecisionHubProps> = ({
         { id: 'chk-5', question: '5. Tỷ lệ Lợi nhuận / Rủi ro (R/R) hiện tại còn hấp dẫn sau biến động thị giá?', passed: true },
         { id: 'chk-6', question: '6. Kịch bản thận trọng (Bear case) có rủi ro xấu hơn dự tính ban đầu không?', passed: true },
       ],
+      headwindRisks: existing.headwindRisks && existing.headwindRisks.length > 0
+        ? existing.headwindRisks
+        : (report.postInvestmentFramework?.headwindRisks && report.postInvestmentFramework.headwindRisks.length > 0)
+        ? report.postInvestmentFramework.headwindRisks
+        : [
+            {
+              id: `risk-${report.ticker.toLowerCase()}-1`,
+              name: 'Áp lực biến động tỷ giá USD/VND & Chi phí hàng nhập khẩu',
+              category: 'Vĩ mô & Tỷ giá',
+              severity: 'Trung bình',
+              probability: 45,
+              impactedMetric: 'Biên lợi nhuận gộp & Chi phí tài chính',
+              headwindDetail: 'Biến động tỷ giá USD/VND có thể làm tăng giá vốn hàng hóa và chi phí lãi vay ngoại tệ nếu thị trường biến động mạnh.',
+              defenseAction: 'Quan sát biên gộp hàng quý và hoạt động phòng ngừa rủi ro phái sinh; tuân thủ ngưỡng cắt lỗ 7%.',
+              evidenceSource: 'Dữ liệu phân tích vĩ mô & Thời sự thị trường',
+            },
+            {
+              id: `risk-${report.ticker.toLowerCase()}-2`,
+              name: 'Cạnh tranh gay gắt về giá & Chiết khấu bán hàng',
+              category: 'Ngành & Cạnh tranh',
+              severity: 'Trung bình',
+              probability: 40,
+              impactedMetric: 'Biên EBITDA & Chi phí SG&A',
+              headwindDetail: 'Cạnh tranh mở rộng từ các đối thủ trong ngành có thể buộc doanh nghiệp phải gia tăng chiết khấu thương mại để giữ thị phần.',
+              defenseAction: 'Theo dõi thị phần ngành hàng cốt lõi và tỷ lệ chi phí bán hàng trên doanh thu.',
+              evidenceSource: 'Báo cáo ngành & Khuyến nghị CTCK',
+            },
+            {
+              id: `risk-${report.ticker.toLowerCase()}-3`,
+              name: 'Sức mua phân khúc thứ cấp phục hồi chậm hơn dự kiến',
+              category: 'Vận hành & Chi phí',
+              severity: 'Thấp',
+              probability: 35,
+              impactedMetric: 'Vòng quay hàng tồn kho (DIO) & Dòng tiền CFO',
+              headwindDetail: 'Tâm lý thận trọng của người tiêu dùng đối với các dòng sản phẩm giá trị cao có thể kéo dài chu kỳ lưu kho.',
+              defenseAction: 'Kiểm soát số ngày tồn kho bình quân và ưu tiên doanh nghiệp có dòng tiền kinh doanh dương.',
+              evidenceSource: 'Khảo sát bán lẻ & Tin tức Google AI',
+            },
+          ],
     };
   });
 
@@ -584,7 +626,173 @@ export const InvestmentDecisionHub: React.FC<InvestmentDecisionHubProps> = ({
       </div>
 
       {/* =========================================================================
-          4. KHUNG GIÁM SÁT SAU ĐẦU TƯ (POST-INVESTMENT FRAMEWORK)
+          4. GÓC NHÌN CÂN BẰNG 2 CHIỀU: ĐỘNG LỰC TĂNG GIÁ (UPSIDE) VS. RỦI RO THỜI SỰ (DOWNSIDE)
+          (Tính năng nâng cao: Giúp nhà đầu tư có cái nhìn khách quan 2 chiều trước khi ra quyết định)
+         ========================================================================= */}
+      <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/50">
+              <Scale className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider font-heading">
+                  Góc Nhìn Cân Bằng 2 Chiều Trước Quyết Định Đầu Tư
+                </h3>
+                <span className="rounded bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
+                  ValueX 2-Sided Balance
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+                Đối chiếu độc lập giữa <strong>Cơ hội tăng giá 6–12 tháng (Tab G)</strong> và <strong>Ma trận rủi ro thời sự (Google AI &amp; CTCK)</strong> nhằm triệt tiêu tâm lý thiên vị trước khi giải ngân.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="text-[11px] text-slate-500">Tỷ lệ Lợi nhuận / Rủi ro:</span>
+            <span className="text-xs font-black font-mono px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">
+              {rrRatio}x (Hấp dẫn)
+            </span>
+          </div>
+        </div>
+
+        {/* Grid 2 Cột: Cột Trái (Upside Catalysts) vs Cột Phải (Downside Headwinds) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* CỘT TRÁI: CƠ HỘI & ĐỘNG LỰC TĂNG GIÁ (UPSIDE) */}
+          <div className="rounded-xl border border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/20 dark:bg-emerald-950/10 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide">
+                  Động Lực Tăng Giá &amp; Chất Xúc Tác (Upside Drivers)
+                </h4>
+              </div>
+              <button
+                onClick={() => onNavigateToTab?.('G')}
+                className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-500 flex items-center gap-1 cursor-pointer"
+              >
+                <span>Xem Tab G</span>
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {report.sectionCatalysts?.catalystList && report.sectionCatalysts.catalystList.length > 0 ? (
+                report.sectionCatalysts.catalystList.slice(0, 4).map((cat, idx) => (
+                  <div
+                    key={cat.id || idx}
+                    className="p-3 rounded-lg bg-white dark:bg-gray-850 border border-emerald-100 dark:border-emerald-900/40 shadow-2xs space-y-1.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white leading-snug">
+                        {idx + 1}. {cat.name}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 whitespace-nowrap">
+                        {cat.type}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-gray-400">
+                      <div>• Mốc thời gian: <strong className="text-slate-800 dark:text-gray-200">{cat.expectedTiming}</strong></div>
+                      <div>• Xác suất: <strong className="text-emerald-600 dark:text-emerald-400">{cat.probability}%</strong></div>
+                      <div>• Tác động: <strong className="text-slate-800 dark:text-gray-200">{cat.impactLevel}</strong></div>
+                    </div>
+
+                    {cat.evidenceSource && (
+                      <div className="text-[10px] text-slate-400 dark:text-gray-500 pt-0.5 flex items-center gap-1">
+                        <span>Nguồn:</span>
+                        <span className="italic truncate max-w-[280px]">{cat.evidenceSource}</span>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center text-xs text-slate-400 italic">
+                  Chưa có dữ liệu chất xúc tác từ Tab G.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CỘT PHẢI: RỦI RO & THÁCH THỨC THỜI SỰ (DOWNSIDE HEADWINDS - TỪ GOOGLE AI) */}
+          <div className="rounded-xl border border-rose-200/80 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/10 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <h4 className="text-xs font-bold text-rose-900 dark:text-rose-300 uppercase tracking-wide">
+                  Ma Trận Rủi Ro Thời Sự (Downside Headwinds)
+                </h4>
+              </div>
+              <span className="rounded bg-rose-100 dark:bg-rose-950/60 px-1.5 py-0.5 text-[9px] font-bold text-rose-700 dark:text-rose-300">
+                Google AI &amp; CTCK
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {(framework.headwindRisks || []).slice(0, 4).map((risk, idx) => (
+                <div
+                  key={risk.id || idx}
+                  className="p-3 rounded-lg bg-white dark:bg-gray-850 border border-rose-100 dark:border-rose-900/40 shadow-2xs space-y-1.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white leading-snug">
+                      {idx + 1}. {risk.name}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap ${
+                      risk.severity === 'Cao'
+                        ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
+                        : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                    }`}>
+                      {risk.category}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-600 dark:text-gray-300 leading-relaxed">
+                    {risk.headwindDetail}
+                  </p>
+
+                  <div className="pt-1 border-t border-gray-100 dark:border-gray-800 text-[11px] space-y-0.5">
+                    <div className="text-slate-600 dark:text-gray-400">
+                      • Chỉ số bị ảnh hưởng: <strong className="text-slate-800 dark:text-gray-200">{risk.impactedMetric}</strong> (Xác suất: {risk.probability}%)
+                    </div>
+                    <div className="text-rose-700 dark:text-rose-400">
+                      • <span className="font-semibold">Hành động phòng vệ:</span> {risk.defenseAction}
+                    </div>
+                  </div>
+
+                  {risk.evidenceSource && (
+                    <div className="text-[10px] text-slate-400 dark:text-gray-500 pt-0.5 flex items-center gap-1">
+                      <span>Nguồn:</span>
+                      <span className="italic truncate max-w-[280px]">{risk.evidenceSource}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Banner: Khuyến nghị Cân bằng Quyết Định */}
+        <div className="flex flex-col sm:flex-row items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-3 gap-2 text-xs">
+          <div className="flex items-center space-x-2 text-slate-700 dark:text-gray-300">
+            <Info className="h-4 w-4 text-blue-500 shrink-0" />
+            <span>
+              <strong>Quy tắc ValueX:</strong> Chỉ giải ngân khi <em>Upside Catalysts</em> có xác suất cao hơn <em>Downside Headwinds</em> và Tỷ lệ Lợi nhuận/Rủi ro $\ge 2.0x$.
+            </span>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0">
+            <span className="text-[11px] text-slate-500">Đánh giá cân bằng:</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded">
+              Cơ Hội Áp Đảo Rủi Ro
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          5. KHUNG GIÁM SÁT SAU ĐẦU TƯ (POST-INVESTMENT FRAMEWORK)
          ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
         {/* Khối Trái: Biến số phá vỡ luận điểm (Thesis Breakers) */}

@@ -11,6 +11,7 @@ import {
   SECTOR_PRESETS,
   detectValueXSector,
   computeTargetMultiples,
+  applyAutoMultiplesToMethods,
   computeMethodFairValue,
   aggregateScenarios,
   generateScenarioNarrative,
@@ -76,20 +77,69 @@ export function ValuationHub({
     ttmForward?.ebitda ||
     Math.round(netProfitForward * 1.35);
 
-  // 1. Tính Nợ Ròng từ BCTC thực tế: Vay ngắn hạn (bsa67/65/66) + Vay dài hạn (bsa78/77) - Tiền & Tiền gửi (bsa2 + bsa5)
+  // 1. Tính Nợ Ròng từ BCTC thực tế: Vay ngắn hạn + Vay dài hạn - (Tiền & Tương đương tiền + Đầu tư ngắn hạn)
   const netDebt = useMemo(() => {
     if (realQuarterlyFinancials && realQuarterlyFinancials.length > 0) {
       const latestQ = realQuarterlyFinancials[realQuarterlyFinancials.length - 1];
-      const shortDebt = Number(latestQ?.bsa67 || latestQ?.bsa65 || latestQ?.bsa66 || latestQ?.shortTermDebt || 0);
-      const longDebt = Number(latestQ?.bsa78 || latestQ?.bsa77 || latestQ?.longTermDebt || 0);
-      const cash = Number(latestQ?.bsa2 || latestQ?.cashAndEquivalents || 0);
-      const shortTermInvestments = Number(latestQ?.bsa5 || latestQ?.shortTermInvestments || 0);
+      
+      const rawShortDebt = Number(latestQ?.bsa67 || latestQ?.bsa65 || latestQ?.bsa66 || latestQ?.shortTermDebt || latestQ?.shortTermLoans || 0);
+      const rawLongDebt = Number(latestQ?.bsa78 || latestQ?.bsa77 || latestQ?.longTermDebt || latestQ?.longTermLoans || 0);
+      const rawCash = Number(latestQ?.bsa2 || latestQ?.cashAndEquivalents || 0);
+      const rawSTInv = Number(latestQ?.bsa5 || latestQ?.shortTermInvestments || 0);
+
+      let shortDebt = rawShortDebt;
+      let longDebt = rawLongDebt;
+      let cash = rawCash;
+      let shortTermInvestments = rawSTInv;
+
+      // Đơn vị tự động: Nếu dữ liệu thô > 1,000,000 (VND), chuyển sang Tỷ VNĐ bằng cách chia 1e9
+      if (Math.abs(rawShortDebt) > 1e6 || Math.abs(rawLongDebt) > 1e6 || Math.abs(rawCash) > 1e6) {
+        shortDebt = rawShortDebt / 1e9;
+        longDebt = rawLongDebt / 1e9;
+        cash = rawCash / 1e9;
+        shortTermInvestments = rawSTInv / 1e9;
+      }
+
       const totalCash = cash + shortTermInvestments;
-      const rawNetDebt = (shortDebt + longDebt - totalCash) / 1_000_000_000; // Tỷ VNĐ
+      const rawNetDebt = shortDebt + longDebt - totalCash; // Tỷ VNĐ
       return Math.round(rawNetDebt);
     }
     return Math.round(netProfitForward * 0.8);
   }, [realQuarterlyFinancials, netProfitForward]);
+
+  // CFO và CAPEX dự phóng / LTM cho DCF
+  const cfoForward = useMemo(() => {
+    if (ttmForward?.cfo && ttmForward.cfo !== 0) {
+      return Math.round(ttmForward.cfo);
+    }
+    if (realQuarterlyFinancials && realQuarterlyFinancials.length >= 4) {
+      const last4 = realQuarterlyFinancials.slice(-4);
+      const sumLtmCfo = last4.reduce((acc, q) => {
+        const val = Number(q?.cfa18 || q?.cfa20 || q?.cfo || q?.netOperatingCashFlow || 0);
+        const inBillion = Math.abs(val) > 1e6 ? val / 1e9 : val;
+        return acc + inBillion;
+      }, 0);
+      if (sumLtmCfo !== 0) return Math.round(sumLtmCfo);
+    }
+    return Math.round(netProfitForward * 0.8);
+  }, [ttmForward?.cfo, realQuarterlyFinancials, netProfitForward]);
+
+  const capexForward = useMemo(() => {
+    if (realQuarterlyFinancials && realQuarterlyFinancials.length >= 4) {
+      const last4 = realQuarterlyFinancials.slice(-4);
+      const sumLtmCapex = last4.reduce((acc, q) => {
+        const val = Number(q?.cfa21 || q?.capex || 0);
+        const inBillion = Math.abs(val) > 1e6 ? Math.abs(val) / 1e9 : Math.abs(val);
+        return acc + inBillion;
+      }, 0);
+      if (sumLtmCapex > 0) return Math.round(sumLtmCapex);
+    }
+    return Math.max(50, Math.round(cfoForward * 0.22));
+  }, [realQuarterlyFinancials, cfoForward]);
+
+  const revenueGrowthForecast = useMemo(() => {
+    return ttmForward?.revenueGrowthYoY || 12;
+  }, [ttmForward?.revenueGrowthYoY]);
 
   // State chính sách cổ tức từ Vietcap Events API
   const [dividendPolicy, setDividendPolicy] = useState<{
@@ -112,15 +162,32 @@ export function ValuationHub({
   const bvpsForward =
     currentBvps + Math.round(((netProfitForward * (1 - effectivePayout)) / (sharesOutstanding || 1)) * 1000);
 
-  // Nhóm ngành ValueX ban đầu
+  // Nhóm ngành ValueX ban đầu tự động nhận diện theo ICB cấp 2 hoặc tên ngành
   const initialSector = useMemo(
-    () => detectValueXSector(undefined, report.marketData?.sectorType),
-    [report.marketData?.sectorType]
+    () =>
+      detectValueXSector(
+        report.marketData?.icbCodeLv2 || (report as any).icbCodeLv2 || report.marketData?.icbCode,
+        report.marketData?.sectorType || report.industry
+      ),
+    [
+      report.marketData?.icbCodeLv2,
+      (report as any).icbCodeLv2,
+      report.marketData?.icbCode,
+      report.marketData?.sectorType,
+      report.industry,
+    ]
   );
 
   const [sectorType, setSectorType] = useState<ValueXSector>(
     (report.sectionF?.valuationHub?.sectorType as ValueXSector) || initialSector
   );
+
+  // Tự động đồng bộ sectorType nếu ban đầu chưa có và initialSector phát hiện được từ ICB
+  useEffect(() => {
+    if (!report.sectionF?.valuationHub?.sectorType && initialSector) {
+      setSectorType(initialSector);
+    }
+  }, [initialSector, report.sectionF?.valuationHub?.sectorType]);
 
   // State các phương pháp định giá
   const [methods, setMethods] = useState<ValuationMethodConfig[]>(() => {
@@ -184,23 +251,30 @@ export function ValuationHub({
     report.sectionF?.valuationHub?.opportunityScorecard?.manualOverrides || {}
   );
 
-  // 1. Fetch dữ liệu thống kê lịch sử P/E, P/B, Top 3 peers và Lịch sử giá 6 tháng
+  // 1. Fetch dữ liệu thống kê lịch sử P/E, P/B, Top 3 peers theo ICB Level 4 và Lịch sử giá
   useEffect(() => {
     let isMounted = true;
     async function loadStats() {
       setIsLoadingStats(true);
       setIsLoadingPriceHistory(true);
       try {
+        const icb4 = report.marketData?.icbCodeLv4 || (report as any).icbCodeLv4 || '';
+        const icb2 = report.marketData?.icbCodeLv2 || (report as any).icbCodeLv2 || report.marketData?.icbCode || '';
+        const peersUrl = `/api/stocks/${ticker}/peers?icbCodeLv4=${encodeURIComponent(icb4)}&icbCodeLv2=${encodeURIComponent(icb2)}`;
+
         const [statsRes, peersRes, priceRes] = await Promise.all([
           fetch(`/api/stocks/${ticker}/valuation-stats`),
-          fetch(`/api/stocks/${ticker}/peers`),
+          fetch(peersUrl),
           fetch(`/api/stocks/${ticker}/price-history`),
         ]);
+
+        let loadedStats: any = null;
+        let loadedMedians: any = null;
 
         if (statsRes.ok && isMounted) {
           const statsJson = await statsRes.json();
           if (statsJson && !statsJson.error) {
-            setHistoricalStats({
+            loadedStats = {
               peMean: statsJson.pe?.mean,
               peMedian: statsJson.pe?.median,
               peStd: statsJson.pe?.std,
@@ -213,7 +287,8 @@ export function ValuationHub({
               pbPlus1Sigma: statsJson.pb?.plus1Sigma,
               validQuarters: statsJson.validQuarters || 0,
               quarterlySeries: statsJson.quarterlySeries || [],
-            });
+            };
+            setHistoricalStats(loadedStats);
 
             if (statsJson.dividendPolicy) {
               setDividendPolicy({
@@ -229,7 +304,8 @@ export function ValuationHub({
           const peersJson = await peersRes.json();
           if (peersJson && !peersJson.error) {
             setPeerStats(peersJson.peers || []);
-            setPeerMedians(peersJson.medians || null);
+            loadedMedians = peersJson.medians || null;
+            setPeerMedians(loadedMedians);
           }
         }
 
@@ -238,6 +314,18 @@ export function ValuationHub({
           if (priceJson && Array.isArray(priceJson.history)) {
             setPriceHistory(priceJson.history);
           }
+        }
+
+        // Tự động điền Hệ số mục tiêu (Target Multiples) từ 20 quý thực tế và Hạng Tăng Trưởng Tab D
+        if (isMounted && loadedStats?.validQuarters > 0) {
+          setMethods((prevMethods) => {
+            return applyAutoMultiplesToMethods(prevMethods, {
+              historicalStats: loadedStats,
+              growthTier,
+              peerMedians: loadedMedians,
+              currentPrice,
+            });
+          });
         }
       } catch (err) {
         console.warn('[ValuationHub] Could not load API stats or price history:', err);
@@ -253,55 +341,35 @@ export function ValuationHub({
     return () => {
       isMounted = false;
     };
-  }, [ticker]);
+  }, [ticker, report.marketData?.icbCodeLv4, report.marketData?.icbCodeLv2, growthTier, currentPrice]);
 
-  // 2. Xử lý khi người dùng đổi nhóm ngành -> cập nhật preset phương pháp
+  // 2. Xử lý khi người dùng đổi nhóm ngành -> cập nhật preset phương pháp và tự động điền bội số
   const handleSectorChange = (newSector: ValueXSector) => {
     setSectorType(newSector);
     const preset = SECTOR_PRESETS[newSector] || SECTOR_PRESETS['CÔNG NGHIỆP_SẢN XUẤT'];
 
-    const newMethods = preset.defaultMethods.map((dm) => {
-      let targetBase = dm.defaultTargetBase;
-      let targetBear = Number((targetBase * 0.8).toFixed(1));
-      let targetBull = Number((targetBase * 1.25).toFixed(1));
+    const newMethods = preset.defaultMethods.map((dm) => ({
+      method: dm.method,
+      name: dm.name,
+      role: dm.role,
+      weight: dm.weight,
+      targetBear: Number((dm.defaultTargetBase * 0.8).toFixed(1)),
+      targetBase: Number(dm.defaultTargetBase.toFixed(1)),
+      targetBull: Number((dm.defaultTargetBase * 1.25).toFixed(1)),
+      fairValueBear: 0,
+      fairValueBase: 0,
+      fairValueBull: 0,
+    }));
 
-      // Áp dụng số liệu thống kê nếu có
-      if (dm.method === 'P_E' && historicalStats?.peMedian) {
-        const calc = computeTargetMultiples({
-          median: historicalStats.peMedian,
-          std: historicalStats.peStd || 2.0,
-          growthTier,
-          peerMax: peerMedians?.maxPe,
-        });
-        targetBear = calc.bear;
-        targetBase = calc.base;
-        targetBull = calc.bull;
-      } else if (dm.method === 'P_B' && historicalStats?.pbMedian) {
-        const calc = computeTargetMultiples({
-          median: historicalStats.pbMedian,
-          std: historicalStats.pbStd || 0.3,
-          growthTier,
-        });
-        targetBear = calc.bear;
-        targetBase = calc.base;
-        targetBull = calc.bull;
-      }
-
-      return {
-        method: dm.method,
-        name: dm.name,
-        role: dm.role,
-        weight: dm.weight,
-        targetBear,
-        targetBase,
-        targetBull,
-        fairValueBear: 0,
-        fairValueBase: 0,
-        fairValueBull: 0,
-      };
+    // Tự động điền lại bội số mục tiêu từ 20 quý lịch sử nếu có
+    const autoMethods = applyAutoMultiplesToMethods(newMethods, {
+      historicalStats,
+      growthTier,
+      peerMedians,
+      currentPrice,
     });
 
-    setMethods(newMethods);
+    setMethods(autoMethods);
   };
 
   // 3. Tính toán lại Fair Value của từng phương pháp mỗi khi target hoặc inputs thay đổi
@@ -315,6 +383,10 @@ export function ValuationHub({
         sharesOutstanding,
         bvpsForward,
         currentPrice,
+        cfoForward,
+        capexForward,
+        netProfitForward,
+        revenueGrowthForecast,
       });
       return {
         ...m,
@@ -323,7 +395,19 @@ export function ValuationHub({
         fairValueBull: fv.bull,
       };
     });
-  }, [methods, epsForward, ebitdaForward, netDebt, sharesOutstanding, bvpsForward, currentPrice]);
+  }, [
+    methods,
+    epsForward,
+    ebitdaForward,
+    netDebt,
+    sharesOutstanding,
+    bvpsForward,
+    currentPrice,
+    cfoForward,
+    capexForward,
+    netProfitForward,
+    revenueGrowthForecast,
+  ]);
 
   // 4. Tổng hợp 3 kịch bản Bear/Base/Bull
   const scenarioResults = useMemo(() => {
@@ -636,6 +720,10 @@ export function ValuationHub({
               bvpsForward,
               currentPrice,
               growthTier,
+              cfoForward,
+              capexForward,
+              netProfitForward,
+              revenueGrowthForecast,
             }}
             historicalStats={historicalStats}
             peerMedians={peerMedians}

@@ -10,8 +10,9 @@ import { BusinessQualityScorecard } from './BusinessQualityScorecard';
 import { QuarterlyForecastBridge } from './QuarterlyForecastBridge';
 import { CatalystTracker } from './CatalystTracker';
 import { InvestmentDecisionHub } from './InvestmentDecisionHub';
+import { ExecutiveSummaryTab } from './ExecutiveSummaryTab';
 import { ErrorBoundary } from './ErrorBoundary';
-import { FileText, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw, TrendingUp, Award, Layers, Sparkles, Compass } from 'lucide-react';
+import { FileText, FileBadge, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw, TrendingUp, Award, Layers, Sparkles, Compass } from 'lucide-react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -319,7 +320,7 @@ export function ReportViewer({
   onRegenerate,
   isGenerating,
 }: ReportViewerProps) {
-  const [activeTab, setActiveTab] = useState<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'>('A');
+  const [activeTab, setActiveTab] = useState<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'>('A');
   const [isEditing, setIsEditing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [realQuarterlyFinancials, setRealQuarterlyFinancials] = useState<any[]>([]);
@@ -327,25 +328,38 @@ export function ReportViewer({
 
   // Fetch real BCTC quarterly data from Vietcap IQ API endpoint
   useEffect(() => {
-    if (report?.ticker) {
-      fetch(`/api/stocks/${report.ticker}/financials`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.quarters && Array.isArray(data.quarters)) {
+    if (!report?.ticker) return;
+
+    const currentTicker = report.ticker.trim().toUpperCase();
+    let isCancelled = false;
+
+    // Reset immediately to avoid stale data leaking to new ticker
+    setRealQuarterlyFinancials([]);
+    setPriceHistory([]);
+
+    fetch(`/api/stocks/${currentTicker}/financials`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isCancelled && data && data.quarters && Array.isArray(data.quarters)) {
+          if (!data.ticker || data.ticker.toUpperCase() === currentTicker) {
             setRealQuarterlyFinancials(data.quarters);
           }
-        })
-        .catch((err) => console.warn('Failed to fetch real financials:', err));
+        }
+      })
+      .catch((err) => console.warn(`Failed to fetch real financials for ${currentTicker}:`, err));
 
-      fetch(`/api/stocks/${report.ticker}/price-history`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && Array.isArray(data.history)) {
-            setPriceHistory(data.history);
-          }
-        })
-        .catch((err) => console.warn('Failed to fetch price history:', err));
-    }
+    fetch(`/api/stocks/${currentTicker}/price-history`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isCancelled && data && Array.isArray(data.history)) {
+          setPriceHistory(data.history);
+        }
+      })
+      .catch((err) => console.warn(`Failed to fetch price history for ${currentTicker}:`, err));
+
+    return () => {
+      isCancelled = true;
+    };
   }, [report?.ticker]);
 
   // Editable states for all 6 tabs
@@ -869,6 +883,13 @@ export function ReportViewer({
         { period: '2025', 'Doanh thu': 74.8, 'LNST': 9.56, 'Biên gộp (%)': 38.5, 'ROE (%)': 25.8 },
       ];
     }
+    if (t === 'DGW') {
+      return [
+        { period: '2023', 'Doanh thu': 18.818, 'LNST': 0.354, 'Biên gộp (%)': 8.2, 'ROE (%)': 14.8 },
+        { period: '2024', 'Doanh thu': 22.100, 'LNST': 0.420, 'Biên gộp (%)': 8.5, 'ROE (%)': 16.5 },
+        { period: '2025', 'Doanh thu': 27.500, 'LNST': 0.650, 'Biên gộp (%)': 9.8, 'ROE (%)': 20.2 },
+      ];
+    }
     if (t === 'PHP') {
       return [
         { period: '2023', 'Doanh thu': 2.156, 'LNST': 0.612, 'Biên gộp (%)': 34.2, 'ROE (%)': 10.5 },
@@ -895,6 +916,16 @@ export function ReportViewer({
     }
 
     const t = ticker.toUpperCase();
+    if (t === 'DGW') {
+      return [
+        { period: 'Q1/2025', 'Doanh thu': 4.985, 'LNST': 0.093, 'Biên gộp (%)': 8.1, 'ROE (%)': 15.0 },
+        { period: 'Q2/2025', 'Doanh thu': 5.730, 'LNST': 0.119, 'Biên gộp (%)': 8.5, 'ROE (%)': 16.2 },
+        { period: 'Q3/2025', 'Doanh thu': 7.391, 'LNST': 0.166, 'Biên gộp (%)': 9.8, 'ROE (%)': 18.5 },
+        { period: 'Q4/2025', 'Doanh thu': 7.990, 'LNST': 0.159, 'Biên gộp (%)': 9.9, 'ROE (%)': 19.8 },
+        { period: 'Q1/2026', 'Doanh thu': 8.500, 'LNST': 0.200, 'Biên gộp (%)': 9.5, 'ROE (%)': 21.5 },
+        { period: 'Q2/2026', 'Doanh thu': 7.273, 'LNST': 0.310, 'Biên gộp (%)': 13.0, 'ROE (%)': 23.8 },
+      ];
+    }
     if (t === 'HPG') {
       return [
         { period: 'Q1/2025', 'Doanh thu': 37621.7 / 1000, 'LNST': 3344.3 / 1000, 'Biên gộp (%)': 10.1, 'ROE (%)': 10.5 },
@@ -992,8 +1023,8 @@ export function ReportViewer({
         }}
       />
 
-      {/* Print-only Header (Appears when saving PDF or printing) */}
-      <div className="hidden print:block mb-8 pb-4 border-b-2 border-slate-900 text-slate-900">
+      {/* Print-only Header (Appears when saving PDF or printing full tabs A-I) */}
+      <div className={`${activeTab === 'J' ? 'hidden' : 'hidden print:block'} mb-8 pb-4 border-b-2 border-slate-900 text-slate-900`}>
         <div className="flex items-center justify-between pb-3 border-b border-slate-200">
           <div>
             <div className="text-2xl font-black tracking-tight text-slate-900">
@@ -1064,20 +1095,29 @@ export function ReportViewer({
           </span>
         </div>
 
-        {report.isFromCache ? (
-          <div className="flex items-center space-x-1.5 text-xs text-amber-300 bg-amber-950/50 border border-amber-500/30 px-3 py-1 rounded-lg">
-            <span>⚡ Đã tải từ bộ nhớ đệm (Tiết kiệm Token)</span>
-            {report.cachedAt && (
-              <span className="text-amber-400/80 text-[11px]">
-                • {new Date(report.cachedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} {new Date(report.cachedAt).toLocaleDateString('vi-VN')}
-              </span>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center space-x-1.5 text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 px-3 py-1 rounded-lg">
-            <span>✨ Phân tích mới</span>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {report.googleAiInsights && (
+            <div className="flex items-center space-x-1.5 text-xs text-amber-300 bg-amber-950/60 border border-amber-500/40 px-2.5 py-1 rounded-lg shadow-2xs">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span className="font-semibold text-amber-300">Google Search Grounding (Đã nạp vào Tab D &amp; G)</span>
+            </div>
+          )}
+
+          {report.isFromCache ? (
+            <div className="flex items-center space-x-1.5 text-xs text-amber-300 bg-amber-950/50 border border-amber-500/30 px-3 py-1 rounded-lg">
+              <span>⚡ Đã tải từ bộ nhớ đệm (Tiết kiệm Token)</span>
+              {report.cachedAt && (
+                <span className="text-amber-400/80 text-[11px]">
+                  • {new Date(report.cachedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} {new Date(report.cachedAt).toLocaleDateString('vi-VN')}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center space-x-1.5 text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 px-3 py-1 rounded-lg">
+              <span>✨ Phân tích mới</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Navigation Tabs for A, B, C, D, E, F (Screen view only) */}
@@ -1180,12 +1220,23 @@ export function ReportViewer({
           <Compass className="h-4 w-4" />
           <span>I. Cơ Hội Đầu Tư</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('J')}
+          className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'J'
+              ? 'bg-slate-900 text-white dark:bg-emerald-600 shadow-md shadow-slate-900/25 dark:shadow-emerald-600/25'
+              : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+            }`}
+        >
+          <FileBadge className="h-4 w-4" />
+          <span>J. Báo Cáo Tóm Tắt (Factsheet)</span>
+        </button>
       </div>
 
       {/* Tab Content Display / Edit */}
       <div className="mt-5">
         {/* TAB A: TỔNG QUAN DOANH NGHIỆP */}
-        <div className={`space-y-5 ${activeTab === 'A' ? 'block' : 'hidden print:block'}`}>
+        <div className={`space-y-5 ${activeTab === 'A' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần A: Tổng Quan Doanh Nghiệp">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               A. TỔNG QUAN DOANH NGHIỆP
@@ -1238,7 +1289,7 @@ export function ReportViewer({
         </div>
 
         {/* TAB B: HOẠT ĐỘNG KINH DOANH & CHUỖI GIÁ TRỊ */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'B' ? 'block' : 'hidden print:block'}`}>
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'B' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần B: Hoạt Động Kinh Doanh & Chuỗi Giá Trị">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               B. HOẠT ĐỘNG KINH DOANH &amp; CHUỖI GIÁ TRỊ
@@ -1426,12 +1477,13 @@ export function ReportViewer({
         </div>
 
         {/* TAB C: SỨC KHỎE TÀI CHÍNH (50 ĐIỂM - 6 NHÓM A ĐẾN F) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'C' ? 'block' : 'hidden print:block'}`}>
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'C' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần C: Sức Khỏe Tài Chính">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               C. SỨC KHỎE TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
             </h2>
             <FinancialHealthScorecard
+              key={report.ticker}
               ticker={report.ticker}
               sectionC={secC}
               realQuarterlyFinancials={realQuarterlyFinancials}
@@ -1443,12 +1495,13 @@ export function ReportViewer({
         </div>
 
         {/* TAB D: CHẤT LƯỢNG TĂNG TRƯỞNG & CẦU NỐI CORE (60 ĐIỂM - 7 NHÓM A ĐẾN G) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'D' ? 'block' : 'hidden print:block'}`}>
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'D' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần D: Chất Lượng Tăng Trưởng">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               D. CHẤT LƯỢNG TĂNG TRƯỞNG &amp; CẦU NỐI CORE (60 ĐIỂM)
             </h2>
             <GrowthQualityScorecard
+              key={report.ticker}
               ticker={report.ticker}
               sectionD={secD}
               realQuarterlyFinancials={realQuarterlyFinancials}
@@ -1460,12 +1513,13 @@ export function ReportViewer({
         </div>
 
         {/* TAB E: CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT & COMPOUNDER (40 ĐIỂM - 7 NHÓM A ĐẾN G) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'E' ? 'block' : 'hidden print:block'}`}>
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'E' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần E: Chất Lượng Doanh Nghiệp">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               E. CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT &amp; COMPOUNDER (40 ĐIỂM)
             </h2>
             <BusinessQualityScorecard
+              key={report.ticker}
               ticker={report.ticker}
               sectionE={secE}
               realQuarterlyFinancials={realQuarterlyFinancials}
@@ -1520,19 +1574,34 @@ export function ReportViewer({
         </div>
 
         {/* TAB F: DỰ PHÓNG KẾT QUẢ KINH DOANH 8 QUÝ & CÔNG SUẤT */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'F' ? 'block' : 'hidden print:block'}`}>
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'F' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần F: Dự Phóng KQKD 8 Quý">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               F. DỰ PHÓNG KẾT QUẢ KINH DOANH 8 QUÝ &amp; CÔNG SUẤT
             </h2>
             {secFValuation?.quarterlyForecastReasoning && (
-              <SectionCard title="Luận Điểm & Cơ Sở Ước Lượng KQKD" isEditing={false}>
-                <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
-                  {renderMarkdown(secFValuation.quarterlyForecastReasoning)}
-                </div>
+              <SectionCard title="Luận Điểm & Cơ Sở Ước Lượng KQKD" isEditing={isEditing}>
+                {isEditing ? (
+                  <textarea
+                    rows={6}
+                    value={secFValuation.quarterlyForecastReasoning}
+                    onChange={(e) => {
+                      const updated = { ...secFValuation, quarterlyForecastReasoning: e.target.value };
+                      setSecFValuation(updated);
+                      onUpdateReport({ ...report, sectionF: updated });
+                    }}
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                    placeholder="Nhập luận điểm và cơ sở ước lượng KQKD..."
+                  />
+                ) : (
+                  <div className="text-xs text-slate-800 dark:text-gray-200 leading-relaxed">
+                    {renderMarkdown(secFValuation.quarterlyForecastReasoning)}
+                  </div>
+                )}
               </SectionCard>
             )}
             <QuarterlyForecastBridge
+              key={report.ticker}
               report={report}
               realQuarterlyFinancials={realQuarterlyFinancials}
               onUpdateReport={onUpdateReport}
@@ -1543,12 +1612,13 @@ export function ReportViewer({
         </div>
 
         {/* TAB G: CHẤT XÚC TÁC & TIMING ĐẦU TƯ (35 ĐIỂM) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'G' ? 'block' : 'hidden print:block'}`}>
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'G' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần G: Chất Xúc Tác & Timing">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               G. CHẤT XÚC TÁC &amp; TIMING ĐẦU TƯ (35 ĐIỂM)
             </h2>
             <CatalystTracker
+              key={report.ticker}
               report={report}
               isEditing={isEditing}
               priceHistory={priceHistory}
@@ -1571,12 +1641,13 @@ export function ReportViewer({
         </div>
 
         {/* TAB H: BỘ TÍNH TOÁN ĐỊNH GIÁ & KỊCH BẢN MỤC TIÊU */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'H' ? 'block' : 'hidden print:block'}`}>
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'H' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần H: Định Giá & Kịch Bản">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               H. BỘ TÍNH TOÁN ĐỊNH GIÁ &amp; KỊCH BẢN MỤC TIÊU
             </h2>
             <ValuationHub
+              key={report.ticker}
               report={report}
               realQuarterlyFinancials={realQuarterlyFinancials}
               onNavigateToTab={(tabId) => setActiveTab(tabId as any)}
@@ -1589,17 +1660,31 @@ export function ReportViewer({
         </div>
 
         {/* TAB I: CƠ HỘI ĐẦU TƯ (PHIẾU TỔNG HỢP & QUYẾT ĐỊNH) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'I' ? 'block' : 'hidden print:block'}`}>
+        <div className={`space-y-5 print:pt-6 ${activeTab === 'I' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần I: Cơ Hội Đầu Tư">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               I. PHIẾU TỔNG HỢP &amp; QUYẾT ĐỊNH CƠ HỘI ĐẦU TƯ
             </h2>
             <InvestmentDecisionHub
+              key={report.ticker}
               report={report}
               realQuarterlyFinancials={realQuarterlyFinancials}
               priceHistory={priceHistory}
               onNavigateToTab={(tabId) => setActiveTab(tabId)}
               onUpdateReport={onUpdateReport}
+            />
+          </ErrorBoundary>
+        </div>
+
+        {/* TAB J: BÁO CÁO TÓM TẮT DÀNH CHO NHÀ ĐẦU TƯ (FACTSHEET & MEMO) */}
+        <div className={`space-y-5 print:pt-0 ${activeTab === 'J' ? 'block' : 'hidden'}`}>
+          <ErrorBoundary fallbackTitle="Không thể hiển thị Phần J: Báo Cáo Tóm Tắt">
+            <ExecutiveSummaryTab
+              key={report.ticker}
+              report={report}
+              realQuarterlyFinancials={realQuarterlyFinancials}
+              onUpdateReport={onUpdateReport}
+              isEditingGlobal={isEditing}
             />
           </ErrorBoundary>
         </div>

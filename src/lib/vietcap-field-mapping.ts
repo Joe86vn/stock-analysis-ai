@@ -157,21 +157,21 @@ export const VIETCAP_CASH_FLOW_MAP: Record<string, VietcapFieldMeta> = {
   cfa3: { code: 'cfa3', nameVi: 'Các khoản dự phòng', nameEn: 'Provisions', unit: 'VND' },
   cfa4: { code: 'cfa4', nameVi: 'Lãi/lỗ chênh lệch tỷ giá hối đoái chưa thực hiện', nameEn: 'Unrealized Foreign Exchange Gain/Loss', unit: 'VND' },
   cfa5: { code: 'cfa5', nameVi: 'Lãi/lỗ từ hoạt động đầu tư', nameEn: 'Gain/Loss from Investing Activities', unit: 'VND' },
-  cfa6: { code: 'cfa6', nameVi: 'Chi phí lãi vay', nameEn: 'Interest Expenses', unit: 'VND' },
-  cfa7: { code: 'cfa7', nameVi: 'Thu nhập lãi vay và cổ tức', nameEn: 'Interest and Dividend Income', unit: 'VND' },
+  cfa6: { code: 'cfa6', nameVi: 'Lãi/lỗ từ hoạt động đầu tư', nameEn: 'Gain/Loss from Investing Activities', unit: 'VND' },
+  cfa7: { code: 'cfa7', nameVi: 'Chi phí lãi vay', nameEn: 'Interest Expenses', unit: 'VND' },
   cfa8: { code: 'cfa8', nameVi: 'Lợi nhuận kinh doanh trước thay đổi VLĐ', nameEn: 'Operating Profit Before Working Capital Changes', unit: 'VND' },
-  cfa9: { code: 'cfa9', nameVi: 'Tăng/giảm các khoản phải thu', nameEn: 'Increase/Decrease in Receivables', unit: 'VND' },
-  cfa10: { code: 'cfa10', nameVi: 'Tăng/giảm hàng tồn kho', nameEn: 'Increase/Decrease in Inventories', unit: 'VND' },
-  cfa11: { code: 'cfa11', nameVi: 'Tăng/giảm các khoản phải trả (không kể lãi vay, thuế)', nameEn: 'Increase/Decrease in Payables', unit: 'VND' },
-  cfa12: { code: 'cfa12', nameVi: 'Tăng/giảm chi phí trả trước', nameEn: 'Increase/Decrease in Prepaid Expenses', unit: 'VND' },
-  cfa13: { code: 'cfa13', nameVi: 'Tăng/giảm chứng khoán kinh doanh', nameEn: 'Increase/Decrease in Trading Securities', unit: 'VND' },
+  cfa9: { code: 'cfa9', nameVi: 'Lợi nhuận kinh doanh trước thay đổi VLĐ', nameEn: 'Operating Profit Before Working Capital Changes', unit: 'VND' },
+  cfa10: { code: 'cfa10', nameVi: '(Tăng)/giảm các khoản phải thu', nameEn: 'Increase/Decrease in Receivables', unit: 'VND' },
+  cfa11: { code: 'cfa11', nameVi: '(Tăng)/giảm hàng tồn kho', nameEn: 'Increase/Decrease in Inventories', unit: 'VND' },
+  cfa12: { code: 'cfa12', nameVi: 'Tăng/(giảm) các khoản phải trả (không kể lãi vay, thuế)', nameEn: 'Increase/Decrease in Payables', unit: 'VND' },
+  cfa13: { code: 'cfa13', nameVi: '(Tăng)/giảm chi phí trả trước', nameEn: 'Increase/Decrease in Prepaid Expenses', unit: 'VND' },
   cfa14: { code: 'cfa14', nameVi: 'Tiền lãi vay đã trả', nameEn: 'Interest Paid', unit: 'VND' },
   cfa15: { code: 'cfa15', nameVi: 'Thuế TNDN đã nộp', nameEn: 'Income Tax Paid', unit: 'VND' },
-  cfa16: { code: 'cfa16', nameVi: 'Lưu chuyển tiền thuần từ hoạt động kinh doanh (CFO)', nameEn: 'Net Cash Flow from Operating Activities (CFO)', unit: 'VND' },
-  cfa18: { code: 'cfa18', nameVi: 'Tiền chi để mua sắm, xây dựng TSCĐ và các TSDH khác (CAPEX)', nameEn: 'CAPEX (Purchase & Construction of Fixed Assets)', unit: 'VND' },
+  cfa16: { code: 'cfa16', nameVi: 'Tiền chi khác cho hoạt động kinh doanh', nameEn: 'Other Cash Outflows from Operations', unit: 'VND' },
+  cfa18: { code: 'cfa18', nameVi: 'Lưu chuyển tiền thuần từ hoạt động kinh doanh (CFO)', nameEn: 'Net Cash Flow from Operating Activities (CFO)', unit: 'VND' },
   cfa19: { code: 'cfa19', nameVi: 'Tiền thu từ thanh lý, nhượng bán TSCĐ và TSDH khác', nameEn: 'Proceeds from Disposal of Fixed Assets', unit: 'VND' },
-  cfa20: { code: 'cfa20', nameVi: 'Tiền chi cho vay, mua các công cụ nợ của đơn vị khác', nameEn: 'Loans Granted and Purchase of Debt Instruments', unit: 'VND' },
-  cfa21: { code: 'cfa21', nameVi: 'Tiền chi để mua sắm, xây dựng TSCĐ (CAPEX)', nameEn: 'CAPEX (Purchase & Construction of Fixed Assets)', unit: 'VND' },
+  cfa20: { code: 'cfa20', nameVi: 'Lưu chuyển tiền thuần từ HĐKD (dự phòng)', nameEn: 'Net Cash Flow from Operations (Alt)', unit: 'VND' },
+  cfa21: { code: 'cfa21', nameVi: 'Tiền chi để mua sắm, xây dựng TSCĐ và các TSDH khác (CAPEX)', nameEn: 'CAPEX (Purchase & Construction of Fixed Assets)', unit: 'VND' },
   cfa22: { code: 'cfa22', nameVi: 'Tiền thu hồi cho vay, bán lại công cụ nợ của đơn vị khác', nameEn: 'Proceeds from Lending & Debt Instruments', unit: 'VND' },
   cfa23: { code: 'cfa23', nameVi: 'Tiền chi đầu tư góp vốn vào đơn vị khác', nameEn: 'Investments in Other Entities', unit: 'VND' },
   cfa24: { code: 'cfa24', nameVi: 'Tiền thu hồi đầu tư góp vốn vào đơn vị khác', nameEn: 'Proceeds from Divestment in Other Entities', unit: 'VND' },
@@ -183,11 +183,13 @@ export const VIETCAP_CASH_FLOW_MAP: Record<string, VietcapFieldMeta> = {
   cfa30: { code: 'cfa30', nameVi: 'Tiền chi trả nợ gốc vay', nameEn: 'Repayment of Borrowings', unit: 'VND' },
   cfa31: { code: 'cfa31', nameVi: 'Tiền chi trả nợ gốc thuê tài chính', nameEn: 'Repayment of Finance Lease Liabilities', unit: 'VND' },
   cfa32: { code: 'cfa32', nameVi: 'Cổ tức, lợi nhuận đã trả cho chủ sở hữu', nameEn: 'Dividends Paid to Owners', unit: 'VND' },
+  cfa34: { code: 'cfa34', nameVi: 'Lưu chuyển tiền thuần từ hoạt động tài chính (CFF)', nameEn: 'Net Cash Flow from Financing Activities (CFF)', unit: 'VND' },
+  cfa35: { code: 'cfa35', nameVi: 'Lưu chuyển tiền thuần trong kỳ (Net Cash Flow)', nameEn: 'Net Cash Flow for the Period', unit: 'VND' },
   cfa36: { code: 'cfa36', nameVi: 'Lưu chuyển tiền thuần từ hoạt động tài chính (CFF)', nameEn: 'Net Cash Flow from Financing Activities (CFF)', unit: 'VND' },
-  cfa37: { code: 'cfa37', nameVi: 'Lưu chuyển tiền thuần trong kỳ', nameEn: 'Net Cash Flow for the Period', unit: 'VND' },
-  cfa38: { code: 'cfa38', nameVi: 'Tiền và tương đương tiền đầu kỳ', nameEn: 'Cash & Cash Equivalents at Beginning of Period', unit: 'VND' },
+  cfa37: { code: 'cfa37', nameVi: 'Lưu chuyển tiền thuần trong kỳ (dự phòng)', nameEn: 'Net Cash Flow for the Period (Alt)', unit: 'VND' },
+  cfa38: { code: 'cfa38', nameVi: 'Tiền và tương đương tiền cuối kỳ', nameEn: 'Cash & Cash Equivalents at End of Period', unit: 'VND' },
   cfa39: { code: 'cfa39', nameVi: 'Ảnh hưởng của thay đổi tỷ giá hối đoái', nameEn: 'Effect of Exchange Rate Changes', unit: 'VND' },
-  cfa40: { code: 'cfa40', nameVi: 'Tiền và tương đương tiền cuối kỳ', nameEn: 'Cash & Cash Equivalents at End of Period', unit: 'VND' },
+  cfa40: { code: 'cfa40', nameVi: 'Tiền và tương đương tiền cuối kỳ (dự phòng)', nameEn: 'Cash & Cash Equivalents at End of Period (Alt)', unit: 'VND' },
 };
 
 /**
@@ -395,12 +397,13 @@ export interface ParsedVietcapQuarter {
   retainedEarnings: number; // LNST chưa phân phối (bsa90)
 
   // 4. Báo cáo Lưu chuyển tiền tệ (Cash Flow) - Đơn vị: Tỷ VNĐ
-  netOperatingCashFlow: number; // LCT thuần từ HĐKD (cfa1)
-  netInvestingCashFlow: number; // LCT thuần từ HĐ đầu tư (cfa18/cfa26)
+  netOperatingCashFlow: number; // LCT thuần từ HĐKD (cfa18)
+  cfo: number; // Bí danh thuận tiện cho CFO
+  netInvestingCashFlow: number; // LCT thuần từ HĐ đầu tư (cfa26)
   capex: number; // Tiền chi mua sắm, xây dựng TSCĐ (cfa21)
-  netFinancingCashFlow: number; // LCT thuần từ HĐ tài chính (cfa36)
+  netFinancingCashFlow: number; // LCT thuần từ HĐ tài chính (cfa34/cfa36)
   dividendsPaid: number; // Cổ tức đã trả (cfa32)
-  netCashFlowPeriod: number; // LCT thuần trong kỳ (cfa37)
+  netCashFlowPeriod: number; // LCT thuần trong kỳ (cfa35/cfa37)
   cashAtEndOfPeriod: number; // Tiền và tương đương tiền cuối kỳ (cfa38)
 
   // 5. Các Chỉ số Hiệu quả, Cơ cấu Nguồn vốn & Thanh toán (từ Statistics Financial API)
@@ -540,27 +543,55 @@ export function parseVietcapQuarter(
   const tradePayables = toBillion(bsItem.bsa56);
   const customerAdvances = toBillion(bsItem.bsa57);
   const nonCurrentLiabilities = toBillion(bsItem.bsa71);
-  const shortTermLoans = toBillion(bsItem.bsa67);
-  const longTermLoans = toBillion(bsItem.bsa78);
+  const shortTermLoans = toBillion(bsItem.bsa67 || bsItem.bsa65 || bsItem.bsa66);
+  const longTermLoans = toBillion(bsItem.bsa78 || bsItem.bsa77);
   const totalDebt = Math.round((shortTermLoans + longTermLoans) * 10) / 10;
   const ownerEquity = toBillion(bsItem.bsa79);
   const charterCapital = toBillion(bsItem.bsa80);
-  const retainedEarnings = toBillion(bsItem.bsa90);
+  const retainedEarnings = toBillion(bsItem.bsa89 || bsItem.bsa90);
 
-  // 4. Cash Flow
-  const netOperatingCashFlow = toBillion(cfItem.cfa1);
-  const netInvestingCashFlow = toBillion(cfItem.cfa18 || cfItem.cfa26);
-  const capex = toBillion(cfItem.cfa21);
-  const netFinancingCashFlow = toBillion(cfItem.cfa36);
+  // 4. Báo cáo Lưu chuyển tiền tệ (Cash Flow) - Chuẩn hóa 100% theo mã Vietcap IQ
+  // cfa18: Lưu chuyển tiền thuần từ hoạt động kinh doanh (CFO)
+  // cfa21: Tiền chi để mua sắm, xây dựng TSCĐ (CAPEX)
+  // cfa26: Lưu chuyển tiền thuần từ hoạt động đầu tư (CFI)
+  // cfa34 / cfa36: Lưu chuyển tiền thuần từ hoạt động tài chính (CFF)
+  // cfa35 / cfa37: Lưu chuyển tiền thuần trong kỳ (Net Cash Flow)
+  // cfa38 / cfa40: Tiền và tương đương tiền cuối kỳ
+  const netOperatingCashFlow = toBillion(
+    cfItem.cfa18 !== undefined && cfItem.cfa18 !== 0
+      ? cfItem.cfa18
+      : (cfItem.cfa20 !== undefined && cfItem.cfa20 !== 0 ? cfItem.cfa20 : (cfItem.cfa16 || 0))
+  );
+  const cfo = netOperatingCashFlow;
+  const netInvestingCashFlow = toBillion(cfItem.cfa26);
+  const capex = Math.abs(toBillion(cfItem.cfa21 || cfItem.cfa19));
+  const netFinancingCashFlow = toBillion(cfItem.cfa34 !== undefined && cfItem.cfa34 !== 0 ? cfItem.cfa34 : cfItem.cfa36);
   const dividendsPaid = toBillion(cfItem.cfa32);
-  const netCashFlowPeriod = toBillion(cfItem.cfa37);
-  const cashAtEndOfPeriod = toBillion(cfItem.cfa38);
+  const netCashFlowPeriod = toBillion(cfItem.cfa35 !== undefined && cfItem.cfa35 !== 0 ? cfItem.cfa35 : cfItem.cfa37);
+  const cashAtEndOfPeriod = toBillion(cfItem.cfa38 !== undefined && cfItem.cfa38 !== 0 ? cfItem.cfa38 : cfItem.cfa40);
 
   // 5. Operating & Financial Ratios
-  const grossMargin = statItem.grossMargin !== undefined ? toPercent(statItem.grossMargin) : (revenue > 0 ? Math.round(((grossProfit / revenue) * 100) * 10) / 10 : 0);
+  // CHÚ Ý: Bắt buộc ưu tiên tính trực tiếp từ số liệu BCTC của từng quý riêng lẻ (grossProfit / revenue),
+  // vì statItem.grossMargin trong Vietcap statistics-financial là tỷ số TTM (lũy kế 4 quý), không phải biên của riêng quý đó.
+  const grossMargin =
+    revenue > 0 && grossProfit !== undefined
+      ? Math.round(((grossProfit / revenue) * 100) * 10) / 10
+      : statItem.grossMargin !== undefined
+      ? toPercent(statItem.grossMargin)
+      : 0;
   const ebitMargin = statItem.ebitMargin !== undefined ? toPercent(statItem.ebitMargin) : 0;
-  const preTaxMargin = statItem.preTaxProfitMargin !== undefined ? toPercent(statItem.preTaxProfitMargin) : (revenue > 0 ? Math.round(((profitBeforeTax / revenue) * 100) * 10) / 10 : 0);
-  const netMargin = statItem.afterTaxProfitMargin !== undefined ? toPercent(statItem.afterTaxProfitMargin) : (revenue > 0 ? Math.round(((netProfit / revenue) * 100) * 10) / 10 : 0);
+  const preTaxMargin =
+    revenue > 0 && profitBeforeTax !== undefined
+      ? Math.round(((profitBeforeTax / revenue) * 100) * 10) / 10
+      : statItem.preTaxProfitMargin !== undefined
+      ? toPercent(statItem.preTaxProfitMargin)
+      : 0;
+  const netMargin =
+    revenue > 0 && netProfit !== undefined
+      ? Math.round(((netProfit / revenue) * 100) * 10) / 10
+      : statItem.afterTaxProfitMargin !== undefined
+      ? toPercent(statItem.afterTaxProfitMargin)
+      : 0;
   const roe = toPercent(statItem.roe);
   const roa = toPercent(statItem.roa);
   const roic = toPercent(statItem.roic);
@@ -653,6 +684,7 @@ export function parseVietcapQuarter(
     charterCapital,
     retainedEarnings,
     netOperatingCashFlow,
+    cfo: netOperatingCashFlow,
     netInvestingCashFlow,
     capex,
     netFinancingCashFlow,
@@ -1147,10 +1179,10 @@ export async function fetchVietcapShareholders(ticker: string): Promise<VietcapS
 /**
  * Lấy danh sách RS Rating của các mã thuộc 1 ngành ICB
  */
-export async function fetchVietcapSectorRs(icbCode: string): Promise<VietcapSectorStockRs[]> {
+export async function fetchVietcapSectorRs(icbCode: string, icbLevel: number = 2): Promise<VietcapSectorStockRs[]> {
   try {
     const res = await fetch(
-      `https://iq.vietcap.com.vn/api/iq-insight-service/v1/sector-ranking/sectors/${icbCode}?icbLevel=2&adtv=3&value=3`,
+      `https://iq.vietcap.com.vn/api/iq-insight-service/v1/sector-ranking/sectors/${icbCode}?icbLevel=${icbLevel}&adtv=3&value=3`,
       { headers: COMMON_HEADERS, next: { revalidate: 300 } }
     );
     if (!res.ok) return [];
