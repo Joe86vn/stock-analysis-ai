@@ -37,17 +37,32 @@ interface StockChartPanelProps {
   onClose: () => void;
 }
 
-type Timeframe = '1T' | '3T' | '6T' | '1N' | '3N' | '5N' | 'Tối đa';
+export type Resolution = 'D' | 'W' | 'M';
 
-// Số phiên giao dịch tương ứng mỗi timeframe
-const TIMEFRAME_BARS: Record<Timeframe, number> = {
-  '1T': 22,
-  '3T': 65,
-  '6T': 130,
-  '1N': 260,
-  '3N': 756,
-  '5N': 1260,
-  'Tối đa': 2000,
+export const RESOLUTION_TIMEFRAME_BARS: Record<Resolution, Record<string, number>> = {
+  D: {
+    '1T': 22,
+    '3T': 65,
+    '6T': 130,
+    '1N': 260,
+    '3N': 756,
+    '5N': 1260,
+    'Tối đa': 2000,
+  },
+  W: {
+    '3T': 13,
+    '6T': 26,
+    '1N': 52,
+    '3N': 156,
+    '5N': 260,
+    'Tối đa': 1000,
+  },
+  M: {
+    '1N': 12,
+    '3N': 36,
+    '5N': 60,
+    'Tối đa': 500,
+  },
 };
 
 // ─── EMA Calculation ──────────────────────────────────────────────────────────
@@ -117,7 +132,8 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
 
   const [allBars, setAllBars] = useState<OhlcBar[]>([]);
   const [isLoadingChart, setIsLoadingChart] = useState(false);
-  const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>('1N');
+  const [resolution, setResolution] = useState<Resolution>('D');
+  const [activeTimeframe, setActiveTimeframe] = useState<string>('1N');
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [priceChange, setPriceChange] = useState<{ abs: number; pct: number } | null>(null);
   const [liveVolume, setLiveVolume] = useState<number | null>(null);
@@ -127,20 +143,30 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   const [showDividendMarkers, setShowDividendMarkers] = useState(true);
   const [dividendMarkers, setDividendMarkers] = useState<SeriesMarker<Time>[]>([]);
 
+  const barsCacheRef = useRef<{ [key in Resolution]?: OhlcBar[] }>({});
   const isOpen = !!ticker;
 
   // ─── Fetch price history ─────────────────────────────────────────────────
 
-  const fetchPriceHistory = useCallback(async (t: string) => {
+  const fetchPriceHistory = useCallback(async (t: string, res: Resolution = 'D') => {
+    // Nếu đã có cache cho chu kỳ này thì hiển thị tức thì
+    if (barsCacheRef.current[res] && barsCacheRef.current[res]!.length > 0) {
+      setAllBars(barsCacheRef.current[res]!);
+      return;
+    }
+
     setIsLoadingChart(true);
     setAllBars([]);
     try {
-      const res = await fetch(`/api/stocks/${t}/price-history?countBack=2000`);
-      if (!res.ok) return;
-      const json = await res.json();
+      const apiTf = res === 'W' ? 'ONE_WEEK' : res === 'M' ? 'ONE_MONTH' : 'ONE_DAY';
+      const countBack = res === 'M' ? 500 : res === 'W' ? 1000 : 2000;
+      const response = await fetch(`/api/stocks/${t}/price-history?countBack=${countBack}&timeFrame=${apiTf}`);
+      if (!response.ok) return;
+      const json = await response.json();
       const bars: OhlcBar[] = json.history || [];
+      barsCacheRef.current[res] = bars;
       setAllBars(bars);
-      if (bars.length > 0) setLiveVolume(bars[bars.length - 1].volume);
+      if (bars.length > 0 && res === 'D') setLiveVolume(bars[bars.length - 1].volume);
 
       if (Array.isArray(json.events)) {
         const markers: SeriesMarker<Time>[] = json.events.map((ev: any) => ({
@@ -177,9 +203,22 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     } catch {}
   }, []);
 
+  // ─── Chuyển đổi chu kỳ nến (Ngày / Tuần / Tháng) ─────────────────────────
+
+  const handleSelectResolution = (newRes: Resolution) => {
+    if (newRes === resolution) return;
+    setResolution(newRes);
+    const defaultTf = newRes === 'M' ? '3N' : '1N';
+    setActiveTimeframe(defaultTf);
+    if (ticker) {
+      fetchPriceHistory(ticker, newRes);
+    }
+  };
+
   // ─── Khởi tạo khi ticker thay đổi ───────────────────────────────────────
 
   useEffect(() => {
+    barsCacheRef.current = {};
     if (!ticker) {
       setAllBars([]);
       setLivePrice(null);
@@ -190,6 +229,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       return;
     }
 
+    setResolution('D');
     setActiveTimeframe('1N');
     setLivePrice(stockData?.currentPrice || null);
     if (stockData && typeof stockData.priceChangePercent === 'number') {
@@ -199,7 +239,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     }
     setCrosshairData(null);
 
-    Promise.all([fetchPriceHistory(ticker), pollLivePrice(ticker)]);
+    Promise.all([fetchPriceHistory(ticker, 'D'), pollLivePrice(ticker)]);
 
     if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
     priceIntervalRef.current = setInterval(() => pollLivePrice(ticker), 15000);
@@ -226,7 +266,8 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   useEffect(() => {
     if (!chartContainerRef.current || allBars.length === 0 || !ticker) return;
 
-    const barsCount = TIMEFRAME_BARS[activeTimeframe];
+    const currentTfBars = RESOLUTION_TIMEFRAME_BARS[resolution];
+    const barsCount = currentTfBars[activeTimeframe] || allBars.length;
     const subset = allBars.slice(-barsCount);
 
     if (!chartRef.current) {
@@ -354,7 +395,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     }
 
     chartRef.current?.timeScale().fitContent();
-  }, [allBars, activeTimeframe, isDark, ticker, showDividendMarkers, dividendMarkers]);
+  }, [allBars, activeTimeframe, resolution, isDark, ticker, showDividendMarkers, dividendMarkers]);
 
   // ─── Update nến cuối với livePrice ──────────────────────────────────────
 
@@ -531,25 +572,53 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       </div>
 
       {/* Toolbar Bar */}
-      <div className="flex items-center justify-between px-6 py-2 border-b border-gray-100 dark:border-gray-800/60 bg-gray-50/40 dark:bg-gray-900/30 flex-shrink-0 gap-3 flex-wrap">
-        {/* Timeframes */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-bold text-gray-400 mr-1 hidden sm:inline">Khung thời gian:</span>
-          {(Object.keys(TIMEFRAME_BARS) as Timeframe[]).map((tf) => (
-            <button
-              key={tf}
-              onClick={() => setActiveTimeframe(tf)}
-              className={`
-                px-3 py-1.5 rounded-lg text-xs font-bold transition
-                ${activeTimeframe === tf
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
-                }
-              `}
-            >
-              {tf}
-            </button>
-          ))}
+      <div className="flex items-center justify-between px-6 py-2 border-b border-gray-100 dark:border-gray-800/60 bg-gray-50/40 dark:bg-gray-900/30 flex-shrink-0 gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Chế độ biểu đồ (Chu kỳ nến: Ngày / Tuần / Tháng) */}
+          <div className="flex items-center bg-gray-200/90 dark:bg-gray-800/90 p-1 rounded-xl border border-gray-300/70 dark:border-gray-700/70 shadow-2xs">
+            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 px-2 select-none">
+              Chu kỳ:
+            </span>
+            {(['D', 'W', 'M'] as Resolution[]).map((res) => {
+              const label = res === 'D' ? 'Ngày (D)' : res === 'W' ? 'Tuần (W)' : 'Tháng (M)';
+              const active = resolution === res;
+              return (
+                <button
+                  key={res}
+                  onClick={() => handleSelectResolution(res)}
+                  className={`
+                    px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer
+                    ${active
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-700/60'
+                    }
+                  `}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Khung thời gian (Zoom Range) */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-xs font-bold text-gray-400 mr-1 hidden sm:inline">Phạm vi:</span>
+            {Object.keys(RESOLUTION_TIMEFRAME_BARS[resolution]).map((tf) => (
+              <button
+                key={tf}
+                onClick={() => setActiveTimeframe(tf)}
+                className={`
+                  px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer
+                  ${activeTimeframe === tf
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
+                  }
+                `}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Indicators & Event toggles */}
@@ -558,11 +627,15 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
           <div className="flex items-center space-x-3 text-xs">
             <div className="flex items-center space-x-1.5">
               <span className="inline-block w-4 h-[3px] bg-blue-500 rounded" />
-              <span className="font-semibold text-gray-600 dark:text-gray-300">EMA20</span>
+              <span className="font-semibold text-gray-600 dark:text-gray-300">
+                EMA20 {resolution === 'W' ? '(20 tuần)' : resolution === 'M' ? '(20 tháng)' : '(20 ngày)'}
+              </span>
             </div>
             <div className="flex items-center space-x-1.5">
               <span className="inline-block w-4 h-[3px] bg-amber-500 rounded" />
-              <span className="font-semibold text-gray-600 dark:text-gray-300">EMA200</span>
+              <span className="font-semibold text-gray-600 dark:text-gray-300">
+                EMA200 {resolution === 'W' ? '(200 tuần)' : resolution === 'M' ? '(200 tháng)' : '(200 ngày)'}
+              </span>
             </div>
           </div>
 
@@ -570,7 +643,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
           <button
             onClick={() => setShowDividendMarkers((v) => !v)}
             className={`
-              flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition flex-shrink-0
+              flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer
               ${showDividendMarkers
                 ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 shadow-2xs'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700'
@@ -602,7 +675,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-950/80 backdrop-blur-xs">
             <RefreshCw className="h-9 w-9 text-indigo-500 animate-spin mb-3" />
             <p className="text-sm font-bold text-gray-600 dark:text-gray-300">
-              Đang tải ~2.000 phiên lịch sử ({ticker})...
+              Đang tải dữ liệu biểu đồ {resolution === 'W' ? 'tuần (Weekly)' : resolution === 'M' ? 'tháng (Monthly)' : 'ngày (Daily)'} ({ticker})...
             </p>
           </div>
         )}
@@ -618,11 +691,11 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       {/* Footer */}
       <div className="px-6 py-2 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 flex items-center justify-between flex-shrink-0 text-xs text-gray-500 dark:text-gray-400">
         <span className="font-medium">
-          Nguồn dữ liệu: Vietcap Gap Chart · Giá điều chỉnh cổ tức &amp; chia tách
+          Nguồn dữ liệu: Vietcap Gap Chart · Biểu đồ {resolution === 'W' ? 'Tuần (Weekly)' : resolution === 'M' ? 'Tháng (Monthly)' : 'Ngày (Daily)'} · Giá điều chỉnh cổ tức &amp; chia tách
         </span>
         <span className="tabular-nums font-medium">
           {allBars.length > 0
-            ? `${allBars[0].fullDate} → ${allBars[allBars.length - 1].fullDate} (${allBars.length} phiên giao dịch)`
+            ? `${allBars[0].fullDate} → ${allBars[allBars.length - 1].fullDate} (${allBars.length} cây nến)`
             : ''}
         </span>
       </div>

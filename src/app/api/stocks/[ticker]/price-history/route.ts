@@ -18,10 +18,16 @@ export async function GET(
     ? Math.min(Math.max(1, parseInt(rawCountBack, 10)), 2000)
     : 260;
 
+  // Hỗ trợ timeFrame query param ('ONE_DAY' | 'ONE_WEEK' | 'ONE_MONTH')
+  const rawTimeFrame = request.nextUrl.searchParams.get('timeFrame') || 'ONE_DAY';
+  const timeFrame = ['ONE_DAY', 'ONE_WEEK', 'ONE_MONTH'].includes(rawTimeFrame)
+    ? rawTimeFrame
+    : 'ONE_DAY';
+
   try {
     // 1. Lấy song song dữ liệu nến Nhật và sự kiện doanh nghiệp (cổ tức / chia tách)
     const [gapBars, rawEvents] = await Promise.all([
-      fetchVietcapGapChart(cleanTicker, { countBack }),
+      fetchVietcapGapChart(cleanTicker, { countBack, timeFrame }),
       fetchVietcapEvents(cleanTicker, { fromDate: '20160101', toDate: '20261231' }).catch(() => []),
     ]);
 
@@ -75,6 +81,7 @@ export async function GET(
         ticker: cleanTicker,
         isAdjusted: true,
         source: 'vietcap-gap-chart',
+        timeFrame,
         count: history.length,
         history,
         events,
