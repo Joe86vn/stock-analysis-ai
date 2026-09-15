@@ -18,6 +18,9 @@ import {
 import { X, RefreshCw, Calendar, TrendingUp } from 'lucide-react';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { useTheme } from '@/components/ThemeProvider';
+import { DrawingToolType, DrawingItem } from './chart/drawing-types';
+import { DrawingToolbar } from './chart/DrawingToolbar';
+import { ChartDrawingOverlay } from './chart/ChartDrawingOverlay';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,6 +113,9 @@ function getChartTheme(isDark: boolean) {
       borderColor: isDark ? '#1f2937' : '#e5e7eb',
       timeVisible: true,
       secondsVisible: false,
+      rightOffset: 12,
+      fixLeftEdge: false,
+      fixRightEdge: false,
     },
   };
 }
@@ -138,10 +144,19 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   const [priceChange, setPriceChange] = useState<{ abs: number; pct: number } | null>(null);
   const [liveVolume, setLiveVolume] = useState<number | null>(null);
   const [crosshairData, setCrosshairData] = useState<{
-    o: number; h: number; l: number; c: number; v: number;
+    o: number; h: number; l: number; c: number; v: number; date?: string;
   } | null>(null);
   const [showDividendMarkers, setShowDividendMarkers] = useState(true);
   const [dividendMarkers, setDividendMarkers] = useState<SeriesMarker<Time>[]>([]);
+
+  // ─── Drawing Tools State ──────────────────────────────────────────────────
+  const [activeTool, setActiveTool] = useState<DrawingToolType>('cursor');
+  const [drawings, setDrawings] = useState<DrawingItem[]>([]);
+  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
+  const [chartDimensions, setChartDimensions] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
 
   const barsCacheRef = useRef<{ [key in Resolution]?: OhlcBar[] }>({});
   const isOpen = !!ticker;
@@ -239,6 +254,20 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     }
     setCrosshairData(null);
 
+    // Nạp nét vẽ từ LocalStorage theo mã
+    try {
+      const saved = localStorage.getItem(`stock_drawings_${ticker}`);
+      if (saved) {
+        setDrawings(JSON.parse(saved));
+      } else {
+        setDrawings([]);
+      }
+    } catch {
+      setDrawings([]);
+    }
+    setSelectedDrawingId(null);
+    setActiveTool('cursor');
+
     Promise.all([fetchPriceHistory(ticker, 'D'), pollLivePrice(ticker)]);
 
     if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
@@ -248,6 +277,25 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
     };
   }, [ticker, stockData, fetchPriceHistory, pollLivePrice]);
+
+  // ─── Tự động lưu nét vẽ vào LocalStorage ──────────────────────────────────
+  useEffect(() => {
+    if (!ticker) return;
+    try {
+      localStorage.setItem(`stock_drawings_${ticker}`, JSON.stringify(drawings));
+    } catch {}
+  }, [drawings, ticker]);
+
+  const handleClearAllDrawings = useCallback(() => {
+    if (drawings.length === 0 || !ticker) return;
+    if (window.confirm(`Xóa toàn bộ ${drawings.length} nét vẽ của mã ${ticker}?`)) {
+      setDrawings([]);
+      setSelectedDrawingId(null);
+      try {
+        localStorage.removeItem(`stock_drawings_${ticker}`);
+      } catch {}
+    }
+  }, [drawings.length, ticker]);
 
   // ─── Tính priceChange fallback ───────────────────────────────────────────
 
@@ -325,20 +373,52 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
         const candle = param.seriesData.get(candleSeriesRef.current) as any;
         const vol = param.seriesData.get(volumeSeriesRef.current!) as any;
         if (candle) {
-          setCrosshairData({ o: candle.open, h: candle.high, l: candle.low, c: candle.close, v: vol?.value ?? 0 });
+          let dateStr = '';
+          if (typeof param.time === 'string') {
+            dateStr = param.time;
+          } else if (typeof param.time === 'object' && param.time !== null) {
+            const t = param.time as any;
+            if (t.year && t.month && t.day) {
+              dateStr = `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
+            }
+          }
+          setCrosshairData({
+            o: candle.open,
+            h: candle.high,
+            l: candle.low,
+            c: candle.close,
+            v: vol?.value ?? 0,
+            date: dateStr,
+          });
+        } else {
+          setCrosshairData(null);
         }
       });
 
+      setChartDimensions({
+        width: chartContainerRef.current.clientWidth,
+        height: chartContainerRef.current.clientHeight,
+      });
+
       const ro = new ResizeObserver((entries) => {
-        if (entries[0] && chartRef.current) {
+        if (entries[0]) {
           const { width, height } = entries[0].contentRect;
-          chartRef.current.applyOptions({ width, height });
+          if (chartRef.current) {
+            chartRef.current.applyOptions({ width, height });
+          }
+          setChartDimensions({ width, height });
         }
       });
       ro.observe(chartContainerRef.current);
       resizeObserverRef.current = ro;
     } else {
       chartRef.current.applyOptions(getChartTheme(isDark));
+      if (chartContainerRef.current) {
+        setChartDimensions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        });
+      }
     }
 
     // Set candlestick data
@@ -395,6 +475,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     }
 
     chartRef.current?.timeScale().fitContent();
+    chartRef.current?.timeScale().applyOptions({ rightOffset: 12 });
   }, [allBars, activeTimeframe, resolution, isDark, ticker, showDividendMarkers, dividendMarkers]);
 
   // ─── Update nến cuối với livePrice ──────────────────────────────────────
@@ -441,6 +522,13 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   const fmtVol = (v: number) =>
     v >= 1_000_000 ? (v / 1_000_000).toFixed(2) + 'M' : v >= 1_000 ? (v / 1_000).toFixed(1) + 'K' : String(v);
 
+  const formatDateStr = (d?: string) => {
+    if (!d) return '';
+    const parts = d.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return d;
+  };
+
   const priceColor = priceChange
     ? priceChange.pct > 0
       ? 'text-emerald-600 dark:text-emerald-400'
@@ -470,6 +558,26 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   if (!isOpen || !stockData) return null;
 
   const displayPrice = livePrice ?? stockData.currentPrice;
+
+  const latestBar = allBars.length > 0 ? allBars[allBars.length - 1] : null;
+  const activeOhlc = crosshairData ?? (latestBar ? {
+    o: latestBar.openPrice,
+    h: livePrice ? Math.max(latestBar.highestPrice, livePrice) : latestBar.highestPrice,
+    l: livePrice ? Math.min(latestBar.lowestPrice, livePrice) : latestBar.lowestPrice,
+    c: livePrice ?? latestBar.closePrice,
+    v: liveVolume ?? latestBar.volume,
+    date: latestBar.fullDate,
+  } : null);
+
+  const candleDiff = activeOhlc ? activeOhlc.c - activeOhlc.o : 0;
+  const candleDiffPct = activeOhlc && activeOhlc.o > 0 ? (candleDiff / activeOhlc.o) * 100 : 0;
+  const closeColor = activeOhlc
+    ? activeOhlc.c > activeOhlc.o
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : activeOhlc.c < activeOhlc.o
+      ? 'text-rose-600 dark:text-rose-400'
+      : 'text-amber-500 dark:text-amber-400'
+    : 'text-slate-900 dark:text-white';
 
   return (
     <div
@@ -658,19 +766,82 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
         </div>
       </div>
 
-      {/* Crosshair Bar (if active) */}
-      {crosshairData && (
-        <div className="flex items-center space-x-6 px-6 py-1 flex-shrink-0 text-xs bg-slate-100/80 dark:bg-gray-900/70 border-b border-gray-100 dark:border-gray-800/40 text-slate-700 dark:text-gray-200 tabular-nums font-mono">
-          <span>Mở (O): <strong className="font-bold text-slate-900 dark:text-white">{fmt(crosshairData.o)}</strong></span>
-          <span>Cao (H): <strong className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(crosshairData.h)}</strong></span>
-          <span>Thấp (L): <strong className="font-bold text-rose-600 dark:text-rose-400">{fmt(crosshairData.l)}</strong></span>
-          <span>Đóng (C): <strong className="font-bold text-slate-900 dark:text-white">{fmt(crosshairData.c)}</strong></span>
-          <span>Vol: <strong className="font-bold text-slate-800 dark:text-gray-200">{fmtVol(crosshairData.v)}</strong></span>
-        </div>
-      )}
+      {/* OHLC Bar - Luôn luôn hiển thị */}
+      <div className="flex items-center space-x-4 sm:space-x-6 px-6 py-1.5 flex-shrink-0 text-xs bg-slate-100/80 dark:bg-gray-900/70 border-b border-gray-100 dark:border-gray-800/40 text-slate-700 dark:text-gray-200 tabular-nums font-mono overflow-x-auto min-h-[34px]">
+        {activeOhlc ? (
+          <>
+            <span className="text-gray-500 dark:text-gray-400 font-sans font-medium text-[11px] flex items-center gap-1.5">
+              {crosshairData ? (
+                <span className="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-semibold">
+                  {formatDateStr(activeOhlc.date) || 'Đang chọn'}
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-md bg-gray-200/90 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold">
+                  Phiên gần nhất {activeOhlc.date ? `(${formatDateStr(activeOhlc.date)})` : ''}
+                </span>
+              )}
+            </span>
+            <span>Mở (O): <strong className="font-bold text-slate-900 dark:text-white">{fmt(activeOhlc.o)}</strong></span>
+            <span>Cao (H): <strong className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(activeOhlc.h)}</strong></span>
+            <span>Thấp (L): <strong className="font-bold text-rose-600 dark:text-rose-400">{fmt(activeOhlc.l)}</strong></span>
+            <span>Đóng (C): <strong className={`font-bold ${closeColor}`}>{fmt(activeOhlc.c)}</strong></span>
+            <span className="hidden md:inline">
+              Biên độ: <strong className={`font-bold ${closeColor}`}>
+                {candleDiff > 0 ? '+' : ''}{fmt(candleDiff)} ({candleDiff > 0 ? '+' : ''}{candleDiffPct.toFixed(2)}%)
+              </strong>
+            </span>
+            <span>Vol: <strong className="font-bold text-slate-800 dark:text-gray-200">{fmtVol(activeOhlc.v)}</strong></span>
+          </>
+        ) : (
+          <div className="flex items-center space-x-2 text-gray-400 font-sans text-xs">
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            <span>Đang tải thông số giá OHLC...</span>
+          </div>
+        )}
+      </div>
 
       {/* Main Chart Area */}
-      <div className="relative flex-1 min-h-0 w-full h-full">
+      <div
+        className="relative flex-1 min-h-0 w-full h-full"
+        onMouseLeave={() => {
+          if (activeTool === 'cursor') setCrosshairData(null);
+        }}
+      >
+        {/* TradingView Left Drawing Toolbar */}
+        <DrawingToolbar
+          activeTool={activeTool}
+          onSelectTool={(tool) => {
+            setActiveTool(tool);
+            if (tool !== 'cursor') {
+              setSelectedDrawingId(null);
+            }
+          }}
+          selectedDrawingId={selectedDrawingId}
+          onDeleteSelected={() => {
+            if (selectedDrawingId) {
+              setDrawings((prev) => prev.filter((d) => d.id !== selectedDrawingId));
+              setSelectedDrawingId(null);
+            }
+          }}
+          onClearAll={handleClearAllDrawings}
+          totalDrawings={drawings.length}
+        />
+
+        {/* Interactive SVG Drawing Overlay */}
+        <ChartDrawingOverlay
+          chart={chartRef.current}
+          candleSeries={candleSeriesRef.current}
+          allBars={allBars}
+          activeTool={activeTool}
+          onFinishDrawing={() => setActiveTool('cursor')}
+          drawings={drawings}
+          setDrawings={setDrawings}
+          selectedId={selectedDrawingId}
+          setSelectedId={setSelectedDrawingId}
+          width={chartDimensions.width}
+          height={chartDimensions.height}
+        />
+
         {isLoadingChart && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-950/80 backdrop-blur-xs">
             <RefreshCw className="h-9 w-9 text-indigo-500 animate-spin mb-3" />
