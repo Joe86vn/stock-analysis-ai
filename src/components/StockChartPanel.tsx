@@ -336,6 +336,8 @@ export function StockChartPanel({
   const [indicatorParams, setIndicatorParams] = useState({
     swingHlWindow: 9,
     swingHlShowLine: true,
+    swingHlShowChochBos: true,
+    swingHlConfirmBars: 3,
     emaShort: 20,
     emaLong: 200,
     bollPeriod: 20,
@@ -508,7 +510,19 @@ export function StockChartPanel({
         chart.createIndicator({ name: 'BOLL', calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev] }, false, { id: 'candle_pane' });
       }
       if (activeIndicators.swingHl) {
-        chart.createIndicator({ name: 'SWING_HL', calcParams: [indicatorParams.swingHlWindow, indicatorParams.swingHlShowLine ? 1 : 0] }, false, { id: 'candle_pane' });
+        chart.createIndicator(
+          {
+            name: 'SWING_HL',
+            calcParams: [
+              indicatorParams.swingHlWindow,
+              indicatorParams.swingHlShowLine ? 1 : 0,
+              indicatorParams.swingHlShowChochBos ? 1 : 0,
+              indicatorParams.swingHlConfirmBars,
+            ],
+          },
+          false,
+          { id: 'candle_pane' }
+        );
       }
       if (activeIndicators.rsi) {
         subPanesRef.current.rsi = chart.createIndicator({ name: 'RSI', calcParams: [indicatorParams.rsiPeriod] }, false, { height: 90, dragEnabled: true }) ?? undefined;
@@ -588,7 +602,37 @@ export function StockChartPanel({
       const chart = chartRef.current;
       if (chart && activeIndicators.swingHl) {
         chart.overrideIndicator(
-          { name: 'SWING_HL', calcParams: [next.swingHlWindow, next.swingHlShowLine ? 1 : 0] },
+          {
+            name: 'SWING_HL',
+            calcParams: [
+              next.swingHlWindow,
+              next.swingHlShowLine ? 1 : 0,
+              next.swingHlShowChochBos ? 1 : 0,
+              next.swingHlConfirmBars,
+            ],
+          },
+          'candle_pane'
+        );
+      }
+      return next;
+    });
+  };
+
+  const handleToggleChochBos = (show: boolean) => {
+    setIndicatorParams((prev) => {
+      const next = { ...prev, swingHlShowChochBos: show };
+      const chart = chartRef.current;
+      if (chart && activeIndicators.swingHl) {
+        chart.overrideIndicator(
+          {
+            name: 'SWING_HL',
+            calcParams: [
+              next.swingHlWindow,
+              next.swingHlShowLine ? 1 : 0,
+              next.swingHlShowChochBos ? 1 : 0,
+              next.swingHlConfirmBars,
+            ],
+          },
           'candle_pane'
         );
       }
@@ -602,8 +646,19 @@ export function StockChartPanel({
       const next = { ...prev, [key]: value };
       const chart = chartRef.current;
       if (chart) {
-        if (key === 'swingHlWindow' && activeIndicators.swingHl) {
-          chart.overrideIndicator({ name: 'SWING_HL', calcParams: [next.swingHlWindow, next.swingHlShowLine ? 1 : 0] }, 'candle_pane');
+        if ((key === 'swingHlWindow' || key === 'swingHlConfirmBars') && activeIndicators.swingHl) {
+          chart.overrideIndicator(
+            {
+              name: 'SWING_HL',
+              calcParams: [
+                next.swingHlWindow,
+                next.swingHlShowLine ? 1 : 0,
+                next.swingHlShowChochBos ? 1 : 0,
+                next.swingHlConfirmBars,
+              ],
+            },
+            'candle_pane'
+          );
         } else if ((key === 'emaShort' || key === 'emaLong') && activeIndicators.ema) {
           chart.overrideIndicator({ name: 'EMA', calcParams: [next.emaShort, next.emaLong] }, 'candle_pane');
         } else if ((key === 'bollPeriod' || key === 'bollStdDev') && activeIndicators.boll) {
@@ -624,8 +679,23 @@ export function StockChartPanel({
       const chart = chartRef.current;
       if (chart) {
         if (key === 'swingHl') {
-          if (nextVal) chart.createIndicator({ name: 'SWING_HL', calcParams: [indicatorParams.swingHlWindow, indicatorParams.swingHlShowLine ? 1 : 0] }, false, { id: 'candle_pane' });
-          else chart.removeIndicator('candle_pane', 'SWING_HL');
+          if (nextVal) {
+            chart.createIndicator(
+              {
+                name: 'SWING_HL',
+                calcParams: [
+                  indicatorParams.swingHlWindow,
+                  indicatorParams.swingHlShowLine ? 1 : 0,
+                  indicatorParams.swingHlShowChochBos ? 1 : 0,
+                  indicatorParams.swingHlConfirmBars,
+                ],
+              },
+              false,
+              { id: 'candle_pane' }
+            );
+          } else {
+            chart.removeIndicator('candle_pane', 'SWING_HL');
+          }
         } else if (key === 'ema') {
           if (nextVal) chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, false, { id: 'candle_pane' });
           else chart.removeIndicator('candle_pane', 'EMA');
@@ -1106,22 +1176,38 @@ export function StockChartPanel({
                             className="rounded text-amber-500 focus:ring-amber-400 h-4 w-4 cursor-pointer"
                           />
                           <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
-                          <span className="font-bold text-slate-800 dark:text-gray-100">Đỉnh - Đáy cá nhân</span>
+                          <span className="font-bold text-slate-800 dark:text-gray-100">Đỉnh - Đáy &amp; Cấu trúc SMC</span>
                         </label>
                       </div>
                       {activeIndicators.swingHl && (
                         <div className="mt-2 pl-6 flex flex-col space-y-2 text-[11px] text-gray-500 dark:text-gray-400">
-                          <div className="flex items-center space-x-2">
-                            <span>Số nến kiểm tra:</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={50}
-                              value={indicatorParams.swingHlWindow}
-                              onChange={(e) => handleParamChange('swingHlWindow', Number(e.target.value))}
-                              className="w-16 px-2 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-amber-500 text-center"
-                            />
-                            <span className="text-[10px] text-gray-400">(trái & phải)</span>
+                          <div className="flex items-center justify-between">
+                            <span>Số nến kiểm tra đỉnh đáy:</span>
+                            <div className="flex items-center space-x-1">
+                              <input
+                                type="number"
+                                min={1}
+                                max={50}
+                                value={indicatorParams.swingHlWindow}
+                                onChange={(e) => handleParamChange('swingHlWindow', Number(e.target.value))}
+                                className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-amber-500 text-center"
+                              />
+                              <span className="text-[10px] text-gray-400">(nến)</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Nến xác nhận CHoCH:</span>
+                            <div className="flex items-center space-x-1">
+                              <input
+                                type="number"
+                                min={1}
+                                max={10}
+                                value={indicatorParams.swingHlConfirmBars}
+                                onChange={(e) => handleParamChange('swingHlConfirmBars', Number(e.target.value))}
+                                className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-amber-500 text-center"
+                              />
+                              <span className="text-[10px] text-gray-400">(đóng cửa)</span>
+                            </div>
                           </div>
                           <label className="flex items-center space-x-2 cursor-pointer select-none">
                             <input
@@ -1131,6 +1217,15 @@ export function StockChartPanel({
                               className="rounded text-amber-500 focus:ring-amber-400 h-3.5 w-3.5 cursor-pointer"
                             />
                             <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện đường nối Zigzag</span>
+                          </label>
+                          <label className="flex items-center space-x-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={indicatorParams.swingHlShowChochBos}
+                              onChange={(e) => handleToggleChochBos(e.target.checked)}
+                              className="rounded text-emerald-500 focus:ring-emerald-400 h-3.5 w-3.5 cursor-pointer"
+                            />
+                            <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện đường CHoCH &amp; BOS</span>
                           </label>
                         </div>
                       )}
