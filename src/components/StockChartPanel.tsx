@@ -210,7 +210,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   // ─── Drawing Tools State ──────────────────────────────────────────────────
   const [activeTool, setActiveTool] = useState<DrawingToolType>('cursor');
 
-  // ─── Indicators State ─────────────────────────────────────────────────────
+  // ─── Indicators State & Parameters ───────────────────────────────────────
   const [activeIndicators, setActiveIndicators] = useState({
     swingHl: true,
     ema: true,
@@ -218,6 +218,18 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     vol: true,
     rsi: false,
     macd: false,
+  });
+  const [indicatorParams, setIndicatorParams] = useState({
+    swingHlWindow: 9,
+    swingHlShowLine: true,
+    emaShort: 20,
+    emaLong: 200,
+    bollPeriod: 20,
+    bollStdDev: 2,
+    rsiPeriod: 14,
+    macdFast: 12,
+    macdSlow: 26,
+    macdSignal: 9,
   });
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const subPanesRef = useRef<{ vol?: string; rsi?: string; macd?: string }>({});
@@ -371,24 +383,24 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       // Reset sub-panes
       subPanesRef.current = {};
 
-      // Tạo các chỉ báo theo activeIndicators
+      // Tạo các chỉ báo theo activeIndicators & indicatorParams
       if (activeIndicators.vol) {
         subPanesRef.current.vol = chart.createIndicator('VOL', false, { height: 85, dragEnabled: true }) ?? undefined;
       }
       if (activeIndicators.ema) {
-        chart.createIndicator({ name: 'EMA', calcParams: [20, 200] }, false, { id: 'candle_pane' });
+        chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, false, { id: 'candle_pane' });
       }
       if (activeIndicators.boll) {
-        chart.createIndicator('BOLL', false, { id: 'candle_pane' });
+        chart.createIndicator({ name: 'BOLL', calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev] }, false, { id: 'candle_pane' });
       }
       if (activeIndicators.swingHl) {
-        chart.createIndicator('SWING_HL', false, { id: 'candle_pane' });
+        chart.createIndicator({ name: 'SWING_HL', calcParams: [indicatorParams.swingHlWindow, indicatorParams.swingHlShowLine ? 1 : 0] }, false, { id: 'candle_pane' });
       }
       if (activeIndicators.rsi) {
-        subPanesRef.current.rsi = chart.createIndicator('RSI', false, { height: 90, dragEnabled: true }) ?? undefined;
+        subPanesRef.current.rsi = chart.createIndicator({ name: 'RSI', calcParams: [indicatorParams.rsiPeriod] }, false, { height: 90, dragEnabled: true }) ?? undefined;
       }
       if (activeIndicators.macd) {
-        subPanesRef.current.macd = chart.createIndicator('MACD', false, { height: 95, dragEnabled: true }) ?? undefined;
+        subPanesRef.current.macd = chart.createIndicator({ name: 'MACD', calcParams: [indicatorParams.macdFast, indicatorParams.macdSlow, indicatorParams.macdSignal] }, false, { height: 95, dragEnabled: true }) ?? undefined;
       }
 
       // Lắng nghe sự kiện di chuyển chuột / crosshair
@@ -442,7 +454,43 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     }
   }, [isDark]);
 
-  // ─── Bật / Tắt Chỉ Báo Kỹ Thuật ───────────────────────────────────────────
+  // ─── Bật / Tắt & Đổi Tham Số Chỉ Báo ──────────────────────────────────────
+
+  const handleToggleSwingHlLine = (show: boolean) => {
+    setIndicatorParams((prev) => {
+      const next = { ...prev, swingHlShowLine: show };
+      const chart = chartRef.current;
+      if (chart && activeIndicators.swingHl) {
+        chart.overrideIndicator(
+          { name: 'SWING_HL', calcParams: [next.swingHlWindow, next.swingHlShowLine ? 1 : 0] },
+          'candle_pane'
+        );
+      }
+      return next;
+    });
+  };
+
+  const handleParamChange = (key: keyof typeof indicatorParams, value: number) => {
+    if (isNaN(value) || value <= 0) return;
+    setIndicatorParams((prev) => {
+      const next = { ...prev, [key]: value };
+      const chart = chartRef.current;
+      if (chart) {
+        if (key === 'swingHlWindow' && activeIndicators.swingHl) {
+          chart.overrideIndicator({ name: 'SWING_HL', calcParams: [next.swingHlWindow, next.swingHlShowLine ? 1 : 0] }, 'candle_pane');
+        } else if ((key === 'emaShort' || key === 'emaLong') && activeIndicators.ema) {
+          chart.overrideIndicator({ name: 'EMA', calcParams: [next.emaShort, next.emaLong] }, 'candle_pane');
+        } else if ((key === 'bollPeriod' || key === 'bollStdDev') && activeIndicators.boll) {
+          chart.overrideIndicator({ name: 'BOLL', calcParams: [next.bollPeriod, next.bollStdDev] }, 'candle_pane');
+        } else if (key === 'rsiPeriod' && activeIndicators.rsi && subPanesRef.current.rsi) {
+          chart.overrideIndicator({ name: 'RSI', calcParams: [next.rsiPeriod] }, subPanesRef.current.rsi);
+        } else if ((key === 'macdFast' || key === 'macdSlow' || key === 'macdSignal') && activeIndicators.macd && subPanesRef.current.macd) {
+          chart.overrideIndicator({ name: 'MACD', calcParams: [next.macdFast, next.macdSlow, next.macdSignal] }, subPanesRef.current.macd);
+        }
+      }
+      return next;
+    });
+  };
 
   const toggleIndicator = (key: keyof typeof activeIndicators) => {
     setActiveIndicators((prev) => {
@@ -450,13 +498,13 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       const chart = chartRef.current;
       if (chart) {
         if (key === 'swingHl') {
-          if (nextVal) chart.createIndicator('SWING_HL', false, { id: 'candle_pane' });
+          if (nextVal) chart.createIndicator({ name: 'SWING_HL', calcParams: [indicatorParams.swingHlWindow, indicatorParams.swingHlShowLine ? 1 : 0] }, false, { id: 'candle_pane' });
           else chart.removeIndicator('candle_pane', 'SWING_HL');
         } else if (key === 'ema') {
-          if (nextVal) chart.createIndicator({ name: 'EMA', calcParams: [20, 200] }, false, { id: 'candle_pane' });
+          if (nextVal) chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, false, { id: 'candle_pane' });
           else chart.removeIndicator('candle_pane', 'EMA');
         } else if (key === 'boll') {
-          if (nextVal) chart.createIndicator('BOLL', false, { id: 'candle_pane' });
+          if (nextVal) chart.createIndicator({ name: 'BOLL', calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev] }, false, { id: 'candle_pane' });
           else chart.removeIndicator('candle_pane', 'BOLL');
         } else if (key === 'vol') {
           if (nextVal) {
@@ -467,14 +515,14 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
           }
         } else if (key === 'rsi') {
           if (nextVal) {
-            subPanesRef.current.rsi = chart.createIndicator('RSI', false, { height: 90, dragEnabled: true }) ?? undefined;
+            subPanesRef.current.rsi = chart.createIndicator({ name: 'RSI', calcParams: [indicatorParams.rsiPeriod] }, false, { height: 90, dragEnabled: true }) ?? undefined;
           } else if (subPanesRef.current.rsi) {
             chart.removeIndicator(subPanesRef.current.rsi);
             delete subPanesRef.current.rsi;
           }
         } else if (key === 'macd') {
           if (nextVal) {
-            subPanesRef.current.macd = chart.createIndicator('MACD', false, { height: 95, dragEnabled: true }) ?? undefined;
+            subPanesRef.current.macd = chart.createIndicator({ name: 'MACD', calcParams: [indicatorParams.macdFast, indicatorParams.macdSlow, indicatorParams.macdSignal] }, false, { height: 95, dragEnabled: true }) ?? undefined;
           } else if (subPanesRef.current.macd) {
             chart.removeIndicator(subPanesRef.current.macd);
             delete subPanesRef.current.macd;
@@ -490,11 +538,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   useEffect(() => {
     if (!chartRef.current || allBars.length === 0) return;
 
-    const currentTfBars = RESOLUTION_TIMEFRAME_BARS[resolution];
-    const barsCount = currentTfBars[activeTimeframe] || allBars.length;
-    const subset = allBars.slice(-barsCount);
-
-    const klineData: KLineData[] = subset.map((b) => {
+    const klineData: KLineData[] = allBars.map((b) => {
       const ts = new Date(b.fullDate + 'T00:00:00Z').getTime();
       return {
         timestamp: isNaN(ts) ? Date.now() : ts,
@@ -508,7 +552,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
 
     chartRef.current.applyNewData(klineData);
     chartRef.current.setOffsetRightDistance(80);
-  }, [allBars, activeTimeframe, resolution]);
+  }, [allBars, resolution]);
 
   // ─── Cập nhật nến cuối với livePrice ──────────────────────────────────────
 
@@ -752,62 +796,54 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
               );
             })}
           </div>
-
-          {/* Khung thời gian (Zoom Range) */}
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-xs font-bold text-gray-400 mr-1 hidden sm:inline">Phạm vi:</span>
-            {Object.keys(RESOLUTION_TIMEFRAME_BARS[resolution]).map((tf) => (
-              <button
-                key={tf}
-                onClick={() => setActiveTimeframe(tf)}
-                className={`
-                  px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer
-                  ${activeTimeframe === tf
-                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
-                  }
-                `}
-              >
-                {tf}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Indicators & Event toggles */}
         <div className="flex items-center space-x-4 ml-auto">
-          {/* EMA Legend */}
-          <div className="flex items-center space-x-3 text-xs">
-            <div className="flex items-center space-x-1.5">
-              <span className="inline-block w-4 h-[3px] bg-blue-500 rounded" />
-              <span className="font-semibold text-gray-600 dark:text-gray-300">
-                EMA20 {resolution === 'W' ? '(20 tuần)' : resolution === 'M' ? '(20 tháng)' : '(20 ngày)'}
-              </span>
-            </div>
-            <div className="flex items-center space-x-1.5">
-              <span className="inline-block w-4 h-[3px] bg-amber-500 rounded" />
-              <span className="font-semibold text-gray-600 dark:text-gray-300">
-                EMA200 {resolution === 'W' ? '(200 tuần)' : resolution === 'M' ? '(200 tháng)' : '(200 ngày)'}
-              </span>
-            </div>
-          </div>
+          {/* Dynamic Legends */}
+          <div className="flex items-center space-x-3 text-xs flex-wrap gap-y-1">
+            {activeIndicators.ema && (
+              <>
+                <div className="flex items-center space-x-1.5">
+                  <span className="inline-block w-4 h-[3px] bg-blue-500 rounded" />
+                  <span className="font-semibold text-gray-600 dark:text-gray-300">
+                    EMA{indicatorParams.emaShort}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="inline-block w-4 h-[3px] bg-amber-500 rounded" />
+                  <span className="font-semibold text-gray-600 dark:text-gray-300">
+                    EMA{indicatorParams.emaLong}
+                  </span>
+                </div>
+              </>
+            )}
 
-          {/* SWING_HL Legend */}
-          {activeIndicators.swingHl && (
-            <div className="flex items-center space-x-1.5 text-xs">
-              <span className="inline-block w-3.5 h-[2px] border-b-2 border-dashed border-amber-500" />
-              <span className="font-semibold text-amber-600 dark:text-amber-400">
-                Đỉnh Đáy (9-9)
-              </span>
-            </div>
-          )}
+            {activeIndicators.swingHl && (
+              <div className="flex items-center space-x-1.5">
+                <span className="inline-block w-3.5 h-[2px] border-b-2 border-dashed border-amber-500" />
+                <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  Đỉnh Đáy ({indicatorParams.swingHlWindow}-{indicatorParams.swingHlWindow})
+                </span>
+              </div>
+            )}
+
+            {activeIndicators.boll && (
+              <div className="flex items-center space-x-1.5">
+                <span className="inline-block w-4 h-[3px] bg-purple-500 rounded" />
+                <span className="font-semibold text-purple-600 dark:text-purple-400">
+                  BOLL ({indicatorParams.bollPeriod}, {indicatorParams.bollStdDev})
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Indicators Dropdown Button */}
           <div className="relative">
             <button
               onClick={() => setShowIndicatorMenu((v) => !v)}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition cursor-pointer shadow-2xs"
-              title="Quản lý các chỉ báo kỹ thuật (RSI, MACD, BOLL, Đỉnh Đáy...)"
+              title="Quản lý các chỉ báo kỹ thuật & tùy chỉnh thông số"
             >
               <Activity className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               <span>Chỉ báo (fx)</span>
@@ -821,87 +857,254 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
                   className="fixed inset-0 z-40"
                   onClick={() => setShowIndicatorMenu(false)}
                 />
-                <div className="absolute right-0 top-full mt-1.5 z-50 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 p-2 text-xs space-y-1 select-none">
-                  <div className="px-2 py-1 font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-[10px]">
-                    Chỉ báo trên nến
+                <div className="absolute right-0 top-full mt-2 z-50 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-3 text-xs space-y-2 select-none animate-in fade-in slide-in-from-top-2 duration-150 max-h-[80vh] overflow-y-auto">
+                  <div className="flex items-center justify-between px-1 pb-1 border-b border-gray-100 dark:border-gray-800">
+                    <span className="font-extrabold text-slate-800 dark:text-white text-xs uppercase tracking-wider">
+                      Quản lý & Cấu hình Chỉ báo
+                    </span>
+                    <button
+                      onClick={() => setShowIndicatorMenu(false)}
+                      className="p-1 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
 
-                  {/* Đỉnh - Đáy cá nhân */}
-                  <button
-                    onClick={() => toggleIndicator('swingHl')}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
-                      <span className="font-semibold">Đỉnh - Đáy (9-9)</span>
+                  {/* Group 1: Trên nến */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1">
+                      Chỉ báo trên nến
                     </div>
-                    {activeIndicators.swingHl && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
-                  </button>
 
-                  {/* Bollinger Bands */}
-                  <button
-                    onClick={() => toggleIndicator('boll')}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0" />
-                      <span className="font-semibold">Bollinger Bands (BOLL)</span>
+                    {/* Đỉnh - Đáy cá nhân */}
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center space-x-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={activeIndicators.swingHl}
+                            onChange={() => toggleIndicator('swingHl')}
+                            className="rounded text-amber-500 focus:ring-amber-400 h-4 w-4 cursor-pointer"
+                          />
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-gray-100">Đỉnh - Đáy cá nhân</span>
+                        </label>
+                      </div>
+                      {activeIndicators.swingHl && (
+                        <div className="mt-2 pl-6 flex flex-col space-y-2 text-[11px] text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center space-x-2">
+                            <span>Số nến kiểm tra:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={50}
+                              value={indicatorParams.swingHlWindow}
+                              onChange={(e) => handleParamChange('swingHlWindow', Number(e.target.value))}
+                              className="w-16 px-2 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-amber-500 text-center"
+                            />
+                            <span className="text-[10px] text-gray-400">(trái & phải)</span>
+                          </div>
+                          <label className="flex items-center space-x-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={indicatorParams.swingHlShowLine}
+                              onChange={(e) => handleToggleSwingHlLine(e.target.checked)}
+                              className="rounded text-amber-500 focus:ring-amber-400 h-3.5 w-3.5 cursor-pointer"
+                            />
+                            <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện đường nối Zigzag</span>
+                          </label>
+                        </div>
+                      )}
                     </div>
-                    {activeIndicators.boll && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
-                  </button>
 
-                  {/* EMA 20 & 200 */}
-                  <button
-                    onClick={() => toggleIndicator('ema')}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
-                      <span className="font-semibold">Đường EMA 20 / 200</span>
+                    {/* Đường EMA */}
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center space-x-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={activeIndicators.ema}
+                            onChange={() => toggleIndicator('ema')}
+                            className="rounded text-blue-500 focus:ring-blue-400 h-4 w-4 cursor-pointer"
+                          />
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-gray-100">Đường trung bình EMA</span>
+                        </label>
+                      </div>
+                      {activeIndicators.ema && (
+                        <div className="mt-2 pl-6 flex items-center space-x-3 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-y-1">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-blue-500 font-bold">EMA 1:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={500}
+                              value={indicatorParams.emaShort}
+                              onChange={(e) => handleParamChange('emaShort', Number(e.target.value))}
+                              className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-blue-500 text-center"
+                            />
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span className="text-amber-500 font-bold">EMA 2:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={500}
+                              value={indicatorParams.emaLong}
+                              onChange={(e) => handleParamChange('emaLong', Number(e.target.value))}
+                              className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-amber-500 text-center"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {activeIndicators.ema && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
-                  </button>
 
-                  <div className="border-t border-gray-100 dark:border-gray-800 my-1" />
-                  <div className="px-2 py-1 font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-[10px]">
-                    Bảng phụ bên dưới
+                    {/* Bollinger Bands */}
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center space-x-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={activeIndicators.boll}
+                            onChange={() => toggleIndicator('boll')}
+                            className="rounded text-purple-500 focus:ring-purple-400 h-4 w-4 cursor-pointer"
+                          />
+                          <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-gray-100">Bollinger Bands (BOLL)</span>
+                        </label>
+                      </div>
+                      {activeIndicators.boll && (
+                        <div className="mt-2 pl-6 flex items-center space-x-3 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-y-1">
+                          <div className="flex items-center space-x-1">
+                            <span>Chu kỳ:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={200}
+                              value={indicatorParams.bollPeriod}
+                              onChange={(e) => handleParamChange('bollPeriod', Number(e.target.value))}
+                              className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-purple-500 text-center"
+                            />
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span>Độ lệch:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={10}
+                              step={0.5}
+                              value={indicatorParams.bollStdDev}
+                              onChange={(e) => handleParamChange('bollStdDev', Number(e.target.value))}
+                              className="w-12 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-purple-500 text-center"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Volume */}
-                  <button
-                    onClick={() => toggleIndicator('vol')}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                      <span className="font-semibold">Khối lượng (VOL)</span>
+                  {/* Group 2: Bảng phụ bên dưới */}
+                  <div className="space-y-1.5 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1">
+                      Bảng phụ bên dưới
                     </div>
-                    {activeIndicators.vol && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
-                  </button>
 
-                  {/* RSI */}
-                  <button
-                    onClick={() => toggleIndicator('rsi')}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 flex-shrink-0" />
-                      <span className="font-semibold">RSI (14)</span>
+                    {/* Khối lượng (VOL) */}
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                      <label className="flex items-center space-x-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.vol}
+                          onChange={() => toggleIndicator('vol')}
+                          className="rounded text-emerald-500 focus:ring-emerald-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">Khối lượng (VOL)</span>
+                      </label>
                     </div>
-                    {activeIndicators.rsi && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
-                  </button>
 
-                  {/* MACD */}
-                  <button
-                    onClick={() => toggleIndicator('macd')}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 flex-shrink-0" />
-                      <span className="font-semibold">MACD (12, 26, 9)</span>
+                    {/* RSI */}
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center space-x-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={activeIndicators.rsi}
+                            onChange={() => toggleIndicator('rsi')}
+                            className="rounded text-cyan-500 focus:ring-cyan-400 h-4 w-4 cursor-pointer"
+                          />
+                          <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 flex-shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-gray-100">Chỉ số RSI</span>
+                        </label>
+                      </div>
+                      {activeIndicators.rsi && (
+                        <div className="mt-2 pl-6 flex items-center space-x-2 text-[11px] text-gray-500 dark:text-gray-400">
+                          <span>Chu kỳ:</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={200}
+                            value={indicatorParams.rsiPeriod}
+                            onChange={(e) => handleParamChange('rsiPeriod', Number(e.target.value))}
+                            className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-cyan-500 text-center"
+                          />
+                        </div>
+                      )}
                     </div>
-                    {activeIndicators.macd && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
-                  </button>
+
+                    {/* MACD */}
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center space-x-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={activeIndicators.macd}
+                            onChange={() => toggleIndicator('macd')}
+                            className="rounded text-rose-500 focus:ring-rose-400 h-4 w-4 cursor-pointer"
+                          />
+                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 flex-shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-gray-100">Đường MACD</span>
+                        </label>
+                      </div>
+                      {activeIndicators.macd && (
+                        <div className="mt-2 pl-6 flex items-center space-x-2 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-y-1">
+                          <div className="flex items-center space-x-1">
+                            <span>Nhanh:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={indicatorParams.macdFast}
+                              onChange={(e) => handleParamChange('macdFast', Number(e.target.value))}
+                              className="w-11 px-1 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-rose-500 text-center"
+                            />
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span>Chậm:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={200}
+                              value={indicatorParams.macdSlow}
+                              onChange={(e) => handleParamChange('macdSlow', Number(e.target.value))}
+                              className="w-11 px-1 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-rose-500 text-center"
+                            />
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span>Signal:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={indicatorParams.macdSignal}
+                              onChange={(e) => handleParamChange('macdSignal', Number(e.target.value))}
+                              className="w-11 px-1 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-rose-500 text-center"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </>
             )}

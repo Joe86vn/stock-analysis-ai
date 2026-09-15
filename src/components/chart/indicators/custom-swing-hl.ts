@@ -18,27 +18,31 @@ export const SWING_HL_INDICATOR_NAME = 'SWING_HL';
 
 /**
  * Thuật toán tính toán Đỉnh - Đáy cá nhân:
- * 1. Đỉnh (Peak): Nến i có High cao hơn ít nhất 9 nến trước và 9 nến sau.
- * 2. Đáy (Trough): Nến i có Low thấp hơn ít nhất 9 nến trước và 9 nến sau.
+ * 1. Đỉnh (Peak): Nến i có High cao hơn windowSize nến trước và windowSize nến sau.
+ * 2. Đáy (Trough): Nến i có Low thấp hơn windowSize nến trước và windowSize nến sau.
  * 3. Quy tắc đan xen (Alternating):
  *    Không được có 2 đỉnh liên tục mà không có đáy ở giữa.
  *    Nếu đã xác nhận 1 đỉnh thì mọi đỉnh sau đó bị bỏ qua cho tới khi có đáy mới và ngược lại.
  */
-export function calculateSwingHighLow(dataList: KLineData[]): (SwingResult | null)[] {
+export function calculateSwingHighLow(
+  dataList: KLineData[],
+  windowSize: number = 9
+): (SwingResult | null)[] {
   const n = dataList.length;
   const result: (SwingResult | null)[] = new Array(n).fill(null);
-  if (n < 19) return result; // Cần ít nhất 9 + 1 + 9 = 19 nến
+  const win = Math.max(1, Math.floor(windowSize));
+  if (n < win * 2 + 1) return result;
 
-  // Bước 1: Tìm ứng viên đạt chuẩn 9 nến trái & 9 nến phải
+  // Bước 1: Tìm ứng viên đạt chuẩn win nến trái & win nến phải
   const isPeakCandidate: boolean[] = new Array(n).fill(false);
   const isTroughCandidate: boolean[] = new Array(n).fill(false);
 
-  for (let i = 9; i < n - 9; i++) {
+  for (let i = win; i < n - win; i++) {
     const curHigh = dataList[i].high;
     const curLow = dataList[i].low;
 
     let peak = true;
-    for (let k = 1; k <= 9; k++) {
+    for (let k = 1; k <= win; k++) {
       if (dataList[i - k].high >= curHigh || dataList[i + k].high >= curHigh) {
         peak = false;
         break;
@@ -47,7 +51,7 @@ export function calculateSwingHighLow(dataList: KLineData[]): (SwingResult | nul
     isPeakCandidate[i] = peak;
 
     let trough = true;
-    for (let k = 1; k <= 9; k++) {
+    for (let k = 1; k <= win; k++) {
       if (dataList[i - k].low <= curLow || dataList[i + k].low <= curLow) {
         trough = false;
         break;
@@ -59,7 +63,7 @@ export function calculateSwingHighLow(dataList: KLineData[]): (SwingResult | nul
   // Bước 2: Áp dụng quy tắc đan xen tuần tự từ quá khứ đến hiện tại
   let lastConfirmed: 'PEAK' | 'TROUGH' | null = null;
 
-  for (let i = 9; i < n - 9; i++) {
+  for (let i = win; i < n - win; i++) {
     const peak = isPeakCandidate[i];
     const trough = isTroughCandidate[i];
 
@@ -141,43 +145,49 @@ export function registerSwingHighLowIndicator(): void {
   try {
     registerIndicator<SwingResult | null>({
       name: SWING_HL_INDICATOR_NAME,
-      shortName: 'Đỉnh Đáy (9-9)',
+      shortName: 'Đỉnh Đáy',
+      calcParams: [9, 1],
       series: IndicatorSeries.Price,
       precision: 0,
       shouldOhlc: true,
-      calc: (dataList: KLineData[]) => {
-        return calculateSwingHighLow(dataList);
+      calc: (dataList: KLineData[], indicator: any) => {
+        const windowSize = indicator?.calcParams?.[0] ? Number(indicator.calcParams[0]) : 9;
+        return calculateSwingHighLow(dataList, windowSize);
       },
       draw: (params: IndicatorDrawParams<SwingResult | null>) => {
         const { ctx, indicator, visibleRange, xAxis, yAxis } = params;
         const results = indicator.result;
         if (!results || results.length === 0) return false;
 
-        // 1. Vẽ đường Zigzag nét đứt màu vàng hổ phách nối các đỉnh - đáy
-        ctx.save();
-        ctx.beginPath();
-        ctx.strokeStyle = '#eab308'; // Amber-500
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
+        const showLine = indicator?.calcParams?.[1] !== undefined ? Boolean(indicator.calcParams[1]) : true;
 
-        let hasFirst = false;
-        for (let i = 0; i < results.length; i++) {
-          const item = results[i];
-          if (item && item.confirmedType) {
-            const x = xAxis.convertToPixel(i);
-            const y = yAxis.convertToPixel(item.price);
-            if (!hasFirst) {
-              ctx.moveTo(x, y);
-              hasFirst = true;
-            } else {
-              ctx.lineTo(x, y);
+        // 1. Vẽ đường Zigzag nét đứt màu vàng hổ phách nối các đỉnh - đáy (nếu được bật)
+        if (showLine) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.strokeStyle = '#eab308'; // Amber-500
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+
+          let hasFirst = false;
+          for (let i = 0; i < results.length; i++) {
+            const item = results[i];
+            if (item && item.confirmedType) {
+              const x = xAxis.convertToPixel(i);
+              const y = yAxis.convertToPixel(item.price);
+              if (!hasFirst) {
+                ctx.moveTo(x, y);
+                hasFirst = true;
+              } else {
+                ctx.lineTo(x, y);
+              }
             }
           }
+          if (hasFirst) {
+            ctx.stroke();
+          }
+          ctx.restore();
         }
-        if (hasFirst) {
-          ctx.stroke();
-        }
-        ctx.restore();
 
         // 2. Vẽ nhãn giá và huy hiệu cho từng đỉnh/đáy trong khung nhìn
         const from = Math.max(0, visibleRange.from - 2);
