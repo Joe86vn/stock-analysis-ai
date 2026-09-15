@@ -5,7 +5,7 @@ import {
   IndicatorDrawParams,
 } from 'klinecharts';
 
-export type StructureLabel = 'HH' | 'LH' | 'HL' | 'LL';
+export type StructureLabel = 'HH' | 'LH' | 'HL' | 'LL' | 'DT' | 'DB';
 
 export interface StructureBreak {
   type: 'CHOCH' | 'BOS';
@@ -36,10 +36,11 @@ export const SWING_HL_INDICATOR_NAME = 'SWING_HL';
  *    - Đỉnh: Nến i có High cao nhất trong windowSize nến trước và sau.
  *    - Đáy: Nến i có Low thấp nhất trong windowSize nến trước và sau.
  *    - Quy tắc đan xen (Alternating): Không có 2 đỉnh liên tiếp không có đáy ở giữa.
+ *    - Khoảng cách Đỉnh và Đáy tối thiểu 9 nến.
  *
  * 2. Cấu trúc xu hướng:
- *    - Đỉnh cao hơn (HH), Đỉnh thấp hơn (LH).
- *    - Đáy cao hơn (HL), Đáy thấp hơn (LL).
+ *    - Đỉnh cao hơn (HH), Đỉnh thấp hơn (LH), Đỉnh bằng nhau (DT - Double Top).
+ *    - Đáy cao hơn (HL), Đáy thấp hơn (LL), Đáy bằng nhau (DB - Double Bottom).
  *    - Xu hướng Giảm (Downtrend): Có ít nhất 1 LH và 1 LL.
  *    - Xu hướng Tăng (Uptrend): Có ít nhất 1 HH và 1 HL.
  *
@@ -48,8 +49,8 @@ export const SWING_HL_INDICATOR_NAME = 'SWING_HL';
  *    - Đang trong xu hướng TĂNG: Giá lần đầu phá vỡ đáy gần nhất và duy trì đóng cửa dưới ít nhất confirmBars (3 nến) -> BEARISH CHOCH (Đỏ). Xu hướng chuyển sang GIẢM.
  *
  * 4. BOS (Break of Structure):
- *    - Đang trong xu hướng TĂNG: Giá tiếp tục phá vỡ đỉnh cao hơn gần nhất -> BULLISH BOS (Xanh).
- *    - Đang trong xu hướng GIẢM: Giá tiếp tục phá vỡ đáy thấp hơn gần nhất -> BEARISH BOS (Đỏ).
+ *    - Đang trong xu hướng TĂNG: Giá tiếp tục phá vỡ đỉnh cao hơn gần nhất và duy trì đóng cửa trên ít nhất confirmBars (3 nến) -> BULLISH BOS (Xanh).
+ *    - Đang trong xu hướng GIẢM: Giá tiếp tục phá vỡ đáy thấp hơn gần nhất và duy trì đóng cửa dưới ít nhất confirmBars (3 nến) -> BEARISH BOS (Đỏ).
  */
 export function calculateSwingHighLow(
   dataList: KLineData[],
@@ -59,6 +60,7 @@ export function calculateSwingHighLow(
   const n = dataList.length;
   const result: (SwingResult | null)[] = new Array(n).fill(null);
   const win = Math.max(1, Math.floor(windowSize));
+  const minBarDistance = Math.max(9, win); // Quy tắc: Đỉnh và đáy phải cách nhau ít nhất 9 nến
   if (n < win * 2 + 1) return result;
 
   // Bước 1: Tìm ứng viên đỉnh & đáy
@@ -88,7 +90,7 @@ export function calculateSwingHighLow(
     isTroughCandidate[i] = trough;
   }
 
-  // Bước 2: Áp dụng quy tắc đan xen tuần tự
+  // Bước 2: Áp dụng quy tắc đan xen tuần tự & khoảng cách tối thiểu 9 nến
   let lastConfirmed: 'PEAK' | 'TROUGH' | null = null;
   let lastConfirmedIndex = -1;
 
@@ -129,7 +131,7 @@ export function calculateSwingHighLow(
         lastConfirmedIndex = i;
       }
     } else if (lastConfirmed === 'PEAK') {
-      if (trough) {
+      if (trough && (i - lastConfirmedIndex >= minBarDistance)) {
         result[i] = {
           isPeak: false,
           isTrough: true,
@@ -158,7 +160,7 @@ export function calculateSwingHighLow(
         }
       }
     } else if (lastConfirmed === 'TROUGH') {
-      if (peak) {
+      if (peak && (i - lastConfirmedIndex >= minBarDistance)) {
         result[i] = {
           isPeak: true,
           isTrough: false,
@@ -189,7 +191,7 @@ export function calculateSwingHighLow(
     }
   }
 
-  // Bước 3: Gán nhãn cấu trúc HH, LH, HL, LL
+  // Bước 3: Gán nhãn cấu trúc HH, LH, HL, LL, DT (Double Top), DB (Double Bottom)
   interface ConfirmedSwing {
     index: number;
     type: 'PEAK' | 'TROUGH';
@@ -213,12 +215,24 @@ export function calculateSwingHighLow(
   for (const s of swings) {
     if (s.type === 'PEAK') {
       if (prevPeak) {
-        s.label = s.price >= prevPeak.price ? 'HH' : 'LH';
+        if (Math.round(s.price) === Math.round(prevPeak.price)) {
+          s.label = 'DT'; // Double Top (Đỉnh bằng nhau)
+        } else if (s.price > prevPeak.price) {
+          s.label = 'HH';
+        } else {
+          s.label = 'LH';
+        }
       }
       prevPeak = s;
     } else if (s.type === 'TROUGH') {
       if (prevTrough) {
-        s.label = s.price <= prevTrough.price ? 'LL' : 'HL';
+        if (Math.round(s.price) === Math.round(prevTrough.price)) {
+          s.label = 'DB'; // Double Bottom (Đáy bằng nhau)
+        } else if (s.price < prevTrough.price) {
+          s.label = 'LL';
+        } else {
+          s.label = 'HL';
+        }
       }
       prevTrough = s;
     }
