@@ -315,15 +315,21 @@ export function calculateSwingHighLow(
       // 2. Kiểm tra BEARISH BOS (Tiếp diễn xu hướng giảm):
       if (currentTrend === 'DOWN' && activeTrough && !activeTroughBroken && k > activeTrough.index) {
         if (curClose < activeTrough.price) {
-          allBreaks.push({
-            type: 'BOS',
-            direction: 'BEARISH',
-            startIndex: activeTrough.index,
-            breakIndex: k,
-            price: activeTrough.price,
-            label: 'BOS',
-          });
-          activeTroughBroken = true;
+          consecutiveClosesBelow++;
+          if (consecutiveClosesBelow >= minConfirm) {
+            allBreaks.push({
+              type: 'BOS',
+              direction: 'BEARISH',
+              startIndex: activeTrough.index,
+              breakIndex: k,
+              price: activeTrough.price,
+              label: 'BOS',
+            });
+            activeTroughBroken = true;
+            consecutiveClosesBelow = 0;
+          }
+        } else {
+          consecutiveClosesBelow = 0;
         }
       }
     }
@@ -357,15 +363,21 @@ export function calculateSwingHighLow(
       // 2. Kiểm tra BULLISH BOS (Tiếp diễn xu hướng tăng):
       if (currentTrend === 'UP' && activePeak && !activePeakBroken && k > activePeak.index) {
         if (curClose > activePeak.price) {
-          allBreaks.push({
-            type: 'BOS',
-            direction: 'BULLISH',
-            startIndex: activePeak.index,
-            breakIndex: k,
-            price: activePeak.price,
-            label: 'BOS',
-          });
-          activePeakBroken = true;
+          consecutiveClosesAbove++;
+          if (consecutiveClosesAbove >= minConfirm) {
+            allBreaks.push({
+              type: 'BOS',
+              direction: 'BULLISH',
+              startIndex: activePeak.index,
+              breakIndex: k,
+              price: activePeak.price,
+              label: 'BOS',
+            });
+            activePeakBroken = true;
+            consecutiveClosesAbove = 0;
+          }
+        } else {
+          consecutiveClosesAbove = 0;
         }
       }
     }
