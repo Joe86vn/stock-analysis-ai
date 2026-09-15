@@ -1344,6 +1344,41 @@ export async function fetchVietcapGapChart(
   const to = options.to ?? Math.floor(Date.now() / 1000);
   const timeFrame = options.timeFrame ?? 'ONE_DAY';
 
+  if (timeFrame === 'ONE_MONTH') {
+    // Vietcap's native ONE_MONTH API is defective (only 52 bars, samples only 1 week/month, missing months).
+    // We aggregate monthly bars from ONE_WEEK bars (563+ bars back to 2016) for complete, contiguous 10-year data.
+    const weeklyBars = await fetchVietcapGapChart(cleanTicker, {
+      to,
+      timeFrame: 'ONE_WEEK',
+      countBack: 1000,
+    });
+
+    const monthMap = new Map<string, VietcapGapChartBar>();
+    for (const w of weeklyBars) {
+      const mKey = w.tradingDate.slice(0, 7) + '-01';
+      if (!monthMap.has(mKey)) {
+        const tsSec = Math.floor(new Date(mKey + 'T00:00:00Z').getTime() / 1000);
+        monthMap.set(mKey, {
+          time: tsSec,
+          tradingDate: mKey,
+          openPrice: w.openPrice,
+          highestPrice: w.highestPrice,
+          lowestPrice: w.lowestPrice,
+          closePrice: w.closePrice,
+          volume: w.volume,
+        });
+      } else {
+        const m = monthMap.get(mKey)!;
+        m.highestPrice = Math.max(m.highestPrice, w.highestPrice);
+        m.lowestPrice = Math.min(m.lowestPrice, w.lowestPrice);
+        m.closePrice = w.closePrice;
+        m.volume += w.volume;
+      }
+    }
+    const allMonths = Array.from(monthMap.values());
+    return countBack ? allMonths.slice(-countBack) : allMonths;
+  }
+
   try {
     const url = `https://api.vietcap.com.vn/ohlc-chart-service/v1/gap-chart?symbol=${cleanTicker}&to=${to}&timeFrame=${timeFrame}&countBack=${countBack}`;
     const res = await fetch(url, {
@@ -1378,19 +1413,14 @@ export async function fetchVietcapGapChart(
       });
     }
 
-    if (timeFrame === 'ONE_WEEK' || timeFrame === 'ONE_MONTH') {
+    if (timeFrame === 'ONE_WEEK') {
       const groupedMap = new Map<string, VietcapGapChartBar>();
       for (const b of bars) {
-        let key = b.tradingDate;
-        if (timeFrame === 'ONE_WEEK') {
-          const d = new Date(b.tradingDate + 'T00:00:00Z');
-          const day = d.getUTCDay();
-          const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-          const monday = new Date(d.setDate(diff));
-          key = monday.toISOString().slice(0, 10);
-        } else if (timeFrame === 'ONE_MONTH') {
-          key = b.tradingDate.slice(0, 7) + '-01';
-        }
+        const d = new Date(b.tradingDate + 'T00:00:00Z');
+        const day = d.getUTCDay();
+        const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(d.setDate(diff));
+        const key = monday.toISOString().slice(0, 10);
 
         if (!groupedMap.has(key)) {
           const tsSec = Math.floor(new Date(key + 'T00:00:00Z').getTime() / 1000);

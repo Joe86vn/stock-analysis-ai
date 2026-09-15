@@ -404,7 +404,8 @@ export function StockChartPanel({
 
   const fetchPhase2Background = useCallback(async (t: string, res: Resolution, apiTf: string) => {
     try {
-      const countBackFull = res === 'M' ? 500 : res === 'W' ? 1000 : 2000;
+      if (res === 'M') return; // Tháng đã có trọn vẹn 10 năm ở Tầng 1
+      const countBackFull = res === 'W' ? 1000 : 2000;
       const res2 = await fetch(`/api/stocks/${t}/price-history?countBack=${countBackFull}&timeFrame=${apiTf}`);
       if (!res2.ok) return;
       const json2 = await res2.json();
@@ -437,17 +438,17 @@ export function StockChartPanel({
       if (cached.events) setDividendEvents(cached.events);
 
       // Nếu mới nạp Phase 1 (chưa có lịch sử 10 năm), âm thầm tải Phase 2 ngầm
-      if (!cached.isFullHistory?.[res]) {
+      if (!cached.isFullHistory?.[res] && res !== 'M') {
         fetchPhase2Background(t, res, apiTf);
       }
       return;
     }
 
-    // 2. Tải Tầng 1 (Phase 1) Siêu Nhanh (~260 nến cho D)
+    // 2. Tải Tầng 1 (Phase 1) Siêu Nhanh (D: 260 nến, W: 600 nến, M: 240 nến ~ trọn vẹn 10 năm)
     setIsLoadingChart(true);
 
     try {
-      const countBackPhase1 = res === 'M' ? 60 : res === 'W' ? 156 : 260;
+      const countBackPhase1 = res === 'M' ? 240 : res === 'W' ? 600 : 260;
       const res1 = await fetch(`/api/stocks/${t}/price-history?countBack=${countBackPhase1}&timeFrame=${apiTf}`);
       if (!res1.ok) return;
       const json1 = await res1.json();
@@ -459,13 +460,15 @@ export function StockChartPanel({
         setCachedData(t, {
           resolutions: { [res]: bars1 },
           events: Array.isArray(json1.events) ? json1.events : [],
-          isFullHistory: { [res]: false },
+          isFullHistory: { [res]: res === 'M' },
         });
         if (Array.isArray(json1.events)) setDividendEvents(json1.events);
       }
 
-      // 3. Tải nốt Tầng 2 (Phase 2 - Lịch sử đầy đủ 10 năm) ngầm ở chế độ background
-      fetchPhase2Background(t, res, apiTf);
+      // 3. Tải nốt Tầng 2 (Phase 2 - Lịch sử đầy đủ 10 năm) ngầm ở chế độ background cho Ngày & Tuần
+      if (res !== 'M') {
+        fetchPhase2Background(t, res, apiTf);
+      }
     } catch (e) {
       console.error('[StockChartPanel] fetchPriceHistory error:', e);
     } finally {
@@ -833,7 +836,21 @@ export function StockChartPanel({
     });
 
     chartRef.current.applyNewData(klineData);
-    chartRef.current.setOffsetRightDistance(80);
+
+    if (resolution === 'M') {
+      const containerW = chartContainerRef.current?.clientWidth || 1200;
+      const calcSpace = Math.max(12, Math.min(22, Math.floor((containerW - 100) / Math.max(klineData.length, 1))));
+      chartRef.current.setBarSpace(calcSpace);
+      chartRef.current.setOffsetRightDistance(60);
+      chartRef.current.scrollToRealTime();
+    } else if (resolution === 'W') {
+      chartRef.current.setBarSpace(10);
+      chartRef.current.setOffsetRightDistance(70);
+      chartRef.current.scrollToRealTime();
+    } else {
+      chartRef.current.setBarSpace(8);
+      chartRef.current.setOffsetRightDistance(80);
+    }
   }, [allBars, resolution]);
 
   // ─── Cập nhật nến cuối với livePrice ──────────────────────────────────────
