@@ -61,14 +61,17 @@ export function calculateSwingHighLow(
   }
 
   // Bước 2: Áp dụng quy tắc đan xen tuần tự từ quá khứ đến hiện tại
+  // Quy tắc mới: Không có 2 đỉnh liên tiếp không có đáy ở giữa.
+  // Nếu có đỉnh mới trước khi có đáy mới -> lấy đỉnh mới và xóa đỉnh cũ. Tương tự cho đáy.
   let lastConfirmed: 'PEAK' | 'TROUGH' | null = null;
+  let lastConfirmedIndex = -1;
 
   for (let i = win; i < n - win; i++) {
     const peak = isPeakCandidate[i];
     const trough = isTroughCandidate[i];
 
     if (lastConfirmed === null) {
-      if (peak) {
+      if (peak && !trough) {
         result[i] = {
           isPeak: true,
           isTrough: false,
@@ -77,7 +80,8 @@ export function calculateSwingHighLow(
           peakPrice: dataList[i].high,
         };
         lastConfirmed = 'PEAK';
-      } else if (trough) {
+        lastConfirmedIndex = i;
+      } else if (trough && !peak) {
         result[i] = {
           isPeak: false,
           isTrough: true,
@@ -86,10 +90,21 @@ export function calculateSwingHighLow(
           troughPrice: dataList[i].low,
         };
         lastConfirmed = 'TROUGH';
+        lastConfirmedIndex = i;
+      } else if (peak && trough) {
+        result[i] = {
+          isPeak: true,
+          isTrough: false,
+          confirmedType: 'PEAK',
+          price: dataList[i].high,
+          peakPrice: dataList[i].high,
+        };
+        lastConfirmed = 'PEAK';
+        lastConfirmedIndex = i;
       }
     } else if (lastConfirmed === 'PEAK') {
-      // Đang chờ ĐÁY: Bỏ qua mọi đỉnh mới, chỉ nhận đáy hợp lệ đầu tiên
       if (trough) {
+        // Đã có đáy hợp lệ xuất hiện xen kẽ: xác nhận đáy mới
         result[i] = {
           isPeak: false,
           isTrough: true,
@@ -98,10 +113,13 @@ export function calculateSwingHighLow(
           troughPrice: dataList[i].low,
         };
         lastConfirmed = 'TROUGH';
-      }
-    } else if (lastConfirmed === 'TROUGH') {
-      // Đang chờ ĐỈNH: Bỏ qua mọi đáy mới, chỉ nhận đỉnh hợp lệ đầu tiên
-      if (peak) {
+        lastConfirmedIndex = i;
+      } else if (peak) {
+        // Đã có đỉnh trước đó nhưng chưa có đáy mà lại xuất hiện đỉnh mới:
+        // Lấy đỉnh mới là đỉnh được xác nhận và xóa đỉnh cũ
+        if (lastConfirmedIndex >= 0) {
+          result[lastConfirmedIndex] = null;
+        }
         result[i] = {
           isPeak: true,
           isTrough: false,
@@ -110,6 +128,35 @@ export function calculateSwingHighLow(
           peakPrice: dataList[i].high,
         };
         lastConfirmed = 'PEAK';
+        lastConfirmedIndex = i;
+      }
+    } else if (lastConfirmed === 'TROUGH') {
+      if (peak) {
+        // Đã có đỉnh hợp lệ xuất hiện xen kẽ: xác nhận đỉnh mới
+        result[i] = {
+          isPeak: true,
+          isTrough: false,
+          confirmedType: 'PEAK',
+          price: dataList[i].high,
+          peakPrice: dataList[i].high,
+        };
+        lastConfirmed = 'PEAK';
+        lastConfirmedIndex = i;
+      } else if (trough) {
+        // Đã có đáy trước đó nhưng chưa có đỉnh mà lại xuất hiện đáy mới:
+        // Lấy đáy mới là đáy được xác nhận và xóa đáy cũ
+        if (lastConfirmedIndex >= 0) {
+          result[lastConfirmedIndex] = null;
+        }
+        result[i] = {
+          isPeak: false,
+          isTrough: true,
+          confirmedType: 'TROUGH',
+          price: dataList[i].low,
+          troughPrice: dataList[i].low,
+        };
+        lastConfirmed = 'TROUGH';
+        lastConfirmedIndex = i;
       }
     }
   }
