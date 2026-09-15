@@ -201,6 +201,52 @@ function getKLineTheme(isDark: boolean): any {
   };
 }
 
+// ─── Global Client-Side RAM Cache for Chart Data ─────────────────────────────
+interface CachedChartData {
+  timestamp: number;
+  events: any[];
+  isFullHistory?: { [key in Resolution]?: boolean };
+  resolutions: {
+    [key in Resolution]?: OhlcBar[];
+  };
+}
+
+const GLOBAL_CHART_CACHE = new Map<string, CachedChartData>();
+const CACHE_MAX_ITEMS = 30;
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes TTL
+
+function getCachedData(ticker: string): CachedChartData | null {
+  const item = GLOBAL_CHART_CACHE.get(ticker);
+  if (!item) return null;
+  return item;
+}
+
+function setCachedData(ticker: string, update: Partial<CachedChartData>) {
+  let existing = GLOBAL_CHART_CACHE.get(ticker) || {
+    timestamp: Date.now(),
+    events: [],
+    isFullHistory: {},
+    resolutions: {},
+  };
+
+  const nextResolutions = { ...existing.resolutions, ...update.resolutions };
+  const nextIsFull = { ...existing.isFullHistory, ...update.isFullHistory };
+
+  existing = {
+    timestamp: Date.now(),
+    events: update.events ?? existing.events,
+    isFullHistory: nextIsFull,
+    resolutions: nextResolutions,
+  };
+
+  if (GLOBAL_CHART_CACHE.size >= CACHE_MAX_ITEMS && !GLOBAL_CHART_CACHE.has(ticker)) {
+    const oldestKey = GLOBAL_CHART_CACHE.keys().next().value;
+    if (oldestKey) GLOBAL_CHART_CACHE.delete(oldestKey);
+  }
+
+  GLOBAL_CHART_CACHE.set(ticker, existing);
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function StockChartPanel({
@@ -352,41 +398,80 @@ export function StockChartPanel({
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const subPanesRef = useRef<{ vol?: string; rsi?: string; macd?: string }>({});
 
-  const barsCacheRef = useRef<{ [key in Resolution]?: OhlcBar[] }>({});
   const isOpen = !!ticker;
 
-  // ─── Fetch price history ─────────────────────────────────────────────────
+  // ─── Fetch price history (Phase 1 Fast + Phase 2 Background) ───────────────
+
+  const fetchPhase2Background = useCallback(async (t: string, res: Resolution, apiTf: string) => {
+    try {
+      const countBackFull = res === 'M' ? 500 : res === 'W' ? 1000 : 2000;
+      const res2 = await fetch(`/api/stocks/${t}/price-history?countBack=${countBackFull}&timeFrame=${apiTf}`);
+      if (!res2.ok) return;
+      const json2 = await res2.json();
+      const barsFull: OhlcBar[] = json2.history || [];
+
+      if (barsFull.length > 0) {
+        setCachedData(t, {
+          resolutions: { [res]: barsFull },
+          events: Array.isArray(json2.events) ? json2.events : [],
+          isFullHistory: { [res]: true },
+        });
+
+        // Cập nhật nến đầy đủ vào biểu đồ mượt mà (không làm chớp màn hình)
+        setAllBars(barsFull);
+      }
+    } catch (e) {
+      console.warn('[StockChartPanel] Phase 2 background fetch error:', e);
+    }
+  }, []);
 
   const fetchPriceHistory = useCallback(async (t: string, res: Resolution = 'D') => {
-    if (barsCacheRef.current[res] && barsCacheRef.current[res]!.length > 0) {
-      setAllBars(barsCacheRef.current[res]!);
+    const cached = getCachedData(t);
+    const apiTf = res === 'W' ? 'ONE_WEEK' : res === 'M' ? 'ONE_MONTH' : 'ONE_DAY';
+
+    // 1. Kiểm tra RAM Cache (Trả về 0ms nếu đã có)
+    if (cached && cached.resolutions[res] && cached.resolutions[res]!.length > 0) {
+      const bars = cached.resolutions[res]!;
+      setAllBars(bars);
+      if (bars.length > 0 && res === 'D') setLiveVolume(bars[bars.length - 1].volume);
+      if (cached.events) setDividendEvents(cached.events);
+
+      // Nếu mới nạp Phase 1 (chưa có lịch sử 10 năm), âm thầm tải Phase 2 ngầm
+      if (!cached.isFullHistory?.[res]) {
+        fetchPhase2Background(t, res, apiTf);
+      }
       return;
     }
 
+    // 2. Tải Tầng 1 (Phase 1) Siêu Nhanh (~260 nến cho D)
     setIsLoadingChart(true);
-    setAllBars([]);
-    try {
-      const apiTf = res === 'W' ? 'ONE_WEEK' : res === 'M' ? 'ONE_MONTH' : 'ONE_DAY';
-      const countBack = res === 'M' ? 500 : res === 'W' ? 1000 : 2000;
-      const response = await fetch(`/api/stocks/${t}/price-history?countBack=${countBack}&timeFrame=${apiTf}`);
-      if (!response.ok) return;
-      const json = await response.json();
-      const bars: OhlcBar[] = json.history || [];
-      barsCacheRef.current[res] = bars;
-      setAllBars(bars);
-      if (bars.length > 0 && res === 'D') setLiveVolume(bars[bars.length - 1].volume);
 
-      if (Array.isArray(json.events)) {
-        setDividendEvents(json.events);
-      } else {
-        setDividendEvents([]);
+    try {
+      const countBackPhase1 = res === 'M' ? 60 : res === 'W' ? 156 : 260;
+      const res1 = await fetch(`/api/stocks/${t}/price-history?countBack=${countBackPhase1}&timeFrame=${apiTf}`);
+      if (!res1.ok) return;
+      const json1 = await res1.json();
+      const bars1: OhlcBar[] = json1.history || [];
+
+      if (bars1.length > 0) {
+        setAllBars(bars1);
+        if (res === 'D') setLiveVolume(bars1[bars1.length - 1].volume);
+        setCachedData(t, {
+          resolutions: { [res]: bars1 },
+          events: Array.isArray(json1.events) ? json1.events : [],
+          isFullHistory: { [res]: false },
+        });
+        if (Array.isArray(json1.events)) setDividendEvents(json1.events);
       }
+
+      // 3. Tải nốt Tầng 2 (Phase 2 - Lịch sử đầy đủ 10 năm) ngầm ở chế độ background
+      fetchPhase2Background(t, res, apiTf);
     } catch (e) {
       console.error('[StockChartPanel] fetchPriceHistory error:', e);
     } finally {
       setIsLoadingChart(false);
     }
-  }, []);
+  }, [fetchPhase2Background]);
 
   // ─── Poll live price ─────────────────────────────────────────────────────
 
@@ -419,7 +504,6 @@ export function StockChartPanel({
   // ─── Khởi tạo khi ticker thay đổi ───────────────────────────────────────
 
   useEffect(() => {
-    barsCacheRef.current = {};
     if (!ticker) {
       setAllBars([]);
       setLivePrice(null);
