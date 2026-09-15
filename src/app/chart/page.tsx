@@ -103,9 +103,9 @@ function ChartViewInner() {
   }, [allStocks]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#0B0F19]">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-[#F8FAFC] dark:bg-[#0B0F19]">
       <Header />
-      <main className="flex-1 flex flex-col h-[calc(100vh-57px)] overflow-hidden">
+      <main className="flex-1 min-h-0 w-full flex flex-col overflow-hidden relative">
         <StockChartPanel
           isStandalone={true}
           ticker={currentTicker}

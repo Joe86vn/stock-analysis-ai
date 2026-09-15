@@ -539,18 +539,30 @@ export function StockChartPanel({
       });
 
       // Tự động resize theo container
-      const ro = new ResizeObserver(() => {
+      const handleResize = () => {
         chart.resize();
-      });
+      };
+      const ro = new ResizeObserver(handleResize);
       ro.observe(chartContainerRef.current);
       resizeObserverRef.current = ro;
+
+      window.addEventListener('resize', handleResize);
+      // Double check resize after DOM layout settles
+      setTimeout(handleResize, 100);
+      setTimeout(handleResize, 500);
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        ro.disconnect();
+      };
     }
 
-    initKLineChart();
+    const cleanupResize = initKLineChart();
 
     return () => {
       isDisposed = true;
       resizeObserverRef.current?.disconnect();
+      cleanupResize?.then?.((cleanup) => cleanup?.());
       if (chartContainerRef.current) {
         import('klinecharts').then((kc) => {
           if (chartContainerRef.current) kc.dispose(chartContainerRef.current);
@@ -1364,7 +1376,7 @@ export function StockChartPanel({
         )}
 
         {/* KLineCharts canvas container */}
-        <div ref={chartContainerRef} className="w-full h-full" />
+        <div ref={chartContainerRef} className="absolute inset-0 w-full h-full" />
       </div>
 
       {/* Footer */}
