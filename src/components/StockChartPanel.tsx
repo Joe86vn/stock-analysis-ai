@@ -170,6 +170,9 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       const data = await res.json();
       if (data && typeof data.price === 'number' && data.price > 0) {
         setLivePrice(data.price);
+        if (typeof data.changePercent === 'number') {
+          setPriceChange({ abs: data.change || 0, pct: data.changePercent });
+        }
       }
     } catch {}
   }, []);
@@ -188,8 +191,12 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     }
 
     setActiveTimeframe('1N');
-    setLivePrice(null);
-    setPriceChange(null);
+    setLivePrice(stockData?.currentPrice || null);
+    if (stockData && typeof stockData.priceChangePercent === 'number') {
+      setPriceChange({ abs: stockData.priceChange || 0, pct: stockData.priceChangePercent });
+    } else {
+      setPriceChange(null);
+    }
     setCrosshairData(null);
 
     Promise.all([fetchPriceHistory(ticker), pollLivePrice(ticker)]);
@@ -200,17 +207,19 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     return () => {
       if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
     };
-  }, [ticker, fetchPriceHistory, pollLivePrice]);
+  }, [ticker, stockData, fetchPriceHistory, pollLivePrice]);
 
-  // ─── Tính priceChange ────────────────────────────────────────────────────
+  // ─── Tính priceChange fallback ───────────────────────────────────────────
 
   useEffect(() => {
     if (!livePrice || allBars.length < 2) return;
-    const prevClose = allBars[allBars.length - 2].closePrice;
-    if (prevClose > 0) {
-      setPriceChange({ abs: livePrice - prevClose, pct: ((livePrice - prevClose) / prevClose) * 100 });
+    if (!priceChange) {
+      const prevClose = allBars[allBars.length - 2].closePrice;
+      if (prevClose > 0) {
+        setPriceChange({ abs: livePrice - prevClose, pct: ((livePrice - prevClose) / prevClose) * 100 });
+      }
     }
-  }, [livePrice, allBars]);
+  }, [livePrice, allBars, priceChange]);
 
   // ─── Render chart ────────────────────────────────────────────────────────
 
@@ -392,15 +401,27 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     v >= 1_000_000 ? (v / 1_000_000).toFixed(2) + 'M' : v >= 1_000 ? (v / 1_000).toFixed(1) + 'K' : String(v);
 
   const priceColor = priceChange
-    ? priceChange.pct > 0 ? 'text-emerald-500' : priceChange.pct < 0 ? 'text-red-500' : 'text-gray-400'
-    : 'text-gray-400';
+    ? priceChange.pct > 0
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : priceChange.pct < 0
+      ? 'text-rose-600 dark:text-rose-400'
+      : 'text-amber-500 dark:text-amber-400'
+    : 'text-slate-900 dark:text-white';
+
+  const priceBadgeBg = priceChange
+    ? priceChange.pct > 0
+      ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400'
+      : priceChange.pct < 0
+      ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400'
+      : 'bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-500 dark:text-amber-400'
+    : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300';
 
   const gradeColor = (grade: string) => {
-    if (grade === 'A+') return 'text-emerald-500 bg-emerald-500/10';
-    if (grade === 'A') return 'text-green-500 bg-green-500/10';
-    if (grade === 'B+') return 'text-blue-500 bg-blue-500/10';
-    if (grade === 'B') return 'text-indigo-400 bg-indigo-400/10';
-    return 'text-gray-400 bg-gray-400/10';
+    if (grade === 'A+') return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30';
+    if (grade === 'A') return 'text-green-500 bg-green-500/10 border-green-500/30';
+    if (grade === 'B+') return 'text-blue-500 bg-blue-500/10 border-blue-500/30';
+    if (grade === 'B') return 'text-indigo-400 bg-indigo-400/10 border-indigo-400/30';
+    return 'text-gray-400 bg-gray-400/10 border-gray-400/30';
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -410,102 +431,148 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   const displayPrice = livePrice ?? stockData.currentPrice;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+    <div
+      className="
+        fixed inset-0 z-50
+        w-screen h-screen
+        flex flex-col
+        bg-white dark:bg-gray-950
+        overflow-hidden
+      "
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Đồ thị toàn màn hình ${ticker}`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/70 flex-shrink-0">
+        <div className="flex items-center space-x-3 min-w-0">
+          <span className="text-2xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
+            {ticker}
+          </span>
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+            {stockData.exchange}
+          </span>
+          <span className={`text-xs font-black px-2.5 py-0.5 rounded-full border ${gradeColor(stockData.rankGrade)}`}>
+            Hạng {stockData.rankGrade}
+          </span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-gray-300 truncate max-w-[360px] hidden md:inline">
+            {stockData.companyName}
+          </span>
+          <span className="text-xs text-gray-400 dark:text-gray-500 hidden lg:inline">
+            • {stockData.industry}
+          </span>
+        </div>
 
-      {/* Slide-in Panel */}
-      <aside
-        className="
-          fixed right-0 top-0 bottom-0 z-50
-          w-full sm:w-[580px] lg:w-[640px]
-          flex flex-col
-          bg-white dark:bg-gray-950
-          border-l border-gray-200 dark:border-gray-800
-          shadow-2xl shadow-black/30
-          overflow-hidden
-        "
-        aria-label={`Đồ thị ${ticker}`}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-          <div className="flex items-center space-x-2 min-w-0">
-            <span className="text-xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
-              {ticker}
-            </span>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-              {stockData.exchange}
-            </span>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${gradeColor(stockData.rankGrade)}`}>
-              {stockData.rankGrade}
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 truncate hidden sm:block">
-              {stockData.companyName}
-            </span>
-          </div>
+        <div className="flex items-center space-x-3 flex-shrink-0">
+          <span className="text-xs text-gray-400 hidden sm:inline">
+            Nhấn <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">ESC</kbd> để đóng
+          </span>
           <button
             onClick={onClose}
-            className="ml-2 p-1.5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition flex-shrink-0"
-            aria-label="Đóng"
+            className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition flex-shrink-0"
+            aria-label="Đóng toàn màn hình"
+            title="Đóng (ESC)"
           >
-            <X className="h-5 w-5" />
+            <X className="h-6 w-6" />
           </button>
         </div>
+      </div>
 
-        {/* Price Scorecard */}
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800/80 flex-shrink-0 space-y-1.5">
-          <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">
-              {fmt(displayPrice)}đ
+      {/* Price & KPI Scorecard Bar */}
+      <div className="px-6 py-2.5 border-b border-gray-100 dark:border-gray-800/80 bg-white dark:bg-gray-950 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
+        {/* Price & ROC */}
+        <div className="flex items-baseline space-x-3">
+          <span className={`text-3xl font-black tabular-nums tracking-tight ${priceColor}`}>
+            {fmt(displayPrice)} <span className="text-base font-bold">đ</span>
+          </span>
+          {priceChange !== null && (
+            <span className={`inline-flex items-center space-x-1 text-sm font-bold tabular-nums px-2.5 py-1 rounded-lg border ${priceBadgeBg}`}>
+              <span>{priceChange.abs > 0 ? '▲ +' : priceChange.abs < 0 ? '▼ ' : '● '}</span>
+              <span>{fmt(Math.abs(priceChange.abs))}đ</span>
+              <span>({priceChange.pct > 0 ? '+' : ''}{priceChange.pct.toFixed(2)}%)</span>
             </span>
-            {priceChange && (
-              <span className={`text-sm font-bold tabular-nums ${priceColor}`}>
-                {priceChange.abs >= 0 ? '+' : ''}{fmt(priceChange.abs)}đ
-                ({priceChange.pct >= 0 ? '+' : ''}{priceChange.pct.toFixed(2)}%)
-              </span>
-            )}
-            <span className="text-[10px] text-gray-400 ml-auto">⏱ 15s</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-            <span>RS <span className="font-semibold text-indigo-600 dark:text-indigo-400">{stockData.rsRating}</span></span>
-            <span>ADTV <span className="font-semibold text-slate-700 dark:text-gray-200">{stockData.adtv20Billion.toFixed(1)} Tỷ</span></span>
-            <span>Điểm <span className="font-semibold text-slate-700 dark:text-gray-200">{stockData.totalScore}/150</span></span>
-            <span className="truncate">{stockData.industry}</span>
-            {liveVolume !== null && (
-              <span>Vol <span className="font-semibold text-slate-700 dark:text-gray-200">{fmtVol(liveVolume)}</span></span>
-            )}
-          </div>
+          )}
+          <span className="text-xs text-gray-400 font-medium ml-1">⏱ Cập nhật 15s</span>
         </div>
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 dark:border-gray-800/60 flex-shrink-0 gap-2">
-          <div className="flex items-center gap-1 flex-wrap">
-            {(Object.keys(TIMEFRAME_BARS) as Timeframe[]).map((tf) => (
-              <button
-                key={tf}
-                onClick={() => setActiveTimeframe(tf)}
-                className={`
-                  px-2 py-1 rounded-md text-[11px] font-semibold transition
-                  ${activeTimeframe === tf
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }
-                `}
-              >
-                {tf}
-              </button>
-            ))}
+        {/* Key Metrics */}
+        <div className="flex items-center gap-x-6 gap-y-1 flex-wrap text-xs text-gray-500 dark:text-gray-400">
+          <div>
+            <span className="text-gray-400">RS (1T): </span>
+            <span className="font-bold text-indigo-600 dark:text-indigo-400">{stockData.rsRating}</span>
           </div>
+          <div>
+            <span className="text-gray-400">Điểm ValueX: </span>
+            <span className="font-bold text-slate-800 dark:text-gray-200">{stockData.totalScore}/150đ</span>
+          </div>
+          <div>
+            <span className="text-gray-400">GTGD 20N: </span>
+            <span className="font-bold text-slate-800 dark:text-gray-200">{stockData.adtv20Billion.toFixed(1)} Tỷ</span>
+          </div>
+          <div>
+            <span className="text-gray-400">EPS Core YoY: </span>
+            <span className="font-bold text-slate-800 dark:text-gray-200">
+              {stockData.coreEpsGrowthYoY > 0 ? `+${stockData.coreEpsGrowthYoY}%` : `${stockData.coreEpsGrowthYoY}%`}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-400">LNST Core YoY: </span>
+            <span className="font-bold text-slate-800 dark:text-gray-200">
+              {stockData.coreNetProfitGrowthYoY > 0 ? `+${stockData.coreNetProfitGrowthYoY}%` : `${stockData.coreNetProfitGrowthYoY}%`}
+            </span>
+          </div>
+          {liveVolume !== null && (
+            <div>
+              <span className="text-gray-400">Khối lượng: </span>
+              <span className="font-bold text-slate-800 dark:text-gray-200">{fmtVol(liveVolume)} cp</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Toolbar Bar */}
+      <div className="flex items-center justify-between px-6 py-2 border-b border-gray-100 dark:border-gray-800/60 bg-gray-50/40 dark:bg-gray-900/30 flex-shrink-0 gap-3 flex-wrap">
+        {/* Timeframes */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-bold text-gray-400 mr-1 hidden sm:inline">Khung thời gian:</span>
+          {(Object.keys(TIMEFRAME_BARS) as Timeframe[]).map((tf) => (
+            <button
+              key={tf}
+              onClick={() => setActiveTimeframe(tf)}
+              className={`
+                px-3 py-1.5 rounded-lg text-xs font-bold transition
+                ${activeTimeframe === tf
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
+                }
+              `}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
+
+        {/* Indicators & Event toggles */}
+        <div className="flex items-center space-x-4 ml-auto">
+          {/* EMA Legend */}
+          <div className="flex items-center space-x-3 text-xs">
+            <div className="flex items-center space-x-1.5">
+              <span className="inline-block w-4 h-[3px] bg-blue-500 rounded" />
+              <span className="font-semibold text-gray-600 dark:text-gray-300">EMA20</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="inline-block w-4 h-[3px] bg-amber-500 rounded" />
+              <span className="font-semibold text-gray-600 dark:text-gray-300">EMA200</span>
+            </div>
+          </div>
+
+          {/* Dividend toggle */}
           <button
             onClick={() => setShowDividendMarkers((v) => !v)}
             className={`
-              flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition flex-shrink-0
+              flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition flex-shrink-0
               ${showDividendMarkers
-                ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700'
+                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 shadow-2xs'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700'
               }
             `}
@@ -513,61 +580,52 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
           >
             <Calendar className="h-3.5 w-3.5" />
             <span>Cổ tức</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${showDividendMarkers ? 'bg-amber-500' : 'bg-gray-400'}`} />
+            <span className={`w-2 h-2 rounded-full ${showDividendMarkers ? 'bg-amber-500' : 'bg-gray-400'}`} />
           </button>
         </div>
+      </div>
 
-        {/* EMA Legend + Crosshair */}
-        <div className="flex items-center space-x-4 px-4 py-1.5 flex-shrink-0 text-[11px] border-b border-gray-100 dark:border-gray-800/40">
-          <div className="flex items-center space-x-1.5">
-            <span className="inline-block w-4 h-[2px] bg-blue-500 rounded" />
-            <span className="text-gray-500 dark:text-gray-400">EMA20</span>
+      {/* Crosshair Bar (if active) */}
+      {crosshairData && (
+        <div className="flex items-center space-x-6 px-6 py-1 flex-shrink-0 text-xs bg-slate-100/80 dark:bg-gray-900/70 border-b border-gray-100 dark:border-gray-800/40 text-slate-700 dark:text-gray-200 tabular-nums font-mono">
+          <span>Mở (O): <strong className="font-bold text-slate-900 dark:text-white">{fmt(crosshairData.o)}</strong></span>
+          <span>Cao (H): <strong className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(crosshairData.h)}</strong></span>
+          <span>Thấp (L): <strong className="font-bold text-rose-600 dark:text-rose-400">{fmt(crosshairData.l)}</strong></span>
+          <span>Đóng (C): <strong className="font-bold text-slate-900 dark:text-white">{fmt(crosshairData.c)}</strong></span>
+          <span>Vol: <strong className="font-bold text-slate-800 dark:text-gray-200">{fmtVol(crosshairData.v)}</strong></span>
+        </div>
+      )}
+
+      {/* Main Chart Area */}
+      <div className="relative flex-1 min-h-0 w-full h-full">
+        {isLoadingChart && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-950/80 backdrop-blur-xs">
+            <RefreshCw className="h-9 w-9 text-indigo-500 animate-spin mb-3" />
+            <p className="text-sm font-bold text-gray-600 dark:text-gray-300">
+              Đang tải ~2.000 phiên lịch sử ({ticker})...
+            </p>
           </div>
-          <div className="flex items-center space-x-1.5">
-            <span className="inline-block w-4 h-[2px] bg-amber-500 rounded" />
-            <span className="text-gray-500 dark:text-gray-400">EMA200</span>
+        )}
+        {!isLoadingChart && allBars.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
+            <TrendingUp className="h-12 w-12 text-gray-300 dark:text-gray-700 mb-3" />
+            <p className="text-base font-bold text-gray-400">Không có dữ liệu giá cho {ticker}</p>
           </div>
-          {crosshairData && (
-            <div className="flex items-center space-x-3 ml-auto text-slate-700 dark:text-gray-200 tabular-nums font-mono text-[10px]">
-              <span>O <span className="font-bold">{fmt(crosshairData.o)}</span></span>
-              <span className="text-emerald-600">H <span className="font-bold">{fmt(crosshairData.h)}</span></span>
-              <span className="text-red-500">L <span className="font-bold">{fmt(crosshairData.l)}</span></span>
-              <span>C <span className="font-bold">{fmt(crosshairData.c)}</span></span>
-            </div>
-          )}
-        </div>
+        )}
+        <div ref={chartContainerRef} className="w-full h-full" />
+      </div>
 
-        {/* Chart */}
-        <div className="relative flex-1 min-h-0">
-          {isLoadingChart && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/90 dark:bg-gray-950/90">
-              <RefreshCw className="h-7 w-7 text-indigo-500 animate-spin mb-2" />
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                Đang tải ~2.000 phiên (~8 năm)...
-              </p>
-            </div>
-          )}
-          {!isLoadingChart && allBars.length === 0 && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
-              <TrendingUp className="h-10 w-10 text-gray-300 dark:text-gray-700 mb-3" />
-              <p className="text-sm font-semibold text-gray-400">Không có dữ liệu giá cho {ticker}</p>
-            </div>
-          )}
-          <div ref={chartContainerRef} className="w-full h-full" />
-        </div>
-
-        {/* Footer */}
-        <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800/60 flex items-center justify-between flex-shrink-0">
-          <span className="text-[10px] text-gray-400">
-            Nguồn: Vietcap Gap Chart · Đã điều chỉnh cổ tức &amp; chia tách
-          </span>
-          <span className="text-[10px] text-gray-400">
-            {allBars.length > 0
-              ? `${allBars[0].fullDate} – ${allBars[allBars.length - 1].fullDate} (${allBars.length} phiên)`
-              : ''}
-          </span>
-        </div>
-      </aside>
-    </>
+      {/* Footer */}
+      <div className="px-6 py-2 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 flex items-center justify-between flex-shrink-0 text-xs text-gray-500 dark:text-gray-400">
+        <span className="font-medium">
+          Nguồn dữ liệu: Vietcap Gap Chart · Giá điều chỉnh cổ tức &amp; chia tách
+        </span>
+        <span className="tabular-nums font-medium">
+          {allBars.length > 0
+            ? `${allBars[0].fullDate} → ${allBars[allBars.length - 1].fullDate} (${allBars.length} phiên giao dịch)`
+            : ''}
+        </span>
+      </div>
+    </div>
   );
 }

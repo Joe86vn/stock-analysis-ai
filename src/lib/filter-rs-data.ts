@@ -45,6 +45,9 @@ export interface StockRankingItem {
   
   // Thị trường, Định giá & Thanh khoản
   currentPrice: number;
+  refPrice?: number;
+  priceChangePercent?: number; // ROC% trong phiên (% so với giá tham chiếu)
+  priceChange?: number; // Thay đổi giá tuyệt đối (+/- VNĐ)
   adtv20Billion: number; // Giá trị giao dịch khớp lệnh bình quân 1 tháng (~20 phiên) (Tỷ VNĐ)
   marketCapBillion: number;
   foreignPercentage: number;
@@ -170,6 +173,11 @@ export async function calculateStockRankingItem(
     const netMargin = ltmRev > 0 ? Math.round((ltmProf / ltmRev) * 1000) / 10 : (latest.netMargin || 0);
 
     const price = matchedMeta ? matchedMeta.marketPrice : (details?.currentPrice || 0);
+    const refPrice = matchedMeta?.refPrice || 0;
+    const priceChangePercent = matchedMeta && typeof matchedMeta.dailyPriceChangePercent === 'number'
+      ? matchedMeta.dailyPriceChangePercent
+      : (refPrice > 0 ? Math.round(((price - refPrice) / refPrice) * 10000) / 100 : 0);
+    const priceChange = matchedMeta && refPrice > 0 ? (price - refPrice) : 0;
     const adtv = matchedMeta ? matchedMeta.adtv20Billion : (details?.adtv1MonthBillion || 0);
     const marketCapBillion = matchedMeta ? Math.round((matchedMeta.marketCap / 1_000_000_000) * 10) / 10 : (details?.marketCapBillion || 0);
     const companyName = matchedMeta?.companyNameVi || details?.companyNameVi || `Công ty Cổ phần ${cleanTicker}`;
@@ -184,6 +192,9 @@ export async function calculateStockRankingItem(
       icbCodeLv2: matchedMeta?.icbCodeLv2 || details?.icbCodeLv2,
       
       currentPrice: price,
+      refPrice,
+      priceChangePercent,
+      priceChange,
       adtv20Billion: adtv,
       marketCapBillion,
       foreignPercentage: details?.foreignPercentage || 0,

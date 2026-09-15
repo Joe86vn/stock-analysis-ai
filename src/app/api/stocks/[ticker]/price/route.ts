@@ -31,8 +31,17 @@ export async function GET(
             const item = masData[0];
             // 'c' là giá đóng cửa / khớp lệnh mới nhất (đơn vị VNĐ chuẩn, ví dụ 21700đ hoặc 48500đ)
             const price = item.c || item.odC || item.a || 0;
+            const change = typeof item.ch === 'number' ? item.ch : 0;
+            const changePercent = typeof item.r === 'number' ? Math.round(item.r * 10000) / 100 : 0;
+            const refPrice = item.c && item.ch !== undefined ? item.c - item.ch : 0;
             if (price > 0) {
-              return NextResponse.json({ price, source: 'MAS' });
+              return NextResponse.json({
+                price,
+                change,
+                changePercent,
+                refPrice,
+                source: 'MAS',
+              });
             }
           }
         }
@@ -63,8 +72,17 @@ export async function GET(
           if (json.status === 'ok' && json.data) {
             const lastPrice = json.data.lastPrice || json.data.refPrice || 0;
             const price = Math.round(lastPrice * 1000);
+            const ref = json.data.refPrice ? Math.round(json.data.refPrice * 1000) : 0;
+            const change = ref > 0 ? price - ref : 0;
+            const changePercent = ref > 0 ? Math.round(((price - ref) / ref) * 10000) / 100 : 0;
             if (price > 0) {
-              return NextResponse.json({ price, source: 'SSI' });
+              return NextResponse.json({
+                price,
+                change,
+                changePercent,
+                refPrice: ref,
+                source: 'SSI',
+              });
             }
           }
         }

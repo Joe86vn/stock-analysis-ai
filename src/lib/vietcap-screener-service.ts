@@ -20,6 +20,8 @@ export interface VietcapScreenerMatchedStock {
   ticker: string;
   exchange: string;
   marketPrice: number;
+  refPrice?: number;
+  dailyPriceChangePercent?: number; // ROC% trong phiên
   marketCap: number;
   adtv20Days: number; // Đơn vị VND
   adtv20Billion: number; // Đơn vị Tỷ VND
@@ -200,6 +202,10 @@ export async function executeVietcapScreener(
         ticker: (item.ticker || '').trim().toUpperCase(),
         exchange: ex,
         marketPrice: item.marketPrice || item.refPrice || 0,
+        refPrice: item.refPrice || 0,
+        dailyPriceChangePercent: typeof item.dailyPriceChangePercent === 'number'
+          ? Math.round(item.dailyPriceChangePercent * 100) / 100
+          : 0,
         marketCap: item.marketCap || 0,
         adtv20Days: adtvVnd,
         adtv20Billion: adtvBillion,

@@ -41,6 +41,7 @@ type SortField =
   | 'coreEpsGrowthYoY'
   | 'coreNetProfitGrowthYoY'
   | 'currentPrice'
+  | 'priceChangePercent'
   | 'adtv20Billion'
   | 'latestQuarter'
   | 'roe'
@@ -780,7 +781,7 @@ export default function RankingPage() {
                       className="py-3 px-3 font-semibold text-right cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400"
                     >
                       <div className="flex items-center justify-end space-x-1">
-                        <span>Giá Hiện Tại</span>
+                        <span>Giá (ROC%)</span>
                         {sortField === 'currentPrice' && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                       </div>
                     </th>
@@ -938,10 +939,38 @@ export default function RankingPage() {
                           </span>
                         </td>
 
-                        {/* Current Price */}
-                        <td className="py-3 px-3 text-right font-semibold text-slate-800 dark:text-gray-200">
+                        {/* Current Price & ROC% */}
+                        <td className="py-3 px-3 text-right">
                           {item.currentPrice > 0 ? (
-                            <span>{item.currentPrice.toLocaleString('vi-VN')} đ</span>
+                            <div className="flex flex-col items-end leading-tight">
+                              <span
+                                className={`font-bold tabular-nums text-sm ${
+                                  typeof item.priceChangePercent === 'number'
+                                    ? item.priceChangePercent > 0
+                                      ? 'text-emerald-600 dark:text-emerald-400'
+                                      : item.priceChangePercent < 0
+                                      ? 'text-rose-600 dark:text-rose-400'
+                                      : 'text-amber-500 dark:text-amber-400'
+                                    : 'text-slate-800 dark:text-gray-200'
+                                }`}
+                              >
+                                {item.currentPrice.toLocaleString('vi-VN')} đ
+                              </span>
+                              {typeof item.priceChangePercent === 'number' && (
+                                <span
+                                  className={`text-[11px] font-bold tabular-nums flex items-center justify-end mt-0.5 ${
+                                    item.priceChangePercent > 0
+                                      ? 'text-emerald-600 dark:text-emerald-400'
+                                      : item.priceChangePercent < 0
+                                      ? 'text-rose-600 dark:text-rose-400'
+                                      : 'text-amber-500 dark:text-amber-400'
+                                  }`}
+                                >
+                                  {item.priceChangePercent > 0 ? '▲ +' : item.priceChangePercent < 0 ? '▼ ' : '● '}
+                                  {item.priceChangePercent.toFixed(2)}%
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}
