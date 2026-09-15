@@ -71,7 +71,7 @@ export function calculateSwingHighLow(
 
     let peak = true;
     for (let k = 1; k <= win; k++) {
-      if (dataList[i - k].high >= curHigh || dataList[i + k].high >= curHigh) {
+      if (dataList[i - k].high > curHigh || dataList[i + k].high >= curHigh) {
         peak = false;
         break;
       }
@@ -80,7 +80,7 @@ export function calculateSwingHighLow(
 
     let trough = true;
     for (let k = 1; k <= win; k++) {
-      if (dataList[i - k].low <= curLow || dataList[i + k].low <= curLow) {
+      if (dataList[i - k].low < curLow || dataList[i + k].low <= curLow) {
         trough = false;
         break;
       }
