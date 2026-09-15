@@ -1195,6 +1195,12 @@ export default function RankingPage() {
         <StockChartPanel
           ticker={selectedChartTicker}
           stockData={selectedChartStock}
+          allStocks={activeRankings}
+          onSelectTicker={(newTicker) => {
+            const match = activeRankings.find((r) => r.ticker === newTicker);
+            setSelectedChartTicker(newTicker);
+            setSelectedChartStock(match || null);
+          }}
           onClose={handleCloseChart}
         />
       )}

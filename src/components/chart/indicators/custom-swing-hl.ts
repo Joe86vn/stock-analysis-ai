@@ -204,60 +204,20 @@ export function registerSwingHighLowIndicator(): void {
           const priceStr = Math.round(item.price).toLocaleString('en-US');
 
           ctx.save();
-          ctx.font = 'bold 10px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-          const textWidth = ctx.measureText(priceStr).width;
-          const badgePadding = 5;
-          const badgeWidth = textWidth + badgePadding * 2;
-          const badgeHeight = 18;
+          ctx.font = 'bold 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
           if (item.confirmedType === 'PEAK') {
-            // ĐỈNH: Badge nằm phía trên đỉnh nến
-            const badgeY = y - 23;
-            const badgeX = x - badgeWidth / 2;
-
-            // Mũi tên chỉ xuống đỉnh
-            ctx.beginPath();
+            // ĐỈNH: Giá cao nhất dạng chữ màu đỏ đơn giản ngay trên đỉnh nến
             ctx.fillStyle = '#ef4444'; // Red-500
-            ctx.moveTo(x, y - 2);
-            ctx.lineTo(x - 4, badgeY + badgeHeight);
-            ctx.lineTo(x + 4, badgeY + badgeHeight);
-            ctx.closePath();
-            ctx.fill();
-
-            // Khung badge
-            ctx.fillStyle = '#ef4444';
-            drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 3);
-            ctx.fill();
-
-            // Text giá
-            ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(priceStr, x, badgeY + badgeHeight / 2);
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(priceStr, x, y - 4);
           } else if (item.confirmedType === 'TROUGH') {
-            // ĐÁY: Badge nằm phía dưới chân nến
-            const badgeY = y + 12;
-            const badgeX = x - badgeWidth / 2;
-
-            // Mũi tên chỉ lên đáy
-            ctx.beginPath();
+            // ĐÁY: Giá thấp nhất dạng chữ màu xanh lá đơn giản ngay dưới nến
             ctx.fillStyle = '#10b981'; // Emerald-500
-            ctx.moveTo(x, y + 2);
-            ctx.lineTo(x - 4, badgeY);
-            ctx.lineTo(x + 4, badgeY);
-            ctx.closePath();
-            ctx.fill();
-
-            // Khung badge
-            ctx.fillStyle = '#10b981';
-            drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 3);
-            ctx.fill();
-
-            // Text giá
-            ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(priceStr, x, badgeY + badgeHeight / 2);
+            ctx.textBaseline = 'top';
+            ctx.fillText(priceStr, x, y + 4);
           }
 
           ctx.restore();

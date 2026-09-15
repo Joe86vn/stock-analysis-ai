@@ -25,6 +25,8 @@ interface StockChartPanelProps {
   ticker: string | null;
   stockData: StockRankingItem | null;
   onClose: () => void;
+  onSelectTicker?: (ticker: string) => void;
+  allStocks?: StockRankingItem[];
 }
 
 export type Resolution = 'D' | 'W' | 'M';
@@ -90,8 +92,8 @@ function getKLineTheme(isDark: boolean): any {
         showRule: 'none' as const,
       },
       priceMark: {
-        high: { color: isDark ? '#9ca3af' : '#64748b' },
-        low: { color: isDark ? '#9ca3af' : '#64748b' },
+        high: { show: false },
+        low: { show: false },
         last: {
           show: true,
           upColor: '#22c55e',
@@ -185,7 +187,7 @@ function getKLineTheme(isDark: boolean): any {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelProps) {
+export function StockChartPanel({ ticker, stockData, onClose, onSelectTicker, allStocks }: StockChartPanelProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -206,6 +208,10 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   } | null>(null);
   const [showDividendMarkers, setShowDividendMarkers] = useState(true);
   const [dividendEvents, setDividendEvents] = useState<any[]>([]);
+
+  // Ticker search switcher state
+  const [showTickerSearch, setShowTickerSearch] = useState(false);
+  const [tickerSearchInput, setTickerSearchInput] = useState('');
 
   // ─── Drawing Tools State ──────────────────────────────────────────────────
   const [activeTool, setActiveTool] = useState<DrawingToolType>('cursor');
@@ -385,7 +391,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
 
       // Tạo các chỉ báo theo activeIndicators & indicatorParams
       if (activeIndicators.vol) {
-        subPanesRef.current.vol = chart.createIndicator('VOL', false, { height: 85, dragEnabled: true }) ?? undefined;
+            subPanesRef.current.vol = chart.createIndicator({ name: 'VOL', calcParams: [20] }, false, { height: 85, dragEnabled: true }) ?? undefined;
       }
       if (activeIndicators.ema) {
         chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, false, { id: 'candle_pane' });
@@ -508,7 +514,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
           else chart.removeIndicator('candle_pane', 'BOLL');
         } else if (key === 'vol') {
           if (nextVal) {
-            subPanesRef.current.vol = chart.createIndicator('VOL', false, { height: 85, dragEnabled: true }) ?? undefined;
+                subPanesRef.current.vol = chart.createIndicator({ name: 'VOL', calcParams: [20] }, false, { height: 85, dragEnabled: true }) ?? undefined;
           } else if (subPanesRef.current.vol) {
             chart.removeIndicator(subPanesRef.current.vol);
             delete subPanesRef.current.vol;
@@ -682,18 +688,81 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       aria-label={`Đồ thị toàn màn hình ${ticker}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/70 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/70 flex-shrink-0">
         <div className="flex items-center space-x-3 min-w-0">
-          <span className="text-2xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
-            {ticker}
-          </span>
+          {/* Ticker Switcher */}
+          <div className="relative">
+            <button
+              onClick={() => setShowTickerSearch((v) => !v)}
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-gray-200/80 dark:bg-gray-800 hover:bg-gray-300/80 dark:hover:bg-gray-700 transition cursor-pointer group"
+              title="Bấm để chuyển sang mã cổ phiếu khác"
+            >
+              <span className="text-xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
+                {ticker}
+              </span>
+              <ChevronDown className="h-4 w-4 text-gray-500 group-hover:text-slate-900 dark:group-hover:text-white transition" />
+            </button>
+
+            {showTickerSearch && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowTickerSearch(false)} />
+                <div className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-3 select-none">
+                  <div className="relative mb-2">
+                    <input
+                      type="text"
+                      placeholder="Gõ mã cổ phiếu (VD: SSI, HPG)..."
+                      value={tickerSearchInput}
+                      onChange={(e) => setTickerSearchInput(e.target.value.toUpperCase())}
+                      autoFocus
+                      className="w-full px-3 py-1.5 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 uppercase font-mono font-bold"
+                    />
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1">
+                    {allStocks && allStocks.length > 0 ? (
+                      allStocks
+                        .filter(
+                          (s) =>
+                            s.ticker.includes(tickerSearchInput) ||
+                            s.companyName.toLowerCase().includes(tickerSearchInput.toLowerCase())
+                        )
+                        .slice(0, 10)
+                        .map((s) => (
+                          <button
+                            key={s.ticker}
+                            onClick={() => {
+                              if (onSelectTicker) onSelectTicker(s.ticker);
+                              setShowTickerSearch(false);
+                              setTickerSearchInput('');
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition ${
+                              s.ticker === ticker ? 'bg-indigo-50/80 dark:bg-indigo-950/80 font-bold' : ''
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2 truncate">
+                              <span className="font-black text-slate-900 dark:text-white font-mono">{s.ticker}</span>
+                              <span className="text-[10px] text-gray-400 truncate max-w-[120px]">{s.companyName}</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">RS {s.rsRating}</span>
+                          </button>
+                        ))
+                    ) : (
+                      <div className="text-center py-3 text-xs text-gray-400">
+                        Nhập mã để chuyển nhanh
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
             {stockData.exchange}
           </span>
           <span className={`text-xs font-black px-2.5 py-0.5 rounded-full border ${gradeColor(stockData.rankGrade)}`}>
             Hạng {stockData.rankGrade}
           </span>
-          <span className="text-sm font-semibold text-slate-700 dark:text-gray-300 truncate max-w-[360px] hidden md:inline">
+          <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 truncate max-w-[320px] hidden md:inline">
             {stockData.companyName}
           </span>
           <span className="text-xs text-gray-400 dark:text-gray-500 hidden lg:inline">
@@ -716,25 +785,56 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
         </div>
       </div>
 
-      {/* Price & KPI Scorecard Bar */}
-      <div className="px-6 py-2.5 border-b border-gray-100 dark:border-gray-800/80 bg-white dark:bg-gray-950 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
-        {/* Price & ROC */}
-        <div className="flex items-baseline space-x-3">
-          <span className={`text-3xl font-black tabular-nums tracking-tight ${priceColor}`}>
-            {fmt(displayPrice)} <span className="text-base font-bold">đ</span>
-          </span>
-          {priceChange !== null && (
-            <span className={`inline-flex items-center space-x-1 text-sm font-bold tabular-nums px-2.5 py-1 rounded-lg border ${priceBadgeBg}`}>
-              <span>{priceChange.abs > 0 ? '▲ +' : priceChange.abs < 0 ? '▼ ' : '● '}</span>
-              <span>{fmt(Math.abs(priceChange.abs))}đ</span>
-              <span>({priceChange.pct > 0 ? '+' : ''}{priceChange.pct.toFixed(2)}%)</span>
+      {/* Row 2: Price & ROC Pill + Cycle Pill + Key Metrics */}
+      <div className="px-6 py-2 border-b border-gray-100 dark:border-gray-800/80 bg-white dark:bg-gray-950 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Combined Price + ROC Pill */}
+          <div className="flex items-center space-x-2 px-3 py-1 rounded-xl bg-gray-100/90 dark:bg-gray-800/90 border border-gray-300/70 dark:border-gray-700/70 text-xs">
+            <span className={`font-bold tabular-nums ${priceColor}`}>
+              {fmt(displayPrice)} đ
             </span>
-          )}
-          <span className="text-xs text-gray-400 font-medium ml-1">⏱ Cập nhật 15s</span>
+            {priceChange !== null && (
+              <span className={`font-bold tabular-nums flex items-center space-x-1 ${priceColor}`}>
+                <span className="text-gray-400 dark:text-gray-600 font-normal">|</span>
+                <span>{priceChange.abs > 0 ? '▲ +' : priceChange.abs < 0 ? '▼ ' : '● '}</span>
+                <span>{fmt(Math.abs(priceChange.abs))}đ</span>
+                <span>({priceChange.pct > 0 ? '+' : ''}{priceChange.pct.toFixed(2)}%)</span>
+              </span>
+            )}
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium border-l border-gray-300 dark:border-gray-700 pl-2">
+              ⏱ 15s
+            </span>
+          </div>
+
+          {/* Cycle (Resolution) Pill */}
+          <div className="flex items-center bg-gray-200/90 dark:bg-gray-800/90 p-1 rounded-xl border border-gray-300/70 dark:border-gray-700/70 shadow-2xs">
+            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 px-2 select-none">
+              Chu kỳ:
+            </span>
+            {(['D', 'W', 'M'] as Resolution[]).map((res) => {
+              const label = res === 'D' ? 'Ngày (D)' : res === 'W' ? 'Tuần (W)' : 'Tháng (M)';
+              const active = resolution === res;
+              return (
+                <button
+                  key={res}
+                  onClick={() => handleSelectResolution(res)}
+                  className={`
+                    px-2.5 py-0.5 rounded-lg text-xs font-bold transition-all cursor-pointer
+                    ${active
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-700/60'
+                    }
+                  `}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Key Metrics */}
-        <div className="flex items-center gap-x-6 gap-y-1 flex-wrap text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-xs text-gray-500 dark:text-gray-400">
           <div>
             <span className="text-gray-400">RS (1T): </span>
             <span className="font-bold text-indigo-600 dark:text-indigo-400">{stockData.rsRating}</span>
@@ -768,76 +868,44 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
         </div>
       </div>
 
-      {/* Toolbar Bar */}
-      <div className="flex items-center justify-between px-6 py-2 border-b border-gray-100 dark:border-gray-800/60 bg-gray-50/40 dark:bg-gray-900/30 flex-shrink-0 gap-4 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Chế độ biểu đồ (Chu kỳ nến: Ngày / Tuần / Tháng) */}
-          <div className="flex items-center bg-gray-200/90 dark:bg-gray-800/90 p-1 rounded-xl border border-gray-300/70 dark:border-gray-700/70 shadow-2xs">
-            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 px-2 select-none">
-              Chu kỳ:
-            </span>
-            {(['D', 'W', 'M'] as Resolution[]).map((res) => {
-              const label = res === 'D' ? 'Ngày (D)' : res === 'W' ? 'Tuần (W)' : 'Tháng (M)';
-              const active = resolution === res;
-              return (
-                <button
-                  key={res}
-                  onClick={() => handleSelectResolution(res)}
-                  className={`
-                    px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer
-                    ${active
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-700/60'
-                    }
-                  `}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+      {/* Row 3: Combined Toolbar (OHLC left + fx & Dividend right) */}
+      <div className="flex items-center justify-between px-6 py-1.5 border-b border-gray-100 dark:border-gray-800/60 bg-gray-50/60 dark:bg-gray-900/40 flex-shrink-0 gap-4 flex-wrap min-h-[36px]">
+        {/* Left: OHLC Bar */}
+        <div className="flex items-center space-x-3 sm:space-x-4 text-xs tabular-nums font-mono overflow-x-auto text-slate-700 dark:text-gray-200">
+          {activeOhlc ? (
+            <>
+              <span className="text-gray-500 dark:text-gray-400 font-sans font-medium text-[11px] flex items-center gap-1.5">
+                {crosshairData ? (
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-semibold">
+                    {formatDateStr(activeOhlc.date) || 'Đang chọn'}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-md bg-gray-200/90 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold">
+                    Phiên {activeOhlc.date ? `${formatDateStr(activeOhlc.date)}` : 'gần nhất'}
+                  </span>
+                )}
+              </span>
+              <span>O: <strong className="font-bold text-slate-900 dark:text-white">{fmt(activeOhlc.o)}</strong></span>
+              <span>H: <strong className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(activeOhlc.h)}</strong></span>
+              <span>L: <strong className="font-bold text-rose-600 dark:text-rose-400">{fmt(activeOhlc.l)}</strong></span>
+              <span>C: <strong className={`font-bold ${closeColor}`}>{fmt(activeOhlc.c)}</strong></span>
+              <span className="hidden sm:inline">
+                Diff: <strong className={`font-bold ${closeColor}`}>
+                  {candleDiff > 0 ? '+' : ''}{fmt(candleDiff)} ({candleDiff > 0 ? '+' : ''}{candleDiffPct.toFixed(2)}%)
+                </strong>
+              </span>
+              <span>Vol: <strong className="font-bold text-slate-800 dark:text-gray-200">{fmtVol(activeOhlc.v)}</strong></span>
+            </>
+          ) : (
+            <div className="flex items-center space-x-2 text-gray-400 font-sans text-xs">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              <span>Đang tải thông số giá OHLC...</span>
+            </div>
+          )}
         </div>
 
-        {/* Indicators & Event toggles */}
-        <div className="flex items-center space-x-4 ml-auto">
-          {/* Dynamic Legends */}
-          <div className="flex items-center space-x-3 text-xs flex-wrap gap-y-1">
-            {activeIndicators.ema && (
-              <>
-                <div className="flex items-center space-x-1.5">
-                  <span className="inline-block w-4 h-[3px] bg-blue-500 rounded" />
-                  <span className="font-semibold text-gray-600 dark:text-gray-300">
-                    EMA{indicatorParams.emaShort}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-1.5">
-                  <span className="inline-block w-4 h-[3px] bg-amber-500 rounded" />
-                  <span className="font-semibold text-gray-600 dark:text-gray-300">
-                    EMA{indicatorParams.emaLong}
-                  </span>
-                </div>
-              </>
-            )}
-
-            {activeIndicators.swingHl && (
-              <div className="flex items-center space-x-1.5">
-                <span className="inline-block w-3.5 h-[2px] border-b-2 border-dashed border-amber-500" />
-                <span className="font-semibold text-amber-600 dark:text-amber-400">
-                  Đỉnh Đáy ({indicatorParams.swingHlWindow}-{indicatorParams.swingHlWindow})
-                </span>
-              </div>
-            )}
-
-            {activeIndicators.boll && (
-              <div className="flex items-center space-x-1.5">
-                <span className="inline-block w-4 h-[3px] bg-purple-500 rounded" />
-                <span className="font-semibold text-purple-600 dark:text-purple-400">
-                  BOLL ({indicatorParams.bollPeriod}, {indicatorParams.bollStdDev})
-                </span>
-              </div>
-            )}
-          </div>
-
+        {/* Right: Indicators & Event toggles */}
+        <div className="flex items-center space-x-3 ml-auto">
           {/* Indicators Dropdown Button */}
           <div className="relative">
             <button
@@ -1127,40 +1195,6 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
             <span className={`w-2 h-2 rounded-full ${showDividendMarkers ? 'bg-amber-500' : 'bg-gray-400'}`} />
           </button>
         </div>
-      </div>
-
-      {/* OHLC Bar - Luôn luôn hiển thị */}
-      <div className="flex items-center space-x-4 sm:space-x-6 px-6 py-1.5 flex-shrink-0 text-xs bg-slate-100/80 dark:bg-gray-900/70 border-b border-gray-100 dark:border-gray-800/40 text-slate-700 dark:text-gray-200 tabular-nums font-mono overflow-x-auto min-h-[34px]">
-        {activeOhlc ? (
-          <>
-            <span className="text-gray-500 dark:text-gray-400 font-sans font-medium text-[11px] flex items-center gap-1.5">
-              {crosshairData ? (
-                <span className="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-semibold">
-                  {formatDateStr(activeOhlc.date) || 'Đang chọn'}
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 rounded-md bg-gray-200/90 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold">
-                  Phiên gần nhất {activeOhlc.date ? `(${formatDateStr(activeOhlc.date)})` : ''}
-                </span>
-              )}
-            </span>
-            <span>Mở (O): <strong className="font-bold text-slate-900 dark:text-white">{fmt(activeOhlc.o)}</strong></span>
-            <span>Cao (H): <strong className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(activeOhlc.h)}</strong></span>
-            <span>Thấp (L): <strong className="font-bold text-rose-600 dark:text-rose-400">{fmt(activeOhlc.l)}</strong></span>
-            <span>Đóng (C): <strong className={`font-bold ${closeColor}`}>{fmt(activeOhlc.c)}</strong></span>
-            <span className="hidden md:inline">
-              Biên độ: <strong className={`font-bold ${closeColor}`}>
-                {candleDiff > 0 ? '+' : ''}{fmt(candleDiff)} ({candleDiff > 0 ? '+' : ''}{candleDiffPct.toFixed(2)}%)
-              </strong>
-            </span>
-            <span>Vol: <strong className="font-bold text-slate-800 dark:text-gray-200">{fmtVol(activeOhlc.v)}</strong></span>
-          </>
-        ) : (
-          <div className="flex items-center space-x-2 text-gray-400 font-sans text-xs">
-            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-            <span>Đang tải thông số giá OHLC...</span>
-          </div>
-        )}
       </div>
 
       {/* Main Chart Area */}
