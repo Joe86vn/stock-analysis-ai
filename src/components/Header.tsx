@@ -4,7 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Sun, Moon, BarChart3, Trophy, Sparkles } from 'lucide-react';
+import { FileText, Sun, Moon, BarChart3, Trophy, Sparkles, CandlestickChart } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 
 export function Header() {
@@ -13,6 +13,7 @@ export function Header() {
 
   const isAnalysisActive = pathname === '/' || pathname === '';
   const isRankingActive = pathname === '/ranking';
+  const isChartActive = pathname === '/chart' || pathname?.startsWith('/chart');
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200/80 dark:border-gray-800/80 bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md transition-colors duration-200 print:hidden shadow-xs">
@@ -66,6 +67,18 @@ export function Header() {
               <Trophy className="h-3.5 w-3.5 text-amber-500" />
               <span>Bộ Lọc & Xếp Hạng RS</span>
             </Link>
+
+            <Link
+              href="/chart"
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                isChartActive
+                  ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
+              }`}
+            >
+              <CandlestickChart className="h-3.5 w-3.5 text-indigo-500" />
+              <span>Biểu Đồ Kỹ Thuật</span>
+            </Link>
           </nav>
         </div>
 
@@ -93,6 +106,17 @@ export function Header() {
               title="Bảng xếp hạng"
             >
               <Trophy className="h-4 w-4 text-amber-500" />
+            </Link>
+            <Link
+              href="/chart"
+              className={`p-2 rounded-lg text-xs font-semibold ${
+                isChartActive
+                  ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+              title="Biểu đồ kỹ thuật"
+            >
+              <CandlestickChart className="h-4 w-4 text-indigo-500" />
             </Link>
           </div>
 

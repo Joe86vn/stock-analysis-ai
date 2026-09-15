@@ -2,7 +2,20 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Chart, KLineData } from 'klinecharts';
-import { X, RefreshCw, Calendar, TrendingUp, Activity, Check, ChevronDown } from 'lucide-react';
+import {
+  X,
+  RefreshCw,
+  Calendar,
+  TrendingUp,
+  Activity,
+  Check,
+  ChevronDown,
+  Maximize2,
+  Minimize2,
+  ExternalLink,
+  Trophy,
+} from 'lucide-react';
+import Link from 'next/link';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { useTheme } from '@/components/ThemeProvider';
 import { DrawingToolType } from './chart/drawing-types';
@@ -21,12 +34,13 @@ interface OhlcBar {
   volume: number;
 }
 
-interface StockChartPanelProps {
+export interface StockChartPanelProps {
   ticker: string | null;
-  stockData: StockRankingItem | null;
-  onClose: () => void;
+  stockData?: StockRankingItem | null;
+  onClose?: () => void;
   onSelectTicker?: (ticker: string) => void;
   allStocks?: StockRankingItem[];
+  isStandalone?: boolean;
 }
 
 export type Resolution = 'D' | 'W' | 'M';
@@ -187,7 +201,14 @@ function getKLineTheme(isDark: boolean): any {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function StockChartPanel({ ticker, stockData, onClose, onSelectTicker, allStocks }: StockChartPanelProps) {
+export function StockChartPanel({
+  ticker,
+  stockData,
+  onClose,
+  onSelectTicker,
+  allStocks,
+  isStandalone,
+}: StockChartPanelProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -195,6 +216,93 @@ export function StockChartPanel({ ticker, stockData, onClose, onSelectTicker, al
   const chartRef = useRef<Chart | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const priceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const [internalStockData, setInternalStockData] = useState<StockRankingItem | null>(stockData || null);
+
+  useEffect(() => {
+    if (stockData) {
+      setInternalStockData(stockData);
+    }
+  }, [stockData]);
+
+  // When ticker changes and current internalStockData doesn't match ticker:
+  useEffect(() => {
+    if (!ticker) return;
+    if (internalStockData?.ticker === ticker) return;
+
+    if (allStocks && allStocks.length > 0) {
+      const match = allStocks.find((s) => s.ticker === ticker);
+      if (match) {
+        setInternalStockData(match);
+        return;
+      }
+    }
+
+    fetch(`/api/ranking?ticker=${ticker}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.item) {
+          setInternalStockData(data.item);
+        }
+      })
+      .catch(() => {});
+  }, [ticker, allStocks, internalStockData]);
+
+  const effectiveStockData: StockRankingItem = internalStockData || stockData || {
+    ticker: ticker || 'FPT',
+    companyName: ticker || 'Cổ phiếu',
+    exchange: 'HOSE',
+    industry: 'Cổ phiếu niêm yết',
+    currentPrice: 0,
+    rsRating: 80,
+    totalScore: 100,
+    maxScore: 150,
+    totalPercentage: 67,
+    rankGrade: 'B',
+    rankTitle: 'Khá',
+    financialHealthScore: 35,
+    growthQualityScore: 40,
+    businessQualityScore: 25,
+    financialHealthGrade: 'Tốt',
+    growthQualityGrade: 'Tốt',
+    businessQualityGrade: 'Khá',
+    adtv20Billion: 10,
+    marketCapBillion: 1000,
+    foreignPercentage: 0,
+    freeFloatPercentage: 0,
+    coreEpsGrowthYoY: 0,
+    coreNetProfitGrowthYoY: 0,
+    headlineNetProfitGrowthYoY: 0,
+    q0RevenueGrowthYoY: 0,
+    roic: 15,
+    roe: 18,
+    grossMargin: 20,
+    netMargin: 10,
+    netDebtToEbitda: 1.0,
+    cfoBillion: 500,
+    latestQuarter: 'Q2/2026',
+    updatedAt: new Date().toISOString(),
+  };
 
   const [allBars, setAllBars] = useState<OhlcBar[]>([]);
   const [isLoadingChart, setIsLoadingChart] = useState(false);
@@ -602,14 +710,14 @@ export function StockChartPanel({ ticker, stockData, onClose, onSelectTicker, al
       if (e.key === 'Escape' && isOpen) {
         if (activeTool !== 'cursor') {
           setActiveTool('cursor');
-        } else {
+        } else if (!isStandalone && onClose) {
           onClose();
         }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose, activeTool]);
+  }, [isOpen, onClose, activeTool, isStandalone]);
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -650,9 +758,9 @@ export function StockChartPanel({ ticker, stockData, onClose, onSelectTicker, al
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
-  if (!isOpen || !stockData) return null;
+  if (!isOpen) return null;
 
-  const displayPrice = livePrice ?? stockData.currentPrice;
+  const displayPrice = livePrice ?? (effectiveStockData.currentPrice || 0);
 
   const latestBar = allBars.length > 0 ? allBars[allBars.length - 1] : null;
   const activeOhlc = crosshairData ?? (latestBar ? {
@@ -676,16 +784,14 @@ export function StockChartPanel({ ticker, stockData, onClose, onSelectTicker, al
 
   return (
     <div
-      className="
-        fixed inset-0 z-50
-        w-screen h-screen
-        flex flex-col
-        bg-white dark:bg-gray-950
-        overflow-hidden
-      "
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Đồ thị toàn màn hình ${ticker}`}
+      className={
+        isStandalone
+          ? "w-full flex-1 flex flex-col bg-white dark:bg-gray-950 overflow-hidden relative"
+          : "fixed inset-0 z-50 w-screen h-screen flex flex-col bg-white dark:bg-gray-950 overflow-hidden"
+      }
+      role={isStandalone ? "region" : "dialog"}
+      aria-modal={isStandalone ? undefined : "true"}
+      aria-label={`Biểu đồ kỹ thuật ${ticker}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/70 flex-shrink-0">
@@ -757,31 +863,64 @@ export function StockChartPanel({ ticker, stockData, onClose, onSelectTicker, al
           </div>
 
           <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-            {stockData.exchange}
+            {effectiveStockData.exchange}
           </span>
-          <span className={`text-xs font-black px-2.5 py-0.5 rounded-full border ${gradeColor(stockData.rankGrade)}`}>
-            Hạng {stockData.rankGrade}
+          <span className={`text-xs font-black px-2.5 py-0.5 rounded-full border ${gradeColor(effectiveStockData.rankGrade)}`}>
+            Hạng {effectiveStockData.rankGrade}
           </span>
           <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 truncate max-w-[320px] hidden md:inline">
-            {stockData.companyName}
+            {effectiveStockData.companyName}
           </span>
           <span className="text-xs text-gray-400 dark:text-gray-500 hidden lg:inline">
-            • {stockData.industry}
+            • {effectiveStockData.industry}
           </span>
         </div>
 
-        <div className="flex items-center space-x-3 flex-shrink-0">
-          <span className="text-xs text-gray-400 hidden sm:inline">
-            Nhấn <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">ESC</kbd> để đóng
-          </span>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition flex-shrink-0"
-            aria-label="Đóng toàn màn hình"
-            title="Đóng (ESC)"
-          >
-            <X className="h-6 w-6" />
-          </button>
+        <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+          {!isStandalone ? (
+            <>
+              <Link
+                href={`/chart?ticker=${ticker}`}
+                className="px-2.5 py-1 rounded-xl text-xs font-medium text-slate-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition flex items-center space-x-1.5 border border-gray-200 dark:border-gray-700/80 shadow-2xs"
+                title="Mở biểu đồ trong tab riêng"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Mở tab riêng</span>
+              </Link>
+              <span className="text-xs text-gray-400 hidden sm:inline">
+                Nhấn <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">ESC</kbd> để đóng
+              </span>
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition flex-shrink-0 cursor-pointer"
+                  aria-label="Đóng toàn màn hình"
+                  title="Đóng (ESC)"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <Link
+                href="/ranking"
+                className="px-2.5 py-1 rounded-xl text-xs font-medium text-slate-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition flex items-center space-x-1.5 border border-gray-200 dark:border-gray-700/80 shadow-2xs"
+                title="Xem bộ lọc & xếp hạng RS"
+              >
+                <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                <span className="hidden sm:inline">Bộ Lọc RS</span>
+              </Link>
+              <button
+                onClick={toggleFullScreen}
+                className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition flex-shrink-0 cursor-pointer"
+                aria-label="Chế độ toàn màn hình"
+                title={isFullscreen ? 'Thu nhỏ (ESC)' : 'Toàn màn hình'}
+              >
+                {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -837,26 +976,26 @@ export function StockChartPanel({ ticker, stockData, onClose, onSelectTicker, al
         <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-xs text-gray-500 dark:text-gray-400">
           <div>
             <span className="text-gray-400">RS (1T): </span>
-            <span className="font-bold text-indigo-600 dark:text-indigo-400">{stockData.rsRating}</span>
+            <span className="font-bold text-indigo-600 dark:text-indigo-400">{effectiveStockData.rsRating}</span>
           </div>
           <div>
             <span className="text-gray-400">Điểm ValueX: </span>
-            <span className="font-bold text-slate-800 dark:text-gray-200">{stockData.totalScore}/150đ</span>
+            <span className="font-bold text-slate-800 dark:text-gray-200">{effectiveStockData.totalScore}/150đ</span>
           </div>
           <div>
             <span className="text-gray-400">GTGD 20N: </span>
-            <span className="font-bold text-slate-800 dark:text-gray-200">{stockData.adtv20Billion.toFixed(1)} Tỷ</span>
+            <span className="font-bold text-slate-800 dark:text-gray-200">{effectiveStockData.adtv20Billion.toFixed(1)} Tỷ</span>
           </div>
           <div>
             <span className="text-gray-400">EPS Core YoY: </span>
             <span className="font-bold text-slate-800 dark:text-gray-200">
-              {stockData.coreEpsGrowthYoY > 0 ? `+${stockData.coreEpsGrowthYoY}%` : `${stockData.coreEpsGrowthYoY}%`}
+              {effectiveStockData.coreEpsGrowthYoY > 0 ? `+${effectiveStockData.coreEpsGrowthYoY}%` : `${effectiveStockData.coreEpsGrowthYoY}%`}
             </span>
           </div>
           <div>
             <span className="text-gray-400">LNST Core YoY: </span>
             <span className="font-bold text-slate-800 dark:text-gray-200">
-              {stockData.coreNetProfitGrowthYoY > 0 ? `+${stockData.coreNetProfitGrowthYoY}%` : `${stockData.coreNetProfitGrowthYoY}%`}
+              {effectiveStockData.coreNetProfitGrowthYoY > 0 ? `+${effectiveStockData.coreNetProfitGrowthYoY}%` : `${effectiveStockData.coreNetProfitGrowthYoY}%`}
             </span>
           </div>
           {liveVolume !== null && (
