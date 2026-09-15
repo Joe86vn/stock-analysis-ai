@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchVietcapGapChart, fetchVietcapPriceHistory } from '@/lib/vietcap-field-mapping';
+import { fetchVietcapGapChart, fetchVietcapPriceHistory, fetchVietcapEvents } from '@/lib/vietcap-field-mapping';
 
 export async function GET(
   request: NextRequest,
@@ -12,10 +12,45 @@ export async function GET(
     return NextResponse.json({ error: 'Ticker is required' }, { status: 400 });
   }
 
+  // Hỗ trợ countBack query param (mặc định 260, tối đa 2000)
+  const rawCountBack = request.nextUrl.searchParams.get('countBack');
+  const countBack = rawCountBack
+    ? Math.min(Math.max(1, parseInt(rawCountBack, 10)), 2000)
+    : 260;
+
   try {
-    // 1. Ưu tiên lấy dữ liệu nến Nhật ĐÃ ĐIỀU CHỈNH CỔ TỨC (Adjusted OHLC) từ Vietcap Gap Chart API
-    // 260 phiên giao dịch ~ 12 tháng tròn
-    const gapBars = await fetchVietcapGapChart(cleanTicker, { countBack: 260 });
+    // 1. Lấy song song dữ liệu nến Nhật và sự kiện doanh nghiệp (cổ tức / chia tách)
+    const [gapBars, rawEvents] = await Promise.all([
+      fetchVietcapGapChart(cleanTicker, { countBack }),
+      fetchVietcapEvents(cleanTicker, { fromDate: '20160101', toDate: '20261231' }).catch(() => []),
+    ]);
+
+    const events = (rawEvents || [])
+      .filter((ev) => ev.eventCode === 'DIV' || ev.eventCode === 'ISS')
+      .map((ev) => {
+        let dateStr = ev.exrightDate || ev.recordDate || ev.publicDate || '';
+        if (dateStr.length === 8 && !dateStr.includes('-')) {
+          dateStr = `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+        }
+        let desc = 'Cổ tức';
+        if (ev.eventCode === 'DIV') {
+          if (ev.valuePerShare && ev.valuePerShare > 0) {
+            desc = `Cổ tức tiền: ${ev.valuePerShare.toLocaleString('vi-VN')}đ`;
+          } else if (ev.exerciseRatio && ev.exerciseRatio > 0) {
+            desc = `Cổ tức CP: ${(ev.exerciseRatio * 100).toFixed(0)}%`;
+          }
+        } else if (ev.eventCode === 'ISS') {
+          desc = `Phát hành${ev.exerciseRatio ? ` ${(ev.exerciseRatio * 100).toFixed(0)}%` : ''}`;
+        }
+        return {
+          date: dateStr,
+          eventCode: ev.eventCode,
+          title: desc,
+          valuePerShare: ev.valuePerShare,
+          exerciseRatio: ev.exerciseRatio,
+        };
+      })
+      .filter((ev) => ev.date.length === 10);
 
     if (gapBars && gapBars.length > 0) {
       const history = gapBars.map((bar) => {
@@ -42,6 +77,7 @@ export async function GET(
         source: 'vietcap-gap-chart',
         count: history.length,
         history,
+        events,
       });
     }
 

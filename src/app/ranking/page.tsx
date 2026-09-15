@@ -26,8 +26,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  BarChart2
 } from 'lucide-react';
+import { StockChartPanel } from '@/components/StockChartPanel';
+
 
 type SortField =
   | 'totalScore'
@@ -80,6 +83,20 @@ export default function RankingPage() {
 
   const [sortField, setSortField] = useState<SortField>('totalScore');
   const [sortAsc, setSortAsc] = useState(false);
+
+  // Chart panel state
+  const [selectedChartTicker, setSelectedChartTicker] = useState<string | null>(null);
+  const [selectedChartStock, setSelectedChartStock] = useState<StockRankingItem | null>(null);
+
+  const handleOpenChart = (item: StockRankingItem) => {
+    setSelectedChartTicker(item.ticker);
+    setSelectedChartStock(item);
+  };
+
+  const handleCloseChart = () => {
+    setSelectedChartTicker(null);
+    setSelectedChartStock(null);
+  };
 
   // Phân trang
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -861,7 +878,8 @@ export default function RankingPage() {
                     return (
                       <tr
                         key={item.ticker}
-                        className="hover:bg-emerald-50/40 dark:hover:bg-gray-800/40 transition-colors group"
+                        onClick={() => handleOpenChart(item)}
+                        className="hover:bg-emerald-50/40 dark:hover:bg-gray-800/40 transition-colors group cursor-pointer"
                       >
                         {/* Rank STT */}
                         <td className="py-3 px-3 text-center font-bold">
@@ -1038,6 +1056,7 @@ export default function RankingPage() {
                         <td className="py-3 px-3 text-center">
                           <Link
                             href={`/?ticker=${item.ticker}`}
+                            onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800 transition"
                           >
                             <span>Phân tích</span>
@@ -1141,6 +1160,15 @@ export default function RankingPage() {
         )}
       </div>
       </main>
+
+      {/* Stock Chart Drawer / Modal */}
+      {selectedChartTicker && (
+        <StockChartPanel
+          ticker={selectedChartTicker}
+          stockData={selectedChartStock}
+          onClose={handleCloseChart}
+        />
+      )}
     </div>
   );
 }
