@@ -14,6 +14,7 @@ import {
   Minimize2,
   ExternalLink,
   Trophy,
+  Search,
 } from 'lucide-react';
 import Link from 'next/link';
 import { StockRankingItem } from '@/lib/filter-rs-data';
@@ -899,20 +900,52 @@ export function StockChartPanel({
                   <div className="relative mb-2">
                     <input
                       type="text"
-                      placeholder="Gõ mã cổ phiếu (VD: SSI, HPG)..."
+                      placeholder="Gõ mã cổ phiếu (VD: SSI, KBC, HPG)..."
                       value={tickerSearchInput}
                       onChange={(e) => setTickerSearchInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const query = tickerSearchInput.trim().toUpperCase();
+                          if (query) {
+                            if (onSelectTicker) onSelectTicker(query);
+                            setShowTickerSearch(false);
+                            setTickerSearchInput('');
+                          }
+                        }
+                      }}
                       autoFocus
                       className="w-full px-3 py-1.5 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 uppercase font-mono font-bold"
                     />
                   </div>
                   <div className="max-h-56 overflow-y-auto space-y-1">
+                    {/* Hiển thị nút nạp trực tiếp mã đã gõ nếu có input */}
+                    {tickerSearchInput.trim().length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const query = tickerSearchInput.trim().toUpperCase();
+                          if (onSelectTicker) onSelectTicker(query);
+                          setShowTickerSearch(false);
+                          setTickerSearchInput('');
+                        }}
+                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold transition mb-1.5"
+                      >
+                        <div className="flex items-center space-x-1.5 truncate">
+                          <Search className="w-3.5 h-3.5 flex-shrink-0 text-indigo-500" />
+                          <span>Xem biểu đồ mã <strong className="font-mono text-sm">{tickerSearchInput.trim().toUpperCase()}</strong></span>
+                        </div>
+                        <span className="text-[10px] bg-indigo-200 dark:bg-indigo-800 px-1.5 py-0.5 rounded font-mono">↵ Enter</span>
+                      </button>
+                    )}
+
+                    {/* Danh sách các mã gợi ý */}
                     {allStocks && allStocks.length > 0 ? (
                       allStocks
                         .filter(
                           (s) =>
-                            s.ticker.includes(tickerSearchInput) ||
-                            s.companyName.toLowerCase().includes(tickerSearchInput.toLowerCase())
+                            s.ticker.includes(tickerSearchInput.trim().toUpperCase()) ||
+                            s.companyName.toLowerCase().includes(tickerSearchInput.trim().toLowerCase())
                         )
                         .slice(0, 10)
                         .map((s) => (
@@ -935,9 +968,11 @@ export function StockChartPanel({
                           </button>
                         ))
                     ) : (
-                      <div className="text-center py-3 text-xs text-gray-400">
-                        Nhập mã để chuyển nhanh
-                      </div>
+                      !tickerSearchInput.trim() && (
+                        <div className="text-center py-3 text-xs text-gray-400">
+                          Nhập mã cổ phiếu để xem biểu đồ
+                        </div>
+                      )
                     )}
                   </div>
                 </div>
