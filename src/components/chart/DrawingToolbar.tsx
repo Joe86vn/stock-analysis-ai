@@ -34,13 +34,24 @@ export function DrawingToolbar({
       icon: <MousePointer className="h-4 w-4" />,
     },
     {
+      type: 'segment',
+      label: 'Đoạn thẳng xu hướng (Trendline 2 điểm)',
+      icon: (
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="5" cy="19" r="2" fill="currentColor" />
+          <circle cx="19" cy="5" r="2" fill="currentColor" />
+          <line x1="6.5" y1="17.5" x2="17.5" y2="6.5" />
+        </svg>
+      ),
+    },
+    {
       type: 'straightLine',
-      label: 'Đường xu hướng (Trendline)',
+      label: 'Đường thẳng mở rộng 2 phía (Extended Line)',
       icon: <TrendingUp className="h-4 w-4" />,
     },
     {
       type: 'rayLine',
-      label: 'Tia kéo dài (Ray)',
+      label: 'Tia kéo dài 1 phía (Ray)',
       icon: <ArrowUpRight className="h-4 w-4" />,
     },
     {

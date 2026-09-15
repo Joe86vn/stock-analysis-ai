@@ -2,11 +2,12 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Chart, KLineData } from 'klinecharts';
-import { X, RefreshCw, Calendar, TrendingUp } from 'lucide-react';
+import { X, RefreshCw, Calendar, TrendingUp, Activity, Check, ChevronDown } from 'lucide-react';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { useTheme } from '@/components/ThemeProvider';
 import { DrawingToolType } from './chart/drawing-types';
 import { DrawingToolbar } from './chart/DrawingToolbar';
+import { registerSwingHighLowIndicator } from './chart/indicators/custom-swing-hl';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -209,6 +210,18 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   // ─── Drawing Tools State ──────────────────────────────────────────────────
   const [activeTool, setActiveTool] = useState<DrawingToolType>('cursor');
 
+  // ─── Indicators State ─────────────────────────────────────────────────────
+  const [activeIndicators, setActiveIndicators] = useState({
+    swingHl: true,
+    ema: true,
+    boll: false,
+    vol: true,
+    rsi: false,
+    macd: false,
+  });
+  const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
+  const subPanesRef = useRef<{ vol?: string; rsi?: string; macd?: string }>({});
+
   const barsCacheRef = useRef<{ [key in Resolution]?: OhlcBar[] }>({});
   const isOpen = !!ticker;
 
@@ -337,6 +350,8 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
         chartRef.current = null;
       }
 
+      registerSwingHighLowIndicator();
+
       const chart = klinecharts.init(chartContainerRef.current, {
         timezone: 'Asia/Ho_Chi_Minh',
       });
@@ -344,24 +359,37 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
 
       chartRef.current = chart;
 
+      // Định dạng số nguyên đồng VNĐ (bỏ .00 trên trục giá và nhãn High/Low)
+      chart.setPriceVolumePrecision(0, 0);
+
       // Áp dụng styles theme
       chart.setStyles(getKLineTheme(isDark));
 
       // Đặt khoảng trống lề phải (right offset) cho cây nến cuối cùng
       chart.setOffsetRightDistance(80);
 
-      // Tạo pane chỉ báo Khối lượng (Volume) ở dưới
-      chart.createIndicator('VOL', false, { height: 90, dragEnabled: true });
+      // Reset sub-panes
+      subPanesRef.current = {};
 
-      // Tạo chỉ báo EMA 20 và EMA 200 trên nến (main pane)
-      chart.createIndicator(
-        {
-          name: 'EMA',
-          calcParams: [20, 200],
-        },
-        false,
-        { id: 'candle_pane' }
-      );
+      // Tạo các chỉ báo theo activeIndicators
+      if (activeIndicators.vol) {
+        subPanesRef.current.vol = chart.createIndicator('VOL', false, { height: 85, dragEnabled: true }) ?? undefined;
+      }
+      if (activeIndicators.ema) {
+        chart.createIndicator({ name: 'EMA', calcParams: [20, 200] }, false, { id: 'candle_pane' });
+      }
+      if (activeIndicators.boll) {
+        chart.createIndicator('BOLL', false, { id: 'candle_pane' });
+      }
+      if (activeIndicators.swingHl) {
+        chart.createIndicator('SWING_HL', false, { id: 'candle_pane' });
+      }
+      if (activeIndicators.rsi) {
+        subPanesRef.current.rsi = chart.createIndicator('RSI', false, { height: 90, dragEnabled: true }) ?? undefined;
+      }
+      if (activeIndicators.macd) {
+        subPanesRef.current.macd = chart.createIndicator('MACD', false, { height: 95, dragEnabled: true }) ?? undefined;
+      }
 
       // Lắng nghe sự kiện di chuyển chuột / crosshair
       chart.subscribeAction('onCrosshairChange' as any, (data: any) => {
@@ -413,6 +441,49 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       chartRef.current.setStyles(getKLineTheme(isDark));
     }
   }, [isDark]);
+
+  // ─── Bật / Tắt Chỉ Báo Kỹ Thuật ───────────────────────────────────────────
+
+  const toggleIndicator = (key: keyof typeof activeIndicators) => {
+    setActiveIndicators((prev) => {
+      const nextVal = !prev[key];
+      const chart = chartRef.current;
+      if (chart) {
+        if (key === 'swingHl') {
+          if (nextVal) chart.createIndicator('SWING_HL', false, { id: 'candle_pane' });
+          else chart.removeIndicator('candle_pane', 'SWING_HL');
+        } else if (key === 'ema') {
+          if (nextVal) chart.createIndicator({ name: 'EMA', calcParams: [20, 200] }, false, { id: 'candle_pane' });
+          else chart.removeIndicator('candle_pane', 'EMA');
+        } else if (key === 'boll') {
+          if (nextVal) chart.createIndicator('BOLL', false, { id: 'candle_pane' });
+          else chart.removeIndicator('candle_pane', 'BOLL');
+        } else if (key === 'vol') {
+          if (nextVal) {
+            subPanesRef.current.vol = chart.createIndicator('VOL', false, { height: 85, dragEnabled: true }) ?? undefined;
+          } else if (subPanesRef.current.vol) {
+            chart.removeIndicator(subPanesRef.current.vol);
+            delete subPanesRef.current.vol;
+          }
+        } else if (key === 'rsi') {
+          if (nextVal) {
+            subPanesRef.current.rsi = chart.createIndicator('RSI', false, { height: 90, dragEnabled: true }) ?? undefined;
+          } else if (subPanesRef.current.rsi) {
+            chart.removeIndicator(subPanesRef.current.rsi);
+            delete subPanesRef.current.rsi;
+          }
+        } else if (key === 'macd') {
+          if (nextVal) {
+            subPanesRef.current.macd = chart.createIndicator('MACD', false, { height: 95, dragEnabled: true }) ?? undefined;
+          } else if (subPanesRef.current.macd) {
+            chart.removeIndicator(subPanesRef.current.macd);
+            delete subPanesRef.current.macd;
+          }
+        }
+      }
+      return { ...prev, [key]: nextVal };
+    });
+  };
 
   // ─── Nạp dữ liệu nến vào KLineCharts ──────────────────────────────────────
 
@@ -719,6 +790,121 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
                 EMA200 {resolution === 'W' ? '(200 tuần)' : resolution === 'M' ? '(200 tháng)' : '(200 ngày)'}
               </span>
             </div>
+          </div>
+
+          {/* SWING_HL Legend */}
+          {activeIndicators.swingHl && (
+            <div className="flex items-center space-x-1.5 text-xs">
+              <span className="inline-block w-3.5 h-[2px] border-b-2 border-dashed border-amber-500" />
+              <span className="font-semibold text-amber-600 dark:text-amber-400">
+                Đỉnh Đáy (9-9)
+              </span>
+            </div>
+          )}
+
+          {/* Indicators Dropdown Button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowIndicatorMenu((v) => !v)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition cursor-pointer shadow-2xs"
+              title="Quản lý các chỉ báo kỹ thuật (RSI, MACD, BOLL, Đỉnh Đáy...)"
+            >
+              <Activity className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Chỉ báo (fx)</span>
+              <ChevronDown className="h-3 w-3 opacity-70" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showIndicatorMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowIndicatorMenu(false)}
+                />
+                <div className="absolute right-0 top-full mt-1.5 z-50 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 p-2 text-xs space-y-1 select-none">
+                  <div className="px-2 py-1 font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-[10px]">
+                    Chỉ báo trên nến
+                  </div>
+
+                  {/* Đỉnh - Đáy cá nhân */}
+                  <button
+                    onClick={() => toggleIndicator('swingHl')}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
+                      <span className="font-semibold">Đỉnh - Đáy (9-9)</span>
+                    </div>
+                    {activeIndicators.swingHl && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
+                  </button>
+
+                  {/* Bollinger Bands */}
+                  <button
+                    onClick={() => toggleIndicator('boll')}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0" />
+                      <span className="font-semibold">Bollinger Bands (BOLL)</span>
+                    </div>
+                    {activeIndicators.boll && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
+                  </button>
+
+                  {/* EMA 20 & 200 */}
+                  <button
+                    onClick={() => toggleIndicator('ema')}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                      <span className="font-semibold">Đường EMA 20 / 200</span>
+                    </div>
+                    {activeIndicators.ema && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
+                  </button>
+
+                  <div className="border-t border-gray-100 dark:border-gray-800 my-1" />
+                  <div className="px-2 py-1 font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-[10px]">
+                    Bảng phụ bên dưới
+                  </div>
+
+                  {/* Volume */}
+                  <button
+                    onClick={() => toggleIndicator('vol')}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                      <span className="font-semibold">Khối lượng (VOL)</span>
+                    </div>
+                    {activeIndicators.vol && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
+                  </button>
+
+                  {/* RSI */}
+                  <button
+                    onClick={() => toggleIndicator('rsi')}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 flex-shrink-0" />
+                      <span className="font-semibold">RSI (14)</span>
+                    </div>
+                    {activeIndicators.rsi && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
+                  </button>
+
+                  {/* MACD */}
+                  <button
+                    onClick={() => toggleIndicator('macd')}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-gray-200 cursor-pointer text-left transition"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 flex-shrink-0" />
+                      <span className="font-semibold">MACD (12, 26, 9)</span>
+                    </div>
+                    {activeIndicators.macd && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Dividend toggle */}

@@ -1,0 +1,264 @@
+import {
+  registerIndicator,
+  KLineData,
+  IndicatorSeries,
+  IndicatorDrawParams,
+} from 'klinecharts';
+
+export interface SwingResult {
+  isPeak: boolean;
+  isTrough: boolean;
+  confirmedType: 'PEAK' | 'TROUGH';
+  price: number;
+  peakPrice?: number;
+  troughPrice?: number;
+}
+
+export const SWING_HL_INDICATOR_NAME = 'SWING_HL';
+
+/**
+ * Thuật toán tính toán Đỉnh - Đáy cá nhân:
+ * 1. Đỉnh (Peak): Nến i có High cao hơn ít nhất 9 nến trước và 9 nến sau.
+ * 2. Đáy (Trough): Nến i có Low thấp hơn ít nhất 9 nến trước và 9 nến sau.
+ * 3. Quy tắc đan xen (Alternating):
+ *    Không được có 2 đỉnh liên tục mà không có đáy ở giữa.
+ *    Nếu đã xác nhận 1 đỉnh thì mọi đỉnh sau đó bị bỏ qua cho tới khi có đáy mới và ngược lại.
+ */
+export function calculateSwingHighLow(dataList: KLineData[]): (SwingResult | null)[] {
+  const n = dataList.length;
+  const result: (SwingResult | null)[] = new Array(n).fill(null);
+  if (n < 19) return result; // Cần ít nhất 9 + 1 + 9 = 19 nến
+
+  // Bước 1: Tìm ứng viên đạt chuẩn 9 nến trái & 9 nến phải
+  const isPeakCandidate: boolean[] = new Array(n).fill(false);
+  const isTroughCandidate: boolean[] = new Array(n).fill(false);
+
+  for (let i = 9; i < n - 9; i++) {
+    const curHigh = dataList[i].high;
+    const curLow = dataList[i].low;
+
+    let peak = true;
+    for (let k = 1; k <= 9; k++) {
+      if (dataList[i - k].high >= curHigh || dataList[i + k].high >= curHigh) {
+        peak = false;
+        break;
+      }
+    }
+    isPeakCandidate[i] = peak;
+
+    let trough = true;
+    for (let k = 1; k <= 9; k++) {
+      if (dataList[i - k].low <= curLow || dataList[i + k].low <= curLow) {
+        trough = false;
+        break;
+      }
+    }
+    isTroughCandidate[i] = trough;
+  }
+
+  // Bước 2: Áp dụng quy tắc đan xen tuần tự từ quá khứ đến hiện tại
+  let lastConfirmed: 'PEAK' | 'TROUGH' | null = null;
+
+  for (let i = 9; i < n - 9; i++) {
+    const peak = isPeakCandidate[i];
+    const trough = isTroughCandidate[i];
+
+    if (lastConfirmed === null) {
+      if (peak) {
+        result[i] = {
+          isPeak: true,
+          isTrough: false,
+          confirmedType: 'PEAK',
+          price: dataList[i].high,
+          peakPrice: dataList[i].high,
+        };
+        lastConfirmed = 'PEAK';
+      } else if (trough) {
+        result[i] = {
+          isPeak: false,
+          isTrough: true,
+          confirmedType: 'TROUGH',
+          price: dataList[i].low,
+          troughPrice: dataList[i].low,
+        };
+        lastConfirmed = 'TROUGH';
+      }
+    } else if (lastConfirmed === 'PEAK') {
+      // Đang chờ ĐÁY: Bỏ qua mọi đỉnh mới, chỉ nhận đáy hợp lệ đầu tiên
+      if (trough) {
+        result[i] = {
+          isPeak: false,
+          isTrough: true,
+          confirmedType: 'TROUGH',
+          price: dataList[i].low,
+          troughPrice: dataList[i].low,
+        };
+        lastConfirmed = 'TROUGH';
+      }
+    } else if (lastConfirmed === 'TROUGH') {
+      // Đang chờ ĐỈNH: Bỏ qua mọi đáy mới, chỉ nhận đỉnh hợp lệ đầu tiên
+      if (peak) {
+        result[i] = {
+          isPeak: true,
+          isTrough: false,
+          confirmedType: 'PEAK',
+          price: dataList[i].high,
+          peakPrice: dataList[i].high,
+        };
+        lastConfirmed = 'PEAK';
+      }
+    }
+  }
+
+  return result;
+}
+
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+let isIndicatorRegistered = false;
+
+/**
+ * Đăng ký chỉ báo SWING_HL vào KLineCharts
+ */
+export function registerSwingHighLowIndicator(): void {
+  if (isIndicatorRegistered) return;
+
+  try {
+    registerIndicator<SwingResult | null>({
+      name: SWING_HL_INDICATOR_NAME,
+      shortName: 'Đỉnh Đáy (9-9)',
+      series: IndicatorSeries.Price,
+      precision: 0,
+      shouldOhlc: true,
+      calc: (dataList: KLineData[]) => {
+        return calculateSwingHighLow(dataList);
+      },
+      draw: (params: IndicatorDrawParams<SwingResult | null>) => {
+        const { ctx, indicator, visibleRange, xAxis, yAxis } = params;
+        const results = indicator.result;
+        if (!results || results.length === 0) return false;
+
+        // 1. Vẽ đường Zigzag nét đứt màu vàng hổ phách nối các đỉnh - đáy
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = '#eab308'; // Amber-500
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+
+        let hasFirst = false;
+        for (let i = 0; i < results.length; i++) {
+          const item = results[i];
+          if (item && item.confirmedType) {
+            const x = xAxis.convertToPixel(i);
+            const y = yAxis.convertToPixel(item.price);
+            if (!hasFirst) {
+              ctx.moveTo(x, y);
+              hasFirst = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+        }
+        if (hasFirst) {
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 2. Vẽ nhãn giá và huy hiệu cho từng đỉnh/đáy trong khung nhìn
+        const from = Math.max(0, visibleRange.from - 2);
+        const to = Math.min(results.length, visibleRange.to + 2);
+
+        for (let i = from; i < to; i++) {
+          const item = results[i];
+          if (!item || !item.confirmedType) continue;
+
+          const x = xAxis.convertToPixel(i);
+          const y = yAxis.convertToPixel(item.price);
+
+          // Định dạng số nguyên chuẩn VNĐ (ví dụ 142,000)
+          const priceStr = Math.round(item.price).toLocaleString('en-US');
+
+          ctx.save();
+          ctx.font = 'bold 10px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          const textWidth = ctx.measureText(priceStr).width;
+          const badgePadding = 5;
+          const badgeWidth = textWidth + badgePadding * 2;
+          const badgeHeight = 18;
+
+          if (item.confirmedType === 'PEAK') {
+            // ĐỈNH: Badge nằm phía trên đỉnh nến
+            const badgeY = y - 23;
+            const badgeX = x - badgeWidth / 2;
+
+            // Mũi tên chỉ xuống đỉnh
+            ctx.beginPath();
+            ctx.fillStyle = '#ef4444'; // Red-500
+            ctx.moveTo(x, y - 2);
+            ctx.lineTo(x - 4, badgeY + badgeHeight);
+            ctx.lineTo(x + 4, badgeY + badgeHeight);
+            ctx.closePath();
+            ctx.fill();
+
+            // Khung badge
+            ctx.fillStyle = '#ef4444';
+            drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 3);
+            ctx.fill();
+
+            // Text giá
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(priceStr, x, badgeY + badgeHeight / 2);
+          } else if (item.confirmedType === 'TROUGH') {
+            // ĐÁY: Badge nằm phía dưới chân nến
+            const badgeY = y + 12;
+            const badgeX = x - badgeWidth / 2;
+
+            // Mũi tên chỉ lên đáy
+            ctx.beginPath();
+            ctx.fillStyle = '#10b981'; // Emerald-500
+            ctx.moveTo(x, y + 2);
+            ctx.lineTo(x - 4, badgeY);
+            ctx.lineTo(x + 4, badgeY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Khung badge
+            ctx.fillStyle = '#10b981';
+            drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 3);
+            ctx.fill();
+
+            // Text giá
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(priceStr, x, badgeY + badgeHeight / 2);
+          }
+
+          ctx.restore();
+        }
+
+        return false;
+      },
+    });
+
+    isIndicatorRegistered = true;
+  } catch (err) {
+    console.error('Failed to register SWING_HL indicator:', err);
+  }
+}
