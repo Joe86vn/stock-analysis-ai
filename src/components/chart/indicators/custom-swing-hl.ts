@@ -115,20 +115,24 @@ export function calculateSwingHighLow(
         lastConfirmed = 'TROUGH';
         lastConfirmedIndex = i;
       } else if (peak) {
-        // Đã có đỉnh trước đó nhưng chưa có đáy mà lại xuất hiện đỉnh mới:
-        // Lấy đỉnh mới là đỉnh được xác nhận và xóa đỉnh cũ
-        if (lastConfirmedIndex >= 0) {
-          result[lastConfirmedIndex] = null;
+        // Đã có đỉnh trước đó nhưng chưa có đáy mà lại xuất hiện thêm đỉnh mới:
+        // Chỉ xóa đỉnh cũ nếu đỉnh mới CAO HƠN đỉnh cũ (lấy đỉnh cao nhất)
+        const curHigh = dataList[i].high;
+        const prevHigh = lastConfirmedIndex >= 0 ? dataList[lastConfirmedIndex].high : -Infinity;
+        if (curHigh > prevHigh) {
+          if (lastConfirmedIndex >= 0) {
+            result[lastConfirmedIndex] = null;
+          }
+          result[i] = {
+            isPeak: true,
+            isTrough: false,
+            confirmedType: 'PEAK',
+            price: curHigh,
+            peakPrice: curHigh,
+          };
+          lastConfirmed = 'PEAK';
+          lastConfirmedIndex = i;
         }
-        result[i] = {
-          isPeak: true,
-          isTrough: false,
-          confirmedType: 'PEAK',
-          price: dataList[i].high,
-          peakPrice: dataList[i].high,
-        };
-        lastConfirmed = 'PEAK';
-        lastConfirmedIndex = i;
       }
     } else if (lastConfirmed === 'TROUGH') {
       if (peak) {
@@ -143,20 +147,24 @@ export function calculateSwingHighLow(
         lastConfirmed = 'PEAK';
         lastConfirmedIndex = i;
       } else if (trough) {
-        // Đã có đáy trước đó nhưng chưa có đỉnh mà lại xuất hiện đáy mới:
-        // Lấy đáy mới là đáy được xác nhận và xóa đáy cũ
-        if (lastConfirmedIndex >= 0) {
-          result[lastConfirmedIndex] = null;
+        // Đã có đáy trước đó nhưng chưa có đỉnh mà lại xuất hiện thêm đáy mới:
+        // Chỉ xóa đáy cũ nếu đáy mới THẤP HƠN đáy cũ (lấy đáy sâu nhất)
+        const curLow = dataList[i].low;
+        const prevLow = lastConfirmedIndex >= 0 ? dataList[lastConfirmedIndex].low : Infinity;
+        if (curLow < prevLow) {
+          if (lastConfirmedIndex >= 0) {
+            result[lastConfirmedIndex] = null;
+          }
+          result[i] = {
+            isPeak: false,
+            isTrough: true,
+            confirmedType: 'TROUGH',
+            price: curLow,
+            troughPrice: curLow,
+          };
+          lastConfirmed = 'TROUGH';
+          lastConfirmedIndex = i;
         }
-        result[i] = {
-          isPeak: false,
-          isTrough: true,
-          confirmedType: 'TROUGH',
-          price: dataList[i].low,
-          troughPrice: dataList[i].low,
-        };
-        lastConfirmed = 'TROUGH';
-        lastConfirmedIndex = i;
       }
     }
   }
