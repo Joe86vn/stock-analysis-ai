@@ -1,26 +1,12 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import {
-  createChart,
-  CandlestickSeries,
-  HistogramSeries,
-  LineSeries,
-  createSeriesMarkers,
-  IChartApi,
-  ISeriesApi,
-  ISeriesMarkersPluginApi,
-  ColorType,
-  CrosshairMode,
-  SeriesMarker,
-  Time,
-} from 'lightweight-charts';
+import type { Chart, KLineData } from 'klinecharts';
 import { X, RefreshCw, Calendar, TrendingUp } from 'lucide-react';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { useTheme } from '@/components/ThemeProvider';
-import { DrawingToolType, DrawingItem } from './chart/drawing-types';
+import { DrawingToolType } from './chart/drawing-types';
 import { DrawingToolbar } from './chart/DrawingToolbar';
-import { ChartDrawingOverlay } from './chart/ChartDrawingOverlay';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,54 +54,130 @@ export const RESOLUTION_TIMEFRAME_BARS: Record<Resolution, Record<string, number
   },
 };
 
-// ─── EMA Calculation ──────────────────────────────────────────────────────────
+// ─── KLineCharts Styles & Theme ───────────────────────────────────────────────
 
-function calculateEMA(closes: number[], period: number): number[] {
-  if (closes.length < period) return closes.map(() => NaN);
-  const k = 2 / (period + 1);
-  const result: number[] = new Array(closes.length).fill(NaN);
-  let sum = 0;
-  for (let i = 0; i < period; i++) sum += closes[i];
-  result[period - 1] = sum / period;
-  for (let i = period; i < closes.length; i++) {
-    result[i] = closes[i] * k + result[i - 1] * (1 - k);
-  }
-  return result;
-}
-
-// ─── Chart Theme ──────────────────────────────────────────────────────────────
-
-function getChartTheme(isDark: boolean) {
+function getKLineTheme(isDark: boolean): any {
   return {
-    layout: {
-      background: { type: ColorType.Solid, color: isDark ? '#111827' : '#ffffff' },
-      textColor: isDark ? '#9ca3af' : '#374151',
-    },
     grid: {
-      vertLines: { color: isDark ? '#1f2937' : '#f3f4f6' },
-      horzLines: { color: isDark ? '#1f2937' : '#f3f4f6' },
+      horizontal: {
+        style: 'dashed' as const,
+        size: 1,
+        color: isDark ? '#1f2937' : '#f3f4f6',
+        dashedValue: [4, 4],
+      },
+      vertical: {
+        style: 'dashed' as const,
+        size: 1,
+        color: isDark ? '#1f2937' : '#f3f4f6',
+        dashedValue: [4, 4],
+      },
+    },
+    candle: {
+      type: 'candle_solid' as const,
+      bar: {
+        upColor: '#22c55e',
+        downColor: '#ef4444',
+        noChangeColor: '#f59e0b',
+        upBorderColor: '#22c55e',
+        downBorderColor: '#ef4444',
+        noChangeBorderColor: '#f59e0b',
+        upWickColor: '#22c55e',
+        downWickColor: '#ef4444',
+        noChangeWickColor: '#f59e0b',
+      },
+      tooltip: {
+        showRule: 'none' as const,
+      },
+      priceMark: {
+        high: { color: isDark ? '#9ca3af' : '#64748b' },
+        low: { color: isDark ? '#9ca3af' : '#64748b' },
+        last: {
+          show: true,
+          upColor: '#22c55e',
+          downColor: '#ef4444',
+          noChangeColor: '#f59e0b',
+          line: {
+            style: 'dashed' as const,
+            dashedValue: [4, 4],
+            size: 1,
+          },
+          text: {
+            color: '#ffffff',
+            size: 11,
+          },
+        },
+      },
+    },
+    indicator: {
+      tooltip: {
+        showRule: 'none' as const,
+      },
+      lines: [
+        { color: '#3b82f6', size: 1.5 }, // EMA20
+        { color: '#f59e0b', size: 1.5 }, // EMA200
+      ],
+      bars: [
+        {
+          upColor: isDark ? 'rgba(34,197,94,0.45)' : 'rgba(34,197,94,0.55)',
+          downColor: isDark ? 'rgba(239,68,68,0.45)' : 'rgba(239,68,68,0.55)',
+          noChangeColor: 'rgba(245,158,11,0.5)',
+        },
+      ],
+    },
+    xAxis: {
+      axisLine: { color: isDark ? '#1f2937' : '#e5e7eb' },
+      tickLine: { color: isDark ? '#1f2937' : '#e5e7eb' },
+      tickText: { color: isDark ? '#9ca3af' : '#64748b', size: 11 },
+    },
+    yAxis: {
+      axisLine: { color: isDark ? '#1f2937' : '#e5e7eb' },
+      tickLine: { color: isDark ? '#1f2937' : '#e5e7eb' },
+      tickText: { color: isDark ? '#9ca3af' : '#64748b', size: 11 },
+    },
+    separator: {
+      color: isDark ? '#1f2937' : '#e5e7eb',
     },
     crosshair: {
-      mode: CrosshairMode.Normal,
-      vertLine: {
-        color: isDark ? '#4b5563' : '#9ca3af',
-        labelBackgroundColor: isDark ? '#374151' : '#e5e7eb',
+      horizontal: {
+        line: { color: isDark ? '#4b5563' : '#9ca3af', style: 'dashed' as const, dashedValue: [4, 4] },
+        text: { backgroundColor: isDark ? '#374151' : '#e5e7eb', color: isDark ? '#ffffff' : '#111827' },
       },
-      horzLine: {
-        color: isDark ? '#4b5563' : '#9ca3af',
-        labelBackgroundColor: isDark ? '#374151' : '#e5e7eb',
+      vertical: {
+        line: { color: isDark ? '#4b5563' : '#9ca3af', style: 'dashed' as const, dashedValue: [4, 4] },
+        text: { backgroundColor: isDark ? '#374151' : '#e5e7eb', color: isDark ? '#ffffff' : '#111827' },
       },
     },
-    rightPriceScale: {
-      borderColor: isDark ? '#1f2937' : '#e5e7eb',
-    },
-    timeScale: {
-      borderColor: isDark ? '#1f2937' : '#e5e7eb',
-      timeVisible: true,
-      secondsVisible: false,
-      rightOffset: 12,
-      fixLeftEdge: false,
-      fixRightEdge: false,
+    overlay: {
+      point: {
+        color: '#3b82f6',
+        borderColor: '#ffffff',
+        borderSize: 2,
+        radius: 5,
+        activeColor: '#6366f1',
+        activeBorderColor: '#ffffff',
+        activeBorderSize: 2,
+        activeRadius: 6,
+      },
+      line: {
+        color: '#3b82f6',
+        size: 1.5,
+      },
+      rect: {
+        style: 'stroke_fill' as const,
+        color: 'rgba(59, 130, 246, 0.15)',
+        borderColor: '#3b82f6',
+        borderSize: 1.5,
+      },
+      polygon: {
+        style: 'stroke_fill' as const,
+        color: 'rgba(59, 130, 246, 0.15)',
+        borderColor: '#3b82f6',
+        borderSize: 1.5,
+      },
+      text: {
+        color: isDark ? '#ffffff' : '#111827',
+        size: 12,
+      },
     },
   };
 }
@@ -127,12 +189,7 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   const isDark = theme === 'dark';
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
-  const ema20SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const ema200SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const markersPrimitiveRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  const chartRef = useRef<Chart | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const priceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -147,16 +204,10 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     o: number; h: number; l: number; c: number; v: number; date?: string;
   } | null>(null);
   const [showDividendMarkers, setShowDividendMarkers] = useState(true);
-  const [dividendMarkers, setDividendMarkers] = useState<SeriesMarker<Time>[]>([]);
+  const [dividendEvents, setDividendEvents] = useState<any[]>([]);
 
   // ─── Drawing Tools State ──────────────────────────────────────────────────
   const [activeTool, setActiveTool] = useState<DrawingToolType>('cursor');
-  const [drawings, setDrawings] = useState<DrawingItem[]>([]);
-  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
-  const [chartDimensions, setChartDimensions] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
 
   const barsCacheRef = useRef<{ [key in Resolution]?: OhlcBar[] }>({});
   const isOpen = !!ticker;
@@ -164,7 +215,6 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
   // ─── Fetch price history ─────────────────────────────────────────────────
 
   const fetchPriceHistory = useCallback(async (t: string, res: Resolution = 'D') => {
-    // Nếu đã có cache cho chu kỳ này thì hiển thị tức thì
     if (barsCacheRef.current[res] && barsCacheRef.current[res]!.length > 0) {
       setAllBars(barsCacheRef.current[res]!);
       return;
@@ -184,16 +234,9 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       if (bars.length > 0 && res === 'D') setLiveVolume(bars[bars.length - 1].volume);
 
       if (Array.isArray(json.events)) {
-        const markers: SeriesMarker<Time>[] = json.events.map((ev: any) => ({
-          time: ev.date as Time,
-          position: 'aboveBar',
-          color: ev.eventCode === 'DIV' ? '#f59e0b' : '#3b82f6',
-          shape: 'arrowDown',
-          text: ev.title || (ev.eventCode === 'DIV' ? 'Cổ tức' : 'Phát hành'),
-        }));
-        setDividendMarkers(markers);
+        setDividendEvents(json.events);
       } else {
-        setDividendMarkers([]);
+        setDividendEvents([]);
       }
     } catch (e) {
       console.error('[StockChartPanel] fetchPriceHistory error:', e);
@@ -253,19 +296,6 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       setPriceChange(null);
     }
     setCrosshairData(null);
-
-    // Nạp nét vẽ từ LocalStorage theo mã
-    try {
-      const saved = localStorage.getItem(`stock_drawings_${ticker}`);
-      if (saved) {
-        setDrawings(JSON.parse(saved));
-      } else {
-        setDrawings([]);
-      }
-    } catch {
-      setDrawings([]);
-    }
-    setSelectedDrawingId(null);
     setActiveTool('cursor');
 
     Promise.all([fetchPriceHistory(ticker, 'D'), pollLivePrice(ticker)]);
@@ -277,25 +307,6 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
     };
   }, [ticker, stockData, fetchPriceHistory, pollLivePrice]);
-
-  // ─── Tự động lưu nét vẽ vào LocalStorage ──────────────────────────────────
-  useEffect(() => {
-    if (!ticker) return;
-    try {
-      localStorage.setItem(`stock_drawings_${ticker}`, JSON.stringify(drawings));
-    } catch {}
-  }, [drawings, ticker]);
-
-  const handleClearAllDrawings = useCallback(() => {
-    if (drawings.length === 0 || !ticker) return;
-    if (window.confirm(`Xóa toàn bộ ${drawings.length} nét vẽ của mã ${ticker}?`)) {
-      setDrawings([]);
-      setSelectedDrawingId(null);
-      try {
-        localStorage.removeItem(`stock_drawings_${ticker}`);
-      } catch {}
-    }
-  }, [drawings.length, ticker]);
 
   // ─── Tính priceChange fallback ───────────────────────────────────────────
 
@@ -309,216 +320,179 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
     }
   }, [livePrice, allBars, priceChange]);
 
-  // ─── Render chart ────────────────────────────────────────────────────────
+  // ─── Khởi tạo KLineCharts instance ────────────────────────────────────────
 
   useEffect(() => {
-    if (!chartContainerRef.current || allBars.length === 0 || !ticker) return;
+    if (!chartContainerRef.current || !ticker) return;
+
+    let isDisposed = false;
+
+    async function initKLineChart() {
+      const klinecharts = await import('klinecharts');
+      if (isDisposed || !chartContainerRef.current) return;
+
+      // Dispose instance cũ nếu có
+      if (chartRef.current) {
+        klinecharts.dispose(chartContainerRef.current);
+        chartRef.current = null;
+      }
+
+      const chart = klinecharts.init(chartContainerRef.current, {
+        timezone: 'Asia/Ho_Chi_Minh',
+      });
+      if (!chart) return;
+
+      chartRef.current = chart;
+
+      // Áp dụng styles theme
+      chart.setStyles(getKLineTheme(isDark));
+
+      // Đặt khoảng trống lề phải (right offset) cho cây nến cuối cùng
+      chart.setOffsetRightDistance(80);
+
+      // Tạo pane chỉ báo Khối lượng (Volume) ở dưới
+      chart.createIndicator('VOL', false, { height: 90, dragEnabled: true });
+
+      // Tạo chỉ báo EMA 20 và EMA 200 trên nến (main pane)
+      chart.createIndicator(
+        {
+          name: 'EMA',
+          calcParams: [20, 200],
+        },
+        false,
+        { id: 'candle_pane' }
+      );
+
+      // Lắng nghe sự kiện di chuyển chuột / crosshair
+      chart.subscribeAction('onCrosshairChange' as any, (data: any) => {
+        if (!data || !data.kLineData) {
+          setCrosshairData(null);
+          return;
+        }
+        const kd = data.kLineData as KLineData;
+        const d = new Date(kd.timestamp);
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+          d.getDate()
+        ).padStart(2, '0')}`;
+        setCrosshairData({
+          o: kd.open,
+          h: kd.high,
+          l: kd.low,
+          c: kd.close,
+          v: kd.volume ?? 0,
+          date: dateStr,
+        });
+      });
+
+      // Tự động resize theo container
+      const ro = new ResizeObserver(() => {
+        chart.resize();
+      });
+      ro.observe(chartContainerRef.current);
+      resizeObserverRef.current = ro;
+    }
+
+    initKLineChart();
+
+    return () => {
+      isDisposed = true;
+      resizeObserverRef.current?.disconnect();
+      if (chartContainerRef.current) {
+        import('klinecharts').then((kc) => {
+          if (chartContainerRef.current) kc.dispose(chartContainerRef.current);
+        });
+      }
+      chartRef.current = null;
+    };
+  }, [ticker]);
+
+  // ─── Cập nhật Theme khi đổi Dark / Light ───────────────────────────────────
+
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.setStyles(getKLineTheme(isDark));
+    }
+  }, [isDark]);
+
+  // ─── Nạp dữ liệu nến vào KLineCharts ──────────────────────────────────────
+
+  useEffect(() => {
+    if (!chartRef.current || allBars.length === 0) return;
 
     const currentTfBars = RESOLUTION_TIMEFRAME_BARS[resolution];
     const barsCount = currentTfBars[activeTimeframe] || allBars.length;
     const subset = allBars.slice(-barsCount);
 
-    if (!chartRef.current) {
-      const chart = createChart(chartContainerRef.current, {
-        ...getChartTheme(isDark),
-        width: chartContainerRef.current.clientWidth,
-        height: chartContainerRef.current.clientHeight,
-        handleScroll: true,
-        handleScale: true,
-      });
-      chartRef.current = chart;
-
-      const candleSeries = chart.addSeries(CandlestickSeries, {
-        upColor: '#22c55e',
-        downColor: '#ef4444',
-        borderUpColor: '#22c55e',
-        borderDownColor: '#ef4444',
-        wickUpColor: '#22c55e',
-        wickDownColor: '#ef4444',
-      });
-      candleSeriesRef.current = candleSeries;
-      markersPrimitiveRef.current = createSeriesMarkers(candleSeries, []);
-
-      const volumeSeries = chart.addSeries(HistogramSeries, {
-        color: '#3b82f6',
-        priceFormat: { type: 'volume' },
-        priceScaleId: 'volume',
-      });
-      chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
-      volumeSeriesRef.current = volumeSeries;
-
-      const ema20 = chart.addSeries(LineSeries, {
-        color: '#3b82f6',
-        lineWidth: 1,
-        title: 'EMA20',
-        priceLineVisible: false,
-        lastValueVisible: false,
-      });
-      ema20SeriesRef.current = ema20;
-
-      const ema200 = chart.addSeries(LineSeries, {
-        color: '#f59e0b',
-        lineWidth: 1,
-        title: 'EMA200',
-        priceLineVisible: false,
-        lastValueVisible: false,
-      });
-      ema200SeriesRef.current = ema200;
-
-      chart.subscribeCrosshairMove((param) => {
-        if (!param.time || !candleSeriesRef.current) {
-          setCrosshairData(null);
-          return;
-        }
-        const candle = param.seriesData.get(candleSeriesRef.current) as any;
-        const vol = param.seriesData.get(volumeSeriesRef.current!) as any;
-        if (candle) {
-          let dateStr = '';
-          if (typeof param.time === 'string') {
-            dateStr = param.time;
-          } else if (typeof param.time === 'object' && param.time !== null) {
-            const t = param.time as any;
-            if (t.year && t.month && t.day) {
-              dateStr = `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
-            }
-          }
-          setCrosshairData({
-            o: candle.open,
-            h: candle.high,
-            l: candle.low,
-            c: candle.close,
-            v: vol?.value ?? 0,
-            date: dateStr,
-          });
-        } else {
-          setCrosshairData(null);
-        }
-      });
-
-      setChartDimensions({
-        width: chartContainerRef.current.clientWidth,
-        height: chartContainerRef.current.clientHeight,
-      });
-
-      const ro = new ResizeObserver((entries) => {
-        if (entries[0]) {
-          const { width, height } = entries[0].contentRect;
-          if (chartRef.current) {
-            chartRef.current.applyOptions({ width, height });
-          }
-          setChartDimensions({ width, height });
-        }
-      });
-      ro.observe(chartContainerRef.current);
-      resizeObserverRef.current = ro;
-    } else {
-      chartRef.current.applyOptions(getChartTheme(isDark));
-      if (chartContainerRef.current) {
-        setChartDimensions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
-        });
-      }
-    }
-
-    // Set candlestick data
-    candleSeriesRef.current?.setData(
-      subset.map((b) => ({
-        time: b.fullDate as Time,
+    const klineData: KLineData[] = subset.map((b) => {
+      const ts = new Date(b.fullDate + 'T00:00:00Z').getTime();
+      return {
+        timestamp: isNaN(ts) ? Date.now() : ts,
         open: b.openPrice,
         high: b.highestPrice,
         low: b.lowestPrice,
         close: b.closePrice,
-      }))
-    );
+        volume: b.volume,
+      };
+    });
 
-    // Set volume data
-    volumeSeriesRef.current?.setData(
-      subset.map((b) => ({
-        time: b.fullDate as Time,
-        value: b.volume,
-        color: b.closePrice >= b.openPrice
-          ? (isDark ? 'rgba(34,197,94,0.4)' : 'rgba(34,197,94,0.5)')
-          : (isDark ? 'rgba(239,68,68,0.4)' : 'rgba(239,68,68,0.5)'),
-      }))
-    );
+    chartRef.current.applyNewData(klineData);
+    chartRef.current.setOffsetRightDistance(80);
+  }, [allBars, activeTimeframe, resolution]);
 
-    // EMA — tính từ toàn bộ allBars để chính xác, rồi lấy subset cuối
-    const allCloses = allBars.map((b) => b.closePrice);
-
-    const ema20Values = calculateEMA(allCloses, 20);
-    ema20SeriesRef.current?.setData(
-      allBars
-        .map((b, i) => ({ time: b.fullDate as Time, value: ema20Values[i] }))
-        .filter((d) => !isNaN(d.value))
-        .slice(-barsCount)
-    );
-
-    const ema200Values = calculateEMA(allCloses, 200);
-    ema200SeriesRef.current?.setData(
-      allBars
-        .map((b, i) => ({ time: b.fullDate as Time, value: ema200Values[i] }))
-        .filter((d) => !isNaN(d.value))
-        .slice(-barsCount)
-    );
-
-    // Markers
-    if (showDividendMarkers && dividendMarkers.length > 0) {
-      const firstTime = subset[0]?.fullDate ?? '';
-      const lastTime = subset[subset.length - 1]?.fullDate ?? '';
-      const visibleMarkers = dividendMarkers.filter(
-        (m) => String(m.time) >= firstTime && String(m.time) <= lastTime
-      );
-      markersPrimitiveRef.current?.setMarkers(visibleMarkers);
-    } else {
-      markersPrimitiveRef.current?.setMarkers([]);
-    }
-
-    chartRef.current?.timeScale().fitContent();
-    chartRef.current?.timeScale().applyOptions({ rightOffset: 12 });
-  }, [allBars, activeTimeframe, resolution, isDark, ticker, showDividendMarkers, dividendMarkers]);
-
-  // ─── Update nến cuối với livePrice ──────────────────────────────────────
+  // ─── Cập nhật nến cuối với livePrice ──────────────────────────────────────
 
   useEffect(() => {
-    if (!livePrice || !candleSeriesRef.current || allBars.length === 0) return;
+    if (!livePrice || !chartRef.current || allBars.length === 0) return;
     const lastBar = allBars[allBars.length - 1];
-    candleSeriesRef.current.update({
-      time: lastBar.fullDate as Time,
+    const ts = new Date(lastBar.fullDate + 'T00:00:00Z').getTime();
+    chartRef.current.updateData({
+      timestamp: isNaN(ts) ? Date.now() : ts,
       open: lastBar.openPrice,
       high: Math.max(lastBar.highestPrice, livePrice),
       low: Math.min(lastBar.lowestPrice, livePrice),
       close: livePrice,
+      volume: liveVolume ?? lastBar.volume,
     });
-  }, [livePrice, allBars]);
+  }, [livePrice, allBars, liveVolume]);
 
-  // ─── Cleanup chart khi unmount hoặc ticker đổi ───────────────────────────
+  // ─── Xử lý chọn công cụ vẽ KLineCharts ───────────────────────────────────
 
-  useEffect(() => {
-    return () => {
-      resizeObserverRef.current?.disconnect();
-      markersPrimitiveRef.current?.setMarkers([]);
-      markersPrimitiveRef.current = null;
-      chartRef.current?.remove();
-      chartRef.current = null;
-      candleSeriesRef.current = null;
-      volumeSeriesRef.current = null;
-      ema20SeriesRef.current = null;
-      ema200SeriesRef.current = null;
-    };
-  }, [ticker]);
+  const handleSelectTool = (tool: DrawingToolType) => {
+    setActiveTool(tool);
+    if (!chartRef.current) return;
+    if (tool === 'cursor') {
+      return;
+    }
+    // KLineCharts native createOverlay kích hoạt chế độ vẽ trực tiếp trên canvas
+    chartRef.current.createOverlay(tool);
+  };
+
+  const handleClearAllOverlays = () => {
+    if (window.confirm(`Xóa toàn bộ các nét vẽ trên biểu đồ ${ticker}?`)) {
+      chartRef.current?.removeOverlay();
+      setActiveTool('cursor');
+    }
+  };
 
   // ─── ESC key ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && isOpen) onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        if (activeTool !== 'cursor') {
+          setActiveTool('cursor');
+        } else {
+          onClose();
+        }
+      }
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, activeTool]);
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  const fmt = (n: number) => n >= 1000 ? n.toLocaleString('vi-VN') : n.toFixed(0);
+  const fmt = (n: number) => (n >= 1000 ? n.toLocaleString('vi-VN') : n.toFixed(0));
   const fmtVol = (v: number) =>
     v >= 1_000_000 ? (v / 1_000_000).toFixed(2) + 'M' : v >= 1_000 ? (v / 1_000).toFixed(1) + 'K' : String(v);
 
@@ -803,43 +777,13 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
       {/* Main Chart Area */}
       <div
         className="relative flex-1 min-h-0 w-full h-full"
-        onMouseLeave={() => {
-          if (activeTool === 'cursor') setCrosshairData(null);
-        }}
+        onMouseLeave={() => setCrosshairData(null)}
       >
         {/* TradingView Left Drawing Toolbar */}
         <DrawingToolbar
           activeTool={activeTool}
-          onSelectTool={(tool) => {
-            setActiveTool(tool);
-            if (tool !== 'cursor') {
-              setSelectedDrawingId(null);
-            }
-          }}
-          selectedDrawingId={selectedDrawingId}
-          onDeleteSelected={() => {
-            if (selectedDrawingId) {
-              setDrawings((prev) => prev.filter((d) => d.id !== selectedDrawingId));
-              setSelectedDrawingId(null);
-            }
-          }}
-          onClearAll={handleClearAllDrawings}
-          totalDrawings={drawings.length}
-        />
-
-        {/* Interactive SVG Drawing Overlay */}
-        <ChartDrawingOverlay
-          chart={chartRef.current}
-          candleSeries={candleSeriesRef.current}
-          allBars={allBars}
-          activeTool={activeTool}
-          onFinishDrawing={() => setActiveTool('cursor')}
-          drawings={drawings}
-          setDrawings={setDrawings}
-          selectedId={selectedDrawingId}
-          setSelectedId={setSelectedDrawingId}
-          width={chartDimensions.width}
-          height={chartDimensions.height}
+          onSelectTool={handleSelectTool}
+          onClearAll={handleClearAllOverlays}
         />
 
         {isLoadingChart && (
@@ -856,13 +800,15 @@ export function StockChartPanel({ ticker, stockData, onClose }: StockChartPanelP
             <p className="text-base font-bold text-gray-400">Không có dữ liệu giá cho {ticker}</p>
           </div>
         )}
+
+        {/* KLineCharts canvas container */}
         <div ref={chartContainerRef} className="w-full h-full" />
       </div>
 
       {/* Footer */}
       <div className="px-6 py-2 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 flex items-center justify-between flex-shrink-0 text-xs text-gray-500 dark:text-gray-400">
         <span className="font-medium">
-          Nguồn dữ liệu: Vietcap Gap Chart · Biểu đồ {resolution === 'W' ? 'Tuần (Weekly)' : resolution === 'M' ? 'Tháng (Monthly)' : 'Ngày (Daily)'} · Giá điều chỉnh cổ tức &amp; chia tách
+          Động cơ KLineCharts TradingView · Biểu đồ {resolution === 'W' ? 'Tuần (Weekly)' : resolution === 'M' ? 'Tháng (Monthly)' : 'Ngày (Daily)'} · Giá điều chỉnh cổ tức &amp; chia tách
         </span>
         <span className="tabular-nums font-medium">
           {allBars.length > 0

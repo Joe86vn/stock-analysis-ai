@@ -4,11 +4,14 @@ import React from 'react';
 import {
   MousePointer,
   TrendingUp,
+  ArrowUpRight,
   Minus,
+  Tag,
   Square,
-  Ruler,
+  Pause,
   SlidersHorizontal,
-  Trash2,
+  PenTool,
+  Type,
   Eraser,
 } from 'lucide-react';
 import { DrawingToolType } from './drawing-types';
@@ -16,50 +19,64 @@ import { DrawingToolType } from './drawing-types';
 interface DrawingToolbarProps {
   activeTool: DrawingToolType;
   onSelectTool: (tool: DrawingToolType) => void;
-  selectedDrawingId: string | null;
-  onDeleteSelected: () => void;
   onClearAll: () => void;
-  totalDrawings: number;
 }
 
 export function DrawingToolbar({
   activeTool,
   onSelectTool,
-  selectedDrawingId,
-  onDeleteSelected,
   onClearAll,
-  totalDrawings,
 }: DrawingToolbarProps) {
-  const tools: { type: DrawingToolType; label: string; icon: React.ReactNode; shortcut?: string }[] = [
+  const tools: { type: DrawingToolType; label: string; icon: React.ReactNode }[] = [
     {
       type: 'cursor',
-      label: 'Con trỏ / Di chuyển biểu đồ',
+      label: 'Con trỏ chuột (Di chuyển / Zoom)',
       icon: <MousePointer className="h-4 w-4" />,
     },
     {
-      type: 'trendline',
+      type: 'straightLine',
       label: 'Đường xu hướng (Trendline)',
       icon: <TrendingUp className="h-4 w-4" />,
     },
     {
-      type: 'horizontal',
+      type: 'rayLine',
+      label: 'Tia kéo dài (Ray)',
+      icon: <ArrowUpRight className="h-4 w-4" />,
+    },
+    {
+      type: 'horizontalStraightLine',
       label: 'Đường ngang Hỗ trợ / Kháng cự',
       icon: <Minus className="h-4 w-4" />,
     },
     {
-      type: 'box',
-      label: 'Vùng hộp tích lũy (Box)',
+      type: 'priceLine',
+      label: 'Đường mức giá (Price Line)',
+      icon: <Tag className="h-4 w-4" />,
+    },
+    {
+      type: 'rect',
+      label: 'Vùng hộp tích lũy (Rectangle Box)',
       icon: <Square className="h-4 w-4" />,
     },
     {
-      type: 'measure',
-      label: 'Thước đo giá & % (Measure)',
-      icon: <Ruler className="h-4 w-4" />,
+      type: 'parallelStraightLine',
+      label: 'Kênh giá song song (Parallel Channel)',
+      icon: <Pause className="h-4 w-4 rotate-45" />,
     },
     {
-      type: 'fibonacci',
+      type: 'fibonacciLine',
       label: 'Fibonacci Thoái lui (Fib Retracement)',
       icon: <SlidersHorizontal className="h-4 w-4" />,
+    },
+    {
+      type: 'brush',
+      label: 'Bút vẽ tự do (Brush)',
+      icon: <PenTool className="h-4 w-4" />,
+    },
+    {
+      type: 'simpleAnnotation',
+      label: 'Chú thích chữ (Text Note)',
+      icon: <Type className="h-4 w-4" />,
     },
   ];
 
@@ -78,7 +95,7 @@ export function DrawingToolbar({
         select-none
       "
       role="toolbar"
-      aria-label="Công cụ vẽ kỹ thuật TradingView"
+      aria-label="Công cụ vẽ kỹ thuật TradingView KLineCharts"
     >
       {/* Tool items */}
       {tools.map((t) => {
@@ -115,45 +132,14 @@ export function DrawingToolbar({
 
       <div className="w-5 h-[1px] bg-gray-200 dark:bg-gray-800 my-0.5" />
 
-      {/* Delete selected drawing button */}
-      <button
-        onClick={onDeleteSelected}
-        disabled={!selectedDrawingId}
-        className={`
-          relative group p-2 rounded-lg transition-all flex items-center justify-center
-          ${selectedDrawingId
-            ? 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 cursor-pointer'
-            : 'text-gray-300 dark:text-gray-700 cursor-not-allowed'
-          }
-        `}
-        title="Xóa nét vẽ đang chọn (Delete)"
-        aria-label="Xóa nét vẽ đang chọn"
-      >
-        <Trash2 className="h-4 w-4" />
-        <span
-          className="
-            pointer-events-none absolute left-full ml-2 px-2.5 py-1 rounded-md
-            bg-slate-900/95 text-white dark:bg-slate-800 dark:text-gray-100
-            text-[11px] font-semibold tracking-wide whitespace-nowrap
-            shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50
-          "
-        >
-          Xóa nét vẽ đã chọn
-        </span>
-      </button>
-
-      {/* Clear all drawings for this ticker */}
+      {/* Clear all drawings */}
       <button
         onClick={onClearAll}
-        disabled={totalDrawings === 0}
-        className={`
+        className="
           relative group p-2 rounded-lg transition-all flex items-center justify-center
-          ${totalDrawings > 0
-            ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/60 cursor-pointer'
-            : 'text-gray-300 dark:text-gray-700 cursor-not-allowed'
-          }
-        `}
-        title={`Xóa tất cả (${totalDrawings}) nét vẽ của mã này`}
+          text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/60 cursor-pointer
+        "
+        title="Xóa tất cả nét vẽ trên biểu đồ"
         aria-label="Xóa tất cả nét vẽ"
       >
         <Eraser className="h-4 w-4" />
@@ -165,7 +151,7 @@ export function DrawingToolbar({
             shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50
           "
         >
-          Xóa tất cả nét vẽ ({totalDrawings})
+          Xóa tất cả nét vẽ
         </span>
       </button>
     </div>
