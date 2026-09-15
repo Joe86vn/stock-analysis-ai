@@ -312,7 +312,7 @@ export function calculateSwingHighLow(
               type: 'CHOCH',
               direction: 'BULLISH',
               startIndex: activePeak.index,
-              breakIndex: k,
+              breakIndex: k - minConfirm + 1, // Vẽ đường nét đứt đến cây nến breakout đầu tiên
               price: activePeak.price,
               label: 'CHoCH',
             });
@@ -335,7 +335,7 @@ export function calculateSwingHighLow(
               type: 'BOS',
               direction: 'BEARISH',
               startIndex: activeTrough.index,
-              breakIndex: k,
+              breakIndex: k - minConfirm + 1, // Vẽ đường nét đứt đến cây nến breakout đầu tiên
               price: activeTrough.price,
               label: 'BOS',
             });
@@ -360,7 +360,7 @@ export function calculateSwingHighLow(
               type: 'CHOCH',
               direction: 'BEARISH',
               startIndex: activeTrough.index,
-              breakIndex: k,
+              breakIndex: k - minConfirm + 1, // Vẽ đường nét đứt đến cây nến breakout đầu tiên
               price: activeTrough.price,
               label: 'CHoCH',
             });
@@ -383,7 +383,7 @@ export function calculateSwingHighLow(
               type: 'BOS',
               direction: 'BULLISH',
               startIndex: activePeak.index,
-              breakIndex: k,
+              breakIndex: k - minConfirm + 1, // Vẽ đường nét đứt đến cây nến breakout đầu tiên
               price: activePeak.price,
               label: 'BOS',
             });
@@ -513,7 +513,7 @@ export function registerSwingHighLowIndicator(): void {
             const badgeW = textWidth + 8;
             const badgeH = 14;
             const badgeX = midX - badgeW / 2;
-            const badgeY = y - badgeH - 3; // Nằm phía trên đường nét đứt 3px
+            const badgeY = isBullish ? y - badgeH - 3 : y + 3; // Xu hướng tăng nằm TRÊN, xu hướng giảm nằm DƯỚI đường nét đứt
 
             ctx.setLineDash([]);
             // Nền badge bán trong suốt
