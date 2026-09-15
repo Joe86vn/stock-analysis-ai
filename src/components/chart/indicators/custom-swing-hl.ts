@@ -479,7 +479,7 @@ export function registerSwingHighLowIndicator(): void {
             ctx.lineTo(x2, y);
             ctx.stroke();
 
-            // Vẽ huy hiệu nhãn (Badge) ở điểm giữa đoạn đường
+            // Vẽ huy hiệu nhãn (Badge) phía trên đoạn đường nét đứt
             const midX = (x1 + x2) / 2;
             const badgeText = b.label; // 'CHoCH' hoặc 'BOS'
             ctx.font = 'bold 9px system-ui, -apple-system, sans-serif';
@@ -487,7 +487,7 @@ export function registerSwingHighLowIndicator(): void {
             const badgeW = textWidth + 8;
             const badgeH = 14;
             const badgeX = midX - badgeW / 2;
-            const badgeY = y - badgeH / 2;
+            const badgeY = y - badgeH - 3; // Nằm phía trên đường nét đứt 3px
 
             ctx.setLineDash([]);
             // Nền badge bán trong suốt
@@ -504,7 +504,7 @@ export function registerSwingHighLowIndicator(): void {
             ctx.fillStyle = color;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(badgeText, midX, y + 0.5);
+            ctx.fillText(badgeText, midX, badgeY + badgeH / 2 + 0.5);
 
             ctx.restore();
           }

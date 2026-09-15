@@ -114,6 +114,7 @@ function getKLineTheme(isDark: boolean): any {
           downColor: '#ef4444',
           noChangeColor: '#f59e0b',
           line: {
+            show: false,
             style: 'dashed' as const,
             dashedValue: [4, 4],
             size: 1,
@@ -504,10 +505,10 @@ export function StockChartPanel({
             subPanesRef.current.vol = chart.createIndicator({ name: 'VOL', calcParams: [20] }, false, { height: 85, dragEnabled: true }) ?? undefined;
       }
       if (activeIndicators.ema) {
-        chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, false, { id: 'candle_pane' });
+        chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, true, { id: 'candle_pane' });
       }
       if (activeIndicators.boll) {
-        chart.createIndicator({ name: 'BOLL', calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev] }, false, { id: 'candle_pane' });
+        chart.createIndicator({ name: 'BOLL', calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev] }, true, { id: 'candle_pane' });
       }
       if (activeIndicators.swingHl) {
         chart.createIndicator(
@@ -520,7 +521,7 @@ export function StockChartPanel({
               indicatorParams.swingHlConfirmBars,
             ],
           },
-          false,
+          true,
           { id: 'candle_pane' }
         );
       }
@@ -690,17 +691,17 @@ export function StockChartPanel({
                   indicatorParams.swingHlConfirmBars,
                 ],
               },
-              false,
+              true,
               { id: 'candle_pane' }
             );
           } else {
             chart.removeIndicator('candle_pane', 'SWING_HL');
           }
         } else if (key === 'ema') {
-          if (nextVal) chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, false, { id: 'candle_pane' });
+          if (nextVal) chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, true, { id: 'candle_pane' });
           else chart.removeIndicator('candle_pane', 'EMA');
         } else if (key === 'boll') {
-          if (nextVal) chart.createIndicator({ name: 'BOLL', calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev] }, false, { id: 'candle_pane' });
+          if (nextVal) chart.createIndicator({ name: 'BOLL', calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev] }, true, { id: 'candle_pane' });
           else chart.removeIndicator('candle_pane', 'BOLL');
         } else if (key === 'vol') {
           if (nextVal) {
