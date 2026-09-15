@@ -1069,7 +1069,7 @@ export function StockChartPanel({
               Chu kỳ:
             </span>
             {(['D', 'W', 'M'] as Resolution[]).map((res) => {
-              const label = res === 'D' ? 'Ngày (D)' : res === 'W' ? 'Tuần (W)' : 'Tháng (M)';
+              const label = res;
               const active = resolution === res;
               return (
                 <button

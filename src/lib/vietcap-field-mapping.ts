@@ -1378,6 +1378,34 @@ export async function fetchVietcapGapChart(
       });
     }
 
+    if (timeFrame === 'ONE_WEEK' || timeFrame === 'ONE_MONTH') {
+      const groupedMap = new Map<string, VietcapGapChartBar>();
+      for (const b of bars) {
+        let key = b.tradingDate;
+        if (timeFrame === 'ONE_WEEK') {
+          const d = new Date(b.tradingDate + 'T00:00:00Z');
+          const day = d.getUTCDay();
+          const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+          const monday = new Date(d.setDate(diff));
+          key = monday.toISOString().slice(0, 10);
+        } else if (timeFrame === 'ONE_MONTH') {
+          key = b.tradingDate.slice(0, 7) + '-01';
+        }
+
+        if (!groupedMap.has(key)) {
+          const tsSec = Math.floor(new Date(key + 'T00:00:00Z').getTime() / 1000);
+          groupedMap.set(key, { ...b, time: tsSec, tradingDate: key });
+        } else {
+          const existing = groupedMap.get(key)!;
+          existing.highestPrice = Math.max(existing.highestPrice, b.highestPrice);
+          existing.lowestPrice = Math.min(existing.lowestPrice, b.lowestPrice);
+          existing.closePrice = b.closePrice;
+          existing.volume += b.volume;
+        }
+      }
+      return Array.from(groupedMap.values());
+    }
+
     return bars;
   } catch (error) {
     console.error(`[Vietcap API] fetchVietcapGapChart failed for ${cleanTicker}:`, error);
