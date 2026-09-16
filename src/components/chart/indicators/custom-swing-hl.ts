@@ -90,9 +90,50 @@ export function calculateSwingHighLow(
     isTroughCandidate[i] = trough;
   }
 
-  // Bước 2: Áp dụng quy tắc đan xen tuần tự & khoảng cách tối thiểu 9 nến
+  // Hàm kiểm tra ngoại lệ Breakout (BOS / CHoCH): Nếu giá phá vỡ đỉnh/đáy gần nhất và duy trì ít nhất confirmBars nến đóng cửa
+  const minConfirm = Math.max(1, confirmBars);
+
+  function hasConfirmedBreakoutAbove(
+    fromIdx: number,
+    toIdx: number,
+    targetPrice: number
+  ): boolean {
+    let consecutive = 0;
+    const end = Math.min(n, toIdx);
+    for (let k = fromIdx; k < end; k++) {
+      if (dataList[k].close > targetPrice) {
+        consecutive++;
+        if (consecutive >= minConfirm) return true;
+      } else {
+        consecutive = 0;
+      }
+    }
+    return false;
+  }
+
+  function hasConfirmedBreakoutBelow(
+    fromIdx: number,
+    toIdx: number,
+    targetPrice: number
+  ): boolean {
+    let consecutive = 0;
+    const end = Math.min(n, toIdx);
+    for (let k = fromIdx; k < end; k++) {
+      if (dataList[k].close < targetPrice) {
+        consecutive++;
+        if (consecutive >= minConfirm) return true;
+      } else {
+        consecutive = 0;
+      }
+    }
+    return false;
+  }
+
+  // Bước 2: Áp dụng quy tắc đan xen tuần tự & khoảng cách tối thiểu 9 nến (kèm ngoại lệ BOS / CHoCH)
   let lastConfirmed: 'PEAK' | 'TROUGH' | null = null;
   let lastConfirmedIndex = -1;
+  let lastPeakPrice: number | null = null;
+  let lastTroughPrice: number | null = null;
 
   for (let i = win; i < n - win; i++) {
     const peak = isPeakCandidate[i];
@@ -109,6 +150,7 @@ export function calculateSwingHighLow(
         };
         lastConfirmed = 'PEAK';
         lastConfirmedIndex = i;
+        lastPeakPrice = dataList[i].high;
       } else if (trough && !peak) {
         result[i] = {
           isPeak: false,
@@ -119,6 +161,7 @@ export function calculateSwingHighLow(
         };
         lastConfirmed = 'TROUGH';
         lastConfirmedIndex = i;
+        lastTroughPrice = dataList[i].low;
       } else if (peak && trough) {
         result[i] = {
           isPeak: true,
@@ -129,9 +172,19 @@ export function calculateSwingHighLow(
         };
         lastConfirmed = 'PEAK';
         lastConfirmedIndex = i;
+        lastPeakPrice = dataList[i].high;
       }
     } else if (lastConfirmed === 'PEAK') {
-      if (trough && (i - lastConfirmedIndex >= minBarDistance)) {
+      let isDistanceOk = i - lastConfirmedIndex >= minBarDistance;
+
+      // Ngoại lệ BOS / CHoCH Giảm: Nếu nhịp giảm phá vỡ đáy cũ gần nhất và đóng cửa dưới ít nhất confirmBars nến
+      if (!isDistanceOk && trough && lastTroughPrice !== null) {
+        if (hasConfirmedBreakoutBelow(lastConfirmedIndex, i + win + 1, lastTroughPrice)) {
+          isDistanceOk = true;
+        }
+      }
+
+      if (trough && isDistanceOk) {
         result[i] = {
           isPeak: false,
           isTrough: true,
@@ -141,6 +194,7 @@ export function calculateSwingHighLow(
         };
         lastConfirmed = 'TROUGH';
         lastConfirmedIndex = i;
+        lastTroughPrice = dataList[i].low;
       } else if (peak) {
         const curHigh = dataList[i].high;
         const prevHigh = lastConfirmedIndex >= 0 ? dataList[lastConfirmedIndex].high : -Infinity;
@@ -157,10 +211,20 @@ export function calculateSwingHighLow(
           };
           lastConfirmed = 'PEAK';
           lastConfirmedIndex = i;
+          lastPeakPrice = curHigh;
         }
       }
     } else if (lastConfirmed === 'TROUGH') {
-      if (peak && (i - lastConfirmedIndex >= minBarDistance)) {
+      let isDistanceOk = i - lastConfirmedIndex >= minBarDistance;
+
+      // Ngoại lệ BOS / CHoCH Tăng: Nếu nhịp tăng phá vỡ đỉnh cũ gần nhất và đóng cửa trên ít nhất confirmBars nến
+      if (!isDistanceOk && peak && lastPeakPrice !== null) {
+        if (hasConfirmedBreakoutAbove(lastConfirmedIndex, i + win + 1, lastPeakPrice)) {
+          isDistanceOk = true;
+        }
+      }
+
+      if (peak && isDistanceOk) {
         result[i] = {
           isPeak: true,
           isTrough: false,
@@ -170,6 +234,7 @@ export function calculateSwingHighLow(
         };
         lastConfirmed = 'PEAK';
         lastConfirmedIndex = i;
+        lastPeakPrice = dataList[i].high;
       } else if (trough) {
         const curLow = dataList[i].low;
         const prevLow = lastConfirmedIndex >= 0 ? dataList[lastConfirmedIndex].low : Infinity;
@@ -186,6 +251,7 @@ export function calculateSwingHighLow(
           };
           lastConfirmed = 'TROUGH';
           lastConfirmedIndex = i;
+          lastTroughPrice = curLow;
         }
       }
     }
@@ -279,7 +345,6 @@ export function calculateSwingHighLow(
   let swingPointer = 0;
   let consecutiveClosesAbove = 0;
   let consecutiveClosesBelow = 0;
-  const minConfirm = Math.max(1, confirmBars);
 
   for (let k = 0; k < n; k++) {
     // Khi nến k chạm tới 1 swing mới đã được xác nhận:
