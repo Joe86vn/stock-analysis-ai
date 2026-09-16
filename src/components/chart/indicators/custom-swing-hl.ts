@@ -205,19 +205,15 @@ export function calculateSwingHighLow(
               breakoutHappened = true;
               break;
             }
-          } else {
-            i = j;
-            breakoutHappened = true;
-            break;
           }
         }
 
-        if (minLowIdx !== -1 && j - minLowIdx >= minBars) {
+        if (minLowIdx !== -1 && (minLowIdx - provPeakIdx >= minBars) && (j - minLowIdx >= minBars)) {
           officialSwings.push({ index: provPeakIdx, type: 'PEAK', price: provPeakPrice });
           officialSwings.push({ index: minLowIdx, type: 'TROUGH', price: minLowPrice });
           lastConfirmedType = 'TROUGH';
           lastConfirmedIdx = minLowIdx;
-          i = j + 1;
+          i = minLowIdx + 1;
           standardTroughConfirmed = true;
           break;
         }
@@ -285,19 +281,15 @@ export function calculateSwingHighLow(
               breakdownHappened = true;
               break;
             }
-          } else {
-            i = j;
-            breakdownHappened = true;
-            break;
           }
         }
 
-        if (maxHighIdx !== -1 && j - maxHighIdx >= minBars) {
+        if (maxHighIdx !== -1 && (maxHighIdx - provTroughIdx >= minBars) && (j - maxHighIdx >= minBars)) {
           officialSwings.push({ index: provTroughIdx, type: 'TROUGH', price: provTroughPrice });
           officialSwings.push({ index: maxHighIdx, type: 'PEAK', price: maxHighPrice });
           lastConfirmedType = 'PEAK';
           lastConfirmedIdx = maxHighIdx;
-          i = j + 1;
+          i = maxHighIdx + 1;
           standardPeakConfirmed = true;
           break;
         }
@@ -413,21 +405,6 @@ export function calculateSwingHighLow(
   let consecutiveClosesBelow = 0;
 
   for (let k = 0; k < n; k++) {
-    // Khi nến k chạm tới 1 swing mới đã được xác nhận:
-    while (swingPointer < swings.length && swings[swingPointer].index <= k) {
-      const sw = swings[swingPointer];
-      if (sw.type === 'PEAK') {
-        activePeak = sw;
-        activePeakBroken = false;
-        consecutiveClosesAbove = 0;
-      } else if (sw.type === 'TROUGH') {
-        activeTrough = sw;
-        activeTroughBroken = false;
-        consecutiveClosesBelow = 0;
-      }
-      swingPointer++;
-    }
-
     const curClose = dataList[k].close;
 
     // ─────────────────────────────────────────────────────────────
@@ -525,6 +502,21 @@ export function calculateSwingHighLow(
           consecutiveClosesAbove = 0;
         }
       }
+    }
+
+    // Khi nến k chạm tới 1 swing mới đã được xác nhận:
+    while (swingPointer < swings.length && swings[swingPointer].index <= k) {
+      const sw = swings[swingPointer];
+      if (sw.type === 'PEAK') {
+        activePeak = sw;
+        activePeakBroken = false;
+        consecutiveClosesAbove = 0;
+      } else if (sw.type === 'TROUGH') {
+        activeTrough = sw;
+        activeTroughBroken = false;
+        consecutiveClosesBelow = 0;
+      }
+      swingPointer++;
     }
   }
 
