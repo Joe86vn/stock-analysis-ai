@@ -65,254 +65,179 @@ export function calculateSwingHighLow(
   const minConfirm = Math.max(1, confirmBars);
   if (n < minBars * 2) return result;
 
-  // Danh sách các swing chính thức đã xác nhận
-  interface OfficialSwingItem {
-    index: number;
-    type: 'PEAK' | 'TROUGH';
-    price: number;
-  }
-  const officialSwings: OfficialSwingItem[] = [];
-
-  function checkBullishBOS(startIdx: number, endIdx: number, targetPrice: number) {
-    let firstBreakIdx = -1;
-    let count = 0;
-    const limit = Math.min(n, endIdx);
-    for (let k = startIdx; k < limit; k++) {
-      if (dataList[k].close > targetPrice) {
-        if (firstBreakIdx === -1) firstBreakIdx = k;
-        count++;
-        if (count >= minConfirm) {
-          return { confirmed: true, firstBreakIdx, confirmIdx: k };
-        }
-      } else {
-        firstBreakIdx = -1;
-        count = 0;
-      }
-    }
-    return { confirmed: false, firstBreakIdx: -1, confirmIdx: -1 };
-  }
-
-  function checkBearishBOS(startIdx: number, endIdx: number, targetPrice: number) {
-    let firstBreakIdx = -1;
-    let count = 0;
-    const limit = Math.min(n, endIdx);
-    for (let k = startIdx; k < limit; k++) {
-      if (dataList[k].close < targetPrice) {
-        if (firstBreakIdx === -1) firstBreakIdx = k;
-        count++;
-        if (count >= minConfirm) {
-          return { confirmed: true, firstBreakIdx, confirmIdx: k };
-        }
-      } else {
-        firstBreakIdx = -1;
-        count = 0;
-      }
-    }
-    return { confirmed: false, firstBreakIdx: -1, confirmIdx: -1 };
-  }
-
-  // Khởi tạo điểm swing đầu tiên
-  let lastConfirmedType: 'PEAK' | 'TROUGH' | null = null;
-  let lastConfirmedIdx = -1;
-  let startIdx = 0;
+  // Bước 1: Quét ứng viên fractal cực bộ (windowSize = 9)
+  const isPeakCandidate = new Array(n).fill(false);
+  const isTroughCandidate = new Array(n).fill(false);
 
   for (let i = minBars; i < n; i++) {
-    let isPeak = true;
+    const curHigh = dataList[i].high;
+    const curLow = dataList[i].low;
+
+    let pb = true;
     for (let k = 1; k <= minBars; k++) {
-      if (dataList[i - k].high > dataList[i].high) { isPeak = false; break; }
+      if (dataList[i - k].high > curHigh) { pb = false; break; }
     }
-    let isTrough = true;
-    for (let k = 1; k <= minBars; k++) {
-      if (dataList[i - k].low < dataList[i].low) { isTrough = false; break; }
+    let pa = true;
+    const la = Math.min(n - 1, i + minBars);
+    for (let k = i + 1; k <= la; k++) {
+      if (dataList[k].high >= curHigh) { pa = false; break; }
+    }
+    if (pb && (pa || i + minBars >= n)) {
+      isPeakCandidate[i] = true;
     }
 
-    if (isPeak) {
-      lastConfirmedType = 'PEAK';
-      lastConfirmedIdx = i;
-      startIdx = i + 1;
-      break;
-    } else if (isTrough) {
-      lastConfirmedType = 'TROUGH';
-      lastConfirmedIdx = i;
-      startIdx = i + 1;
-      break;
+    let tb = true;
+    for (let k = 1; k <= minBars; k++) {
+      if (dataList[i - k].low < curLow) { tb = false; break; }
+    }
+    let ta = true;
+    const lt = Math.min(n - 1, i + minBars);
+    for (let k = i + 1; k <= lt; k++) {
+      if (dataList[k].low <= curLow) { ta = false; break; }
+    }
+    if (tb && (ta || i + minBars >= n)) {
+      isTroughCandidate[i] = true;
     }
   }
 
-  if (lastConfirmedIdx === -1) return result;
-  officialSwings.push({
-    index: lastConfirmedIdx,
-    type: lastConfirmedType!,
-    price: lastConfirmedType === 'PEAK' ? dataList[lastConfirmedIdx].high : dataList[lastConfirmedIdx].low,
-  });
+  // Bước 2: Bộ lọc đan xen tuần tự & Quy tắc Ngoại lệ Breakout
+  let lastConfirmed: 'PEAK' | 'TROUGH' | null = null;
+  let lastConfirmedIndex = -1;
 
-  let i = startIdx;
-  while (i < n) {
-    if (lastConfirmedType === 'TROUGH') {
-      // Đang trong sóng tăng: tìm ĐỈNH
-      let candPeakIdx = i;
-      let candPeakPrice = dataList[i].high;
-      let curr = i;
+  for (let i = minBars; i < n; i++) {
+    const peak = isPeakCandidate[i];
+    const trough = isTroughCandidate[i];
 
-      while (curr < n) {
-        if (dataList[curr].high > candPeakPrice) {
-          candPeakIdx = curr;
-          candPeakPrice = dataList[curr].high;
-        }
-        if (curr - candPeakIdx >= minBars) {
-          break;
-        }
-        curr++;
+    if (lastConfirmed === null) {
+      if (peak && !trough) {
+        result[i] = {
+          isPeak: true,
+          isTrough: false,
+          confirmedType: 'PEAK',
+          price: dataList[i].high,
+          peakPrice: dataList[i].high,
+        };
+        lastConfirmed = 'PEAK';
+        lastConfirmedIndex = i;
+      } else if (trough && !peak) {
+        result[i] = {
+          isPeak: false,
+          isTrough: true,
+          confirmedType: 'TROUGH',
+          price: dataList[i].low,
+          troughPrice: dataList[i].low,
+        };
+        lastConfirmed = 'TROUGH';
+        lastConfirmedIndex = i;
       }
+      continue;
+    }
 
-      const provPeakIdx = candPeakIdx;
-      const provPeakPrice = candPeakPrice;
-
-      let j = curr;
-      let breakoutHappened = false;
-      let standardTroughConfirmed = false;
-
-      let minLowPrice = Infinity;
-      let minLowIdx = -1;
-      for (let k = provPeakIdx + 1; k <= j && k < n; k++) {
-        if (dataList[k].low < minLowPrice) {
-          minLowPrice = dataList[k].low;
-          minLowIdx = k;
-        }
-      }
-
-      while (j < n) {
-        if (dataList[j].low < minLowPrice) {
-          minLowPrice = dataList[j].low;
-          minLowIdx = j;
-        }
-
-        if (dataList[j].high > provPeakPrice) {
-          const bos = checkBullishBOS(provPeakIdx + 1, j + minConfirm + 1, provPeakPrice);
-          if (bos.confirmed) {
-            const d1 = minLowIdx - provPeakIdx;
-            const d2 = bos.firstBreakIdx - minLowIdx;
-            if (d1 >= minBars || d2 >= minBars) {
-              officialSwings.push({ index: provPeakIdx, type: 'PEAK', price: provPeakPrice });
-              officialSwings.push({ index: minLowIdx, type: 'TROUGH', price: minLowPrice });
-              lastConfirmedType = 'TROUGH';
-              lastConfirmedIdx = minLowIdx;
-              i = bos.firstBreakIdx;
-              breakoutHappened = true;
-              break;
-            } else {
-              i = j;
-              breakoutHappened = true;
-              break;
-            }
+    if (lastConfirmed === 'PEAK') {
+      let acceptTrough = false;
+      if (trough && (i - lastConfirmedIndex >= minBars)) {
+        acceptTrough = true;
+      } else if (trough) {
+        // Ngoại lệ Breakdown trong xu hướng giảm (Downtrend Breakdown Exception):
+        // Tìm đáy gần nhất đã xác nhận trước đỉnh lastConfirmedIndex
+        let prevTroughIdx = -1;
+        for (let j = lastConfirmedIndex - 1; j >= 0; j--) {
+          if (result[j]?.confirmedType === 'TROUGH') {
+            prevTroughIdx = j;
+            break;
           }
         }
-
-        if (minLowIdx !== -1 && (minLowIdx - provPeakIdx >= minBars) && (j - minLowIdx >= minBars)) {
-          officialSwings.push({ index: provPeakIdx, type: 'PEAK', price: provPeakPrice });
-          officialSwings.push({ index: minLowIdx, type: 'TROUGH', price: minLowPrice });
-          lastConfirmedType = 'TROUGH';
-          lastConfirmedIdx = minLowIdx;
-          i = minLowIdx + 1;
-          standardTroughConfirmed = true;
-          break;
-        }
-
-        j++;
-      }
-
-      if (!breakoutHappened && !standardTroughConfirmed) {
-        break;
-      }
-    } else {
-      // Đang trong sóng giảm: tìm ĐÁY
-      let candTroughIdx = i;
-      let candTroughPrice = dataList[i].low;
-      let curr = i;
-
-      while (curr < n) {
-        if (dataList[curr].low < candTroughPrice) {
-          candTroughIdx = curr;
-          candTroughPrice = dataList[curr].low;
-        }
-        if (curr - candTroughIdx >= minBars) {
-          break;
-        }
-        curr++;
-      }
-
-      const provTroughIdx = candTroughIdx;
-      const provTroughPrice = candTroughPrice;
-
-      let j = curr;
-      let breakdownHappened = false;
-      let standardPeakConfirmed = false;
-
-      let maxHighPrice = -Infinity;
-      let maxHighIdx = -1;
-      for (let k = provTroughIdx + 1; k <= j && k < n; k++) {
-        if (dataList[k].high > maxHighPrice) {
-          maxHighPrice = dataList[k].high;
-          maxHighIdx = k;
-        }
-      }
-
-      while (j < n) {
-        if (dataList[j].high > maxHighPrice) {
-          maxHighPrice = dataList[j].high;
-          maxHighIdx = j;
-        }
-
-        if (dataList[j].low < provTroughPrice) {
-          const bos = checkBearishBOS(provTroughIdx + 1, j + minConfirm + 1, provTroughPrice);
-          if (bos.confirmed) {
-            const d1 = maxHighIdx - provTroughIdx;
-            const d2 = bos.firstBreakIdx - maxHighIdx;
-            if (d1 >= minBars || d2 >= minBars) {
-              officialSwings.push({ index: provTroughIdx, type: 'TROUGH', price: provTroughPrice });
-              officialSwings.push({ index: maxHighIdx, type: 'PEAK', price: maxHighPrice });
-              lastConfirmedType = 'PEAK';
-              lastConfirmedIdx = maxHighIdx;
-              i = bos.firstBreakIdx;
-              breakdownHappened = true;
-              break;
-            } else {
-              i = j;
-              breakdownHappened = true;
-              break;
-            }
+        if (prevTroughIdx >= 0) {
+          const prevTroughPrice = result[prevTroughIdx]!.price;
+          const isBreakdown = dataList[i].low < prevTroughPrice;
+          const distToPrevTrough = lastConfirmedIndex - prevTroughIdx;
+          const distToBreak = i - lastConfirmedIndex;
+          if (isBreakdown && (distToPrevTrough >= minBars || distToBreak >= minBars)) {
+            acceptTrough = true;
           }
         }
-
-        if (maxHighIdx !== -1 && (maxHighIdx - provTroughIdx >= minBars) && (j - maxHighIdx >= minBars)) {
-          officialSwings.push({ index: provTroughIdx, type: 'TROUGH', price: provTroughPrice });
-          officialSwings.push({ index: maxHighIdx, type: 'PEAK', price: maxHighPrice });
-          lastConfirmedType = 'PEAK';
-          lastConfirmedIdx = maxHighIdx;
-          i = maxHighIdx + 1;
-          standardPeakConfirmed = true;
-          break;
-        }
-
-        j++;
       }
 
-      if (!breakdownHappened && !standardPeakConfirmed) {
-        break;
+      if (acceptTrough) {
+        result[i] = {
+          isPeak: false,
+          isTrough: true,
+          confirmedType: 'TROUGH',
+          price: dataList[i].low,
+          troughPrice: dataList[i].low,
+        };
+        lastConfirmed = 'TROUGH';
+        lastConfirmedIndex = i;
+      } else if (peak) {
+        // Cùng loại Peak: Đỉnh sau cao hơn thì thay thế đỉnh cũ (sóng tăng tiếp diễn)
+        const curHigh = dataList[i].high;
+        const prevHigh = lastConfirmedIndex >= 0 ? dataList[lastConfirmedIndex].high : -Infinity;
+        if (curHigh > prevHigh) {
+          result[lastConfirmedIndex] = null;
+          result[i] = {
+            isPeak: true,
+            isTrough: false,
+            confirmedType: 'PEAK',
+            price: curHigh,
+            peakPrice: curHigh,
+          };
+          lastConfirmed = 'PEAK';
+          lastConfirmedIndex = i;
+        }
+      }
+    } else if (lastConfirmed === 'TROUGH') {
+      let acceptPeak = false;
+      if (peak && (i - lastConfirmedIndex >= minBars)) {
+        acceptPeak = true;
+      } else if (peak) {
+        // Ngoại lệ Breakout trong xu hướng tăng (Uptrend Breakout Exception):
+        // Tìm đỉnh gần nhất đã xác nhận trước đáy lastConfirmedIndex
+        let prevPeakIdx = -1;
+        for (let j = lastConfirmedIndex - 1; j >= 0; j--) {
+          if (result[j]?.confirmedType === 'PEAK') {
+            prevPeakIdx = j;
+            break;
+          }
+        }
+        if (prevPeakIdx >= 0) {
+          const prevPeakPrice = result[prevPeakIdx]!.price;
+          const isBreakout = dataList[i].high > prevPeakPrice;
+          const distToPrevPeak = lastConfirmedIndex - prevPeakIdx;
+          const distToBreak = i - lastConfirmedIndex;
+          if (isBreakout && (distToPrevPeak >= minBars || distToBreak >= minBars)) {
+            acceptPeak = true;
+          }
+        }
+      }
+
+      if (acceptPeak) {
+        result[i] = {
+          isPeak: true,
+          isTrough: false,
+          confirmedType: 'PEAK',
+          price: dataList[i].high,
+          peakPrice: dataList[i].high,
+        };
+        lastConfirmed = 'PEAK';
+        lastConfirmedIndex = i;
+      } else if (trough) {
+        // Cùng loại Trough: Đáy sau thấp hơn thì thay thế đáy cũ (sóng giảm tiếp diễn)
+        const curLow = dataList[i].low;
+        const prevLow = lastConfirmedIndex >= 0 ? dataList[lastConfirmedIndex].low : Infinity;
+        if (curLow < prevLow) {
+          result[lastConfirmedIndex] = null;
+          result[i] = {
+            isPeak: false,
+            isTrough: true,
+            confirmedType: 'TROUGH',
+            price: curLow,
+            troughPrice: curLow,
+          };
+          lastConfirmed = 'TROUGH';
+          lastConfirmedIndex = i;
+        }
       }
     }
-  }
-
-  // Điền vào mảng result
-  for (const s of officialSwings) {
-    result[s.index] = {
-      isPeak: s.type === 'PEAK',
-      isTrough: s.type === 'TROUGH',
-      confirmedType: s.type,
-      price: s.price,
-      peakPrice: s.type === 'PEAK' ? s.price : undefined,
-      troughPrice: s.type === 'TROUGH' ? s.price : undefined,
-    };
   }
 
   // Bước 3: Gán nhãn cấu trúc HH, LH, HL, LL, DT (Double Top), DB (Double Bottom)
