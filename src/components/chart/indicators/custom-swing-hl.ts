@@ -24,6 +24,7 @@ export interface SwingResult {
   peakPrice?: number;
   troughPrice?: number;
   structureLabel?: StructureLabel;
+  percentChange?: number;
   structureBreaks?: StructureBreak[];
 }
 
@@ -61,18 +62,19 @@ export function calculateSwingHighLow(
   const result: (SwingResult | null)[] = new Array(n).fill(null);
   const win = Math.max(1, Math.floor(windowSize));
   const minBarDistance = Math.max(9, win); // Quy tắc: Đỉnh và đáy phải cách nhau ít nhất 9 nến
-  if (n < win * 2 + 1) return result;
+  const candidateWin = Math.min(5, win); // Cửa sổ cục bộ tìm ứng viên cực trị (tránh bỏ sót các nhịp đảo chiều sắc nét 4-8 nến)
+  if (n < candidateWin * 2 + 1) return result;
 
   // Bước 1: Tìm ứng viên đỉnh & đáy
   const isPeakCandidate: boolean[] = new Array(n).fill(false);
   const isTroughCandidate: boolean[] = new Array(n).fill(false);
 
-  for (let i = win; i < n - win; i++) {
+  for (let i = candidateWin; i < n - candidateWin; i++) {
     const curHigh = dataList[i].high;
     const curLow = dataList[i].low;
 
     let peak = true;
-    for (let k = 1; k <= win; k++) {
+    for (let k = 1; k <= candidateWin; k++) {
       if (dataList[i - k].high > curHigh || dataList[i + k].high >= curHigh) {
         peak = false;
         break;
@@ -81,7 +83,7 @@ export function calculateSwingHighLow(
     isPeakCandidate[i] = peak;
 
     let trough = true;
-    for (let k = 1; k <= win; k++) {
+    for (let k = 1; k <= candidateWin; k++) {
       if (dataList[i - k].low < curLow || dataList[i + k].low <= curLow) {
         trough = false;
         break;
@@ -129,13 +131,13 @@ export function calculateSwingHighLow(
     return false;
   }
 
-  // Bước 2: Áp dụng quy tắc đan xen tuần tự & khoảng cách tối thiểu 9 nến (kèm ngoại lệ BOS / CHoCH)
+  // Bước 2: Áp dụng quy tắc đan xen tuần tự & khoảng cách tối thiểu 9 nến (kèm ngoại lệ BOS / CHoCH & quy tắc 1 trong 2 đạt >= 9 nến)
   let lastConfirmed: 'PEAK' | 'TROUGH' | null = null;
   let lastConfirmedIndex = -1;
   let lastPeakPrice: number | null = null;
   let lastTroughPrice: number | null = null;
 
-  for (let i = win; i < n - win; i++) {
+  for (let i = candidateWin; i < n - candidateWin; i++) {
     const peak = isPeakCandidate[i];
     const trough = isTroughCandidate[i];
 
@@ -175,33 +177,44 @@ export function calculateSwingHighLow(
         lastPeakPrice = dataList[i].high;
       }
     } else if (lastConfirmed === 'PEAK') {
-      let isDistanceOk = i - lastConfirmedIndex >= minBarDistance;
+      const curHigh = dataList[i].high;
 
-      // Ngoại lệ BOS / CHoCH Giảm: Nếu nhịp giảm phá vỡ đáy cũ gần nhất và đóng cửa dưới ít nhất confirmBars nến
-      if (!isDistanceOk && trough && lastTroughPrice !== null) {
-        if (hasConfirmedBreakoutBelow(lastConfirmedIndex, i + win + 1, lastTroughPrice)) {
-          isDistanceOk = true;
-        }
-      }
-
-      if (trough && isDistanceOk) {
-        result[i] = {
-          isPeak: false,
-          isTrough: true,
-          confirmedType: 'TROUGH',
-          price: dataList[i].low,
-          troughPrice: dataList[i].low,
-        };
-        lastConfirmed = 'TROUGH';
-        lastConfirmedIndex = i;
-        lastTroughPrice = dataList[i].low;
-      } else if (peak) {
-        const curHigh = dataList[i].high;
-        const prevHigh = lastConfirmedIndex >= 0 ? dataList[lastConfirmedIndex].high : -Infinity;
-        if (curHigh > prevHigh) {
-          if (lastConfirmedIndex >= 0) {
-            result[lastConfirmedIndex] = null;
+      // TH1: Xuất hiện đỉnh mới (peak candidate)
+      if (peak) {
+        // Tìm đáy thấp nhất ở giữa hai đỉnh (Strong Low / Đáy tạo đà)
+        let minLow = Infinity;
+        let minLowIdx = -1;
+        for (let k = lastConfirmedIndex + 1; k < i; k++) {
+          if (dataList[k].low < minLow) {
+            minLow = dataList[k].low;
+            minLowIdx = k;
           }
+        }
+
+        const d1 = minLowIdx - lastConfirmedIndex;
+        const d2 = i - minLowIdx;
+        const isBreakout =
+          lastPeakPrice !== null &&
+          curHigh > lastPeakPrice &&
+          hasConfirmedBreakoutAbove(lastConfirmedIndex, i + candidateWin + 1, lastPeakPrice);
+
+        // Quy tắc: Đáy thấp nhất ở giữa 2 đỉnh được xác nhận nếu:
+        // Cả 2 phía đều >= 9 nến HOẶC có Breakout xác nhận và thỏa 1 trong 2 phía >= 9 nến (d1 >= 9 HOẶC d2 >= 9) với d1 >= 2, d2 >= 2
+        if (
+          minLowIdx !== -1 &&
+          lastPeakPrice !== null &&
+          minLow < lastPeakPrice &&
+          minLow < curHigh &&
+          ((d1 >= minBarDistance && d2 >= minBarDistance) ||
+            (isBreakout && d1 >= 2 && d2 >= 2 && (d1 >= minBarDistance || d2 >= minBarDistance)))
+        ) {
+          result[minLowIdx] = {
+            isPeak: false,
+            isTrough: true,
+            confirmedType: 'TROUGH',
+            price: minLow,
+            troughPrice: minLow,
+          };
           result[i] = {
             isPeak: true,
             isTrough: false,
@@ -212,36 +225,105 @@ export function calculateSwingHighLow(
           lastConfirmed = 'PEAK';
           lastConfirmedIndex = i;
           lastPeakPrice = curHigh;
+          lastTroughPrice = minLow;
+          continue;
+        } else if (
+          lastPeakPrice !== null &&
+          curHigh > lastPeakPrice &&
+          d1 < minBarDistance &&
+          d2 < minBarDistance
+        ) {
+          // Cùng một nhịp đỉnh mở rộng (không thỏa khoảng cách 9 nến ở cả 2 phía)
+          result[lastConfirmedIndex] = null;
+          result[i] = {
+            isPeak: true,
+            isTrough: false,
+            confirmedType: 'PEAK',
+            price: curHigh,
+            peakPrice: curHigh,
+          };
+          lastConfirmed = 'PEAK';
+          lastConfirmedIndex = i;
+          lastPeakPrice = curHigh;
+          continue;
+        }
+      }
+
+      // TH2: Ứng viên đáy (trough candidate)
+      // Bắt buộc tuân thủ tính bất biến hình học: Đáy phải có giá thấp hơn đỉnh liền trước (low < lastPeakPrice)
+      if (trough && (lastPeakPrice === null || dataList[i].low < lastPeakPrice)) {
+        let bestLow = dataList[i].low;
+        let bestIdx = i;
+        for (let k = lastConfirmedIndex + 1; k <= i; k++) {
+          if (dataList[k].low < bestLow) {
+            bestLow = dataList[k].low;
+            bestIdx = k;
+          }
+        }
+
+        const d1 = bestIdx - lastConfirmedIndex;
+        const d2 = i - bestIdx;
+        let isDistanceOk = d1 >= minBarDistance || (d1 >= 2 && d2 >= minBarDistance);
+
+        // Ngoại lệ Breakout giảm nếu phá vỡ đáy cũ
+        if (!isDistanceOk && lastTroughPrice !== null) {
+          if (hasConfirmedBreakoutBelow(lastConfirmedIndex, i + candidateWin + 1, lastTroughPrice)) {
+            isDistanceOk = true;
+          }
+        }
+
+        if (isDistanceOk) {
+          result[bestIdx] = {
+            isPeak: false,
+            isTrough: true,
+            confirmedType: 'TROUGH',
+            price: bestLow,
+            troughPrice: bestLow,
+          };
+          lastConfirmed = 'TROUGH';
+          lastConfirmedIndex = bestIdx;
+          lastTroughPrice = bestLow;
         }
       }
     } else if (lastConfirmed === 'TROUGH') {
-      let isDistanceOk = i - lastConfirmedIndex >= minBarDistance;
+      const curLow = dataList[i].low;
 
-      // Ngoại lệ BOS / CHoCH Tăng: Nếu nhịp tăng phá vỡ đỉnh cũ gần nhất và đóng cửa trên ít nhất confirmBars nến
-      if (!isDistanceOk && peak && lastPeakPrice !== null) {
-        if (hasConfirmedBreakoutAbove(lastConfirmedIndex, i + win + 1, lastPeakPrice)) {
-          isDistanceOk = true;
-        }
-      }
-
-      if (peak && isDistanceOk) {
-        result[i] = {
-          isPeak: true,
-          isTrough: false,
-          confirmedType: 'PEAK',
-          price: dataList[i].high,
-          peakPrice: dataList[i].high,
-        };
-        lastConfirmed = 'PEAK';
-        lastConfirmedIndex = i;
-        lastPeakPrice = dataList[i].high;
-      } else if (trough) {
-        const curLow = dataList[i].low;
-        const prevLow = lastConfirmedIndex >= 0 ? dataList[lastConfirmedIndex].low : Infinity;
-        if (curLow < prevLow) {
-          if (lastConfirmedIndex >= 0) {
-            result[lastConfirmedIndex] = null;
+      // TH1: Xuất hiện đáy mới (trough candidate)
+      if (trough) {
+        // Tìm đỉnh cao nhất ở giữa hai đáy (Strong High / Đỉnh tạo đà)
+        let maxHigh = -Infinity;
+        let maxHighIdx = -1;
+        for (let k = lastConfirmedIndex + 1; k < i; k++) {
+          if (dataList[k].high > maxHigh) {
+            maxHigh = dataList[k].high;
+            maxHighIdx = k;
           }
+        }
+
+        const d1 = maxHighIdx - lastConfirmedIndex;
+        const d2 = i - maxHighIdx;
+        const isBreakout =
+          lastTroughPrice !== null &&
+          curLow < lastTroughPrice &&
+          hasConfirmedBreakoutBelow(lastConfirmedIndex, i + candidateWin + 1, lastTroughPrice);
+
+        // Quy tắc: Đỉnh cao nhất ở giữa 2 đáy được xác nhận nếu:
+        // Cả 2 phía đều >= 9 nến HOẶC có Breakout xác nhận và thỏa 1 trong 2 phía >= 9 nến (d1 >= 9 HOẶC d2 >= 9) với d1 >= 2, d2 >= 2
+        if (
+          maxHighIdx !== -1 &&
+          lastTroughPrice !== null &&
+          maxHigh > lastTroughPrice &&
+          maxHigh > curLow &&
+          ((d1 >= minBarDistance && d2 >= minBarDistance) ||
+            (isBreakout && d1 >= 2 && d2 >= 2 && (d1 >= minBarDistance || d2 >= minBarDistance)))
+        ) {
+          result[maxHighIdx] = {
+            isPeak: true,
+            isTrough: false,
+            confirmedType: 'PEAK',
+            price: maxHigh,
+            peakPrice: maxHigh,
+          };
           result[i] = {
             isPeak: false,
             isTrough: true,
@@ -252,17 +334,76 @@ export function calculateSwingHighLow(
           lastConfirmed = 'TROUGH';
           lastConfirmedIndex = i;
           lastTroughPrice = curLow;
+          lastPeakPrice = maxHigh;
+          continue;
+        } else if (
+          lastTroughPrice !== null &&
+          curLow < lastTroughPrice &&
+          d1 < minBarDistance &&
+          d2 < minBarDistance
+        ) {
+          // Cùng một nhịp đáy mở rộng (không thỏa khoảng cách 9 nến ở cả 2 phía)
+          result[lastConfirmedIndex] = null;
+          result[i] = {
+            isPeak: false,
+            isTrough: true,
+            confirmedType: 'TROUGH',
+            price: curLow,
+            troughPrice: curLow,
+          };
+          lastConfirmed = 'TROUGH';
+          lastConfirmedIndex = i;
+          lastTroughPrice = curLow;
+          continue;
+        }
+      }
+
+      // TH2: Ứng viên đỉnh (peak candidate)
+      // Bắt buộc tuân thủ tính bất biến hình học: Đỉnh phải có giá cao hơn đáy liền trước (high > lastTroughPrice)
+      if (peak && (lastTroughPrice === null || dataList[i].high > lastTroughPrice)) {
+        let bestHigh = dataList[i].high;
+        let bestIdx = i;
+        for (let k = lastConfirmedIndex + 1; k <= i; k++) {
+          if (dataList[k].high > bestHigh) {
+            bestHigh = dataList[k].high;
+            bestIdx = k;
+          }
+        }
+
+        const d1 = bestIdx - lastConfirmedIndex;
+        const d2 = i - bestIdx;
+        let isDistanceOk = d1 >= minBarDistance || (d1 >= 2 && d2 >= minBarDistance);
+
+        // Ngoại lệ Breakout tăng nếu phá vỡ đỉnh cũ
+        if (!isDistanceOk && lastPeakPrice !== null) {
+          if (hasConfirmedBreakoutAbove(lastConfirmedIndex, i + candidateWin + 1, lastPeakPrice)) {
+            isDistanceOk = true;
+          }
+        }
+
+        if (isDistanceOk) {
+          result[bestIdx] = {
+            isPeak: true,
+            isTrough: false,
+            confirmedType: 'PEAK',
+            price: bestHigh,
+            peakPrice: bestHigh,
+          };
+          lastConfirmed = 'PEAK';
+          lastConfirmedIndex = bestIdx;
+          lastPeakPrice = bestHigh;
         }
       }
     }
   }
 
-  // Bước 3: Gán nhãn cấu trúc HH, LH, HL, LL, DT (Double Top), DB (Double Bottom)
+  // Bước 3: Gán nhãn cấu trúc HH, LH, HL, LL, DT (Double Top), DB (Double Bottom) & Tính % tăng/giảm từ đỉnh/đáy liền trước
   interface ConfirmedSwing {
     index: number;
     type: 'PEAK' | 'TROUGH';
     price: number;
     label?: StructureLabel;
+    percentChange?: number;
   }
   const swings: ConfirmedSwing[] = [];
   for (let i = 0; i < n; i++) {
@@ -289,6 +430,10 @@ export function calculateSwingHighLow(
           s.label = 'LH';
         }
       }
+      // Tính % tăng từ đáy liền trước (nếu có)
+      if (prevTrough && prevTrough.price > 0) {
+        s.percentChange = ((s.price - prevTrough.price) / prevTrough.price) * 100;
+      }
       prevPeak = s;
     } else if (s.type === 'TROUGH') {
       if (prevTrough) {
@@ -300,10 +445,15 @@ export function calculateSwingHighLow(
           s.label = 'HL';
         }
       }
+      // Tính % giảm từ đỉnh liền trước (nếu có)
+      if (prevPeak && prevPeak.price > 0) {
+        s.percentChange = ((s.price - prevPeak.price) / prevPeak.price) * 100;
+      }
       prevTrough = s;
     }
     if (result[s.index]) {
       result[s.index]!.structureLabel = s.label;
+      result[s.index]!.percentChange = s.percentChange;
     }
   }
 
@@ -495,7 +645,7 @@ export function registerSwingHighLowIndicator(): void {
     registerIndicator<SwingResult | null>({
       name: SWING_HL_INDICATOR_NAME,
       shortName: 'Đỉnh Đáy & SMC',
-      calcParams: [9, 1, 1, 3], // [windowSize, showZigzag, showChochBos, confirmBars]
+      calcParams: [9, 1, 1, 3, 1], // [windowSize, showZigzag, showChochBos, confirmBars, showPercentChange]
       series: IndicatorSeries.Price,
       precision: 0,
       shouldOhlc: true,
@@ -511,6 +661,7 @@ export function registerSwingHighLowIndicator(): void {
 
         const showZigzag = indicator?.calcParams?.[1] !== undefined ? Boolean(indicator.calcParams[1]) : true;
         const showChochBos = indicator?.calcParams?.[2] !== undefined ? Boolean(indicator.calcParams[2]) : true;
+        const showPercentChange = indicator?.calcParams?.[4] !== undefined ? Boolean(indicator.calcParams[4]) : true;
 
         // 1. Vẽ đường Zigzag nét đứt màu vàng hổ phách nối các đỉnh - đáy (nếu được bật)
         if (showZigzag) {
@@ -601,7 +752,7 @@ export function registerSwingHighLowIndicator(): void {
           }
         }
 
-        // 3. Vẽ nhãn giá và cấu trúc đỉnh đáy (HH, LH, HL, LL)
+        // 3. Vẽ nhãn giá và cấu trúc đỉnh đáy (HH, LH, HL, LL) kèm % tăng/giảm
         const from = Math.max(0, visibleRange.from - 2);
         const to = Math.min(results.length, visibleRange.to + 2);
 
@@ -624,6 +775,15 @@ export function registerSwingHighLowIndicator(): void {
             ctx.textBaseline = 'bottom';
             const text = structLabel ? `${structLabel} ${priceStr}` : priceStr;
             ctx.fillText(text, x, y - 4);
+
+            // Nhãn % tăng từ đáy liền trước: Nằm ngay TRÊN nhãn đỉnh
+            if (showPercentChange && item.percentChange !== undefined) {
+              const pct = item.percentChange;
+              const pctStr = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+              ctx.font = 'bold 9px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+              ctx.fillStyle = pct >= 0 ? '#10b981' : '#ef4444'; // Xanh lá nếu tăng (+)
+              ctx.fillText(pctStr, x, y - 16);
+            }
           } else if (item.confirmedType === 'TROUGH') {
             // ĐÁY: Màu xanh, hiển thị nhãn HL/LL kèm giá
             ctx.fillStyle = '#10b981'; // Emerald-500
@@ -631,6 +791,15 @@ export function registerSwingHighLowIndicator(): void {
             ctx.textBaseline = 'top';
             const text = structLabel ? `${structLabel} ${priceStr}` : priceStr;
             ctx.fillText(text, x, y + 4);
+
+            // Nhãn % giảm từ đỉnh liền trước: Nằm ngay DƯỚI nhãn đáy
+            if (showPercentChange && item.percentChange !== undefined) {
+              const pct = item.percentChange;
+              const pctStr = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+              ctx.font = 'bold 9px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+              ctx.fillStyle = pct < 0 ? '#ef4444' : '#10b981'; // Đỏ nếu giảm (-)
+              ctx.fillText(pctStr, x, y + 16);
+            }
           }
 
           ctx.restore();

@@ -387,6 +387,7 @@ export function StockChartPanel({
     swingHlShowLine: true,
     swingHlShowChochBos: true,
     swingHlConfirmBars: 3,
+    swingHlShowPercent: true,
     emaShort: 20,
     emaLong: 200,
     bollPeriod: 20,
@@ -633,6 +634,7 @@ export function StockChartPanel({
               indicatorParams.swingHlShowLine ? 1 : 0,
               indicatorParams.swingHlShowChochBos ? 1 : 0,
               indicatorParams.swingHlConfirmBars,
+              indicatorParams.swingHlShowPercent ? 1 : 0,
             ],
           },
           true,
@@ -724,6 +726,7 @@ export function StockChartPanel({
               next.swingHlShowLine ? 1 : 0,
               next.swingHlShowChochBos ? 1 : 0,
               next.swingHlConfirmBars,
+              next.swingHlShowPercent ? 1 : 0,
             ],
           },
           'candle_pane'
@@ -746,6 +749,30 @@ export function StockChartPanel({
               next.swingHlShowLine ? 1 : 0,
               next.swingHlShowChochBos ? 1 : 0,
               next.swingHlConfirmBars,
+              next.swingHlShowPercent ? 1 : 0,
+            ],
+          },
+          'candle_pane'
+        );
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSwingHlPercent = (show: boolean) => {
+    setIndicatorParams((prev) => {
+      const next = { ...prev, swingHlShowPercent: show };
+      const chart = chartRef.current;
+      if (chart && activeIndicators.swingHl) {
+        chart.overrideIndicator(
+          {
+            name: 'SWING_HL',
+            calcParams: [
+              next.swingHlWindow,
+              next.swingHlShowLine ? 1 : 0,
+              next.swingHlShowChochBos ? 1 : 0,
+              next.swingHlConfirmBars,
+              next.swingHlShowPercent ? 1 : 0,
             ],
           },
           'candle_pane'
@@ -770,6 +797,7 @@ export function StockChartPanel({
                 next.swingHlShowLine ? 1 : 0,
                 next.swingHlShowChochBos ? 1 : 0,
                 next.swingHlConfirmBars,
+                next.swingHlShowPercent ? 1 : 0,
               ],
             },
             'candle_pane'
@@ -803,6 +831,7 @@ export function StockChartPanel({
                   indicatorParams.swingHlShowLine ? 1 : 0,
                   indicatorParams.swingHlShowChochBos ? 1 : 0,
                   indicatorParams.swingHlConfirmBars,
+                  indicatorParams.swingHlShowPercent ? 1 : 0,
                 ],
               },
               true,
@@ -1389,6 +1418,15 @@ export function StockChartPanel({
                               className="rounded text-emerald-500 focus:ring-emerald-400 h-3.5 w-3.5 cursor-pointer"
                             />
                             <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện đường CHoCH &amp; BOS</span>
+                          </label>
+                          <label className="flex items-center space-x-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={indicatorParams.swingHlShowPercent}
+                              onChange={(e) => handleToggleSwingHlPercent(e.target.checked)}
+                              className="rounded text-amber-500 focus:ring-amber-400 h-3.5 w-3.5 cursor-pointer"
+                            />
+                            <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện % tăng / giảm đỉnh đáy</span>
                           </label>
                         </div>
                       )}
