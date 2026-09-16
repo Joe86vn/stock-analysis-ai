@@ -199,14 +199,14 @@ export function calculateSwingHighLow(
           hasConfirmedBreakoutAbove(lastConfirmedIndex, i + candidateWin + 1, lastPeakPrice);
 
         // Quy tắc: Đáy thấp nhất ở giữa 2 đỉnh được xác nhận nếu:
-        // Cả 2 phía đều >= 9 nến HOẶC có Breakout xác nhận và thỏa 1 trong 2 phía >= 9 nến (d1 >= 9 HOẶC d2 >= 9) với d1 >= 2, d2 >= 2
+        // Cả 2 phía đều >= 9 nến HOẶC có Breakout xác nhận và thỏa 1 trong 2 phía >= 9 nến (d1 >= 9 HOẶC d2 >= 9) với d1 >= 1, d2 >= 1
         if (
           minLowIdx !== -1 &&
           lastPeakPrice !== null &&
           minLow < lastPeakPrice &&
           minLow < curHigh &&
           ((d1 >= minBarDistance && d2 >= minBarDistance) ||
-            (isBreakout && d1 >= 2 && d2 >= 2 && (d1 >= minBarDistance || d2 >= minBarDistance)))
+            (isBreakout && d1 >= 1 && d2 >= 1 && (d1 >= minBarDistance || d2 >= minBarDistance)))
         ) {
           result[minLowIdx] = {
             isPeak: false,
@@ -227,13 +227,8 @@ export function calculateSwingHighLow(
           lastPeakPrice = curHigh;
           lastTroughPrice = minLow;
           continue;
-        } else if (
-          lastPeakPrice !== null &&
-          curHigh > lastPeakPrice &&
-          d1 < minBarDistance &&
-          d2 < minBarDistance
-        ) {
-          // Cùng một nhịp đỉnh mở rộng (không thỏa khoảng cách 9 nến ở cả 2 phía)
+        } else if (lastPeakPrice !== null && curHigh > lastPeakPrice) {
+          // Cùng một nhịp đỉnh mở rộng cao hơn
           result[lastConfirmedIndex] = null;
           result[i] = {
             isPeak: true,
@@ -252,18 +247,8 @@ export function calculateSwingHighLow(
       // TH2: Ứng viên đáy (trough candidate)
       // Bắt buộc tuân thủ tính bất biến hình học: Đáy phải có giá thấp hơn đỉnh liền trước (low < lastPeakPrice)
       if (trough && (lastPeakPrice === null || dataList[i].low < lastPeakPrice)) {
-        let bestLow = dataList[i].low;
-        let bestIdx = i;
-        for (let k = lastConfirmedIndex + 1; k <= i; k++) {
-          if (dataList[k].low < bestLow) {
-            bestLow = dataList[k].low;
-            bestIdx = k;
-          }
-        }
-
-        const d1 = bestIdx - lastConfirmedIndex;
-        const d2 = i - bestIdx;
-        let isDistanceOk = d1 >= minBarDistance || (d1 >= 2 && d2 >= minBarDistance);
+        const d1 = i - lastConfirmedIndex;
+        let isDistanceOk = d1 >= minBarDistance;
 
         // Ngoại lệ Breakout giảm nếu phá vỡ đáy cũ
         if (!isDistanceOk && lastTroughPrice !== null) {
@@ -273,16 +258,16 @@ export function calculateSwingHighLow(
         }
 
         if (isDistanceOk) {
-          result[bestIdx] = {
+          result[i] = {
             isPeak: false,
             isTrough: true,
             confirmedType: 'TROUGH',
-            price: bestLow,
-            troughPrice: bestLow,
+            price: dataList[i].low,
+            troughPrice: dataList[i].low,
           };
           lastConfirmed = 'TROUGH';
-          lastConfirmedIndex = bestIdx;
-          lastTroughPrice = bestLow;
+          lastConfirmedIndex = i;
+          lastTroughPrice = dataList[i].low;
         }
       }
     } else if (lastConfirmed === 'TROUGH') {
@@ -308,14 +293,14 @@ export function calculateSwingHighLow(
           hasConfirmedBreakoutBelow(lastConfirmedIndex, i + candidateWin + 1, lastTroughPrice);
 
         // Quy tắc: Đỉnh cao nhất ở giữa 2 đáy được xác nhận nếu:
-        // Cả 2 phía đều >= 9 nến HOẶC có Breakout xác nhận và thỏa 1 trong 2 phía >= 9 nến (d1 >= 9 HOẶC d2 >= 9) với d1 >= 2, d2 >= 2
+        // Cả 2 phía đều >= 9 nến HOẶC có Breakout xác nhận và thỏa 1 trong 2 phía >= 9 nến (d1 >= 9 HOẶC d2 >= 9) với d1 >= 1, d2 >= 1
         if (
           maxHighIdx !== -1 &&
           lastTroughPrice !== null &&
           maxHigh > lastTroughPrice &&
           maxHigh > curLow &&
           ((d1 >= minBarDistance && d2 >= minBarDistance) ||
-            (isBreakout && d1 >= 2 && d2 >= 2 && (d1 >= minBarDistance || d2 >= minBarDistance)))
+            (isBreakout && d1 >= 1 && d2 >= 1 && (d1 >= minBarDistance || d2 >= minBarDistance)))
         ) {
           result[maxHighIdx] = {
             isPeak: true,
@@ -336,13 +321,8 @@ export function calculateSwingHighLow(
           lastTroughPrice = curLow;
           lastPeakPrice = maxHigh;
           continue;
-        } else if (
-          lastTroughPrice !== null &&
-          curLow < lastTroughPrice &&
-          d1 < minBarDistance &&
-          d2 < minBarDistance
-        ) {
-          // Cùng một nhịp đáy mở rộng (không thỏa khoảng cách 9 nến ở cả 2 phía)
+        } else if (lastTroughPrice !== null && curLow < lastTroughPrice) {
+          // Cùng một nhịp đáy mở rộng sâu hơn
           result[lastConfirmedIndex] = null;
           result[i] = {
             isPeak: false,
@@ -361,18 +341,8 @@ export function calculateSwingHighLow(
       // TH2: Ứng viên đỉnh (peak candidate)
       // Bắt buộc tuân thủ tính bất biến hình học: Đỉnh phải có giá cao hơn đáy liền trước (high > lastTroughPrice)
       if (peak && (lastTroughPrice === null || dataList[i].high > lastTroughPrice)) {
-        let bestHigh = dataList[i].high;
-        let bestIdx = i;
-        for (let k = lastConfirmedIndex + 1; k <= i; k++) {
-          if (dataList[k].high > bestHigh) {
-            bestHigh = dataList[k].high;
-            bestIdx = k;
-          }
-        }
-
-        const d1 = bestIdx - lastConfirmedIndex;
-        const d2 = i - bestIdx;
-        let isDistanceOk = d1 >= minBarDistance || (d1 >= 2 && d2 >= minBarDistance);
+        const d1 = i - lastConfirmedIndex;
+        let isDistanceOk = d1 >= minBarDistance;
 
         // Ngoại lệ Breakout tăng nếu phá vỡ đỉnh cũ
         if (!isDistanceOk && lastPeakPrice !== null) {
@@ -382,16 +352,16 @@ export function calculateSwingHighLow(
         }
 
         if (isDistanceOk) {
-          result[bestIdx] = {
+          result[i] = {
             isPeak: true,
             isTrough: false,
             confirmedType: 'PEAK',
-            price: bestHigh,
-            peakPrice: bestHigh,
+            price: dataList[i].high,
+            peakPrice: dataList[i].high,
           };
           lastConfirmed = 'PEAK';
-          lastConfirmedIndex = bestIdx;
-          lastPeakPrice = bestHigh;
+          lastConfirmedIndex = i;
+          lastPeakPrice = dataList[i].high;
         }
       }
     }
