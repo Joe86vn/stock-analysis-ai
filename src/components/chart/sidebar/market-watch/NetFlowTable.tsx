@@ -90,10 +90,10 @@ export const NetFlowTable: React.FC = () => {
     <div className="w-full font-sans select-none text-[10px]">
       {/* Title & Header titles (Vietcap style) */}
       <div className="mb-2">
-        <div className="text-[11px] font-extrabold text-slate-900 dark:text-white mb-1">
+        <div className="text-[11px] font-bold text-slate-900 dark:text-white mb-1">
           Top cổ phiếu giao dịch (tỷ VNĐ)
         </div>
-        <div className="grid grid-cols-2 gap-3 font-black tracking-tight text-[10.5px]">
+        <div className="grid grid-cols-2 gap-3 font-bold tracking-tight text-[10.5px]">
           <div className="text-center text-slate-900 dark:text-white">Mua ròng</div>
           <div className="text-center text-slate-900 dark:text-white">Bán ròng</div>
         </div>
@@ -112,7 +112,7 @@ export const NetFlowTable: React.FC = () => {
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
                 {/* Number on left + Green Bar growing to right */}
                 <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
-                  <span className="text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <span className="text-[9.5px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
                     {formatBillion(val)}
                   </span>
                   <div className="flex-1 flex items-center justify-end h-3 min-w-0">
@@ -123,8 +123,8 @@ export const NetFlowTable: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Ticker on right */}
-                <span className="font-extrabold text-slate-900 dark:text-white w-8 shrink-0 text-left text-[10px]">
+                {/* Ticker on right - Regular font weight */}
+                <span className="font-semibold text-slate-800 dark:text-slate-100 w-8 shrink-0 text-left text-[10px]">
                   {ticker}
                 </span>
               </div>
@@ -141,8 +141,8 @@ export const NetFlowTable: React.FC = () => {
 
             return (
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
-                {/* Ticker on left */}
-                <span className="font-extrabold text-slate-900 dark:text-white w-8 shrink-0 text-right text-[10px]">
+                {/* Ticker on left - Regular font weight */}
+                <span className="font-semibold text-slate-800 dark:text-slate-100 w-8 shrink-0 text-right text-[10px]">
                   {ticker}
                 </span>
 
@@ -154,7 +154,7 @@ export const NetFlowTable: React.FC = () => {
                       style={{ width: `${Math.max(barWidthPct, 4)}%` }}
                     />
                   </div>
-                  <span className="text-[9.5px] font-bold text-red-600 dark:text-red-400 shrink-0">
+                  <span className="text-[9.5px] font-semibold text-red-600 dark:text-red-400 shrink-0">
                     -{formatBillion(val)}
                   </span>
                 </div>

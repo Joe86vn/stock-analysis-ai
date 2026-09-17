@@ -70,7 +70,7 @@ export const MarketInfluenceTable: React.FC = () => {
   return (
     <div className="w-full font-sans select-none text-[10px]">
       {/* Header titles (Vietcap style) */}
-      <div className="grid grid-cols-2 gap-3 mb-2 font-black tracking-tight text-[11px]">
+      <div className="grid grid-cols-2 gap-3 mb-2 font-bold tracking-tight text-[11px]">
         <div className="text-center text-slate-900 dark:text-white">Đóng góp tăng</div>
         <div className="text-center text-slate-900 dark:text-white">Đóng góp giảm</div>
       </div>
@@ -87,7 +87,7 @@ export const MarketInfluenceTable: React.FC = () => {
               <div key={item.StockCode} className="flex items-center gap-1.5 h-5">
                 {/* Number on left + Green Bar growing to right */}
                 <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
-                  <span className="text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <span className="text-[9.5px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
                     {inf > 0 ? `+${inf.toFixed(2)}` : inf.toFixed(2)}
                   </span>
                   <div className="flex-1 flex items-center justify-end h-3 min-w-0">
@@ -98,8 +98,8 @@ export const MarketInfluenceTable: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Ticker on right */}
-                <span className="font-extrabold text-slate-900 dark:text-white w-7 shrink-0 text-left text-[10px]">
+                {/* Ticker on right - Regular font weight */}
+                <span className="font-semibold text-slate-800 dark:text-slate-100 w-7 shrink-0 text-left text-[10px]">
                   {item.StockCode}
                 </span>
               </div>
@@ -115,8 +115,8 @@ export const MarketInfluenceTable: React.FC = () => {
 
             return (
               <div key={item.StockCode} className="flex items-center gap-1.5 h-5">
-                {/* Ticker on left */}
-                <span className="font-extrabold text-slate-900 dark:text-white w-7 shrink-0 text-right text-[10px]">
+                {/* Ticker on left - Regular font weight */}
+                <span className="font-semibold text-slate-800 dark:text-slate-100 w-7 shrink-0 text-right text-[10px]">
                   {item.StockCode}
                 </span>
 
@@ -128,7 +128,7 @@ export const MarketInfluenceTable: React.FC = () => {
                       style={{ width: `${Math.max(barWidthPct, 4)}%` }}
                     />
                   </div>
-                  <span className="text-[9.5px] font-bold text-red-600 dark:text-red-400 shrink-0">
+                  <span className="text-[9.5px] font-semibold text-red-600 dark:text-red-400 shrink-0">
                     {inf.toFixed(2)}
                   </span>
                 </div>
