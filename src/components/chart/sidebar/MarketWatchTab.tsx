@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { IntradayChart } from './market-watch/IntradayChart';
-import { LiquidityChart } from './market-watch/LiquidityChart';
+import { VnindexCandleChart } from './market-watch/VnindexCandleChart';
 import { MarketInfluenceTable } from './market-watch/MarketInfluenceTable';
 import { BreadthChart } from './market-watch/BreadthChart';
 import { ValuationChart } from './market-watch/ValuationChart';
@@ -63,28 +63,28 @@ export const MarketWatchTab: React.FC = () => {
         <IntradayChart />
       </Section>
 
-      {/* Section 2 — Thanh khoản */}
-      <Section title="Thanh khoản" defaultOpen={true}>
-        <LiquidityChart />
+      {/* Section 2 — Nến VNINDEX & Phân phối CANSLIM */}
+      <Section title="Nến VNINDEX & Phân phối" badge="CANSLIM" defaultOpen={true}>
+        <VnindexCandleChart />
       </Section>
 
-      {/* Section 3 — Top ảnh hưởng */}
+      {/* Section 3 — Top CP ảnh hưởng VNINDEX */}
       <Section title="Ảnh hưởng VNINDEX" badge="LIVE" defaultOpen={true}>
         <MarketInfluenceTable />
       </Section>
 
       {/* Section 4 — Độ rộng thị trường */}
-      <Section title="Độ rộng thị trường" defaultOpen={false}>
+      <Section title="Độ rộng thị trường" defaultOpen={true}>
         <BreadthChart />
       </Section>
 
       {/* Section 5 — Định giá PE/PB */}
-      <Section title="Định giá VNINDEX" defaultOpen={false}>
+      <Section title="Định giá VNINDEX" defaultOpen={true}>
         <ValuationChart />
       </Section>
 
-      {/* Section 6 — Dòng tiền */}
-      <Section title="Dòng tiền" defaultOpen={false}>
+      {/* Section 6 — Top Mua Bán Ròng Nước Ngoài */}
+      <Section title="Nước ngoài Mua / Bán ròng" defaultOpen={true}>
         <NetFlowTable />
       </Section>
 
@@ -95,3 +95,4 @@ export const MarketWatchTab: React.FC = () => {
     </div>
   );
 };
+

@@ -28,14 +28,26 @@ interface ChartPoint {
 }
 
 const fetchValuation = async (type: ValType): Promise<ChartPoint[]> => {
-  const res = await fetch(`/api/market-watch/valuation?type=${type}&comGroupCode=VNINDEX&timeFrame=FIVE_YEAR`);
-  if (!res.ok) return [];
-  const json = await res.json();
-  const raw: ValPoint[] = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [];
-  return raw.map((d) => ({
-    date: String(d.date ?? d.time ?? d.t ?? ''),
-    value: Number(d.value ?? d.pe ?? d.pb ?? 0),
-  })).filter((p) => p.value > 0);
+  try {
+    const res = await fetch(`/api/market-watch/valuation?type=${type}&comGroupCode=VNINDEX&timeFrame=FIVE_YEAR`);
+    if (!res.ok) return [];
+    const json = await res.json();
+    const raw: ValPoint[] = Array.isArray(json)
+      ? json
+      : Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.values)
+      ? json.data.values
+      : [];
+    return raw
+      .map((d) => ({
+        date: String(d.date ?? d.time ?? d.t ?? ''),
+        value: Number(d.value ?? d.pe ?? d.pb ?? 0),
+      }))
+      .filter((p) => p.value > 0);
+  } catch {
+    return [];
+  }
 };
 
 const median = (arr: number[]) => {

@@ -29,11 +29,20 @@ export const IntradayChart: React.FC = () => {
         const json = await res.json();
 
         // Normalize data — handle different response shapes
-        const rawItems: MinutePoint[] = Array.isArray(json)
-          ? json
-          : Array.isArray(json?.data)
-          ? json.data
-          : [];
+        let rawItems: MinutePoint[] = [];
+
+        if (json && Array.isArray(json.c) && Array.isArray(json.t)) {
+          // MasTrade format: { c: [...], t: [...], v: [...] }
+          rawItems = json.c.map((val: number, idx: number) => ({
+            close: val,
+            price: val,
+            time: json.t[idx],
+          }));
+        } else if (Array.isArray(json)) {
+          rawItems = json;
+        } else if (Array.isArray(json?.data)) {
+          rawItems = json.data;
+        }
 
         if (rawItems.length === 0) {
           setError(true);

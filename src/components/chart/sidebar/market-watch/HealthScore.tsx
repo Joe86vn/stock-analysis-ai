@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, AlertTriangle, ShieldCheck } from 'lucide-rea
 
 interface HistoryPoint {
   date?: string;
+  tradingDate?: string;
   time?: string;
   t?: string | number;
   close?: number;
@@ -14,6 +15,7 @@ interface HistoryPoint {
   indexValue?: number;
   volume?: number;
   totalVolume?: number;
+  totalMatchVolume?: number;
   matchVolume?: number;
 }
 
@@ -203,16 +205,18 @@ export const HealthScore: React.FC = () => {
           ? json
           : Array.isArray(json?.data)
           ? json.data
+          : Array.isArray(json?.data?.content)
+          ? json.data.content
           : [];
 
         if (raw.length < 10) { setError(true); return; }
 
         // Normalize and sort ascending by date
         const days: DayData[] = raw
-          .map((d) => ({
-            date: String(d.date ?? d.time ?? d.t ?? ''),
-            close: Number(d.close ?? d.closeIndex ?? d.indexValue ?? 0),
-            volume: Number(d.volume ?? d.totalVolume ?? d.matchVolume ?? 0),
+          .map((d: HistoryPoint) => ({
+            date: String(d.tradingDate ?? d.date ?? d.time ?? d.t ?? ''),
+            close: Number(d.closeIndex ?? d.close ?? d.indexValue ?? 0),
+            volume: Number(d.totalMatchVolume ?? d.totalVolume ?? d.volume ?? d.matchVolume ?? 0),
           }))
           .filter((d) => d.close > 0)
           .sort((a, b) => a.date.localeCompare(b.date));

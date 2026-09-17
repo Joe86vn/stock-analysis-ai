@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 
 interface InfluenceItem {
   _id?: string;
@@ -16,28 +16,14 @@ interface InfluenceData {
 }
 
 const fetchInfluence = async (sort: 'DESC' | 'ASC'): Promise<InfluenceItem[]> => {
-  const res = await fetch(`/api/market-watch/market-influence?sort=${sort}&count=5`);
-  if (!res.ok) return [];
-  const json: InfluenceData = await res.json();
-  return json?.data?.vsStockInfluenceList ?? (Array.isArray(json) ? json : []);
-};
-
-const InfluenceRow: React.FC<{ item: InfluenceItem; isUp: boolean }> = ({ item, isUp }) => {
-  const color = isUp ? 'text-emerald-500' : 'text-red-500';
-  const bg = isUp ? 'bg-emerald-500/8' : 'bg-red-500/8';
-  return (
-    <div className={`flex items-center justify-between px-1.5 py-0.5 rounded ${bg}`}>
-      <span className="text-[11px] font-bold text-gray-700 dark:text-gray-200 w-10 shrink-0">
-        {item.StockCode}
-      </span>
-      <span className={`text-[10px] font-semibold ${color}`}>
-        {item.PerChange > 0 ? '+' : ''}{item.PerChange?.toFixed(1)}%
-      </span>
-      <span className={`text-[10px] font-medium ${color} w-12 text-right`}>
-        {item.InfluenceIndex > 0 ? '+' : ''}{item.InfluenceIndex?.toFixed(2)}
-      </span>
-    </div>
-  );
+  try {
+    const res = await fetch(`/api/market-watch/market-influence?sort=${sort}&count=10`);
+    if (!res.ok) return [];
+    const json: InfluenceData = await res.json();
+    return json?.data?.vsStockInfluenceList ?? (Array.isArray(json) ? json : []);
+  } catch {
+    return [];
+  }
 };
 
 export const MarketInfluenceTable: React.FC = () => {
@@ -50,13 +36,17 @@ export const MarketInfluenceTable: React.FC = () => {
     const load = async () => {
       try {
         setLoading(true);
+        setError(false);
         const [up, down] = await Promise.all([
           fetchInfluence('DESC'),
           fetchInfluence('ASC'),
         ]);
-        if (up.length === 0 && down.length === 0) setError(true);
-        setTopUp(up.slice(0, 5));
-        setTopDown(down.slice(0, 5));
+        if (up.length === 0 && down.length === 0) {
+          setError(true);
+          return;
+        }
+        setTopUp(up.slice(0, 10));
+        setTopDown(down.slice(0, 10));
       } catch {
         setError(true);
       } finally {
@@ -66,27 +56,93 @@ export const MarketInfluenceTable: React.FC = () => {
     load();
   }, []);
 
-  if (loading) return <div className="text-xs text-gray-400 py-3 text-center">Đang tải...</div>;
-  if (error) return <div className="text-xs text-gray-400 py-3 text-center">Không có dữ liệu</div>;
+  const maxVal = useMemo(() => {
+    const allVals = [
+      ...topUp.map((x) => Math.abs(x.InfluenceIndex ?? 0)),
+      ...topDown.map((x) => Math.abs(x.InfluenceIndex ?? 0)),
+    ];
+    return allVals.length > 0 ? Math.max(...allVals, 0.1) : 1;
+  }, [topUp, topDown]);
+
+  if (loading) return <div className="text-xs text-gray-400 py-4 text-center">Đang tải biểu đồ ảnh hưởng...</div>;
+  if (error) return <div className="text-xs text-gray-400 py-4 text-center">Không có dữ liệu ảnh hưởng</div>;
 
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {/* Kéo tăng */}
-      <div>
-        <div className="text-[10px] font-bold text-emerald-500 mb-1 px-1">▲ Kéo tăng</div>
-        <div className="flex flex-col gap-0.5">
-          {topUp.map((item) => (
-            <InfluenceRow key={item.StockCode} item={item} isUp={true} />
-          ))}
-        </div>
+    <div className="w-full font-sans select-none text-[10px]">
+      {/* Header titles */}
+      <div className="grid grid-cols-2 gap-2 mb-1.5 pb-1 border-b border-gray-100 dark:border-gray-800/80 font-bold text-gray-400 uppercase tracking-tight text-[9px]">
+        <div className="text-left text-emerald-500">Top 10 đóng góp tăng</div>
+        <div className="text-right text-red-500">Top 10 đóng góp giảm</div>
       </div>
-      {/* Kéo giảm */}
-      <div>
-        <div className="text-[10px] font-bold text-red-500 mb-1 px-1">▼ Kéo giảm</div>
-        <div className="flex flex-col gap-0.5">
-          {topDown.map((item) => (
-            <InfluenceRow key={item.StockCode} item={item} isUp={false} />
-          ))}
+
+      {/* 2-Column Horizontal Bar Chart Grid */}
+      <div className="grid grid-cols-2 gap-2">
+        {/* Left Column: Top 10 Kéo Tăng */}
+        <div className="flex flex-col gap-1">
+          {topUp.map((item) => {
+            const inf = item.InfluenceIndex ?? 0;
+            const barWidthPct = Math.min((Math.abs(inf) / maxVal) * 100, 100);
+            const perChg = item.PerChange !== undefined ? item.PerChange * (item.PerChange < 1 && item.PerChange > -1 ? 100 : 1) : 0;
+
+            return (
+              <div key={item.StockCode} className="flex items-center gap-1 h-5">
+                {/* Ticker */}
+                <span className="font-bold text-gray-800 dark:text-gray-100 w-7 shrink-0 text-[10px]">
+                  {item.StockCode}
+                </span>
+
+                {/* Per Change % */}
+                <span className="text-[9px] font-semibold text-emerald-500 w-10 shrink-0 text-right">
+                  +{perChg.toFixed(1)}%
+                </span>
+
+                {/* Horizontal Bar (grows left-to-right) */}
+                <div className="flex-1 h-3.5 bg-gray-100 dark:bg-gray-800/60 rounded-xs relative overflow-hidden flex items-center">
+                  <div
+                    className="h-full bg-emerald-500/80 dark:bg-emerald-500/90 rounded-xs transition-all duration-300"
+                    style={{ width: `${Math.max(barWidthPct, 8)}%` }}
+                  />
+                  <span className="absolute left-1 text-[8.5px] font-black text-white drop-shadow-xs z-10">
+                    +{inf.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right Column: Top 10 Kéo Giảm */}
+        <div className="flex flex-col gap-1">
+          {topDown.map((item) => {
+            const inf = item.InfluenceIndex ?? 0;
+            const barWidthPct = Math.min((Math.abs(inf) / maxVal) * 100, 100);
+            const perChg = item.PerChange !== undefined ? item.PerChange * (item.PerChange < 1 && item.PerChange > -1 ? 100 : 1) : 0;
+
+            return (
+              <div key={item.StockCode} className="flex items-center gap-1 h-5">
+                {/* Horizontal Bar (grows right-to-left) */}
+                <div className="flex-1 h-3.5 bg-gray-100 dark:bg-gray-800/60 rounded-xs relative overflow-hidden flex items-center justify-end">
+                  <div
+                    className="h-full bg-red-500/80 dark:bg-red-500/90 rounded-xs transition-all duration-300"
+                    style={{ width: `${Math.max(barWidthPct, 8)}%` }}
+                  />
+                  <span className="absolute right-1 text-[8.5px] font-black text-white drop-shadow-xs z-10">
+                    {inf.toFixed(2)}
+                  </span>
+                </div>
+
+                {/* Per Change % */}
+                <span className="text-[9px] font-semibold text-red-500 w-10 shrink-0 text-left">
+                  {perChg.toFixed(1)}%
+                </span>
+
+                {/* Ticker */}
+                <span className="font-bold text-gray-800 dark:text-gray-100 w-7 shrink-0 text-right text-[10px]">
+                  {item.StockCode}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

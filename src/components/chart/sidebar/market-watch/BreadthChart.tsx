@@ -114,8 +114,9 @@ export const BreadthChart: React.FC = () => {
           <LineChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
             <XAxis dataKey="date" hide />
             <YAxis hide domain={[0, 100]} />
-            <ReferenceLine y={70} stroke="#10b981" strokeDasharray="3 3" strokeWidth={1} />
-            <ReferenceLine y={50} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1} />
+            <ReferenceLine y={70} stroke="rgba(239, 68, 68, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '70%', fill: 'rgba(239, 68, 68, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
+            <ReferenceLine y={50} stroke="rgba(255, 255, 255, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '50%', fill: 'rgba(255, 255, 255, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
+            <ReferenceLine y={30} stroke="rgba(34, 197, 94, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '30%', fill: 'rgba(34, 197, 94, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
             <Tooltip
               contentStyle={{
                 background: 'rgba(15,23,42,0.9)',
