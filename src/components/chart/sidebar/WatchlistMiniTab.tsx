@@ -37,6 +37,7 @@ export interface CustomWatchlist {
 }
 
 type ViewMode = 'table' | 'grid_compact' | 'grid_card';
+export type ColorStyle = 'minimal' | 'tint';
 type SortField = 'ticker' | 'rsRating' | 'currentPrice' | 'priceChangePercent' | 'volOrVal' | 'adtv20Billion';
 type SortOrder = 'asc' | 'desc';
 type IndustrySortMode = 'stock_count' | 'total_adtv' | 'performance' | 'alphabetical';
@@ -49,6 +50,7 @@ interface EnrichedStockItem extends StockRankingItem {
 const STORAGE_KEY_CUSTOM_LISTS = 'valuex_custom_watchlists';
 const STORAGE_KEY_ACTIVE_LIST = 'valuex_active_watchlist';
 const STORAGE_KEY_VIEW_MODE = 'valuex_watchlist_view_mode';
+const STORAGE_KEY_COLOR_STYLE = 'valuex_watchlist_color_style';
 
 export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
   currentTicker,
@@ -57,6 +59,8 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 }) => {
   // ─── Chế Độ Hiển Thị: Bảng (Table) | Lưới Nhiệt (Grid Compact) | Thẻ (Grid Card) ───
   const [viewMode, setViewMode] = useState<ViewMode>('grid_compact');
+  // ─── Kiểu Màu Sắc: Tinh Gọn (Minimalist - Nền trắng/tối, số đổi màu) | Tint Mờ (Soft Glass Tint) ───
+  const [colorStyle, setColorStyle] = useState<ColorStyle>('minimal');
 
   // ─── Watchlist Presets & Universe State ───────────────────────────────────
   const [presets, setPresets] = useState<{
@@ -126,14 +130,13 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
   // 1. Tải danh sách Watchlist Preset & Universe từ API
   useEffect(() => {
-    let isCancelled = false;
     const loadPresets = async () => {
       try {
         setIsLoadingPresets(true);
         const res = await fetch('/api/stocks/watchlist-presets');
         if (!res.ok) return;
         const json = await res.json();
-        if (!isCancelled && json.success && json.data) {
+        if (json.success && json.data) {
           setPresets({
             top150_cap: json.data.top150_cap || [],
             top150_adtv: json.data.top150_adtv || [],
@@ -144,14 +147,11 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       } catch (err) {
         console.warn('[WatchlistMiniTab] Error loading watchlist presets:', err);
       } finally {
-        if (!isCancelled) setIsLoadingPresets(false);
+        setIsLoadingPresets(false);
       }
     };
 
     loadPresets();
-    return () => {
-      isCancelled = true;
-    };
   }, []);
 
   // 2. Khởi tạo danh mục tự tạo & chế độ xem từ localStorage
@@ -172,6 +172,10 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       if (storedViewMode && ['table', 'grid_compact', 'grid_card'].includes(storedViewMode)) {
         setViewMode(storedViewMode);
       }
+      const storedColorStyle = localStorage.getItem(STORAGE_KEY_COLOR_STYLE) as ColorStyle;
+      if (storedColorStyle && ['minimal', 'tint'].includes(storedColorStyle)) {
+        setColorStyle(storedColorStyle);
+      }
     } catch {}
   }, []);
 
@@ -180,6 +184,14 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     setViewMode(mode);
     try {
       localStorage.setItem(STORAGE_KEY_VIEW_MODE, mode);
+    } catch {}
+  };
+
+  // Lưu Kiểu màu sắc
+  const handleSetColorStyle = (style: ColorStyle) => {
+    setColorStyle(style);
+    try {
+      localStorage.setItem(STORAGE_KEY_COLOR_STYLE, style);
     } catch {}
   };
 
@@ -422,90 +434,159 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     return groups;
   }, [filteredStocks, sortField, sortOrder, industrySortMode]);
 
-  // ─── Hàm Tính Màu Nhiệt Động Chuẩn TTCK Việt Nam (Heatmap Colors) ───────────
-  const getHeatmapColorClass = (s: EnrichedStockItem) => {
+  // ─── Hàm Định Kiểu Màu Sắc Chuẩn TTCK Việt Nam (Minimalist vs Soft Tint Glass) ─────
+  const getTileStyle = (s: EnrichedStockItem, style: ColorStyle = 'minimal') => {
     const pct = s.priceChangePercent ?? 0;
     const ex = (s.exchange || 'HSX').toUpperCase();
     const ceilingPct = ex === 'UPCOM' ? 14.3 : ex === 'HNX' ? 9.5 : 6.7;
     const floorPct = ex === 'UPCOM' ? -14.3 : ex === 'HNX' ? -9.5 : -6.7;
 
-    // 1. Tím trần (Ceiling)
-    if (pct >= ceilingPct && pct > 0) {
+    const isCeiling = pct >= ceilingPct && pct > 0;
+    const isFloor = pct <= floorPct && pct < 0;
+    const isUpStrong = !isCeiling && pct >= 3.0;
+    const isUpMid = !isCeiling && pct >= 1.0 && pct < 3.0;
+    const isUpLight = !isCeiling && pct > 0 && pct < 1.0;
+    const isRef = pct === 0;
+    const isDownLight = !isFloor && pct < 0 && pct > -1.5;
+    const isDownMid = !isFloor && pct <= -1.5 && pct >= -3.0;
+    const isDownDeep = !isFloor && pct < -3.0;
+
+    // ── 1. OPTION C: TINH GỌN (Minimalist - Nền sạch trung tính, chỉ đổi màu chữ số) ──
+    if (style === 'minimal') {
+      const containerClass =
+        'bg-white dark:bg-[#161a23] hover:bg-slate-50 dark:hover:bg-[#1e2330] border border-slate-200/90 dark:border-slate-800 shadow-2xs';
+      const tickerClass = 'text-slate-800 dark:text-slate-200 font-extrabold';
+      const priceClass = 'text-slate-500 dark:text-slate-400 font-mono';
+      const badgeClass =
+        'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80';
+
+      let pctClass = 'text-amber-500 dark:text-amber-400 font-bold';
+      if (isCeiling) {
+        pctClass = 'text-fuchsia-600 dark:text-fuchsia-400 font-black';
+      } else if (isFloor) {
+        pctClass = 'text-cyan-600 dark:text-cyan-400 font-black';
+      } else if (isUpStrong) {
+        pctClass = 'text-emerald-600 dark:text-emerald-400 font-black';
+      } else if (isUpMid) {
+        pctClass = 'text-emerald-600 dark:text-emerald-400 font-bold';
+      } else if (isUpLight) {
+        pctClass = 'text-teal-600 dark:text-teal-400 font-semibold';
+      } else if (isRef) {
+        pctClass = 'text-amber-500 dark:text-amber-400 font-bold';
+      } else if (isDownLight) {
+        pctClass = 'text-rose-500 dark:text-rose-400 font-semibold';
+      } else if (isDownMid) {
+        pctClass = 'text-orange-600 dark:text-orange-400 font-bold';
+      } else if (isDownDeep) {
+        pctClass = 'text-rose-600 dark:text-rose-400 font-black';
+      }
+
       return {
-        bg: 'bg-[#d946ef] hover:bg-[#c026d3] text-white border-[#f0abfc] shadow-xs',
-        badge: 'bg-purple-950/60 text-purple-200',
-        textColor: 'text-white',
+        containerClass,
+        tickerClass,
+        pctClass,
+        priceClass,
+        badgeClass,
       };
     }
 
-    // 2. Xanh lơ sàn (Floor)
-    if (pct <= floorPct && pct < 0) {
+    // ── 2. OPTION B: TINT MỜ (Soft Glass Tint - Phủ màu pastel dịu mắt cả Light & Dark) ──
+    if (isCeiling) {
       return {
-        bg: 'bg-[#06b6d4] hover:bg-[#0891b2] text-slate-950 font-bold border-[#67e8f9] shadow-xs',
-        badge: 'bg-cyan-950/60 text-cyan-200',
-        textColor: 'text-slate-950',
+        containerClass:
+          'bg-fuchsia-50 dark:bg-fuchsia-950/40 hover:bg-fuchsia-100/80 dark:hover:bg-fuchsia-900/40 border border-fuchsia-200 dark:border-fuchsia-800/50 shadow-2xs',
+        tickerClass: 'text-fuchsia-950 dark:text-fuchsia-100 font-extrabold',
+        pctClass: 'text-fuchsia-700 dark:text-fuchsia-300 font-black',
+        priceClass: 'text-fuchsia-800/80 dark:text-fuchsia-300/80 font-mono',
+        badgeClass: 'bg-fuchsia-200/60 dark:bg-fuchsia-900/60 text-fuchsia-900 dark:text-fuchsia-200',
       };
     }
 
-    // 3. Tăng mạnh > 3.0% (Xanh lá đậm neon)
-    if (pct >= 3.0) {
+    if (isFloor) {
       return {
-        bg: 'bg-[#16a34a] hover:bg-[#15803d] text-white font-bold border-[#4ade80] shadow-xs',
-        badge: 'bg-emerald-950/60 text-emerald-200',
-        textColor: 'text-white',
+        containerClass:
+          'bg-cyan-50 dark:bg-cyan-950/40 hover:bg-cyan-100/80 dark:hover:bg-cyan-900/40 border border-cyan-200 dark:border-cyan-800/50 shadow-2xs',
+        tickerClass: 'text-cyan-950 dark:text-cyan-100 font-extrabold',
+        pctClass: 'text-cyan-700 dark:text-cyan-300 font-black',
+        priceClass: 'text-cyan-800/80 dark:text-cyan-300/80 font-mono',
+        badgeClass: 'bg-cyan-200/60 dark:bg-cyan-900/60 text-cyan-900 dark:text-cyan-200',
       };
     }
 
-    // 4. Tăng vừa 1.0% - 3.0% (Xanh lá vừa)
-    if (pct >= 1.0) {
+    if (isUpStrong) {
       return {
-        bg: 'bg-[#22c55e] hover:bg-[#16a34a] text-slate-950 font-bold border-[#86efac]',
-        badge: 'bg-emerald-950/30 text-emerald-950 dark:text-emerald-100',
-        textColor: 'text-slate-950',
+        containerClass:
+          'bg-emerald-50 dark:bg-emerald-950/45 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/45 border border-emerald-300 dark:border-emerald-700/50 shadow-2xs',
+        tickerClass: 'text-emerald-950 dark:text-emerald-100 font-extrabold',
+        pctClass: 'text-emerald-700 dark:text-emerald-300 font-black',
+        priceClass: 'text-emerald-800/80 dark:text-emerald-300/80 font-mono',
+        badgeClass: 'bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200',
       };
     }
 
-    // 5. Tăng nhẹ 0.1% - 1.0% (Xanh lá sáng dịu)
-    if (pct > 0) {
+    if (isUpMid) {
       return {
-        bg: 'bg-[#86efac] hover:bg-[#4ade80] text-slate-950 font-bold border-[#bbf7d0]',
-        badge: 'bg-emerald-900/20 text-emerald-950',
-        textColor: 'text-slate-950',
+        containerClass:
+          'bg-emerald-50/65 dark:bg-emerald-950/30 hover:bg-emerald-100/65 dark:hover:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/40 shadow-2xs',
+        tickerClass: 'text-emerald-900 dark:text-emerald-200 font-extrabold',
+        pctClass: 'text-emerald-600 dark:text-emerald-400 font-bold',
+        priceClass: 'text-emerald-800/70 dark:text-emerald-400/70 font-mono',
+        badgeClass: 'bg-emerald-100/80 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300',
       };
     }
 
-    // 6. Tham chiếu / Đứng giá 0.0% (Vàng tươi sáng)
-    if (pct === 0) {
+    if (isUpLight) {
       return {
-        bg: 'bg-[#fde047] hover:bg-[#facc15] text-slate-950 font-bold border-[#fef08a]',
-        badge: 'bg-amber-900/20 text-amber-950',
-        textColor: 'text-slate-950',
+        containerClass:
+          'bg-teal-50/40 dark:bg-teal-950/20 hover:bg-teal-50/80 dark:hover:bg-teal-900/20 border border-teal-200/60 dark:border-teal-900/30 shadow-2xs',
+        tickerClass: 'text-slate-800 dark:text-slate-200 font-extrabold',
+        pctClass: 'text-teal-600 dark:text-teal-400 font-bold',
+        priceClass: 'text-slate-600 dark:text-slate-400 font-mono',
+        badgeClass: 'bg-teal-100/60 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300',
       };
     }
 
-    // 7. Giảm nhẹ -0.1% đến -1.5% (Cam hồng nhạt)
-    if (pct > -1.5) {
+    if (isRef) {
       return {
-        bg: 'bg-[#fca5a5] hover:bg-[#f87171] text-slate-950 font-bold border-[#fecaca]',
-        badge: 'bg-rose-950/30 text-rose-950',
-        textColor: 'text-slate-950',
+        containerClass:
+          'bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-100/60 dark:hover:bg-amber-900/30 border border-amber-200/80 dark:border-amber-800/40 shadow-2xs',
+        tickerClass: 'text-amber-950 dark:text-amber-100 font-extrabold',
+        pctClass: 'text-amber-600 dark:text-amber-400 font-bold',
+        priceClass: 'text-amber-800/70 dark:text-amber-400/70 font-mono',
+        badgeClass: 'bg-amber-100/80 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300',
       };
     }
 
-    // 8. Giảm vừa -1.5% đến -3.0% (Cam đỏ đậm)
-    if (pct >= -3.0) {
+    if (isDownLight) {
       return {
-        bg: 'bg-[#f97316] hover:bg-[#ea580c] text-white font-bold border-[#fdba74] shadow-xs',
-        badge: 'bg-orange-950/60 text-orange-200',
-        textColor: 'text-white',
+        containerClass:
+          'bg-rose-50/40 dark:bg-rose-950/20 hover:bg-rose-50/80 dark:hover:bg-rose-900/20 border border-rose-200/60 dark:border-rose-900/30 shadow-2xs',
+        tickerClass: 'text-slate-800 dark:text-slate-200 font-extrabold',
+        pctClass: 'text-rose-500 dark:text-rose-400 font-bold',
+        priceClass: 'text-slate-600 dark:text-slate-400 font-mono',
+        badgeClass: 'bg-rose-100/60 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300',
       };
     }
 
-    // 9. Giảm sâu > -3.0% (Đỏ đậm rực)
+    if (isDownMid) {
+      return {
+        containerClass:
+          'bg-orange-50/65 dark:bg-orange-950/30 hover:bg-orange-100/65 dark:hover:bg-orange-900/30 border border-orange-200 dark:border-orange-800/40 shadow-2xs',
+        tickerClass: 'text-orange-950 dark:text-orange-100 font-extrabold',
+        pctClass: 'text-orange-600 dark:text-orange-400 font-bold',
+        priceClass: 'text-orange-800/80 dark:text-orange-400/80 font-mono',
+        badgeClass: 'bg-orange-100/80 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300',
+      };
+    }
+
+    // Giảm sâu (< -3.0%)
     return {
-      bg: 'bg-[#dc2626] hover:bg-[#b91c1c] text-white font-bold border-[#f87171] shadow-xs',
-      badge: 'bg-rose-950/60 text-rose-200',
-      textColor: 'text-white',
+      containerClass:
+        'bg-rose-50 dark:bg-rose-950/45 hover:bg-rose-100/80 dark:hover:bg-rose-900/45 border border-rose-300 dark:border-rose-700/50 shadow-2xs',
+      tickerClass: 'text-rose-950 dark:text-rose-100 font-extrabold',
+      pctClass: 'text-rose-600 dark:text-rose-400 font-black',
+      priceClass: 'text-rose-800/80 dark:text-rose-300/80 font-mono',
+      badgeClass: 'bg-rose-200/60 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200',
     };
   };
 
@@ -915,52 +996,82 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
           )}
         </div>
 
-        {/* Hàng điều khiển: Chế độ hiển thị 3 nấc + Sắp xếp ngành */}
-        <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
-          {/* Bộ chuyển đổi chế độ xem 3 nấc (Option C: Bảng 📋 | Lưới Nhiệt 🔲 | Thẻ 🗂️) */}
-          <div className="flex items-center p-0.5 rounded-lg bg-gray-200/80 dark:bg-gray-800 border border-gray-300/80 dark:border-gray-700/80 text-[10.5px]">
-            <button
-              onClick={() => handleSetViewMode('table')}
-              className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
-                viewMode === 'table'
-                  ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-              title="Bảng chi tiết (Mã, RS, Giá, % , GTGD, 20N)"
-            >
-              <List className="w-3 h-3" />
-              <span>Bảng</span>
-            </button>
+        {/* Hàng điều khiển: Chế độ hiển thị 3 nấc + Toggle Màu sắc + Sắp xếp ngành */}
+        <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 gap-1.5 flex-wrap">
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
+            {/* Bộ chuyển đổi chế độ xem 3 nấc (Option C: Bảng 📋 | Lưới Nhiệt 🔲 | Thẻ 🗂️) */}
+            <div className="flex items-center p-0.5 rounded-lg bg-gray-200/80 dark:bg-gray-800 border border-gray-300/80 dark:border-gray-700/80 text-[10px]">
+              <button
+                onClick={() => handleSetViewMode('table')}
+                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+                title="Bảng chi tiết (Mã, RS, Giá, % , GTGD, 20N)"
+              >
+                <List className="w-3 h-3" />
+                <span>Bảng</span>
+              </button>
 
-            <button
-              onClick={() => handleSetViewMode('grid_compact')}
-              className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
-                viewMode === 'grid_compact'
-                  ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-              title="Lưới nhiệt siêu gọn (Heatmap toàn ngành)"
-            >
-              <LayoutGrid className="w-3 h-3" />
-              <span>Lưới</span>
-            </button>
+              <button
+                onClick={() => handleSetViewMode('grid_compact')}
+                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
+                  viewMode === 'grid_compact'
+                    ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+                title="Lưới nhiệt siêu gọn (Heatmap toàn ngành)"
+              >
+                <LayoutGrid className="w-3 h-3" />
+                <span>Lưới</span>
+              </button>
 
-            <button
-              onClick={() => handleSetViewMode('grid_card')}
-              className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
-                viewMode === 'grid_card'
-                  ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-              title="Thẻ chi tiết 2 dòng (Mã, %, Giá, RS)"
-            >
-              <Grid3X3 className="w-3 h-3" />
-              <span>Thẻ</span>
-            </button>
+              <button
+                onClick={() => handleSetViewMode('grid_card')}
+                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
+                  viewMode === 'grid_card'
+                    ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+                title="Thẻ chi tiết 4 cột (Mã, %, Giá, RS)"
+              >
+                <Grid3X3 className="w-3 h-3" />
+                <span>Thẻ</span>
+              </button>
+            </div>
+
+            {/* Chuyển đổi Kiểu Màu Sắc (Lai giữa Option B và Option C) - Chỉ hiện khi ở Lưới hoặc Thẻ */}
+            {viewMode !== 'table' && (
+              <div className="flex items-center p-0.5 rounded-lg bg-gray-200/80 dark:bg-gray-800 border border-gray-300/80 dark:border-gray-700/80 text-[10px] animate-in fade-in duration-150">
+                <button
+                  onClick={() => handleSetColorStyle('minimal')}
+                  className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${
+                    colorStyle === 'minimal'
+                      ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                  title="Option C: Nền trung tính sạch sẽ, chỉ chữ số đổi màu theo biên độ giá"
+                >
+                  Tinh gọn
+                </button>
+                <button
+                  onClick={() => handleSetColorStyle('tint')}
+                  className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${
+                    colorStyle === 'tint'
+                      ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                  title="Option B: Phủ màu pastel mờ dịu nhẹ (Soft Glass Tint)"
+                >
+                  Tint mờ
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Sắp xếp Thứ Tự Ngành */}
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-1 flex-shrink-0">
             <SlidersHorizontal className="w-3 h-3 text-blue-500" />
             <select
               value={industrySortMode}
@@ -1088,40 +1199,40 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
             return (
               <div key={group.industry} className="group/ind">
-                {/* Thanh Tiêu đề Ngành (Accordion) - Tiêu đề vàng nổi bật chuẩn hình mẫu */}
+                {/* Thanh Tiêu đề Ngành (Accordion) - Thiết kế thanh lịch, đồng bộ, không chói lóa */}
                 <button
                   type="button"
                   onClick={() => toggleCollapse(group.industry)}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-gray-50/90 dark:bg-[#181c27] hover:bg-gray-100 dark:hover:bg-gray-800/90 text-left transition cursor-pointer border-b border-gray-100 dark:border-gray-800/50"
+                  className="w-full flex items-center justify-between px-2.5 py-1.2 bg-slate-50/90 dark:bg-[#161a23] hover:bg-slate-100 dark:hover:bg-[#1d222e] text-left transition cursor-pointer border-b border-slate-200/70 dark:border-slate-800/80 group/ind-btn"
                 >
                   <div className="flex items-center space-x-1.5 truncate">
                     {isCollapsed ? (
-                      <ChevronRight className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover/ind-btn:text-slate-600 dark:group-hover/ind-btn:text-slate-300 flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover/ind-btn:text-slate-600 dark:group-hover/ind-btn:text-slate-300 flex-shrink-0" />
                     )}
-                    <span className="font-black text-amber-600 dark:text-amber-400 text-xs tracking-wide uppercase truncate">
+                    <span className="font-bold text-slate-700 dark:text-slate-200 text-[11.5px] tracking-normal truncate">
                       {group.industry}
                     </span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-bold font-mono">
+                    <span className="text-[9.5px] px-1.5 py-0.2 rounded-full bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold font-mono">
                       {group.count}
                     </span>
                   </div>
 
-                  <div className="flex items-center space-x-2 text-[10px] font-mono flex-shrink-0">
+                  <div className="flex items-center space-x-2 text-[10.5px] font-mono flex-shrink-0">
                     <span
                       className={`font-bold ${
                         group.avgChange > 0
-                          ? 'text-emerald-500 dark:text-emerald-400'
+                          ? 'text-emerald-600 dark:text-emerald-400'
                           : group.avgChange < 0
-                          ? 'text-rose-500 dark:text-rose-400'
-                          : 'text-amber-400'
+                          ? 'text-rose-600 dark:text-rose-400'
+                          : 'text-amber-500 dark:text-amber-400'
                       }`}
                     >
                       {group.avgChange > 0 ? '+' : ''}
                       {group.avgChange.toFixed(1)}%
                     </span>
-                    <span className="text-gray-400 hidden sm:inline">
+                    <span className="text-slate-400 dark:text-slate-500 text-[10px] hidden sm:inline">
                       ({group.totalSessionVal.toFixed(0)} Tỷ)
                     </span>
                   </div>
@@ -1227,12 +1338,12 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                       </div>
                     )}
 
-                    {/* ════ CHẾ ĐỘ 2: LƯỚI NHIỆT SIÊU GỌN (Compact Heatmap Grid) ════ */}
+                    {/* ════ CHẾ ĐỘ 2: LƯỚI NHIỆT SIÊU GỌN (Compact Grid - 4 Cột) ════ */}
                     {viewMode === 'grid_compact' && (
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-1 p-1.5 bg-gray-950/20 dark:bg-[#0f121a]">
+                      <div className="grid grid-cols-4 gap-1 p-1.5 bg-slate-100/70 dark:bg-[#0c0f16]">
                         {group.stocks.map((s) => {
                           const isSelected = s.ticker === currentTicker;
-                          const color = getHeatmapColorClass(s);
+                          const tile = getTileStyle(s, colorStyle);
                           const pct = s.priceChangePercent ?? 0;
                           const sign = pct > 0 ? '+' : '';
 
@@ -1240,19 +1351,19 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                             <div
                               key={s.ticker}
                               onClick={() => onSelectTicker(s.ticker)}
-                              className={`group/tile relative flex items-center justify-between px-1.5 py-1 rounded border text-[11px] font-mono cursor-pointer transition-all duration-75 select-none ${
-                                color.bg
+                              className={`group/tile relative flex items-center justify-between px-1.5 py-1 rounded-md border text-[10.5px] font-mono cursor-pointer transition-all duration-75 select-none ${
+                                tile.containerClass
                               } ${
                                 isSelected
-                                  ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-black scale-[1.04] shadow-md z-10'
+                                  ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-white dark:ring-offset-[#131722] scale-[1.04] shadow-md z-10'
                                   : 'hover:scale-[1.02]'
                               }`}
                               title={`${s.ticker} - ${s.companyName}\nGiá: ${fmtPrice(s.currentPrice)} (${sign}${pct.toFixed(1)}%)\nRS: ${s.rsRating || '-'}\nGTGD: ${s.sessionValueBillion ? s.sessionValueBillion.toFixed(1) + ' Tỷ' : s.adtv20Billion ? s.adtv20Billion.toFixed(1) + ' Tỷ (20N)' : '-'}`}
                             >
-                              <span className="font-extrabold tracking-tight truncate mr-0.5">
+                              <span className={`truncate mr-0.5 ${tile.tickerClass}`}>
                                 {s.ticker}
                               </span>
-                              <span className="font-black text-[10px] tracking-tighter whitespace-nowrap">
+                              <span className={`text-[9.5px] whitespace-nowrap ${tile.pctClass}`}>
                                 {sign}{pct.toFixed(1)}%
                               </span>
 
@@ -1272,12 +1383,12 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                       </div>
                     )}
 
-                    {/* ════ CHẾ ĐỘ 3: THẺ CHI TIẾT 2 DÒNG (Card Grid - Ticker + % & Giá + RS) ════ */}
+                    {/* ════ CHẾ ĐỘ 3: THẺ CHI TIẾT 2 DÒNG (Card Grid - 4 Cột: Mã, %, Giá, RS) ════ */}
                     {viewMode === 'grid_card' && (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-1.5 bg-gray-950/20 dark:bg-[#0f121a]">
+                      <div className="grid grid-cols-4 gap-1 p-1.5 bg-slate-100/70 dark:bg-[#0c0f16]">
                         {group.stocks.map((s) => {
                           const isSelected = s.ticker === currentTicker;
-                          const color = getHeatmapColorClass(s);
+                          const tile = getTileStyle(s, colorStyle);
                           const pct = s.priceChangePercent ?? 0;
                           const sign = pct > 0 ? '+' : '';
 
@@ -1285,33 +1396,33 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                             <div
                               key={s.ticker}
                               onClick={() => onSelectTicker(s.ticker)}
-                              className={`group/card relative p-1.5 rounded-lg border flex flex-col justify-between text-xs font-mono cursor-pointer transition-all duration-75 select-none ${
-                                color.bg
+                              className={`group/card relative p-1 rounded-md border flex flex-col justify-between cursor-pointer transition-all duration-75 select-none ${
+                                tile.containerClass
                               } ${
                                 isSelected
-                                  ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-black scale-[1.03] shadow-md z-10'
+                                  ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-white dark:ring-offset-[#131722] scale-[1.03] shadow-md z-10'
                                   : 'hover:scale-[1.02]'
                               }`}
                               title={`${s.ticker} - ${s.companyName}\nGiá: ${fmtPrice(s.currentPrice)} (${sign}${pct.toFixed(1)}%)\nRS: ${s.rsRating || '-'}\nGTGD: ${s.sessionValueBillion ? s.sessionValueBillion.toFixed(1) + ' Tỷ' : s.adtv20Billion ? s.adtv20Billion.toFixed(1) + ' Tỷ (20N)' : '-'}`}
                             >
-                              {/* Dòng 1: Ticker + % */}
+                              {/* Dòng 1: Mã + % */}
                               <div className="flex items-center justify-between w-full">
-                                <span className="font-black text-xs tracking-tight">
+                                <span className={`text-[10.5px] font-mono ${tile.tickerClass} truncate mr-0.5`}>
                                   {s.ticker}
                                 </span>
-                                <span className="font-black text-[11px] tracking-tighter">
+                                <span className={`text-[9.5px] font-mono ${tile.pctClass} whitespace-nowrap`}>
                                   {sign}{pct.toFixed(1)}%
                                 </span>
                               </div>
 
                               {/* Dòng 2: Giá + RS */}
-                              <div className="flex items-center justify-between w-full mt-1 pt-0.5 border-t border-black/10 dark:border-white/10 text-[10.5px]">
-                                <span className="font-bold opacity-90">
+                              <div className="flex items-center justify-between w-full mt-0.5 pt-0.5 border-t border-black/5 dark:border-white/10 text-[9px] font-mono">
+                                <span className={tile.priceClass}>
                                   {fmtPrice(s.currentPrice)}
                                 </span>
                                 {s.rsRating ? (
-                                  <span className={`px-1 py-0.2 rounded text-[9px] font-black ${color.badge}`}>
-                                    RS{s.rsRating}
+                                  <span className={`px-1 py-0.1 rounded text-[8.5px] font-bold ${tile.badgeClass}`}>
+                                    {s.rsRating}
                                   </span>
                                 ) : null}
                               </div>

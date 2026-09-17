@@ -35,13 +35,12 @@ function ChartViewInner() {
 
   // Tải danh sách cổ phiếu để phục vụ bộ tìm kiếm chuyển mã nhanh
   useEffect(() => {
-    let isCancelled = false;
     const loadStockList = async () => {
       try {
         const res = await fetch('/api/ranking');
         if (!res.ok) return;
         const json = await res.json();
-        if (!isCancelled && json.success && Array.isArray(json.data)) {
+        if (json.success && Array.isArray(json.data)) {
           setAllStocks(json.data);
           // Nếu mã hiện tại khớp trong danh sách, cập nhật luôn thông tin
           const matched = json.data.find((s: StockRankingItem) => s.ticker === currentTicker);
@@ -55,10 +54,7 @@ function ChartViewInner() {
     };
 
     loadStockList();
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
+  }, [currentTicker]);
 
   // Cập nhật currentStockData khi currentTicker hoặc allStocks thay đổi
   useEffect(() => {
@@ -73,19 +69,14 @@ function ChartViewInner() {
     }
 
     // Nếu mã không nằm trong danh sách cache, fetch thông tin riêng
-    let isCancelled = false;
     fetch(`/api/ranking?ticker=${currentTicker}`)
       .then((res) => res.json())
       .then((json) => {
-        if (!isCancelled && json.success && json.item) {
+        if (json.success && json.item) {
           setCurrentStockData(json.item);
         }
       })
       .catch(() => {});
-
-    return () => {
-      isCancelled = true;
-    };
   }, [currentTicker, allStocks]);
 
   const handleSelectTicker = useCallback((newTicker: string) => {
