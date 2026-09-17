@@ -83,6 +83,11 @@ export const IntradayChart: React.FC = () => {
   const currentPrice = currentPoint?.close ?? null;
   const startingPrice = refPrice ?? (points[0]?.close ?? null);
 
+  const changeDiff =
+    startingPrice !== null && currentPrice !== null
+      ? currentPrice - startingPrice
+      : null;
+
   const changePercent =
     startingPrice && currentPrice !== null
       ? ((currentPrice - startingPrice) / startingPrice) * 100
@@ -90,6 +95,16 @@ export const IntradayChart: React.FC = () => {
 
   const isUp = changePercent !== null && changePercent > 0;
   const isDown = changePercent !== null && changePercent < 0;
+
+  const dateStr = useMemo(() => {
+    if (points.length === 0) return '';
+    const ts = points[points.length - 1].time;
+    const d = new Date(ts < 1e12 ? ts * 1000 : ts);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }, [points]);
 
   // SVG Chart Geometry
   const svgWidth = 360;
@@ -187,13 +202,13 @@ export const IntradayChart: React.FC = () => {
           {!isUp && !isDown && <Minus className="w-3.5 h-3.5 text-gray-400" />}
           <span className="text-xs font-bold text-gray-800 dark:text-gray-100">VNINDEX</span>
         </div>
-        <div className="flex items-center gap-2 text-xs font-bold">
+        <div className="flex items-center gap-1.5 text-xs font-bold">
           {currentPrice !== null && (
             <span className="text-gray-900 dark:text-gray-100">{currentPrice.toFixed(2)}</span>
           )}
-          {changePercent !== null && (
+          {changeDiff !== null && changePercent !== null && (
             <span
-              className={`px-1 py-0.5 rounded text-[10px] ${
+              className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
                 isUp
                   ? 'bg-emerald-500/15 text-emerald-500'
                   : isDown
@@ -201,18 +216,21 @@ export const IntradayChart: React.FC = () => {
                   : 'text-gray-400'
               }`}
             >
-              {isUp ? '+' : ''}
-              {changePercent.toFixed(2)}%
+              {isUp ? '+' : ''}{changeDiff.toFixed(2)} ({isUp ? '+' : ''}{changePercent.toFixed(2)}%)
             </span>
           )}
         </div>
       </div>
 
-      {/* Sub-header Time */}
-      <div className="flex justify-between items-center text-[9px] text-gray-400 mb-1 px-0.5">
-        <span>{currentPoint ? formatTime(currentPoint.time) : ''}</span>
+      {/* Sub-header Date & Time */}
+      <div className="flex justify-between items-center text-[10px] text-gray-400 mb-1 px-0.5">
+        <div className="flex items-center gap-1.5">
+          {dateStr && <span className="font-semibold text-gray-400">{dateStr}</span>}
+          <span>•</span>
+          <span>{currentPoint ? formatTime(currentPoint.time) : ''}</span>
+        </div>
         {hoverIdx !== null && (
-          <span className="text-violet-400 font-semibold">
+          <span className="text-violet-400 font-semibold font-mono">
             {formatTime(points[hoverIdx].time)}: {points[hoverIdx].close.toFixed(2)}
           </span>
         )}
@@ -232,91 +250,101 @@ export const IntradayChart: React.FC = () => {
       )}
 
       {!loading && !error && points.length > 0 && (
-        <div className="relative w-full h-[110px] bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
-          <svg
-            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            className="w-full h-full overflow-visible"
-            onMouseLeave={() => setHoverIdx(null)}
-          >
-            <defs>
-              {/* Clip path above reference line (Green zone) */}
-              <clipPath id="aboveRefClip">
-                <rect x="0" y="0" width={svgWidth} height={Math.max(refY, 0)} />
-              </clipPath>
+        <>
+          <div className="relative w-full h-[110px] bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
+            <svg
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              className="w-full h-full overflow-visible"
+              onMouseLeave={() => setHoverIdx(null)}
+            >
+              <defs>
+                {/* Clip path above reference line (Green zone) */}
+                <clipPath id="aboveRefClip">
+                  <rect x="0" y="0" width={svgWidth} height={Math.max(refY, 0)} />
+                </clipPath>
 
-              {/* Clip path below reference line (Red zone) */}
-              <clipPath id="belowRefClip">
-                <rect x="0" y={Math.max(refY, 0)} width={svgWidth} height={Math.max(svgHeight - refY, 0)} />
-              </clipPath>
+                {/* Clip path below reference line (Red zone) */}
+                <clipPath id="belowRefClip">
+                  <rect x="0" y={Math.max(refY, 0)} width={svgWidth} height={Math.max(svgHeight - refY, 0)} />
+                </clipPath>
 
-              <linearGradient id="intradayGradGreen" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#22c55e" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02" />
-              </linearGradient>
+                <linearGradient id="intradayGradGreen" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22c55e" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02" />
+                </linearGradient>
 
-              <linearGradient id="intradayGradRed" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.02" />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.25" />
-              </linearGradient>
-            </defs>
+                <linearGradient id="intradayGradRed" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ef4444" stopOpacity="0.02" />
+                  <stop offset="100%" stopColor="#ef4444" stopOpacity="0.25" />
+                </linearGradient>
+              </defs>
 
-            {/* Reference Price Dotted Line */}
-            <line
-              x1="0"
-              y1={refY}
-              x2={svgWidth}
-              y2={refY}
-              stroke="rgba(255, 255, 255, 0.3)"
-              strokeDasharray="3 3"
-              strokeWidth="1"
-            />
-
-            {/* Green Area Fill (clipped above refY) */}
-            <g clipPath="url(#aboveRefClip)">
-              <path d={areaPath} fill="url(#intradayGradGreen)" />
-            </g>
-
-            {/* Red Area Fill (clipped below refY) */}
-            <g clipPath="url(#belowRefClip)">
-              <path d={areaPath} fill="url(#intradayGradRed)" />
-            </g>
-
-            {/* Multi-color Line Segments (Green above ref, Red below ref) */}
-            {lineSegments.map((seg, i) => (
+              {/* Reference Price Dotted Line */}
               <line
-                key={i}
-                x1={seg.x1}
-                y1={seg.y1}
-                x2={seg.x2}
-                y2={seg.y2}
-                stroke={seg.color}
-                strokeWidth="1.5"
-                strokeLinecap="round"
+                x1="0"
+                y1={refY}
+                x2={svgWidth}
+                y2={refY}
+                stroke="rgba(255, 255, 255, 0.3)"
+                strokeDasharray="3 3"
+                strokeWidth="1"
               />
-            ))}
 
-            {/* Hover Capture */}
-            {points.map((p, i) => {
-              const x = (i / (points.length - 1)) * (svgWidth - padding * 2) + padding;
-              const ratio = (p.close - minP) / Math.max(maxP - minP, 1);
-              const y = svgHeight - padding - ratio * (svgHeight - padding * 2);
-              const isHovered = hoverIdx === i;
-              const dotColor = p.close >= (startingPrice ?? p.close) ? '#22c55e' : '#ef4444';
+              {/* Green Area Fill (clipped above refY) */}
+              <g clipPath="url(#aboveRefClip)">
+                <path d={areaPath} fill="url(#intradayGradGreen)" />
+              </g>
 
-              return (
-                <g key={i} onMouseEnter={() => setHoverIdx(i)} className="cursor-pointer">
-                  <rect x={x - 2} y="0" width="4" height={svgHeight} fill="transparent" />
-                  {isHovered && (
-                    <>
-                      <line x1={x} y1="0" x2={x} y2={svgHeight} stroke="rgba(255,255,255,0.3)" strokeDasharray="2 2" />
-                      <circle cx={x} cy={y} r="3.5" fill={dotColor} stroke="#ffffff" strokeWidth="1.5" />
-                    </>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
+              {/* Red Area Fill (clipped below refY) */}
+              <g clipPath="url(#belowRefClip)">
+                <path d={areaPath} fill="url(#intradayGradRed)" />
+              </g>
+
+              {/* Multi-color Line Segments (Green above ref, Red below ref) */}
+              {lineSegments.map((seg, i) => (
+                <line
+                  key={i}
+                  x1={seg.x1}
+                  y1={seg.y1}
+                  x2={seg.x2}
+                  y2={seg.y2}
+                  stroke={seg.color}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              ))}
+
+              {/* Hover Capture */}
+              {points.map((p, i) => {
+                const x = (i / (points.length - 1)) * (svgWidth - padding * 2) + padding;
+                const ratio = (p.close - minP) / Math.max(maxP - minP, 1);
+                const y = svgHeight - padding - ratio * (svgHeight - padding * 2);
+                const isHovered = hoverIdx === i;
+                const dotColor = p.close >= (startingPrice ?? p.close) ? '#22c55e' : '#ef4444';
+
+                return (
+                  <g key={i} onMouseEnter={() => setHoverIdx(i)} className="cursor-pointer">
+                    <rect x={x - 2} y="0" width="4" height={svgHeight} fill="transparent" />
+                    {isHovered && (
+                      <>
+                        <line x1={x} y1="0" x2={x} y2={svgHeight} stroke="rgba(255,255,255,0.3)" strokeDasharray="2 2" />
+                        <circle cx={x} cy={y} r="3.5" fill={dotColor} stroke="#ffffff" strokeWidth="1.5" />
+                      </>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          {/* Bottom Time Axis (9g - 15g) */}
+          <div className="flex justify-between items-center text-[9.5px] text-gray-400 font-sans font-medium px-1 mt-1 border-t border-gray-100 dark:border-gray-800/60 pt-0.5">
+            <span>9g</span>
+            <span>11g30</span>
+            <span>13g</span>
+            <span>15g</span>
+          </div>
+        </>
       )}
     </div>
   );

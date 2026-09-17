@@ -18,6 +18,9 @@ interface RawHistoryItem {
   totalVolume?: number;
   totalMatchVolume?: number;
   volume?: number;
+  totalMatchValue?: number;
+  totalValue?: number;
+  matchValue?: number;
 }
 
 export interface CandleDataPoint {
@@ -27,6 +30,7 @@ export interface CandleDataPoint {
   low: number;
   close: number;
   volume: number;
+  gtgd: number;
   pctChange: number;
   isDistribution: boolean;
   isDistribActive: boolean;
@@ -41,6 +45,14 @@ const formatVol = (v: number) => {
   if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
   if (v >= 1e3) return `${(v / 1e3).toFixed(0)}K`;
   return v.toFixed(0);
+};
+
+const formatGtgd = (v: number) => {
+  if (!v || v <= 0) return '';
+  if (v >= 1e12) return `${(v / 1e12).toFixed(1)}k Tỷ`;
+  if (v >= 1e9) return `${(v / 1e9).toFixed(1)} Tỷ`;
+  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}k Tỷ`;
+  return `${v.toFixed(0)} Tỷ`;
 };
 
 const calcMA = (arr: number[], period: number): number[] => {
@@ -83,14 +95,21 @@ export const VnindexCandleChart: React.FC = () => {
 
         // Normalize and sort ascending by date
         const sorted = raw
-          .map((d) => ({
-            date: String(d.tradingDate ?? d.date ?? d.time ?? ''),
-            open: Number(d.openIndex ?? d.open ?? d.closeIndex ?? d.close ?? 0),
-            high: Number(d.highestIndex ?? d.high ?? d.closeIndex ?? d.close ?? 0),
-            low: Number(d.lowestIndex ?? d.low ?? d.closeIndex ?? d.close ?? 0),
-            close: Number(d.closeIndex ?? d.close ?? 0),
-            volume: Number(d.totalMatchVolume ?? d.totalVolume ?? d.volume ?? 0),
-          }))
+          .map((d) => {
+            const close = Number(d.closeIndex ?? d.close ?? 0);
+            const volume = Number(d.totalMatchVolume ?? d.totalVolume ?? d.volume ?? 0);
+            const rawVal = Number(d.totalMatchValue ?? d.totalValue ?? d.matchValue ?? 0);
+            const gtgd = rawVal > 0 ? rawVal : (close > 0 && volume > 0 ? close * volume * 1000 : 0);
+            return {
+              date: String(d.tradingDate ?? d.date ?? d.time ?? ''),
+              open: Number(d.openIndex ?? d.open ?? d.closeIndex ?? d.close ?? 0),
+              high: Number(d.highestIndex ?? d.high ?? d.closeIndex ?? d.close ?? 0),
+              low: Number(d.lowestIndex ?? d.low ?? d.closeIndex ?? d.close ?? 0),
+              close,
+              volume,
+              gtgd,
+            };
+          })
           .filter((d) => d.close > 0 && d.date !== '')
           .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -223,11 +242,26 @@ export const VnindexCandleChart: React.FC = () => {
     load();
   }, []);
 
-  const activeCandle = useMemo(() => {
-    if (candles.length === 0) return null;
-    if (hoveredIdx !== null && candles[hoveredIdx]) return candles[hoveredIdx];
-    return candles[candles.length - 1];
+  const activeIndex = useMemo(() => {
+    if (candles.length === 0) return -1;
+    if (hoveredIdx !== null && candles[hoveredIdx]) return hoveredIdx;
+    return candles.length - 1;
   }, [candles, hoveredIdx]);
+
+  const activeCandle = activeIndex >= 0 ? candles[activeIndex] : null;
+  const prevCandle = activeIndex > 0 ? candles[activeIndex - 1] : null;
+
+  const pointDiff = activeCandle
+    ? prevCandle
+      ? activeCandle.close - prevCandle.close
+      : activeCandle.close - activeCandle.open
+    : 0;
+
+  const pointPct = activeCandle
+    ? prevCandle && prevCandle.close > 0
+      ? (pointDiff / prevCandle.close) * 100
+      : activeCandle.pctChange * 100
+    : 0;
 
   if (loading) {
     return <div className="h-[185px] flex items-center justify-center text-xs text-gray-400">Đang tải nến VNINDEX...</div>;
@@ -291,16 +325,15 @@ export const VnindexCandleChart: React.FC = () => {
           </span>
           {activeCandle && (
             <span
-              className={`text-[10px] font-bold px-1 py-0.5 rounded ${
-                activeCandle.pctChange > 0
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${
+                pointDiff > 0
                   ? 'bg-emerald-500/15 text-emerald-500'
-                  : activeCandle.pctChange < 0
+                  : pointDiff < 0
                   ? 'bg-red-500/15 text-red-500'
                   : 'bg-gray-500/15 text-gray-400'
               }`}
             >
-              {activeCandle.pctChange > 0 ? '+' : ''}
-              {(activeCandle.pctChange * 100).toFixed(2)}%
+              {pointDiff > 0 ? '+' : ''}{pointDiff.toFixed(2)} ({pointDiff > 0 ? '+' : ''}{pointPct.toFixed(2)}%)
             </span>
           )}
         </div>
@@ -336,11 +369,14 @@ export const VnindexCandleChart: React.FC = () => {
       <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 mb-1 px-0.5">
         <span>{activeCandle ? activeCandle.date : ''}</span>
         {activeCandle && (
-          <div className="flex gap-2 text-[9px]">
+          <div className="flex gap-1.5 text-[9px] font-mono">
             <span>O: <strong className="text-gray-600 dark:text-gray-300">{activeCandle.open.toFixed(1)}</strong></span>
             <span>H: <strong className="text-gray-600 dark:text-gray-300">{activeCandle.high.toFixed(1)}</strong></span>
             <span>L: <strong className="text-gray-600 dark:text-gray-300">{activeCandle.low.toFixed(1)}</strong></span>
             <span>Vol: <strong className="text-gray-600 dark:text-gray-300">{formatVol(activeCandle.volume)}</strong></span>
+            {activeCandle.gtgd > 0 && (
+              <span>GTGD: <strong className="text-amber-500 dark:text-amber-400">{formatGtgd(activeCandle.gtgd)}</strong></span>
+            )}
           </div>
         )}
       </div>

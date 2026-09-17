@@ -58,13 +58,13 @@ const Section: React.FC<SectionProps> = ({ title, badge, defaultOpen = true, chi
 export const MarketWatchTab: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto overscroll-contain scroll-smooth">
-      {/* Section 1 — Intraday VNINDEX */}
-      <Section title="Intraday VNINDEX" defaultOpen={true}>
+      {/* Section 1 — Biểu đồ Intraday Vnindex */}
+      <Section title="Biểu đồ Intraday Vnindex" defaultOpen={true}>
         <IntradayChart />
       </Section>
 
-      {/* Section 2 — Biểu đồ Vnindex */}
-      <Section title="Biểu đồ Vnindex" badge="CANSLIM" defaultOpen={true}>
+      {/* Section 2 — Biểu đồ Daily Vnindex */}
+      <Section title="Biểu đồ Daily Vnindex" badge="CANSLIM" defaultOpen={true}>
         <VnindexCandleChart />
       </Section>
 
