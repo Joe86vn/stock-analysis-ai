@@ -31,6 +31,9 @@ export interface CandleDataPoint {
   isDistribution: boolean;
   isDistribActive: boolean;
   isFTD: boolean;
+  isRallyDay1: boolean;
+  ma20Price: number;
+  ma20Vol: number;
 }
 
 const formatVol = (v: number) => {
@@ -38,6 +41,14 @@ const formatVol = (v: number) => {
   if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
   if (v >= 1e3) return `${(v / 1e3).toFixed(0)}K`;
   return v.toFixed(0);
+};
+
+const calcMA = (arr: number[], period: number): number[] => {
+  return arr.map((_, i) => {
+    if (i < period - 1) return NaN;
+    const slice = arr.slice(i - period + 1, i + 1);
+    return slice.reduce((a, b) => a + b, 0) / period;
+  });
 };
 
 export const VnindexCandleChart: React.FC = () => {
@@ -53,7 +64,7 @@ export const VnindexCandleChart: React.FC = () => {
       try {
         setLoading(true);
         setError(false);
-        const res = await fetch('/api/market-watch/vnindex-history?index=VNINDEX&page=0&size=75');
+        const res = await fetch('/api/market-watch/vnindex-history?index=VNINDEX&page=0&size=90');
         if (!res.ok) throw new Error('upstream');
         const json = await res.json();
 
@@ -88,12 +99,19 @@ export const VnindexCandleChart: React.FC = () => {
           return;
         }
 
+        // Calculate MA20 Price & MA20 Volume
+        const closes = sorted.map((d) => d.close);
+        const vols = sorted.map((d) => d.volume);
+        const ma20PriceArr = calcMA(closes, 20);
+        const ma20VolArr = calcMA(vols, 20);
+
         // CANSLIM FTD Rule: Day 4 to Day 10 of Rally Attempt ONLY.
-        // Once FTD occurs and Confirmed Uptrend is active, no further FTD counting is needed.
+        // Identify Day 1 of Rally Attempt (Đáy ngày nỗ lực phục hồi đầu tiên)
         let rallyStartLow = Infinity;
         let rallyDayCount = 0;
         let inConfirmedUptrend = false;
         const ftdSet = new Set<number>();
+        const rallyDay1Set = new Set<number>();
 
         for (let i = 1; i < sorted.length; i++) {
           const prev = sorted[i - 1];
@@ -101,7 +119,6 @@ export const VnindexCandleChart: React.FC = () => {
           const pct = (curr.close - prev.close) / prev.close;
 
           if (inConfirmedUptrend) {
-            // Check if market falls into correction break
             if (curr.close < prev.close * 0.95) {
               inConfirmedUptrend = false;
               rallyDayCount = 0;
@@ -112,23 +129,24 @@ export const VnindexCandleChart: React.FC = () => {
               if (pct > 0) {
                 rallyDayCount = 1;
                 rallyStartLow = prev.low;
+                rallyDay1Set.add(i); // Flag Day 1 of Rally Attempt
               }
             } else {
               if (curr.low < rallyStartLow) {
-                // Rally attempt failed
                 if (pct > 0) {
                   rallyDayCount = 1;
                   rallyStartLow = prev.low;
+                  rallyDay1Set.add(i); // New Rally Attempt Day 1
                 } else {
                   rallyDayCount = 0;
                   rallyStartLow = Infinity;
                 }
               } else {
                 rallyDayCount++;
-                // CANSLIM FTD rule: Day 4 to Day 10 of rally attempt, gain > 1.25%, volume > prev volume
+                // FTD Rule: Day 4 to Day 10 of rally attempt, gain > 1.25%, volume > prev volume
                 if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
                   ftdSet.add(i);
-                  inConfirmedUptrend = true; // Confirmed Uptrend entered, stop counting further FTDs
+                  inConfirmedUptrend = true;
                 }
               }
             }
@@ -147,7 +165,6 @@ export const VnindexCandleChart: React.FC = () => {
           if (i > 0) {
             const prev = sorted[i - 1];
             pctChange = (curr.close - prev.close) / prev.close;
-            // CANSLIM Distribution Day rule: decline >= 0.2% AND volume > prev volume
             if (pctChange <= -0.002 && curr.volume > prev.volume) {
               isDistribution = true;
               distribRecords.push({ idx: i, close: curr.close });
@@ -160,6 +177,9 @@ export const VnindexCandleChart: React.FC = () => {
             isDistribution,
             isDistribActive: false,
             isFTD: ftdSet.has(i),
+            isRallyDay1: rallyDay1Set.has(i),
+            ma20Price: ma20PriceArr[i],
+            ma20Vol: ma20VolArr[i],
           };
         });
 
@@ -198,11 +218,11 @@ export const VnindexCandleChart: React.FC = () => {
   }, [candles, hoveredIdx]);
 
   if (loading) {
-    return <div className="h-[180px] flex items-center justify-center text-xs text-gray-400">Đang tải nến VNINDEX...</div>;
+    return <div className="h-[185px] flex items-center justify-center text-xs text-gray-400">Đang tải nến VNINDEX...</div>;
   }
 
   if (error || candles.length === 0) {
-    return <div className="h-[180px] flex items-center justify-center text-xs text-gray-400">Không có dữ liệu nến VNINDEX</div>;
+    return <div className="h-[185px] flex items-center justify-center text-xs text-gray-400">Không có dữ liệu nến VNINDEX</div>;
   }
 
   // Calculate SVG bounds
@@ -213,9 +233,9 @@ export const VnindexCandleChart: React.FC = () => {
 
   // SVG Dimension Specs
   const svgWidth = 360;
-  const svgHeight = 175;
-  const candleAreaHeight = 120;
-  const volumeAreaHeight = 40;
+  const svgHeight = 185;
+  const candleAreaHeight = 125;
+  const volumeAreaHeight = 45;
   const candleWidth = Math.max((svgWidth - 10) / candles.length - 2, 3);
 
   const getPriceY = (price: number) => {
@@ -227,6 +247,27 @@ export const VnindexCandleChart: React.FC = () => {
     const ratio = vol / (maxVol || 1);
     return svgHeight - ratio * (volumeAreaHeight - 5);
   };
+
+  // Generate SVG Path for MA20 Price (Amber) & MA20 Volume (Cyan)
+  const ma20PricePts = candles
+    .map((c, i) => {
+      if (isNaN(c.ma20Price) || c.ma20Price === undefined) return null;
+      const x = (i / candles.length) * (svgWidth - 10) + 5 + candleWidth / 2;
+      const y = getPriceY(c.ma20Price);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .filter(Boolean);
+  const ma20PricePath = ma20PricePts.length > 1 ? `M ${ma20PricePts.join(' L ')}` : '';
+
+  const ma20VolPts = candles
+    .map((c, i) => {
+      if (isNaN(c.ma20Vol) || c.ma20Vol === undefined) return null;
+      const x = (i / candles.length) * (svgWidth - 10) + 5 + candleWidth / 2;
+      const y = getVolY(c.ma20Vol);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .filter(Boolean);
+  const ma20VolPath = ma20VolPts.length > 1 ? `M ${ma20VolPts.join(' L ')}` : '';
 
   return (
     <div className="w-full font-sans select-none">
@@ -255,7 +296,10 @@ export const VnindexCandleChart: React.FC = () => {
         {/* CANSLIM Distribution & FTD Badges */}
         <div className="flex items-center gap-1.5">
           {hasFtd && (
-            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5" title="Phát hiện phiên Bùng nổ theo đà FTD (Phiên 4–10)">
+            <span
+              className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5"
+              title="Phát hiện phiên Bùng nổ theo đà FTD (Phiên 4–10)"
+            >
               <Zap className="w-2.5 h-2.5 fill-emerald-400" />
               FTD
             </span>
@@ -290,7 +334,7 @@ export const VnindexCandleChart: React.FC = () => {
       </div>
 
       {/* SVG Candle + Volume Chart */}
-      <div className="relative w-full h-[175px] bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
+      <div className="relative w-full h-[185px] bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="w-full h-full overflow-visible"
@@ -420,20 +464,88 @@ export const VnindexCandleChart: React.FC = () => {
                     </text>
                   </g>
                 )}
+
+                {/* Day 1 Rally Attempt Marker Badge (🔵 Đáy 1) */}
+                {c.isRallyDay1 && !c.isFTD && (
+                  <g>
+                    <line
+                      x1={x + candleWidth / 2}
+                      y1={yLow + 2}
+                      x2={x + candleWidth / 2}
+                      y2={yLow + 9}
+                      stroke="#3b82f6"
+                      strokeWidth="1"
+                      strokeDasharray="1 1"
+                    />
+                    <rect
+                      x={x + candleWidth / 2 - 12}
+                      y={yLow + 9}
+                      width="24"
+                      height="9"
+                      rx="2"
+                      fill="#3b82f6"
+                    />
+                    <text
+                      x={x + candleWidth / 2}
+                      y={yLow + 16}
+                      textAnchor="middle"
+                      fill="#ffffff"
+                      fontSize="6"
+                      fontWeight="bold"
+                    >
+                      Đáy 1
+                    </text>
+                  </g>
+                )}
               </g>
             );
           })}
+
+          {/* MA20 Price Line Overlay (Amber Line) */}
+          {ma20PricePath && (
+            <path
+              d={ma20PricePath}
+              fill="none"
+              stroke="#f59e0b"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+            />
+          )}
+
+          {/* MA20 Volume Line Overlay (Cyan Dotted Line) */}
+          {ma20VolPath && (
+            <path
+              d={ma20VolPath}
+              fill="none"
+              stroke="#06b6d4"
+              strokeWidth="1"
+              strokeDasharray="2 2"
+              strokeLinecap="round"
+            />
+          )}
         </svg>
 
         {/* Legend Footnote */}
-        <div className="absolute bottom-1 right-2 flex items-center gap-2 text-[8.5px] text-gray-400 bg-black/50 px-1.5 py-0.5 rounded backdrop-blur-xs">
+        <div className="absolute bottom-1 right-2 flex items-center gap-2 text-[8px] text-gray-400 bg-black/60 px-1.5 py-0.5 rounded backdrop-blur-xs">
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
             <strong className="text-gray-200">D</strong>: Phân phối
           </span>
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-            <strong className="text-emerald-400">FTD</strong>: Bùng nổ theo đà (Phiên 4–10)
+            <strong className="text-emerald-400">FTD</strong>: Bùng nổ
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+            <strong className="text-blue-400">Đáy 1</strong>: Phục hồi
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-0.5 bg-amber-500 inline-block" />
+            <strong className="text-amber-400">MA20 Price</strong>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-0.5 bg-cyan-400 inline-block" />
+            <strong className="text-cyan-400">MA20 Vol</strong>
           </span>
         </div>
       </div>
