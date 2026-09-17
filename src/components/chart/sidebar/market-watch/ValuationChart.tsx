@@ -95,17 +95,24 @@ export const ValuationChart: React.FC = () => {
     const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
     const stdDev = Math.sqrt(variance);
 
+    const decimals = valType === 'pb' ? 2 : 1;
     const currentVal = values[values.length - 1];
-    const meanVal = parseFloat(mean.toFixed(1));
-    const plus2SD = parseFloat((mean + 2 * stdDev).toFixed(1));
-    const plus1SD = parseFloat((mean + stdDev).toFixed(1));
-    const minus1SD = parseFloat((mean - stdDev).toFixed(1));
-    const minus2SD = parseFloat((mean - 2 * stdDev).toFixed(1));
+    const meanVal = parseFloat(mean.toFixed(decimals));
+    const plus2SD = parseFloat((mean + 2 * stdDev).toFixed(decimals));
+    const plus1SD = parseFloat((mean + stdDev).toFixed(decimals));
+    const minus1SD = parseFloat((mean - stdDev).toFixed(decimals));
+    const minus2SD = parseFloat((mean - 2 * stdDev).toFixed(decimals));
 
-    const yMin = Math.max(0, parseFloat((Math.min(minVal, minus2SD) - 0.5).toFixed(1)));
-    const yMax = parseFloat((Math.max(maxVal, plus2SD) + 0.5).toFixed(1));
+    const rawMin = Math.min(minVal, minus2SD);
+    const rawMax = Math.max(maxVal, plus2SD);
+    const valRange = rawMax - rawMin || 1;
+    const padding = valRange * 0.08;
+
+    const yMin = Math.max(0, parseFloat((rawMin - padding).toFixed(decimals)));
+    const yMax = parseFloat((rawMax + padding).toFixed(decimals));
 
     return {
+      decimals,
       currentVal,
       meanVal,
       plus2SD,
@@ -115,7 +122,7 @@ export const ValuationChart: React.FC = () => {
       yMin,
       yMax,
     };
-  }, [activeData]);
+  }, [activeData, valType]);
 
   return (
     <div className="w-full font-sans select-none">
@@ -145,7 +152,7 @@ export const ValuationChart: React.FC = () => {
         {stats !== null && (
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded shadow-2xs">
-              {stats.currentVal.toFixed(1)}x
+              {stats.currentVal.toFixed(stats.decimals)}x
             </span>
           </div>
         )}
@@ -185,8 +192,8 @@ export const ValuationChart: React.FC = () => {
       {error && !loading && <div className="h-[140px] flex items-center justify-center text-xs text-slate-900 dark:text-white">Không có dữ liệu định giá</div>}
       {!loading && !error && activeData.length > 0 && stats !== null && (
         <div className="relative w-full bg-white dark:bg-slate-900/50 rounded-lg p-2 border border-gray-200 dark:border-gray-800 shadow-xs">
-          <ResponsiveContainer width="100%" height={130}>
-            <LineChart data={activeData} margin={{ top: 8, right: 30, left: 4, bottom: 4 }}>
+          <ResponsiveContainer width="100%" height={135}>
+            <LineChart data={activeData} margin={{ top: 8, right: 0, left: 0, bottom: 4 }}>
               <XAxis
                 dataKey="date"
                 tickFormatter={formatDateLabel}
@@ -196,6 +203,7 @@ export const ValuationChart: React.FC = () => {
                 axisLine={{ stroke: '#e2e8f0' }}
                 interval="preserveStartEnd"
                 minTickGap={35}
+                padding={{ left: 0, right: 0 }}
               />
               <YAxis
                 orientation="right"
@@ -204,8 +212,9 @@ export const ValuationChart: React.FC = () => {
                 fontSize={9}
                 tickLine={false}
                 axisLine={false}
+                width={32}
                 ticks={[stats.minus2SD, stats.minus1SD, stats.meanVal, stats.plus1SD, stats.plus2SD]}
-                tickFormatter={(val) => `${val.toFixed(1)}`}
+                tickFormatter={(val) => `${val.toFixed(stats.decimals)}`}
               />
 
               {/* +2 SD Line (Blue Dashed) */}
@@ -231,7 +240,7 @@ export const ValuationChart: React.FC = () => {
                   fontSize: 11,
                   color: '#ffffff',
                 }}
-                formatter={(val: number) => [`${val.toFixed(2)}x`, `VNINDEX ${valType.toUpperCase()}`]}
+                formatter={(val: number) => [`${val.toFixed(stats.decimals)}x`, `VNINDEX ${valType.toUpperCase()}`]}
                 labelFormatter={(label) => formatDateLabel(String(label))}
               />
 

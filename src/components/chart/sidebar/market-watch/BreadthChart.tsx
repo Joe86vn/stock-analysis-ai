@@ -197,8 +197,8 @@ export const BreadthChart: React.FC = () => {
       {error && !loading && <div className="h-[140px] flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">Không có dữ liệu độ rộng</div>}
       {!loading && !error && data.length > 0 && (
         <div className="relative w-full bg-white dark:bg-slate-900/50 rounded-lg p-2 border border-gray-200 dark:border-gray-800 shadow-xs">
-          <ResponsiveContainer width="100%" height={130}>
-            <LineChart data={data} margin={{ top: 8, right: 30, left: 4, bottom: 4 }}>
+          <ResponsiveContainer width="100%" height={135}>
+            <LineChart data={data} margin={{ top: 8, right: 0, left: 0, bottom: 4 }}>
               <XAxis
                 dataKey="date"
                 tickFormatter={formatDateLabel}
@@ -208,6 +208,7 @@ export const BreadthChart: React.FC = () => {
                 axisLine={{ stroke: '#e2e8f0' }}
                 interval="preserveStartEnd"
                 minTickGap={35}
+                padding={{ left: 0, right: 0 }}
               />
               <YAxis
                 orientation="right"
@@ -216,6 +217,7 @@ export const BreadthChart: React.FC = () => {
                 fontSize={9}
                 tickLine={false}
                 axisLine={false}
+                width={32}
                 ticks={[0, 25, 50, 75, 100]}
                 tickFormatter={(val) => `${val}%`}
               />
