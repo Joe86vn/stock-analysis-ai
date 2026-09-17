@@ -32,6 +32,11 @@ import {
   getKLineThemeFromCustom,
   hexToRgba,
   DEFAULT_CHART_THEME,
+  getVolIndicatorStyles,
+  getEmaIndicatorStyles,
+  getBollIndicatorStyles,
+  getRsiIndicatorStyles,
+  getMacdIndicatorStyles,
 } from './chart/chart-theme-types';
 import { ChartColorSettingsModal } from './chart/ChartColorSettingsModal';
 
@@ -153,6 +158,7 @@ export function StockChartPanel({
   const chartRef = useRef<Chart | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const priceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const drawingOverlayIdRef = useRef<string | null>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -500,6 +506,10 @@ export function StockChartPanel({
       // Định dạng số nguyên đồng VNĐ (bỏ .00 trên trục giá và nhãn High/Low)
       chart.setPriceVolumePrecision(0, 0);
 
+      // Đảm bảo scroll và zoom luôn được bật
+      chart.setScrollEnabled(true);
+      chart.setZoomEnabled(true);
+
       // Áp dụng styles theme
       chart.setStyles(getKLineTheme(isDark, chartTheme));
 
@@ -516,16 +526,7 @@ export function StockChartPanel({
             {
               name: 'VOL',
               calcParams: [20],
-              styles: {
-                bars: [
-                  {
-                    upColor: isDark ? hexToRgba(chartTheme.vol.upColor, 0.45) : hexToRgba(chartTheme.vol.upColor, 0.55),
-                    downColor: isDark ? hexToRgba(chartTheme.vol.downColor, 0.45) : hexToRgba(chartTheme.vol.downColor, 0.55),
-                    noChangeColor: hexToRgba(chartTheme.vol.noChangeColor, 0.5),
-                  },
-                ],
-                lines: [{ color: chartTheme.vol.maColor }],
-              } as any,
+              styles: getVolIndicatorStyles(chartTheme.vol, isDark) as any,
             },
             false,
             { height: 85, dragEnabled: true }
@@ -536,12 +537,7 @@ export function StockChartPanel({
           {
             name: 'EMA',
             calcParams: [indicatorParams.emaShort, indicatorParams.emaLong],
-            styles: {
-              lines: [
-                { color: chartTheme.ema.ema1Color, size: 1.5 },
-                { color: chartTheme.ema.ema2Color, size: 1.5 },
-              ],
-            } as any,
+            styles: getEmaIndicatorStyles(chartTheme.ema) as any,
           },
           true,
           { id: 'candle_pane' }
@@ -552,13 +548,7 @@ export function StockChartPanel({
           {
             name: 'BOLL',
             calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev],
-            styles: {
-              lines: [
-                { color: chartTheme.boll.upColor },
-                { color: chartTheme.boll.midColor },
-                { color: chartTheme.boll.downColor },
-              ],
-            } as any,
+            styles: getBollIndicatorStyles(chartTheme.boll) as any,
           },
           true,
           { id: 'candle_pane' }
@@ -587,9 +577,7 @@ export function StockChartPanel({
             {
               name: 'RSI',
               calcParams: [indicatorParams.rsiPeriod],
-              styles: {
-                lines: [{ color: chartTheme.rsi.lineColor }],
-              } as any,
+              styles: getRsiIndicatorStyles(chartTheme.rsi) as any,
             },
             false,
             { height: 90, dragEnabled: true }
@@ -601,19 +589,7 @@ export function StockChartPanel({
             {
               name: 'MACD',
               calcParams: [indicatorParams.macdFast, indicatorParams.macdSlow, indicatorParams.macdSignal],
-              styles: {
-                lines: [
-                  { color: chartTheme.macd.difColor },
-                  { color: chartTheme.macd.deaColor },
-                ],
-                bars: [
-                  {
-                    upColor: chartTheme.macd.histUpColor,
-                    downColor: chartTheme.macd.histDownColor,
-                    noChangeColor: '#94a3b8',
-                  },
-                ],
-              } as any,
+              styles: getMacdIndicatorStyles(chartTheme.macd) as any,
             },
             false,
             { height: 95, dragEnabled: true }
@@ -700,16 +676,7 @@ export function StockChartPanel({
       chart.overrideIndicator(
         {
           name: 'VOL',
-          styles: {
-            bars: [
-              {
-                upColor: isDark ? hexToRgba(newTheme.vol.upColor, 0.45) : hexToRgba(newTheme.vol.upColor, 0.55),
-                downColor: isDark ? hexToRgba(newTheme.vol.downColor, 0.45) : hexToRgba(newTheme.vol.downColor, 0.55),
-                noChangeColor: hexToRgba(newTheme.vol.noChangeColor, 0.5),
-              },
-            ],
-            lines: [{ color: newTheme.vol.maColor }],
-          } as any,
+          styles: getVolIndicatorStyles(newTheme.vol, isDark) as any,
         },
         subPanesRef.current.vol
       );
@@ -718,12 +685,7 @@ export function StockChartPanel({
       chart.overrideIndicator(
         {
           name: 'EMA',
-          styles: {
-            lines: [
-              { color: newTheme.ema.ema1Color, size: 1.5 },
-              { color: newTheme.ema.ema2Color, size: 1.5 },
-            ],
-          } as any,
+          styles: getEmaIndicatorStyles(newTheme.ema) as any,
         },
         'candle_pane'
       );
@@ -732,13 +694,7 @@ export function StockChartPanel({
       chart.overrideIndicator(
         {
           name: 'BOLL',
-          styles: {
-            lines: [
-              { color: newTheme.boll.upColor },
-              { color: newTheme.boll.midColor },
-              { color: newTheme.boll.downColor },
-            ],
-          } as any,
+          styles: getBollIndicatorStyles(newTheme.boll) as any,
         },
         'candle_pane'
       );
@@ -756,9 +712,7 @@ export function StockChartPanel({
       chart.overrideIndicator(
         {
           name: 'RSI',
-          styles: {
-            lines: [{ color: newTheme.rsi.lineColor }],
-          } as any,
+          styles: getRsiIndicatorStyles(newTheme.rsi) as any,
         },
         subPanesRef.current.rsi
       );
@@ -767,19 +721,7 @@ export function StockChartPanel({
       chart.overrideIndicator(
         {
           name: 'MACD',
-          styles: {
-            lines: [
-              { color: newTheme.macd.difColor },
-              { color: newTheme.macd.deaColor },
-            ],
-            bars: [
-              {
-                upColor: newTheme.macd.histUpColor,
-                downColor: newTheme.macd.histDownColor,
-                noChangeColor: '#94a3b8',
-              },
-            ],
-          } as any,
+          styles: getMacdIndicatorStyles(newTheme.macd) as any,
         },
         subPanesRef.current.macd
       );
@@ -922,12 +864,7 @@ export function StockChartPanel({
               {
                 name: 'EMA',
                 calcParams: [indicatorParams.emaShort, indicatorParams.emaLong],
-                styles: {
-                  lines: [
-                    { color: chartTheme.ema.ema1Color, size: 1.5 },
-                    { color: chartTheme.ema.ema2Color, size: 1.5 },
-                  ],
-                } as any,
+                styles: getEmaIndicatorStyles(chartTheme.ema) as any,
               },
               true,
               { id: 'candle_pane' }
@@ -941,13 +878,7 @@ export function StockChartPanel({
               {
                 name: 'BOLL',
                 calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev],
-                styles: {
-                  lines: [
-                    { color: chartTheme.boll.upColor },
-                    { color: chartTheme.boll.midColor },
-                    { color: chartTheme.boll.downColor },
-                  ],
-                } as any,
+                styles: getBollIndicatorStyles(chartTheme.boll) as any,
               },
               true,
               { id: 'candle_pane' }
@@ -962,16 +893,7 @@ export function StockChartPanel({
                 {
                   name: 'VOL',
                   calcParams: [20],
-                  styles: {
-                    bars: [
-                      {
-                        upColor: isDark ? hexToRgba(chartTheme.vol.upColor, 0.45) : hexToRgba(chartTheme.vol.upColor, 0.55),
-                        downColor: isDark ? hexToRgba(chartTheme.vol.downColor, 0.45) : hexToRgba(chartTheme.vol.downColor, 0.55),
-                        noChangeColor: hexToRgba(chartTheme.vol.noChangeColor, 0.5),
-                      },
-                    ],
-                    lines: [{ color: chartTheme.vol.maColor }],
-                  } as any,
+                  styles: getVolIndicatorStyles(chartTheme.vol, isDark) as any,
                 },
                 false,
                 { height: 85, dragEnabled: true }
@@ -987,9 +909,7 @@ export function StockChartPanel({
                 {
                   name: 'RSI',
                   calcParams: [indicatorParams.rsiPeriod],
-                  styles: {
-                    lines: [{ color: chartTheme.rsi.lineColor }],
-                  } as any,
+                  styles: getRsiIndicatorStyles(chartTheme.rsi) as any,
                 },
                 false,
                 { height: 90, dragEnabled: true }
@@ -1005,19 +925,7 @@ export function StockChartPanel({
                 {
                   name: 'MACD',
                   calcParams: [indicatorParams.macdFast, indicatorParams.macdSlow, indicatorParams.macdSignal],
-                  styles: {
-                    lines: [
-                      { color: chartTheme.macd.difColor },
-                      { color: chartTheme.macd.deaColor },
-                    ],
-                    bars: [
-                      {
-                        upColor: chartTheme.macd.histUpColor,
-                        downColor: chartTheme.macd.histDownColor,
-                        noChangeColor: '#94a3b8',
-                      },
-                    ],
-                  } as any,
+                  styles: getMacdIndicatorStyles(chartTheme.macd) as any,
                 },
                 false,
                 { height: 95, dragEnabled: true }
@@ -1089,15 +997,30 @@ export function StockChartPanel({
     setActiveTool(tool);
     if (!chartRef.current) return;
     if (tool === 'cursor') {
+      if (drawingOverlayIdRef.current) {
+        try {
+          chartRef.current.removeOverlay(drawingOverlayIdRef.current);
+        } catch {}
+        drawingOverlayIdRef.current = null;
+      }
       return;
     }
     // KLineCharts native createOverlay kích hoạt chế độ vẽ trực tiếp trên canvas
-    chartRef.current.createOverlay(tool);
+    const overlayId = chartRef.current.createOverlay({
+      name: tool,
+      onDrawEnd: () => {
+        setActiveTool('cursor');
+        drawingOverlayIdRef.current = null;
+        return true;
+      },
+    });
+    drawingOverlayIdRef.current = typeof overlayId === 'string' ? overlayId : null;
   };
 
   const handleClearAllOverlays = () => {
     if (window.confirm(`Xóa toàn bộ các nét vẽ trên biểu đồ ${ticker}?`)) {
       chartRef.current?.removeOverlay();
+      drawingOverlayIdRef.current = null;
       setActiveTool('cursor');
     }
   };
@@ -1108,6 +1031,12 @@ export function StockChartPanel({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
         if (activeTool !== 'cursor') {
+          if (drawingOverlayIdRef.current && chartRef.current) {
+            try {
+              chartRef.current.removeOverlay(drawingOverlayIdRef.current);
+            } catch {}
+            drawingOverlayIdRef.current = null;
+          }
           setActiveTool('cursor');
         } else if (!isStandalone && onClose) {
           onClose();

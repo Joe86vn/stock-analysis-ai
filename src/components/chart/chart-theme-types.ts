@@ -314,6 +314,113 @@ export function saveTheme(theme: ChartColorTheme): void {
   }
 }
 
+// ─── Indicator Style Interfaces & Helper Functions ────────────────────────────
+
+export interface IndicatorLineStyle {
+  style: 'solid' | 'dashed';
+  smooth: boolean;
+  size: number;
+  dashedValue: [number, number];
+  color: string;
+}
+
+export interface IndicatorBarStyle {
+  style: 'fill' | 'stroke' | 'stroke_fill';
+  borderStyle: 'solid' | 'dashed';
+  borderSize: number;
+  borderDashedValue: [number, number];
+  upColor: string;
+  downColor: string;
+  noChangeColor: string;
+}
+
+export function createIndicatorLine(
+  color: string,
+  size: number = 1,
+  style: 'solid' | 'dashed' = 'solid',
+  dashedValue: [number, number] = [2, 2],
+  smooth: boolean = false
+): IndicatorLineStyle {
+  return {
+    style,
+    smooth,
+    size,
+    dashedValue,
+    color,
+  };
+}
+
+export function createIndicatorBar(
+  upColor: string,
+  downColor: string,
+  noChangeColor: string,
+  borderSize: number = 1
+): IndicatorBarStyle {
+  return {
+    style: 'fill',
+    borderStyle: 'solid',
+    borderSize,
+    borderDashedValue: [2, 2],
+    upColor,
+    downColor,
+    noChangeColor,
+  };
+}
+
+export function getVolIndicatorStyles(vol: VolumeThemeColors, isDark: boolean) {
+  return {
+    bars: [
+      createIndicatorBar(
+        isDark ? hexToRgba(vol.upColor, 0.45) : hexToRgba(vol.upColor, 0.55),
+        isDark ? hexToRgba(vol.downColor, 0.45) : hexToRgba(vol.downColor, 0.55),
+        hexToRgba(vol.noChangeColor, 0.5)
+      ),
+    ],
+    lines: [createIndicatorLine(vol.maColor, 1)],
+  };
+}
+
+export function getEmaIndicatorStyles(ema: EmaThemeColors) {
+  return {
+    lines: [
+      createIndicatorLine(ema.ema1Color, 1.5),
+      createIndicatorLine(ema.ema2Color, 1.5),
+    ],
+  };
+}
+
+export function getBollIndicatorStyles(boll: BollThemeColors) {
+  return {
+    lines: [
+      createIndicatorLine(boll.upColor, 1),
+      createIndicatorLine(boll.midColor, 1),
+      createIndicatorLine(boll.downColor, 1),
+    ],
+  };
+}
+
+export function getRsiIndicatorStyles(rsi: RsiThemeColors) {
+  return {
+    lines: [createIndicatorLine(rsi.lineColor, 1.2)],
+  };
+}
+
+export function getMacdIndicatorStyles(macd: MacdThemeColors) {
+  return {
+    lines: [
+      createIndicatorLine(macd.difColor, 1.2),
+      createIndicatorLine(macd.deaColor, 1.2),
+    ],
+    bars: [
+      createIndicatorBar(
+        macd.histUpColor,
+        macd.histDownColor,
+        '#94a3b8'
+      ),
+    ],
+  };
+}
+
 // ─── Chuyển đổi Theme sang KLineCharts Styles ─────────────────────────────────
 
 export function getKLineThemeFromCustom(theme: ChartColorTheme, isDark: boolean): any {
@@ -378,15 +485,18 @@ export function getKLineThemeFromCustom(theme: ChartColorTheme, isDark: boolean)
         showRule: 'none' as const,
       },
       lines: [
-        { color: e.ema1Color, size: 1.5 }, // EMA 1
-        { color: e.ema2Color, size: 1.5 }, // EMA 2
+        createIndicatorLine(e.ema1Color, 1.5), // EMA 1
+        createIndicatorLine(e.ema2Color, 1.5), // EMA 2
+        createIndicatorLine('#3b82f6', 1),
+        createIndicatorLine('#eab308', 1),
+        createIndicatorLine('#ef4444', 1),
       ],
       bars: [
-        {
-          upColor: isDark ? hexToRgba(v.upColor, 0.45) : hexToRgba(v.upColor, 0.55),
-          downColor: isDark ? hexToRgba(v.downColor, 0.45) : hexToRgba(v.downColor, 0.55),
-          noChangeColor: hexToRgba(v.noChangeColor, 0.5),
-        },
+        createIndicatorBar(
+          isDark ? hexToRgba(v.upColor, 0.45) : hexToRgba(v.upColor, 0.55),
+          isDark ? hexToRgba(v.downColor, 0.45) : hexToRgba(v.downColor, 0.55),
+          hexToRgba(v.noChangeColor, 0.5)
+        ),
       ],
     },
     xAxis: {
