@@ -5,7 +5,6 @@ import {
   X,
   Layers,
   BarChart3,
-  Calendar,
   Newspaper,
   ChevronRight,
   TrendingUp,
@@ -13,11 +12,10 @@ import {
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { WatchlistMiniTab } from './WatchlistMiniTab';
 import { FinancialMetricsTab } from './FinancialMetricsTab';
-import { DividendHistoryTab } from './DividendHistoryTab';
 import { CompanyInfoTab } from './CompanyInfoTab';
 import { MarketWatchTab } from './MarketWatchTab';
 
-export type SidebarTabType = 'watchlist' | 'financials' | 'dividends' | 'company' | 'market-watch';
+export type SidebarTabType = 'watchlist' | 'financials' | 'company' | 'market-watch';
 
 interface ChartUtilitySidebarProps {
   isOpen: boolean;
@@ -39,9 +37,11 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
   // Load last active tab from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('stock_chart_sidebar_tab') as SidebarTabType;
-      if (saved && ['watchlist', 'financials', 'dividends', 'company', 'market-watch'].includes(saved)) {
-        setActiveTab(saved);
+      const saved = localStorage.getItem('stock_chart_sidebar_tab') as string;
+      if (saved === 'dividends') {
+        setActiveTab('company');
+      } else if (saved && ['watchlist', 'financials', 'company', 'market-watch'].includes(saved)) {
+        setActiveTab(saved as SidebarTabType);
       }
     } catch {}
   }, []);
@@ -92,21 +92,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
             <span>Tài chính</span>
           </button>
 
-          {/* Tab 3: Cổ tức */}
-          <button
-            onClick={() => handleSelectTab('dividends')}
-            className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex-shrink-0 ${
-              activeTab === 'dividends'
-                ? 'bg-white dark:bg-[#131722] text-amber-600 dark:text-amber-400 shadow-2xs border border-gray-200/80 dark:border-gray-700/80'
-                : 'text-gray-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-            title="Lịch sử chi trả cổ tức"
-          >
-            <Calendar className="w-3.5 h-3.5 text-amber-500" />
-            <span>Cổ tức</span>
-          </button>
-
-          {/* Tab 4: Tin tức & Hồ sơ */}
+          {/* Tab 3: Tin tức & Cổ tức */}
           <button
             onClick={() => handleSelectTab('company')}
             className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex-shrink-0 ${
@@ -114,13 +100,13 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
                 ? 'bg-white dark:bg-[#131722] text-cyan-600 dark:text-cyan-400 shadow-2xs border border-gray-200/80 dark:border-gray-700/80'
                 : 'text-gray-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
             }`}
-            title="Tin tức & Hồ sơ doanh nghiệp"
+            title="Tin tức doanh nghiệp & Lịch sử cổ tức"
           >
             <Newspaper className="w-3.5 h-3.5 text-cyan-500" />
             <span>Tin tức</span>
           </button>
 
-          {/* Tab 5: Market Watch */}
+          {/* Tab 4: Market Watch */}
           <button
             onClick={() => handleSelectTab('market-watch')}
             className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex-shrink-0 ${
@@ -158,10 +144,6 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
 
         {activeTab === 'financials' && (
           <FinancialMetricsTab ticker={currentTicker} />
-        )}
-
-        {activeTab === 'dividends' && (
-          <DividendHistoryTab ticker={currentTicker} />
         )}
 
         {activeTab === 'company' && (
