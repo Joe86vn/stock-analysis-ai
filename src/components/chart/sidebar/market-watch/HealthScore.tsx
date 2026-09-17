@@ -22,17 +22,20 @@ interface HistoryPoint {
 interface DayData {
   date: string;
   close: number;
+  low: number;
   volume: number;
 }
 
 type MarketStatus = 'confirmed_uptrend' | 'uptrend_under_pressure' | 'correction' | 'unknown';
 
 interface HealthResult {
+  score: number; // 0 – 10
   status: MarketStatus;
   distributionDays: number;
   vnindexVsMa20: number | null; // percent diff
   ma20: number | null;
   currentClose: number | null;
+  isBelowMa20: boolean;
   ftdDetected: boolean;
   exposureLow: number;
   exposureHigh: number;
@@ -63,7 +66,7 @@ const countDistributionDays = (days: DayData[]): number => {
     const prev = days[i - 1];
     const curr = days[i];
     const pctChange = (curr.close - prev.close) / prev.close;
-    const isDistribution = pctChange < -0.002 && curr.volume > prev.volume;
+    const isDistribution = pctChange <= -0.002 && curr.volume > prev.volume;
     if (isDistribution) {
       distribDays.push({ sessionIndex: i, close: curr.close });
     }
@@ -86,35 +89,44 @@ const countDistributionDays = (days: DayData[]): number => {
 };
 
 /**
- * Detect Follow-through Day (FTD):
- * - Index advances > 1.25% in higher volume than prev session
- * - Must occur on day 4+ of an attempted rally
+ * Detect Follow-through Day (FTD) within Day 4 to Day 10 of Rally Attempt:
  */
 const detectFTD = (days: DayData[]): boolean => {
-  let rallyStartIdx: number | null = null;
+  let rallyStartLow = Infinity;
   let rallyDayCount = 0;
+  let inConfirmedUptrend = false;
 
   for (let i = 1; i < days.length; i++) {
     const prev = days[i - 1];
     const curr = days[i];
     const pct = (curr.close - prev.close) / prev.close;
 
-    if (rallyStartIdx === null) {
-      // Look for rally attempt start: close higher than prev after making a low
-      if (pct > 0) {
-        rallyStartIdx = i;
-        rallyDayCount = 1;
+    if (inConfirmedUptrend) {
+      if (curr.close < prev.close * 0.95) {
+        inConfirmedUptrend = false;
+        rallyDayCount = 0;
+        rallyStartLow = Infinity;
       }
     } else {
-      if (curr.close < (days[rallyStartIdx - 1]?.close ?? 0)) {
-        // Rally failed — index broke below the low
-        rallyStartIdx = null;
-        rallyDayCount = 0;
+      if (rallyDayCount === 0) {
+        if (pct > 0) {
+          rallyDayCount = 1;
+          rallyStartLow = prev.low ?? prev.close;
+        }
       } else {
-        rallyDayCount++;
-        // FTD condition: day 4+ of rally, advance > 1.25%, volume > prev
-        if (rallyDayCount >= 4 && pct > 0.0125 && curr.volume > prev.volume) {
-          return true;
+        if (curr.close < rallyStartLow) {
+          if (pct > 0) {
+            rallyDayCount = 1;
+            rallyStartLow = prev.close;
+          } else {
+            rallyDayCount = 0;
+            rallyStartLow = Infinity;
+          }
+        } else {
+          rallyDayCount++;
+          if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
+            return true;
+          }
         }
       }
     }
@@ -122,11 +134,16 @@ const detectFTD = (days: DayData[]): boolean => {
   return false;
 };
 
-const determineStatus = (distDays: number, ftdDetected: boolean): MarketStatus => {
-  if (distDays >= 6) return 'correction';
-  if (distDays >= 4) return 'uptrend_under_pressure';
-  if (ftdDetected || distDays <= 3) return 'confirmed_uptrend';
-  return 'unknown';
+/**
+ * Score-based Status Determination:
+ * - score >= 7/10: Confirmed Uptrend
+ * - 5 <= score < 7: Uptrend Under Pressure
+ * - score < 5: Correction
+ */
+const determineStatusByScore = (score: number): MarketStatus => {
+  if (score >= 7) return 'confirmed_uptrend';
+  if (score >= 5) return 'uptrend_under_pressure';
+  return 'correction';
 };
 
 const STATUS_CONFIG: Record<MarketStatus, {
@@ -141,18 +158,18 @@ const STATUS_CONFIG: Record<MarketStatus, {
   note: string;
 }> = {
   confirmed_uptrend: {
-    label: 'Confirmed Uptrend',
+    label: 'Confirmed Uptrend (Xác Nhận Tăng)',
     icon: TrendingUp,
     color: 'text-emerald-500',
     bgColor: 'bg-emerald-500/8 dark:bg-emerald-500/10',
     borderColor: 'border-emerald-500/30',
     exposureLow: 75,
     exposureHigh: 100,
-    strategy: 'Tập trung vào cổ phiếu cơ bản thoát nền giá đẹp. Tham gia chậm rãi sau FTD.',
+    strategy: 'Tập trung vào cổ phiếu cơ bản thoát nền giá đẹp. Tham gia gia tăng vị thế.',
     note: 'Tuân thủ quy tắc mua/bán, cắt lỗ tối đa 7-8%.',
   },
   uptrend_under_pressure: {
-    label: 'Uptrend Under Pressure',
+    label: 'Uptrend Under Pressure (Gặp Áp Lực)',
     icon: AlertTriangle,
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/8 dark:bg-amber-500/10',
@@ -163,7 +180,7 @@ const STATUS_CONFIG: Record<MarketStatus, {
     note: 'Tuân thủ kỷ luật, linh hoạt theo diễn biến thực tế.',
   },
   correction: {
-    label: 'Market in Correction',
+    label: 'Market in Correction (Điều Chỉnh)',
     icon: TrendingDown,
     color: 'text-red-500',
     bgColor: 'bg-red-500/8 dark:bg-red-500/10',
@@ -216,6 +233,7 @@ export const HealthScore: React.FC = () => {
           .map((d: HistoryPoint) => ({
             date: String(d.tradingDate ?? d.date ?? d.time ?? d.t ?? ''),
             close: Number(d.closeIndex ?? d.close ?? d.indexValue ?? 0),
+            low: Number(d.indexValue ?? d.closeIndex ?? d.close ?? 0),
             volume: Number(d.totalMatchVolume ?? d.totalVolume ?? d.volume ?? d.matchVolume ?? 0),
           }))
           .filter((d) => d.close > 0)
@@ -226,18 +244,27 @@ export const HealthScore: React.FC = () => {
         const lastClose = closes[closes.length - 1];
         const lastMa20 = ma20Arr[ma20Arr.length - 1];
         const vnVsMa20 = isNaN(lastMa20) ? null : ((lastClose - lastMa20) / lastMa20) * 100;
+        const isBelowMa20 = !isNaN(lastMa20) && lastClose < lastMa20;
 
         const distDays = countDistributionDays(days);
         const ftdDetected = detectFTD(days);
-        const status = determineStatus(distDays, ftdDetected);
+
+        // Calculate 10-Point Health Score:
+        // - Base: 10 points
+        // - Each active distribution day: -1 point
+        // - VNINDEX below MA20: -1 point
+        const score = Math.max(0, Math.min(10, 10 - distDays - (isBelowMa20 ? 1 : 0)));
+        const status = determineStatusByScore(score);
         const cfg = STATUS_CONFIG[status];
 
         setResult({
+          score,
           status,
           distributionDays: distDays,
           vnindexVsMa20: vnVsMa20,
           ma20: isNaN(lastMa20) ? null : lastMa20,
           currentClose: lastClose,
+          isBelowMa20,
           ftdDetected,
           exposureLow: cfg.exposureLow,
           exposureHigh: cfg.exposureHigh,
@@ -253,8 +280,8 @@ export const HealthScore: React.FC = () => {
     load();
   }, []);
 
-  if (loading) return <div className="text-xs text-gray-400 py-4 text-center">Đang phân tích...</div>;
-  if (error || !result) return <div className="text-xs text-gray-400 py-4 text-center">Không đủ dữ liệu</div>;
+  if (loading) return <div className="text-xs text-gray-400 py-4 text-center">Đang tính điểm sức khỏe thị trường...</div>;
+  if (error || !result) return <div className="text-xs text-gray-400 py-4 text-center">Không đủ dữ liệu sức khỏe</div>;
 
   const cfg = STATUS_CONFIG[result.status];
   const IconComp = cfg.icon;
@@ -263,60 +290,76 @@ export const HealthScore: React.FC = () => {
     : '—';
 
   return (
-    <div className={`w-full rounded-lg border p-3 ${cfg.bgColor} ${cfg.borderColor}`}>
-      {/* Status header */}
-      <div className="flex items-center gap-2 mb-2">
-        <IconComp className={`w-4 h-4 shrink-0 ${cfg.color}`} />
-        <span className={`text-xs font-bold ${cfg.color}`}>{cfg.label}</span>
+    <div className={`w-full rounded-lg border p-3 ${cfg.bgColor} ${cfg.borderColor} font-sans select-none`}>
+      {/* Top Header & Score Badge */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <IconComp className={`w-4 h-4 shrink-0 ${cfg.color}`} />
+          <span className={`text-xs font-bold ${cfg.color}`}>{cfg.label}</span>
+        </div>
+
+        {/* 10-Point Score Badge */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-gray-400">Điểm sức khỏe:</span>
+          <span className={`text-sm font-black px-2 py-0.5 rounded-full ${
+            result.score >= 7
+              ? 'bg-emerald-500 text-white'
+              : result.score >= 5
+              ? 'bg-amber-500 text-white'
+              : 'bg-red-500 text-white'
+          }`}>
+            {result.score}/10
+          </span>
+        </div>
       </div>
 
-      {/* Metrics grid */}
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-2.5 text-[11px]">
-        <div className="flex justify-between">
-          <span className="text-gray-500 dark:text-gray-400">Phiên phân phối</span>
-          <span className={`font-bold ${result.distributionDays >= 4 ? 'text-red-500' : result.distributionDays >= 2 ? 'text-amber-500' : 'text-emerald-500'}`}>
-            {result.distributionDays}
+      {/* Metrics & Deductions Grid */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-2.5 text-[11px] bg-black/20 p-2 rounded border border-gray-100/10 dark:border-gray-800/40">
+        <div className="flex justify-between items-center">
+          <span className="text-gray-400 text-[10px]">Phiên phân phối</span>
+          <span className={`font-bold text-[10px] ${result.distributionDays > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+            {result.distributionDays} phiên (-{result.distributionDays}đ)
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500 dark:text-gray-400">vs MA20</span>
-          <span className={`font-bold ${result.vnindexVsMa20 !== null && result.vnindexVsMa20 >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-            {ma20Str}
+
+        <div className="flex justify-between items-center">
+          <span className="text-gray-400 text-[10px]">Xu hướng MA20</span>
+          <span className={`font-bold text-[10px] ${result.isBelowMa20 ? 'text-red-400' : 'text-emerald-400'}`}>
+            {result.isBelowMa20 ? `Dưới MA20 (-1đ)` : `Trên MA20 (${ma20Str})`}
           </span>
         </div>
+
         {result.ftdDetected && (
-          <div className="col-span-2 flex items-center gap-1">
-            <span className="text-emerald-500 text-[10px] font-bold">✓ FTD phát hiện</span>
+          <div className="col-span-2 flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+            <span>✓ Phát hiện FTD bùng nổ theo đà (Phiên 4–10)</span>
           </div>
         )}
       </div>
 
-      {/* Exposure */}
-      <div className="flex items-center justify-between mb-2 px-0.5">
-        <span className="text-[10px] text-gray-500 dark:text-gray-400">Exposure đề xuất</span>
-        <span className={`text-sm font-black ${cfg.color}`}>
+      {/* Exposure Recommendation */}
+      <div className="flex items-center justify-between mb-1.5 px-0.5">
+        <span className="text-[10px] text-gray-400">Tỷ trọng Exposure đề xuất</span>
+        <span className={`text-xs font-black ${cfg.color}`}>
           {result.exposureLow}–{result.exposureHigh}%
         </span>
       </div>
 
-      {/* Exposure bar */}
-      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mb-2.5 overflow-hidden">
+      {/* Exposure Progress Bar */}
+      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700/80 rounded-full mb-2.5 overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${
-            result.status === 'confirmed_uptrend' ? 'bg-emerald-500'
-            : result.status === 'uptrend_under_pressure' ? 'bg-amber-500'
-            : 'bg-red-500'
+          className={`h-full rounded-full transition-all duration-500 ${
+            result.score >= 7 ? 'bg-emerald-500' : result.score >= 5 ? 'bg-amber-500' : 'bg-red-500'
           }`}
           style={{ width: `${result.exposureHigh}%` }}
         />
       </div>
 
-      {/* Strategy */}
-      <p className="text-[10px] text-gray-600 dark:text-gray-400 leading-relaxed">
+      {/* Strategy Recommendation */}
+      <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
         {result.strategy}
       </p>
       {result.note && (
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed mt-1 italic">
+        <p className="text-[9.5px] text-gray-400 dark:text-gray-500 leading-relaxed mt-1 italic">
           {result.note}
         </p>
       )}

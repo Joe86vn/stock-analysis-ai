@@ -88,9 +88,11 @@ export const VnindexCandleChart: React.FC = () => {
           return;
         }
 
-        // Detect FTD (Follow-Through Day) according to CANSLIM rules
+        // CANSLIM FTD Rule: Day 4 to Day 10 of Rally Attempt ONLY.
+        // Once FTD occurs and Confirmed Uptrend is active, no further FTD counting is needed.
         let rallyStartLow = Infinity;
         let rallyDayCount = 0;
+        let inConfirmedUptrend = false;
         const ftdSet = new Set<number>();
 
         for (let i = 1; i < sorted.length; i++) {
@@ -98,26 +100,36 @@ export const VnindexCandleChart: React.FC = () => {
           const curr = sorted[i];
           const pct = (curr.close - prev.close) / prev.close;
 
-          if (rallyDayCount === 0) {
-            if (pct > 0) {
-              rallyDayCount = 1;
-              rallyStartLow = prev.low;
+          if (inConfirmedUptrend) {
+            // Check if market falls into correction break
+            if (curr.close < prev.close * 0.95) {
+              inConfirmedUptrend = false;
+              rallyDayCount = 0;
+              rallyStartLow = Infinity;
             }
           } else {
-            if (curr.low < rallyStartLow) {
-              // Rally attempt failed
+            if (rallyDayCount === 0) {
               if (pct > 0) {
                 rallyDayCount = 1;
                 rallyStartLow = prev.low;
-              } else {
-                rallyDayCount = 0;
-                rallyStartLow = Infinity;
               }
             } else {
-              rallyDayCount++;
-              // FTD Rule: Day 4+ of rally, gain > 1.25%, volume > prev volume
-              if (rallyDayCount >= 4 && pct > 0.0125 && curr.volume > prev.volume) {
-                ftdSet.add(i);
+              if (curr.low < rallyStartLow) {
+                // Rally attempt failed
+                if (pct > 0) {
+                  rallyDayCount = 1;
+                  rallyStartLow = prev.low;
+                } else {
+                  rallyDayCount = 0;
+                  rallyStartLow = Infinity;
+                }
+              } else {
+                rallyDayCount++;
+                // CANSLIM FTD rule: Day 4 to Day 10 of rally attempt, gain > 1.25%, volume > prev volume
+                if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
+                  ftdSet.add(i);
+                  inConfirmedUptrend = true; // Confirmed Uptrend entered, stop counting further FTDs
+                }
               }
             }
           }
@@ -243,7 +255,7 @@ export const VnindexCandleChart: React.FC = () => {
         {/* CANSLIM Distribution & FTD Badges */}
         <div className="flex items-center gap-1.5">
           {hasFtd && (
-            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5" title="Phát hiện phiên Bùng nổ theo đà FTD">
+            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5" title="Phát hiện phiên Bùng nổ theo đà FTD (Phiên 4–10)">
               <Zap className="w-2.5 h-2.5 fill-emerald-400" />
               FTD
             </span>
@@ -377,7 +389,7 @@ export const VnindexCandleChart: React.FC = () => {
                   </g>
                 )}
 
-                {/* CANSLIM FTD Marker Badge (🟢 FTD) */}
+                {/* CANSLIM FTD Marker Badge (🟢 FTD - Phiên 4-10) */}
                 {c.isFTD && (
                   <g>
                     <line
@@ -421,7 +433,7 @@ export const VnindexCandleChart: React.FC = () => {
           </span>
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-            <strong className="text-emerald-400">FTD</strong>: Bùng nổ theo đà
+            <strong className="text-emerald-400">FTD</strong>: Bùng nổ theo đà (Phiên 4–10)
           </span>
         </div>
       </div>

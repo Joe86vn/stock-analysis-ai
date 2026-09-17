@@ -35,20 +35,26 @@ export const IntradayChart: React.FC = () => {
 
         if (json && Array.isArray(json.c) && Array.isArray(json.t)) {
           // MasTrade format: { c: [...], t: [...], v: [...] }
-          items = json.c.map((val: number, idx: number) => ({
-            close: Number(val),
-            time: Number(json.t[idx]),
-          })).filter((d: MinutePoint) => d.close > 0);
+          items = json.c
+            .map((val: number, idx: number) => ({
+              close: Number(val),
+              time: Number(json.t[idx]),
+            }))
+            .filter((d: MinutePoint) => d.close > 0);
         } else if (Array.isArray(json)) {
-          items = json.map((d) => ({
-            close: Number(d.close ?? d.price ?? d.value ?? 0),
-            time: Number(d.time ?? d.t ?? 0),
-          })).filter((d) => d.close > 0);
+          items = json
+            .map((d) => ({
+              close: Number(d.close ?? d.price ?? d.value ?? 0),
+              time: Number(d.time ?? d.t ?? 0),
+            }))
+            .filter((d) => d.close > 0);
         } else if (Array.isArray(json?.data)) {
-          items = json.data.map((d: { close?: number; price?: number; value?: number; time?: number; t?: number }) => ({
-            close: Number(d.close ?? d.price ?? d.value ?? 0),
-            time: Number(d.time ?? d.t ?? 0),
-          })).filter((d: MinutePoint) => d.close > 0);
+          items = json.data
+            .map((d: { close?: number; price?: number; value?: number; time?: number; t?: number }) => ({
+              close: Number(d.close ?? d.price ?? d.value ?? 0),
+              time: Number(d.time ?? d.t ?? 0),
+            }))
+            .filter((d: MinutePoint) => d.close > 0);
         }
 
         if (items.length === 0) {
@@ -90,13 +96,15 @@ export const IntradayChart: React.FC = () => {
   const svgHeight = 110;
   const padding = 6;
 
-  const { linePath, areaPath, refY, minP, maxP } = useMemo(() => {
-    if (points.length < 2) return { linePath: '', areaPath: '', refY: svgHeight / 2, minP: 0, maxP: 0 };
+  const { lineSegments, areaPath, refY, minP, maxP } = useMemo(() => {
+    if (points.length < 2 || startingPrice === null) {
+      return { lineSegments: [], areaPath: '', refY: svgHeight / 2, minP: 0, maxP: 0 };
+    }
 
     const prices = points.map((p) => p.close);
-    const minVal = Math.min(...prices, startingPrice ?? prices[0]);
-    const maxVal = Math.max(...prices, startingPrice ?? prices[0]);
-    const diff = Math.max(maxVal - minVal, 1);
+    const minVal = Math.min(...prices, startingPrice);
+    const maxVal = Math.max(...prices, startingPrice);
+    const diff = Math.max(maxVal - minVal, 0.5);
 
     const getY = (p: number) => {
       const ratio = (p - minVal) / diff;
@@ -107,16 +115,67 @@ export const IntradayChart: React.FC = () => {
       return (idx / (points.length - 1)) * (svgWidth - padding * 2) + padding;
     };
 
+    const referenceY = getY(startingPrice);
+
+    // Build line segments with color splitting at reference price
+    const segments: { x1: number; y1: number; x2: number; y2: number; color: string }[] = [];
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i].close;
+      const p2 = points[i + 1].close;
+      const x1 = getX(i);
+      const x2 = getX(i + 1);
+      const y1 = getY(p1);
+      const y2 = getY(p2);
+
+      const isP1Above = p1 >= startingPrice;
+      const isP2Above = p2 >= startingPrice;
+
+      if (isP1Above === isP2Above) {
+        // Entire segment is on one side
+        segments.push({
+          x1,
+          y1,
+          x2,
+          y2,
+          color: isP1Above ? '#22c55e' : '#ef4444',
+        });
+      } else {
+        // Segment crosses reference price: calculate exact intersection
+        const fraction = (startingPrice - p1) / (p2 - p1);
+        const xCross = x1 + fraction * (x2 - x1);
+        const yCross = referenceY;
+
+        segments.push({
+          x1,
+          y1,
+          x2: xCross,
+          y2: yCross,
+          color: isP1Above ? '#22c55e' : '#ef4444',
+        });
+        segments.push({
+          x1: xCross,
+          y1: yCross,
+          x2,
+          y2,
+          color: isP2Above ? '#22c55e' : '#ef4444',
+        });
+      }
+    }
+
+    // Full area path
     const pts = points.map((p, i) => `${getX(i).toFixed(1)},${getY(p.close).toFixed(1)}`);
     const lineP = `M ${pts.join(' L ')}`;
-    const areaP = `${lineP} L ${getX(points.length - 1)},${svgHeight} L ${getX(0)},${svgHeight} Z`;
-    const referenceY = getY(startingPrice ?? prices[0]);
+    const fullArea = `${lineP} L ${getX(points.length - 1)},${svgHeight} L ${getX(0)},${svgHeight} Z`;
 
-    return { linePath: lineP, areaPath: areaP, refY: referenceY, minP: minVal, maxP: maxVal };
+    return {
+      lineSegments: segments,
+      areaPath: fullArea,
+      refY: referenceY,
+      minP: minVal,
+      maxP: maxVal,
+    };
   }, [points, startingPrice]);
-
-  const strokeColor = isUp ? '#22c55e' : isDown ? '#ef4444' : '#6366f1';
-  const gradId = isUp ? 'intradayGradGreen' : isDown ? 'intradayGradRed' : 'intradayGradBlue';
 
   return (
     <div className="w-full font-sans select-none">
@@ -133,8 +192,17 @@ export const IntradayChart: React.FC = () => {
             <span className="text-gray-900 dark:text-gray-100">{currentPrice.toFixed(2)}</span>
           )}
           {changePercent !== null && (
-            <span className={`px-1 py-0.5 rounded text-[10px] ${isUp ? 'bg-emerald-500/15 text-emerald-500' : isDown ? 'bg-red-500/15 text-red-500' : 'text-gray-400'}`}>
-              {isUp ? '+' : ''}{changePercent.toFixed(2)}%
+            <span
+              className={`px-1 py-0.5 rounded text-[10px] ${
+                isUp
+                  ? 'bg-emerald-500/15 text-emerald-500'
+                  : isDown
+                  ? 'bg-red-500/15 text-red-500'
+                  : 'text-gray-400'
+              }`}
+            >
+              {isUp ? '+' : ''}
+              {changePercent.toFixed(2)}%
             </span>
           )}
         </div>
@@ -171,17 +239,24 @@ export const IntradayChart: React.FC = () => {
             onMouseLeave={() => setHoverIdx(null)}
           >
             <defs>
+              {/* Clip path above reference line (Green zone) */}
+              <clipPath id="aboveRefClip">
+                <rect x="0" y="0" width={svgWidth} height={Math.max(refY, 0)} />
+              </clipPath>
+
+              {/* Clip path below reference line (Red zone) */}
+              <clipPath id="belowRefClip">
+                <rect x="0" y={Math.max(refY, 0)} width={svgWidth} height={Math.max(svgHeight - refY, 0)} />
+              </clipPath>
+
               <linearGradient id="intradayGradGreen" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#22c55e" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#22c55e" stopOpacity="0.0" />
+                <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02" />
               </linearGradient>
+
               <linearGradient id="intradayGradRed" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
-              </linearGradient>
-              <linearGradient id="intradayGradBlue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.02" />
+                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.25" />
               </linearGradient>
             </defs>
 
@@ -191,32 +266,50 @@ export const IntradayChart: React.FC = () => {
               y1={refY}
               x2={svgWidth}
               y2={refY}
-              stroke="rgba(255, 255, 255, 0.25)"
+              stroke="rgba(255, 255, 255, 0.3)"
               strokeDasharray="3 3"
               strokeWidth="1"
             />
 
-            {/* Area Fill */}
-            <path d={areaPath} fill={`url(#${gradId})`} />
+            {/* Green Area Fill (clipped above refY) */}
+            <g clipPath="url(#aboveRefClip)">
+              <path d={areaPath} fill="url(#intradayGradGreen)" />
+            </g>
 
-            {/* Price Line */}
-            <path d={linePath} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            {/* Red Area Fill (clipped below refY) */}
+            <g clipPath="url(#belowRefClip)">
+              <path d={areaPath} fill="url(#intradayGradRed)" />
+            </g>
 
-            {/* Hover Points Capture */}
+            {/* Multi-color Line Segments (Green above ref, Red below ref) */}
+            {lineSegments.map((seg, i) => (
+              <line
+                key={i}
+                x1={seg.x1}
+                y1={seg.y1}
+                x2={seg.x2}
+                y2={seg.y2}
+                stroke={seg.color}
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            ))}
+
+            {/* Hover Capture */}
             {points.map((p, i) => {
               const x = (i / (points.length - 1)) * (svgWidth - padding * 2) + padding;
               const ratio = (p.close - minP) / Math.max(maxP - minP, 1);
               const y = svgHeight - padding - ratio * (svgHeight - padding * 2);
               const isHovered = hoverIdx === i;
+              const dotColor = p.close >= (startingPrice ?? p.close) ? '#22c55e' : '#ef4444';
 
               return (
                 <g key={i} onMouseEnter={() => setHoverIdx(i)} className="cursor-pointer">
-                  {/* Invisible hit box */}
                   <rect x={x - 2} y="0" width="4" height={svgHeight} fill="transparent" />
                   {isHovered && (
                     <>
                       <line x1={x} y1="0" x2={x} y2={svgHeight} stroke="rgba(255,255,255,0.3)" strokeDasharray="2 2" />
-                      <circle cx={x} cy={y} r="3.5" fill={strokeColor} stroke="#ffffff" strokeWidth="1.5" />
+                      <circle cx={x} cy={y} r="3.5" fill={dotColor} stroke="#ffffff" strokeWidth="1.5" />
                     </>
                   )}
                 </g>
