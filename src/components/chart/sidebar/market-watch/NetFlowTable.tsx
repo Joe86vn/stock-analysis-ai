@@ -83,8 +83,8 @@ export const NetFlowTable: React.FC = () => {
     return all.length > 0 ? Math.max(...all, 1e6) : 1e9;
   }, [foreignBuy, foreignSell]);
 
-  if (loading) return <div className="text-xs text-gray-400 py-4 text-center">Đang tải dòng tiền nước ngoài...</div>;
-  if (error) return <div className="text-xs text-gray-400 py-4 text-center">Không có dữ liệu nước ngoài</div>;
+  if (loading) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Đang tải dòng tiền nước ngoài...</div>;
+  if (error) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Không có dữ liệu nước ngoài</div>;
 
   return (
     <div className="w-full font-sans select-none text-[10px]">
@@ -105,26 +105,21 @@ export const NetFlowTable: React.FC = () => {
 
             return (
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
-                {/* Ticker */}
-                <span className="font-bold text-slate-800 dark:text-gray-100 w-8 shrink-0 text-[10px]">
+                {/* Ticker - Black in Light Mode, White in Dark Mode */}
+                <span className="font-extrabold text-slate-900 dark:text-white w-8 shrink-0 text-[10px]">
                   {ticker}
                 </span>
 
                 {/* Horizontal Bar (grows left-to-right) */}
-                <div className="flex-1 h-4 bg-emerald-50/80 dark:bg-emerald-950/30 rounded border border-emerald-100/80 dark:border-emerald-900/40 relative flex items-center min-w-0">
+                <div className="flex-1 h-4 bg-emerald-50/80 dark:bg-emerald-950/40 rounded border border-emerald-100/80 dark:border-emerald-900/40 relative flex items-center min-w-0 overflow-hidden">
                   <div
-                    className="h-full bg-emerald-500 rounded-xs transition-all duration-300"
-                    style={{ width: `${Math.max(barWidthPct, 4)}%` }}
-                  />
-                  <span
-                    className={`absolute left-1.5 text-[9px] font-bold pointer-events-none z-10 whitespace-nowrap ${
-                      barWidthPct >= 45
-                        ? 'text-white drop-shadow-2xs'
-                        : 'text-emerald-800 dark:text-emerald-300 drop-shadow-2xs'
-                    }`}
+                    className="h-full bg-emerald-500 rounded-xs transition-all duration-300 flex items-center justify-center min-w-[48px] px-1"
+                    style={{ width: `${Math.max(barWidthPct, 24)}%` }}
                   >
-                    +{formatBillion(val)}
-                  </span>
+                    <span className="text-[9px] font-black text-white whitespace-nowrap drop-shadow-2xs">
+                      +{formatBillion(val)}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -141,24 +136,19 @@ export const NetFlowTable: React.FC = () => {
             return (
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
                 {/* Horizontal Bar (grows right-to-left) */}
-                <div className="flex-1 h-4 bg-red-50/80 dark:bg-red-950/30 rounded border border-red-100/80 dark:border-red-900/40 relative flex items-center justify-end min-w-0">
+                <div className="flex-1 h-4 bg-red-50/80 dark:bg-red-950/40 rounded border border-red-100/80 dark:border-red-900/40 relative flex items-center justify-end min-w-0 overflow-hidden">
                   <div
-                    className="h-full bg-red-500 rounded-xs transition-all duration-300"
-                    style={{ width: `${Math.max(barWidthPct, 4)}%` }}
-                  />
-                  <span
-                    className={`absolute right-1.5 text-[9px] font-bold pointer-events-none z-10 whitespace-nowrap ${
-                      barWidthPct >= 45
-                        ? 'text-white drop-shadow-2xs'
-                        : 'text-red-800 dark:text-red-300 drop-shadow-2xs'
-                    }`}
+                    className="h-full bg-red-500 rounded-xs transition-all duration-300 flex items-center justify-center min-w-[48px] px-1"
+                    style={{ width: `${Math.max(barWidthPct, 24)}%` }}
                   >
-                    -{formatBillion(val)}
-                  </span>
+                    <span className="text-[9px] font-black text-white whitespace-nowrap drop-shadow-2xs">
+                      -{formatBillion(val)}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Ticker */}
-                <span className="font-bold text-slate-800 dark:text-gray-100 w-8 shrink-0 text-right text-[10px]">
+                {/* Ticker - Black in Light Mode, White in Dark Mode */}
+                <span className="font-extrabold text-slate-900 dark:text-white w-8 shrink-0 text-right text-[10px]">
                   {ticker}
                 </span>
               </div>

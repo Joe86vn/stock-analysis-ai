@@ -50,18 +50,12 @@ const fetchValuation = async (type: ValType): Promise<ChartPoint[]> => {
   }
 };
 
-const median = (arr: number[]) => {
-  const sorted = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-};
-
 const formatDateLabel = (dStr: string) => {
   if (!dStr) return '';
   const clean = dStr.slice(0, 10);
   const parts = clean.split('-');
   if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0].slice(2)}`;
+    return `${parts[1]}/${parts[0]}`;
   }
   return clean;
 };
@@ -79,8 +73,8 @@ export const ValuationChart: React.FC = () => {
         setLoading(true);
         const [pe, pb] = await Promise.all([fetchValuation('pe'), fetchValuation('pb')]);
         if (pe.length === 0 && pb.length === 0) { setError(true); return; }
-        setPeData(pe.slice(-120));
-        setPbData(pb.slice(-120));
+        setPeData(pe.slice(-250));
+        setPbData(pb.slice(-250));
       } catch {
         setError(true);
       } finally {
@@ -102,136 +96,156 @@ export const ValuationChart: React.FC = () => {
     const stdDev = Math.sqrt(variance);
 
     const currentVal = values[values.length - 1];
-    const medianVal = median(values);
-    const meanVal = parseFloat(mean.toFixed(2));
-    const plus1SD = parseFloat((mean + stdDev).toFixed(2));
-    const minus1SD = parseFloat((mean - stdDev).toFixed(2));
+    const meanVal = parseFloat(mean.toFixed(1));
+    const plus2SD = parseFloat((mean + 2 * stdDev).toFixed(1));
+    const plus1SD = parseFloat((mean + stdDev).toFixed(1));
+    const minus1SD = parseFloat((mean - stdDev).toFixed(1));
+    const minus2SD = parseFloat((mean - 2 * stdDev).toFixed(1));
 
-    const range = maxVal - minVal || 1;
-    // Dynamic Y-Domain to make the chart curve visually clear and steep enough
-    const yMin = Math.max(0, parseFloat((Math.min(minVal, minus1SD) - range * 0.12).toFixed(2)));
-    const yMax = parseFloat((Math.max(maxVal, plus1SD) + range * 0.12).toFixed(2));
+    const yMin = Math.max(0, parseFloat((Math.min(minVal, minus2SD) - 0.5).toFixed(1)));
+    const yMax = parseFloat((Math.max(maxVal, plus2SD) + 0.5).toFixed(1));
 
     return {
       currentVal,
-      medianVal,
       meanVal,
+      plus2SD,
       plus1SD,
       minus1SD,
-      minVal,
-      maxVal,
+      minus2SD,
       yMin,
       yMax,
     };
   }, [activeData]);
 
-  const startDateStr = activeData.length > 0 ? formatDateLabel(activeData[0].date) : '';
-  const midDateStr = activeData.length > 0 ? formatDateLabel(activeData[Math.floor(activeData.length / 2)].date) : '';
-  const endDateStr = activeData.length > 0 ? formatDateLabel(activeData[activeData.length - 1].date) : '';
-
-  const isAboveMedian = stats !== null && stats.currentVal > stats.medianVal;
-
   return (
     <div className="w-full font-sans select-none">
-      {/* Toggle PE / PB & Stats Summary */}
-      <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-        <div className="flex gap-1">
-          {(['pe', 'pb'] as ValType[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setValType(t)}
-              className={`text-[10px] font-bold px-2.5 py-0.5 rounded transition cursor-pointer uppercase ${
-                valType === t
-                  ? 'bg-violet-600 text-white'
-                  : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+      {/* Header with PE / PB Selector */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
+            {valType === 'pe' ? 'P/E - TTM' : 'P/B'}
+          </span>
+          <div className="flex bg-gray-100 dark:bg-gray-800 p-0.5 rounded-md">
+            {(['pe', 'pb'] as ValType[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setValType(t)}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded transition cursor-pointer uppercase ${
+                  valType === t
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
+
         {stats !== null && (
-          <div className="flex items-center gap-2 text-[9.5px] font-mono">
-            <span className={`font-extrabold ${isAboveMedian ? 'text-red-500' : 'text-emerald-500'}`}>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded shadow-2xs">
               {stats.currentVal.toFixed(1)}x
-            </span>
-            <span className="text-gray-400 dark:text-gray-500" title="Trung bình (Mean)">
-              TB: {stats.meanVal}x
-            </span>
-            <span className="text-red-500/90 hidden sm:inline" title="Độ lệch chuẩn +1SD (Vùng đắt)">
-              +1SD: {stats.plus1SD}x
-            </span>
-            <span className="text-emerald-500/90 hidden sm:inline" title="Độ lệch chuẩn -1SD (Vùng rẻ)">
-              -1SD: {stats.minus1SD}x
             </span>
           </div>
         )}
       </div>
 
-      {loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Đang tải...</div>}
-      {error && !loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Không có dữ liệu</div>}
+      {/* Legend Header */}
+      {stats !== null && (
+        <div className="flex items-center justify-between text-[9px] font-bold text-slate-700 dark:text-gray-300 mb-1 px-1 flex-wrap gap-y-1">
+          <div className="flex items-center gap-1">
+            <span className="w-3 h-0.5 bg-emerald-500 inline-block"></span>
+            <span>{valType.toUpperCase()} - TTM</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-3 border-b border-dashed border-blue-500 inline-block"></span>
+            <span>+2 SD</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-3 h-0.5 bg-blue-700 inline-block"></span>
+            <span>+1 SD</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-3 h-0.5 bg-slate-900 dark:bg-slate-200 inline-block"></span>
+            <span>Mean</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-3 h-0.5 bg-rose-600 inline-block"></span>
+            <span>-1 SD</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-3 border-b border-dashed border-rose-500 inline-block"></span>
+            <span>-2 SD</span>
+          </div>
+        </div>
+      )}
+
+      {loading && <div className="h-[140px] flex items-center justify-center text-xs text-slate-900 dark:text-white">Đang tải biểu đồ định giá...</div>}
+      {error && !loading && <div className="h-[140px] flex items-center justify-center text-xs text-slate-900 dark:text-white">Không có dữ liệu định giá</div>}
       {!loading && !error && activeData.length > 0 && stats !== null && (
-        <div className="relative w-full bg-gray-50/50 dark:bg-black/20 rounded-lg p-2 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
-          <ResponsiveContainer width="100%" height={105}>
-            <LineChart data={activeData} margin={{ top: 6, right: 6, left: 6, bottom: 0 }}>
-              <XAxis dataKey="date" hide />
-              <YAxis hide domain={[stats.yMin, stats.yMax]} />
-
-              {/* +1 Standard Deviation Line (Rose/Red) */}
-              <ReferenceLine
-                y={stats.plus1SD}
-                stroke="rgba(239, 68, 68, 0.65)"
-                strokeDasharray="3 3"
-                strokeWidth={1}
-                label={{ value: '+1SD', fill: 'rgba(239, 68, 68, 0.85)', fontSize: 9, position: 'insideTopLeft' }}
+        <div className="relative w-full bg-white dark:bg-slate-900/50 rounded-lg p-2 border border-gray-200 dark:border-gray-800 shadow-xs">
+          <ResponsiveContainer width="100%" height={130}>
+            <LineChart data={activeData} margin={{ top: 8, right: 30, left: 4, bottom: 4 }}>
+              <XAxis
+                dataKey="date"
+                tickFormatter={formatDateLabel}
+                stroke="#94a3b8"
+                fontSize={9}
+                tickLine={false}
+                axisLine={{ stroke: '#e2e8f0' }}
+                interval="preserveStartEnd"
+                minTickGap={35}
+              />
+              <YAxis
+                orientation="right"
+                domain={[stats.yMin, stats.yMax]}
+                stroke="#94a3b8"
+                fontSize={9}
+                tickLine={false}
+                axisLine={false}
+                ticks={[stats.minus2SD, stats.minus1SD, stats.meanVal, stats.plus1SD, stats.plus2SD]}
+                tickFormatter={(val) => `${val.toFixed(1)}`}
               />
 
-              {/* Mean / Median Line (Amber/Gold) */}
-              <ReferenceLine
-                y={stats.medianVal}
-                stroke="#f59e0b"
-                strokeDasharray="3 3"
-                strokeWidth={1}
-                label={{ value: 'TB', fill: '#f59e0b', fontSize: 9, position: 'insideBottomLeft' }}
-              />
+              {/* +2 SD Line (Blue Dashed) */}
+              <ReferenceLine y={stats.plus2SD} stroke="#3b82f6" strokeDasharray="3 3" strokeWidth={1} />
 
-              {/* -1 Standard Deviation Line (Emerald/Green) */}
-              <ReferenceLine
-                y={stats.minus1SD}
-                stroke="rgba(34, 197, 94, 0.65)"
-                strokeDasharray="3 3"
-                strokeWidth={1}
-                label={{ value: '-1SD', fill: 'rgba(34, 197, 94, 0.85)', fontSize: 9, position: 'insideBottomLeft' }}
-              />
+              {/* +1 SD Line (Blue Solid) */}
+              <ReferenceLine y={stats.plus1SD} stroke="#1d4ed8" strokeWidth={1.2} />
+
+              {/* Mean Line (Black/White Solid) */}
+              <ReferenceLine y={stats.meanVal} stroke="#334155" strokeWidth={1.2} />
+
+              {/* -1 SD Line (Rose/Red Solid) */}
+              <ReferenceLine y={stats.minus1SD} stroke="#ef4444" strokeWidth={1.2} />
+
+              {/* -2 SD Line (Red Dashed) */}
+              <ReferenceLine y={stats.minus2SD} stroke="#dc2626" strokeDasharray="3 3" strokeWidth={1} />
 
               <Tooltip
                 contentStyle={{
-                  background: 'rgba(15,23,42,0.9)',
+                  background: 'rgba(15,23,42,0.92)',
                   border: 'none',
                   borderRadius: 6,
                   fontSize: 11,
-                  color: '#e2e8f0',
+                  color: '#ffffff',
                 }}
                 formatter={(val: number) => [`${val.toFixed(2)}x`, `VNINDEX ${valType.toUpperCase()}`]}
-                labelFormatter={(label) => label}
+                labelFormatter={(label) => formatDateLabel(String(label))}
               />
+
+              {/* Main P/E or P/B Line (Green) */}
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke="#8b5cf6"
+                stroke="#22c55e"
                 strokeWidth={1.5}
                 dot={false}
-                activeDot={{ r: 3 }}
+                activeDot={{ r: 3.5, fill: '#22c55e' }}
               />
             </LineChart>
           </ResponsiveContainer>
-
-          {/* Bottom Time Axis */}
-          <div className="flex justify-between items-center text-[9.5px] text-gray-400 font-sans font-medium px-1 mt-1 border-t border-gray-100 dark:border-gray-800/60 pt-0.5">
-            <span>{startDateStr}</span>
-            <span>{midDateStr}</span>
-            <span>{endDateStr}</span>
-          </div>
         </div>
       )}
     </div>

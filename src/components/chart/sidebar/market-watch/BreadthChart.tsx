@@ -13,6 +13,7 @@ import {
 
 interface BreadthPoint {
   date?: string;
+  tradingDate?: string;
   time?: string;
   t?: string | number;
   value?: number;
@@ -57,12 +58,17 @@ const fetchBreadthCond = async (cond: string): Promise<{ date: string; value: nu
       ? json.data
       : [];
 
-    return raw.map((d) => {
-      let val: number = d.value ?? d.ratio ?? d.percent ?? 0;
-      if (val <= 1) val = val * 100;
-      if (d.aboveCount && d.totalCount) val = (d.aboveCount / d.totalCount) * 100;
-      return { date: String(d.date ?? d.time ?? d.t ?? ''), value: parseFloat(val.toFixed(1)) };
-    }).filter((p) => p.value >= 0);
+    return raw
+      .map((d) => {
+        let val: number = d.value ?? d.percent ?? d.ratio ?? 0;
+        if (val <= 1 && val > 0) val = val * 100;
+        if (d.aboveCount && d.totalCount && d.totalCount > 0) {
+          val = (d.aboveCount / d.totalCount) * 100;
+        }
+        const dStr = String(d.tradingDate ?? d.date ?? d.time ?? d.t ?? '');
+        return { date: dStr, value: parseFloat(val.toFixed(1)) };
+      })
+      .filter((p) => p.date !== '');
   } catch {
     return [];
   }
@@ -90,7 +96,6 @@ export const BreadthChart: React.FC = () => {
           return;
         }
 
-        // Map by date
         const dateMap = new Map<string, CombinedPoint>();
 
         e20.forEach((p) => {
@@ -110,7 +115,7 @@ export const BreadthChart: React.FC = () => {
         const combined = Array.from(dateMap.values())
           .filter((p) => p.date !== '')
           .sort((a, b) => a.date.localeCompare(b.date))
-          .slice(-120);
+          .slice(-180);
 
         setData(combined);
       } catch {
@@ -132,25 +137,21 @@ export const BreadthChart: React.FC = () => {
     };
   }, [data]);
 
-  const startDateStr = data.length > 0 ? formatDateLabel(data[0].date) : '';
-  const midDateStr = data.length > 0 ? formatDateLabel(data[Math.floor(data.length / 2)].date) : '';
-  const endDateStr = data.length > 0 ? formatDateLabel(data[data.length - 1].date) : '';
-
   const toggleLine = (key: 'ema20' | 'ema50' | 'ema200') => {
     setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
     <div className="w-full font-sans select-none">
-      {/* Legend Toggles for EMA20, EMA50, EMA200 */}
-      <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+      {/* Header & Legend Toggles for EMA20, EMA50, EMA200 */}
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* EMA20 */}
           <button
             onClick={() => toggleLine('ema20')}
-            className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded cursor-pointer transition ${
+            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded cursor-pointer transition ${
               visible.ema20
-                ? 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30'
+                ? 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through opacity-60'
             }`}
             title="Bật/tắt đường % cổ phiếu trên EMA20"
@@ -163,9 +164,9 @@ export const BreadthChart: React.FC = () => {
           {/* EMA50 */}
           <button
             onClick={() => toggleLine('ema50')}
-            className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded cursor-pointer transition ${
+            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded cursor-pointer transition ${
               visible.ema50
-                ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30'
+                ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through opacity-60'
             }`}
             title="Bật/tắt đường % cổ phiếu trên EMA50"
@@ -178,9 +179,9 @@ export const BreadthChart: React.FC = () => {
           {/* EMA200 */}
           <button
             onClick={() => toggleLine('ema200')}
-            className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded cursor-pointer transition ${
+            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded cursor-pointer transition ${
               visible.ema200
-                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through opacity-60'
             }`}
             title="Bật/tắt đường % cổ phiếu trên EMA200"
@@ -192,28 +193,48 @@ export const BreadthChart: React.FC = () => {
         </div>
       </div>
 
-      {loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Đang tải 3 đường độ rộng...</div>}
-      {error && !loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Không có dữ liệu độ rộng</div>}
+      {loading && <div className="h-[140px] flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">Đang tải 3 đường độ rộng...</div>}
+      {error && !loading && <div className="h-[140px] flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">Không có dữ liệu độ rộng</div>}
       {!loading && !error && data.length > 0 && (
-        <div className="relative w-full bg-gray-50/50 dark:bg-black/20 rounded-lg p-2 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
-          <ResponsiveContainer width="100%" height={105}>
-            <LineChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-              <XAxis dataKey="date" hide />
-              <YAxis hide domain={[0, 100]} />
-              <ReferenceLine y={70} stroke="rgba(239, 68, 68, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '70%', fill: 'rgba(239, 68, 68, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
-              <ReferenceLine y={50} stroke="rgba(148, 163, 184, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '50%', fill: 'rgba(148, 163, 184, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
-              <ReferenceLine y={30} stroke="rgba(34, 197, 94, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '30%', fill: 'rgba(34, 197, 94, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
+        <div className="relative w-full bg-white dark:bg-slate-900/50 rounded-lg p-2 border border-gray-200 dark:border-gray-800 shadow-xs">
+          <ResponsiveContainer width="100%" height={130}>
+            <LineChart data={data} margin={{ top: 8, right: 30, left: 4, bottom: 4 }}>
+              <XAxis
+                dataKey="date"
+                tickFormatter={formatDateLabel}
+                stroke="#94a3b8"
+                fontSize={9}
+                tickLine={false}
+                axisLine={{ stroke: '#e2e8f0' }}
+                interval="preserveStartEnd"
+                minTickGap={35}
+              />
+              <YAxis
+                orientation="right"
+                domain={[0, 100]}
+                stroke="#94a3b8"
+                fontSize={9}
+                tickLine={false}
+                axisLine={false}
+                ticks={[0, 25, 50, 75, 100]}
+                tickFormatter={(val) => `${val}%`}
+              />
+              <ReferenceLine y={75} stroke="rgba(239, 68, 68, 0.45)" strokeDasharray="3 3" strokeWidth={1} />
+              <ReferenceLine y={50} stroke="rgba(148, 163, 184, 0.5)" strokeDasharray="3 3" strokeWidth={1} />
+              <ReferenceLine y={25} stroke="rgba(34, 197, 94, 0.45)" strokeDasharray="3 3" strokeWidth={1} />
+
               <Tooltip
                 contentStyle={{
-                  background: 'rgba(15,23,42,0.9)',
+                  background: 'rgba(15,23,42,0.92)',
                   border: 'none',
                   borderRadius: 6,
                   fontSize: 11,
-                  color: '#e2e8f0',
+                  color: '#ffffff',
                 }}
                 formatter={(val: number, name: string) => [`${val.toFixed(1)}%`, `% mã trên ${name.toUpperCase()}`]}
-                labelFormatter={(label) => label}
+                labelFormatter={(label) => formatDateLabel(String(label))}
               />
+
               {visible.ema20 && (
                 <Line
                   type="monotone"
@@ -222,7 +243,7 @@ export const BreadthChart: React.FC = () => {
                   stroke="#06b6d4"
                   strokeWidth={1.5}
                   dot={false}
-                  activeDot={{ r: 3 }}
+                  activeDot={{ r: 3.5 }}
                 />
               )}
               {visible.ema50 && (
@@ -233,7 +254,7 @@ export const BreadthChart: React.FC = () => {
                   stroke="#8b5cf6"
                   strokeWidth={1.5}
                   dot={false}
-                  activeDot={{ r: 3 }}
+                  activeDot={{ r: 3.5 }}
                 />
               )}
               {visible.ema200 && (
@@ -244,18 +265,11 @@ export const BreadthChart: React.FC = () => {
                   stroke="#f59e0b"
                   strokeWidth={1.5}
                   dot={false}
-                  activeDot={{ r: 3 }}
+                  activeDot={{ r: 3.5 }}
                 />
               )}
             </LineChart>
           </ResponsiveContainer>
-
-          {/* Bottom Time Axis */}
-          <div className="flex justify-between items-center text-[9.5px] text-gray-400 font-sans font-medium px-1 mt-1 border-t border-gray-100 dark:border-gray-800/60 pt-0.5">
-            <span>{startDateStr}</span>
-            <span>{midDateStr}</span>
-            <span>{endDateStr}</span>
-          </div>
         </div>
       )}
     </div>
