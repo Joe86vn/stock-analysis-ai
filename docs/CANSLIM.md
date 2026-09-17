@@ -26,6 +26,7 @@ Index gãy hỗ trợ
 Trên 6 phiên phân phối
 What to do
 Tránh thực hiện mua mới
+Giảm toàn bộ đòn bẩy Margin trước tiên
 Bảo vệ lợi nhuận và cắt giảm các khoản lỗ: 
 Cân nhắc bán các cổ phiếu yếu
 (Giảm tỷ trọng, tuân thủ mức dừng lỗ 7-8%)
