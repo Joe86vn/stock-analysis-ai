@@ -1,0 +1,268 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { X, ChevronDown, RotateCcw } from 'lucide-react';
+
+export interface IndicatorPlotConfig {
+  id: string;
+  name: string;
+  visible: boolean;
+  color: string;
+  lineWidth: number;
+  lineStyle: 'solid' | 'dashed';
+}
+
+export interface IndicatorSettingsDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  plots: IndicatorPlotConfig[];
+  onSavePlots: (plots: IndicatorPlotConfig[]) => void;
+  showPriceScaleLabel?: boolean;
+  onTogglePriceScaleLabel?: (val: boolean) => void;
+  showStatusValue?: boolean;
+  onToggleStatusValue?: (val: boolean) => void;
+}
+
+export function IndicatorSettingsDialog({
+  isOpen,
+  onClose,
+  title,
+  plots: initialPlots,
+  onSavePlots,
+  showPriceScaleLabel = true,
+  onTogglePriceScaleLabel,
+  showStatusValue = true,
+  onToggleStatusValue,
+}: IndicatorSettingsDialogProps) {
+  const [plots, setPlots] = useState<IndicatorPlotConfig[]>(initialPlots);
+  const [priceScaleLabel, setPriceScaleLabel] = useState(showPriceScaleLabel);
+  const [statusValue, setStatusValue] = useState(showStatusValue);
+  const [showDefaultDropdown, setShowDefaultDropdown] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPlots(JSON.parse(JSON.stringify(initialPlots)));
+      setPriceScaleLabel(showPriceScaleLabel);
+      setStatusValue(showStatusValue);
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, initialPlots, showPriceScaleLabel, showStatusValue, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleTogglePlot = (id: string) => {
+    setPlots((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p))
+    );
+  };
+
+  const handleColorChange = (id: string, color: string) => {
+    setPlots((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, color } : p))
+    );
+  };
+
+  const handleWidthChange = (id: string, lineWidth: number) => {
+    setPlots((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, lineWidth } : p))
+    );
+  };
+
+  const handleStyleChange = (id: string, lineStyle: 'solid' | 'dashed') => {
+    setPlots((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, lineStyle } : p))
+    );
+  };
+
+  const handleOk = () => {
+    onSavePlots(plots);
+    if (onTogglePriceScaleLabel) onTogglePriceScaleLabel(priceScaleLabel);
+    if (onToggleStatusValue) onToggleStatusValue(statusValue);
+    onClose();
+  };
+
+  const handleCancel = () => {
+    onClose();
+  };
+
+  return (
+    <div
+      onClick={handleCancel}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none animate-in fade-in duration-150"
+    >
+      <div
+        className="w-full max-w-sm bg-white dark:bg-[#1e222d] text-slate-900 dark:text-[#d1d4dc] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#2a2e39] overflow-hidden flex flex-col font-sans"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-[#2a2e39]">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white truncate pr-2">
+            {title}
+          </h2>
+          <button
+            onClick={handleCancel}
+            className="p-1 rounded-lg text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#2a2e39] transition cursor-pointer flex-shrink-0"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Tab "Định dạng" (Single Tab as requested) */}
+        <div className="border-b border-gray-200 dark:border-[#2a2e39] px-5 pt-2">
+          <div className="inline-block pb-2 border-b-2 border-blue-600 dark:border-[#2962ff] text-xs font-bold text-blue-600 dark:text-[#2962ff]">
+            Định dạng
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4 text-xs max-h-[380px] overflow-y-auto">
+          {/* List of Plots */}
+          <div className="space-y-3">
+            {plots.map((plot) => (
+              <div key={plot.id} className="flex items-center justify-between py-1">
+                {/* Visibility + Name */}
+                <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={plot.visible}
+                    onChange={() => handleTogglePlot(plot.id)}
+                    className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                  />
+                  <span className="font-medium text-slate-800 dark:text-[#d1d4dc]">
+                    {plot.name}
+                  </span>
+                </label>
+
+                {/* Color + Stroke control */}
+                <div className="flex items-center space-x-2">
+                  {/* Color picker */}
+                  <label className="relative flex items-center cursor-pointer" title="Chọn màu sắc">
+                    <span
+                      className="w-6 h-6 rounded border border-gray-300 dark:border-[#434651] shadow-2xs block"
+                      style={{ backgroundColor: plot.color }}
+                    />
+                    <input
+                      type="color"
+                      value={plot.color}
+                      onChange={(e) => handleColorChange(plot.id, e.target.value)}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                  </label>
+
+                  {/* Line Width / Style select */}
+                  <select
+                    value={plot.lineWidth}
+                    onChange={(e) => handleWidthChange(plot.id, Number(e.target.value))}
+                    className="px-2 py-1 rounded border border-gray-300 dark:border-[#434651] bg-white dark:bg-[#1e222d] text-xs font-mono"
+                    title="Độ dày nét vẽ"
+                  >
+                    <option value={1}>1px</option>
+                    <option value={1.5}>1.5px</option>
+                    <option value={2}>2px</option>
+                    <option value={3}>3px</option>
+                  </select>
+
+                  <select
+                    value={plot.lineStyle}
+                    onChange={(e) => handleStyleChange(plot.id, e.target.value as 'solid' | 'dashed')}
+                    className="px-2 py-1 rounded border border-gray-300 dark:border-[#434651] bg-white dark:bg-[#1e222d] text-xs font-mono"
+                    title="Kiểu nét vẽ"
+                  >
+                    <option value="solid">——</option>
+                    <option value="dashed">----</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* GIÁ TRỊ ĐẦU RA */}
+          <div className="pt-4 border-t border-gray-100 dark:border-[#2a2e39] space-y-3">
+            <div className="text-[10px] font-bold text-gray-400 dark:text-[#787b86] uppercase tracking-wider">
+              Giá trị đầu ra
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span>Độ chính xác</span>
+              <select className="px-2.5 py-1 rounded border border-gray-300 dark:border-[#434651] bg-white dark:bg-[#1e222d] text-xs">
+                <option value="default">Mặc định</option>
+              </select>
+            </div>
+
+            <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={priceScaleLabel}
+                onChange={(e) => setPriceScaleLabel(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+              />
+              <span>Nhãn trên thang giá</span>
+            </label>
+
+            <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={statusValue}
+                onChange={(e) => setStatusValue(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+              />
+              <span>Giá trị trong dòng trạng thái</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 dark:border-[#2a2e39] bg-gray-50/70 dark:bg-[#171b26]/70">
+          <div className="relative">
+            <button
+              onClick={() => setShowDefaultDropdown((v) => !v)}
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-[#434651] bg-white dark:bg-[#1e222d] text-xs font-medium text-slate-700 dark:text-[#d1d4dc] transition cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2a2e39]"
+            >
+              <span>Các mặc định...</span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
+
+            {showDefaultDropdown && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowDefaultDropdown(false)} />
+                <div className="absolute left-0 bottom-full mb-1 z-20 w-44 bg-white dark:bg-[#1e222d] border border-gray-200 dark:border-[#2a2e39] rounded-xl shadow-xl py-1 text-xs">
+                  <button
+                    onClick={() => {
+                      setPlots(initialPlots);
+                      setShowDefaultDropdown(false);
+                    }}
+                    className="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-[#2a2e39] text-left cursor-pointer"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 text-gray-400" />
+                    <span>Đặt lại cài đặt</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleCancel}
+              className="px-3.5 py-1.5 rounded-lg border border-gray-300 dark:border-[#434651] bg-white dark:bg-[#1e222d] hover:bg-gray-100 dark:hover:bg-[#2a2e39] text-xs font-semibold text-slate-700 dark:text-[#d1d4dc] transition cursor-pointer"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              onClick={handleOk}
+              className="px-4 py-1.5 rounded-lg bg-[#2962ff] hover:bg-[#1e53e5] text-white text-xs font-bold shadow-xs transition cursor-pointer"
+            >
+              Ok
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

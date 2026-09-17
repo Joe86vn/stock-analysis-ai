@@ -62,7 +62,56 @@ export interface ChartColorTheme {
   macd: MacdThemeColors;
 }
 
-export type PresetThemeId = 'tradingview' | 'vnmarket' | 'minimalist' | 'cyberpunk' | 'custom';
+export interface StatusLineConfig {
+  showTitle: boolean;
+  showDate: boolean;
+  showOhlc: boolean;
+  showChange: boolean;
+  showVolume: boolean;
+  showAdtv20: boolean;
+}
+
+export interface CanvasConfig {
+  backgroundType: 'solid';
+  backgroundColorLight: string;
+  backgroundColorDark: string;
+  showVerticalGrid: boolean;
+  showHorizontalGrid: boolean;
+  gridColorLight: string;
+  gridColorDark: string;
+  crosshairStyle: 'dashed' | 'solid';
+}
+
+export interface IndicatorPlotFormat {
+  visible: boolean;
+  color: string;
+  size: number;
+  style: 'solid' | 'dashed';
+  showPriceScaleLabel: boolean;
+  showStatusValue: boolean;
+}
+
+export const DEFAULT_STATUS_LINE_CONFIG: StatusLineConfig = {
+  showTitle: true,
+  showDate: true,
+  showOhlc: true,
+  showChange: true,
+  showVolume: true,
+  showAdtv20: true,
+};
+
+export const DEFAULT_CANVAS_CONFIG: CanvasConfig = {
+  backgroundType: 'solid',
+  backgroundColorLight: '#ffffff',
+  backgroundColorDark: '#030712',
+  showVerticalGrid: true,
+  showHorizontalGrid: true,
+  gridColorLight: '#f1f5f9',
+  gridColorDark: '#1f2937',
+  crosshairStyle: 'dashed',
+};
+
+export type PresetThemeId = 'tradingview' | 'tv_classic' | 'vnmarket' | 'minimalist' | 'cyberpunk' | 'custom';
 
 // ─── Helper Chuyển đổi HEX sang RGBA ──────────────────────────────────────────
 
@@ -82,12 +131,59 @@ export function hexToRgba(hex: string, alpha: number = 0.5): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// ─── 4 Bộ Presets Dựng Sẵn Chuẩn ──────────────────────────────────────────────
+// ─── Các Bộ Presets Dựng Sẵn Chuẩn ───────────────────────────────────────────
 
 export const THEME_PRESETS: Record<Exclude<PresetThemeId, 'custom'>, ChartColorTheme> = {
   tradingview: {
     id: 'tradingview',
-    name: 'TradingView Classic',
+    name: 'TradingView Trắng/Xanh (Ảnh 2)',
+    candle: {
+      upColor: '#ffffff', // Thân trắng/hollow
+      downColor: '#2962ff', // Thân xanh dương
+      noChangeColor: '#2962ff',
+      upBorderColor: '#000000', // Viền đen
+      downBorderColor: '#000000', // Viền đen
+      noChangeBorderColor: '#000000',
+      upWickColor: '#000000', // Râu đen
+      downWickColor: '#000000', // Râu đen
+      noChangeWickColor: '#000000',
+    },
+    vol: {
+      upColor: '#22c55e',
+      downColor: '#2962ff',
+      noChangeColor: '#94a3b8',
+      maColor: '#3b82f6',
+    },
+    ema: {
+      ema1Color: '#2962ff', // Xanh dương
+      ema2Color: '#f59e0b', // Vàng hổ phách
+    },
+    boll: {
+      upColor: '#8b5cf6',
+      midColor: '#f59e0b',
+      downColor: '#8b5cf6',
+    },
+    smc: {
+      zigzagColor: '#eab308',
+      peakColor: '#ef4444',
+      troughColor: '#10b981',
+      bullishBreakColor: '#10b981',
+      bearishBreakColor: '#ef4444',
+    },
+    rsi: {
+      lineColor: '#a855f7',
+    },
+    macd: {
+      difColor: '#2962ff',
+      deaColor: '#f59e0b',
+      histUpColor: '#22c55e',
+      histDownColor: '#ef4444',
+    },
+  },
+
+  tv_classic: {
+    id: 'tv_classic',
+    name: 'TradingView Xanh/Đỏ Classic',
     candle: {
       upColor: '#22c55e',
       downColor: '#ef4444',
@@ -106,8 +202,8 @@ export const THEME_PRESETS: Record<Exclude<PresetThemeId, 'custom'>, ChartColorT
       maColor: '#3b82f6',
     },
     ema: {
-      ema1Color: '#3b82f6', // Xanh dương
-      ema2Color: '#f59e0b', // Vàng hổ phách
+      ema1Color: '#3b82f6',
+      ema2Color: '#f59e0b',
     },
     boll: {
       upColor: '#8b5cf6',
@@ -314,6 +410,45 @@ export function saveTheme(theme: ChartColorTheme): void {
   }
 }
 
+export const LOCAL_STORAGE_STATUS_KEY = 'stock_chart_status_line_config';
+export const LOCAL_STORAGE_CANVAS_KEY = 'stock_chart_canvas_config';
+
+export function loadSavedStatusLineConfig(): StatusLineConfig {
+  if (typeof window === 'undefined') return DEFAULT_STATUS_LINE_CONFIG;
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_STATUS_KEY);
+    if (!raw) return DEFAULT_STATUS_LINE_CONFIG;
+    return { ...DEFAULT_STATUS_LINE_CONFIG, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_STATUS_LINE_CONFIG;
+  }
+}
+
+export function saveStatusLineConfig(config: StatusLineConfig): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_STORAGE_STATUS_KEY, JSON.stringify(config));
+  } catch {}
+}
+
+export function loadSavedCanvasConfig(): CanvasConfig {
+  if (typeof window === 'undefined') return DEFAULT_CANVAS_CONFIG;
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_CANVAS_KEY);
+    if (!raw) return DEFAULT_CANVAS_CONFIG;
+    return { ...DEFAULT_CANVAS_CONFIG, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_CANVAS_CONFIG;
+  }
+}
+
+export function saveCanvasConfig(config: CanvasConfig): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_STORAGE_CANVAS_KEY, JSON.stringify(config));
+  } catch {}
+}
+
 // ─── Indicator Style Interfaces & Helper Functions ────────────────────────────
 
 export interface IndicatorLineStyle {
@@ -421,25 +556,36 @@ export function getMacdIndicatorStyles(macd: MacdThemeColors) {
   };
 }
 
-// ─── Chuyển đổi Theme sang KLineCharts Styles ─────────────────────────────────
-
-export function getKLineThemeFromCustom(theme: ChartColorTheme, isDark: boolean): any {
+export function getKLineThemeFromCustom(
+  theme: ChartColorTheme,
+  isDark: boolean,
+  canvasConfig?: CanvasConfig
+): any {
   const c = theme.candle;
   const v = theme.vol;
   const e = theme.ema;
 
+  const showHGrid = canvasConfig ? canvasConfig.showHorizontalGrid : true;
+  const showVGrid = canvasConfig ? canvasConfig.showVerticalGrid : true;
+  const gridColor = canvasConfig
+    ? (isDark ? canvasConfig.gridColorDark : canvasConfig.gridColorLight)
+    : (isDark ? '#1f2937' : '#f3f4f6');
+  const crosshairStyle = canvasConfig?.crosshairStyle || 'dashed';
+
   return {
     grid: {
       horizontal: {
+        show: showHGrid,
         style: 'dashed' as const,
         size: 1,
-        color: isDark ? '#1f2937' : '#f3f4f6',
+        color: showHGrid ? gridColor : 'transparent',
         dashedValue: [4, 4],
       },
       vertical: {
+        show: showVGrid,
         style: 'dashed' as const,
         size: 1,
-        color: isDark ? '#1f2937' : '#f3f4f6',
+        color: showVGrid ? gridColor : 'transparent',
         dashedValue: [4, 4],
       },
     },
@@ -514,11 +660,11 @@ export function getKLineThemeFromCustom(theme: ChartColorTheme, isDark: boolean)
     },
     crosshair: {
       horizontal: {
-        line: { color: isDark ? '#4b5563' : '#9ca3af', style: 'dashed' as const, dashedValue: [4, 4] },
+        line: { color: isDark ? '#4b5563' : '#9ca3af', style: crosshairStyle as any, dashedValue: [4, 4] },
         text: { backgroundColor: isDark ? '#374151' : '#e5e7eb', color: isDark ? '#ffffff' : '#111827' },
       },
       vertical: {
-        line: { color: isDark ? '#4b5563' : '#9ca3af', style: 'dashed' as const, dashedValue: [4, 4] },
+        line: { color: isDark ? '#4b5563' : '#9ca3af', style: crosshairStyle as any, dashedValue: [4, 4] },
         text: { backgroundColor: isDark ? '#374151' : '#e5e7eb', color: isDark ? '#ffffff' : '#111827' },
       },
     },

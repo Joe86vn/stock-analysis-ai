@@ -15,7 +15,7 @@ import {
   ExternalLink,
   Trophy,
   Search,
-  Palette,
+  Settings,
 } from 'lucide-react';
 import Link from 'next/link';
 import { StockRankingItem } from '@/lib/filter-rs-data';
@@ -27,8 +27,14 @@ import { registerMeasureOverlay } from './chart/overlays/measure-overlay';
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '@/lib/resample-ohlc';
 import {
   ChartColorTheme,
+  StatusLineConfig,
+  CanvasConfig,
   loadSavedTheme,
   saveTheme,
+  loadSavedStatusLineConfig,
+  saveStatusLineConfig,
+  loadSavedCanvasConfig,
+  saveCanvasConfig,
   getKLineThemeFromCustom,
   hexToRgba,
   DEFAULT_CHART_THEME,
@@ -38,7 +44,8 @@ import {
   getRsiIndicatorStyles,
   getMacdIndicatorStyles,
 } from './chart/chart-theme-types';
-import { ChartColorSettingsModal } from './chart/ChartColorSettingsModal';
+import { ChartSettingsModal } from './chart/ChartSettingsModal';
+import { IndicatorSettingsDialog, IndicatorPlotConfig } from './chart/IndicatorSettingsDialog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,8 +98,8 @@ export const RESOLUTION_TIMEFRAME_BARS: Record<Resolution, Record<string, number
 
 // ─── KLineCharts Styles & Theme ───────────────────────────────────────────────
 
-function getKLineTheme(isDark: boolean, customTheme?: ChartColorTheme): any {
-  return getKLineThemeFromCustom(customTheme || DEFAULT_CHART_THEME, isDark);
+function getKLineTheme(isDark: boolean, customTheme?: ChartColorTheme, canvasConfig?: CanvasConfig): any {
+  return getKLineThemeFromCustom(customTheme || DEFAULT_CHART_THEME, isDark, canvasConfig);
 }
 
 // ─── Global Client-Side RAM Cache for Chart Data ─────────────────────────────
@@ -294,10 +301,24 @@ export function StockChartPanel({
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const subPanesRef = useRef<{ vol?: string; rsi?: string; macd?: string }>({});
 
-  // ─── Theme & Color Customization State ─────────────────────────────────────
+  // ─── Theme & Settings State ────────────────────────────────────────────────
   const [chartTheme, setChartTheme] = useState<ChartColorTheme>(() => loadSavedTheme());
-  const [showColorModal, setShowColorModal] = useState(false);
-  const [colorModalTab, setColorModalTab] = useState<'candle' | 'overlay' | 'subpanes'>('candle');
+  const [statusLineConfig, setStatusLineConfig] = useState<StatusLineConfig>(() => loadSavedStatusLineConfig());
+  const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(() => loadSavedCanvasConfig());
+  const [showChartSettingsModal, setShowChartSettingsModal] = useState(false);
+  const [settingsModalTab, setSettingsModalTab] = useState<'symbol' | 'status' | 'canvas' | 'indicators'>('symbol');
+
+  const [indicatorDialogState, setIndicatorDialogState] = useState<{
+    isOpen: boolean;
+    indicatorId: string;
+    title: string;
+    plots: IndicatorPlotConfig[];
+  }>({
+    isOpen: false,
+    indicatorId: '',
+    title: '',
+    plots: [],
+  });
 
   const isOpen = !!ticker;
 
@@ -511,7 +532,7 @@ export function StockChartPanel({
       chart.setZoomEnabled(true);
 
       // Áp dụng styles theme
-      chart.setStyles(getKLineTheme(isDark, chartTheme));
+      chart.setStyles(getKLineTheme(isDark, chartTheme, canvasConfig));
 
       // Đặt khoảng trống lề phải (right offset) cho cây nến cuối cùng
       chart.setOffsetRightDistance(80);
@@ -655,9 +676,9 @@ export function StockChartPanel({
 
   useEffect(() => {
     if (chartRef.current) {
-      chartRef.current.setStyles(getKLineTheme(isDark, chartTheme));
+      chartRef.current.setStyles(getKLineTheme(isDark, chartTheme, canvasConfig));
     }
-  }, [isDark, chartTheme]);
+  }, [isDark, chartTheme, canvasConfig]);
 
   // ─── Xử lý thay đổi Theme & Màu sắc động ──────────────────────────────────
 
@@ -669,7 +690,7 @@ export function StockChartPanel({
     if (!chart) return;
 
     // 1. Áp dụng styles tổng cho nến & lưới & trục giá
-    chart.setStyles(getKLineTheme(isDark, newTheme));
+    chart.setStyles(getKLineTheme(isDark, newTheme, canvasConfig));
 
     // 2. Override styles cho các chỉ báo đang mở
     if (activeIndicators.vol && subPanesRef.current.vol) {
@@ -725,6 +746,275 @@ export function StockChartPanel({
         },
         subPanesRef.current.macd
       );
+    }
+  };
+
+  const handleCanvasConfigChange = (newConfig: CanvasConfig) => {
+    setCanvasConfig(newConfig);
+    saveCanvasConfig(newConfig);
+    if (chartRef.current) {
+      chartRef.current.setStyles(getKLineTheme(isDark, chartTheme, newConfig));
+    }
+  };
+
+  const handleStatusLineConfigChange = (newConfig: StatusLineConfig) => {
+    setStatusLineConfig(newConfig);
+    saveStatusLineConfig(newConfig);
+  };
+
+  const openIndicatorSettings = (indicatorId: string) => {
+    setShowIndicatorMenu(false);
+    if (indicatorId === 'ema') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'ema',
+        title: 'Đường trung bình EMA',
+        plots: [
+          {
+            id: 'ema1',
+            name: `EMA 1 (${indicatorParams.emaShort})`,
+            visible: true,
+            color: chartTheme.ema.ema1Color,
+            lineWidth: 1.5,
+            lineStyle: 'solid',
+          },
+          {
+            id: 'ema2',
+            name: `EMA 2 (${indicatorParams.emaLong})`,
+            visible: true,
+            color: chartTheme.ema.ema2Color,
+            lineWidth: 1.5,
+            lineStyle: 'solid',
+          },
+        ],
+      });
+    } else if (indicatorId === 'boll') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'boll',
+        title: 'Bollinger Bands (BOLL)',
+        plots: [
+          {
+            id: 'up',
+            name: 'Dải trên (Upper Band)',
+            visible: true,
+            color: chartTheme.boll.upColor,
+            lineWidth: 1,
+            lineStyle: 'solid',
+          },
+          {
+            id: 'mid',
+            name: 'Đường giữa (SMA 20)',
+            visible: true,
+            color: chartTheme.boll.midColor,
+            lineWidth: 1,
+            lineStyle: 'solid',
+          },
+          {
+            id: 'down',
+            name: 'Dải dưới (Lower Band)',
+            visible: true,
+            color: chartTheme.boll.downColor,
+            lineWidth: 1,
+            lineStyle: 'solid',
+          },
+        ],
+      });
+    } else if (indicatorId === 'swingHl') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'swingHl',
+        title: 'Cấu trúc SMC (Đỉnh - Đáy)',
+        plots: [
+          {
+            id: 'zigzag',
+            name: 'Đường sóng Zigzag',
+            visible: indicatorParams.swingHlShowLine,
+            color: chartTheme.smc.zigzagColor,
+            lineWidth: 1.5,
+            lineStyle: 'solid',
+          },
+          {
+            id: 'peak',
+            name: 'Nhãn Đỉnh (HH, LH)',
+            visible: true,
+            color: chartTheme.smc.peakColor,
+            lineWidth: 1,
+            lineStyle: 'solid',
+          },
+          {
+            id: 'trough',
+            name: 'Nhãn Đáy (HL, LL)',
+            visible: true,
+            color: chartTheme.smc.troughColor,
+            lineWidth: 1,
+            lineStyle: 'solid',
+          },
+        ],
+      });
+    } else if (indicatorId === 'vol') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'vol',
+        title: 'Khối lượng (VOL)',
+        plots: [
+          {
+            id: 'volUp',
+            name: 'Khối lượng tăng',
+            visible: true,
+            color: chartTheme.vol.upColor,
+            lineWidth: 1,
+            lineStyle: 'solid',
+          },
+          {
+            id: 'volDown',
+            name: 'Khối lượng giảm',
+            visible: true,
+            color: chartTheme.vol.downColor,
+            lineWidth: 1,
+            lineStyle: 'solid',
+          },
+          {
+            id: 'volMa',
+            name: 'Đường MA 20 Vol',
+            visible: true,
+            color: chartTheme.vol.maColor,
+            lineWidth: 1,
+            lineStyle: 'solid',
+          },
+        ],
+      });
+    } else if (indicatorId === 'rsi') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'rsi',
+        title: 'Chỉ số RSI',
+        plots: [
+          {
+            id: 'line',
+            name: 'Đường RSI (14)',
+            visible: true,
+            color: chartTheme.rsi.lineColor,
+            lineWidth: 1.2,
+            lineStyle: 'solid',
+          },
+        ],
+      });
+    } else if (indicatorId === 'macd') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'macd',
+        title: 'Chỉ báo MACD',
+        plots: [
+          {
+            id: 'dif',
+            name: 'Đường MACD (Fast)',
+            visible: true,
+            color: chartTheme.macd.difColor,
+            lineWidth: 1.2,
+            lineStyle: 'solid',
+          },
+          {
+            id: 'dea',
+            name: 'Đường Signal (Slow)',
+            visible: true,
+            color: chartTheme.macd.deaColor,
+            lineWidth: 1.2,
+            lineStyle: 'solid',
+          },
+          {
+            id: 'hist',
+            name: 'Cột Histogram',
+            visible: true,
+            color: chartTheme.macd.histUpColor,
+            lineWidth: 1,
+            lineStyle: 'solid',
+          },
+        ],
+      });
+    }
+  };
+
+  const handleSaveIndicatorPlots = (plots: IndicatorPlotConfig[]) => {
+    const { indicatorId } = indicatorDialogState;
+    if (indicatorId === 'ema') {
+      const p1 = plots.find((p) => p.id === 'ema1');
+      const p2 = plots.find((p) => p.id === 'ema2');
+      const nextTheme = {
+        ...chartTheme,
+        ema: {
+          ema1Color: p1 ? p1.color : chartTheme.ema.ema1Color,
+          ema2Color: p2 ? p2.color : chartTheme.ema.ema2Color,
+        },
+      };
+      handleThemeChange(nextTheme);
+    } else if (indicatorId === 'boll') {
+      const up = plots.find((p) => p.id === 'up');
+      const mid = plots.find((p) => p.id === 'mid');
+      const down = plots.find((p) => p.id === 'down');
+      const nextTheme = {
+        ...chartTheme,
+        boll: {
+          upColor: up ? up.color : chartTheme.boll.upColor,
+          midColor: mid ? mid.color : chartTheme.boll.midColor,
+          downColor: down ? down.color : chartTheme.boll.downColor,
+        },
+      };
+      handleThemeChange(nextTheme);
+    } else if (indicatorId === 'swingHl') {
+      const zz = plots.find((p) => p.id === 'zigzag');
+      const pk = plots.find((p) => p.id === 'peak');
+      const tr = plots.find((p) => p.id === 'trough');
+      const nextTheme = {
+        ...chartTheme,
+        smc: {
+          ...chartTheme.smc,
+          zigzagColor: zz ? zz.color : chartTheme.smc.zigzagColor,
+          peakColor: pk ? pk.color : chartTheme.smc.peakColor,
+          troughColor: tr ? tr.color : chartTheme.smc.troughColor,
+        },
+      };
+      if (zz && zz.visible !== indicatorParams.swingHlShowLine) {
+        handleToggleSwingHlLine(zz.visible);
+      }
+      handleThemeChange(nextTheme);
+    } else if (indicatorId === 'vol') {
+      const u = plots.find((p) => p.id === 'volUp');
+      const d = plots.find((p) => p.id === 'volDown');
+      const ma = plots.find((p) => p.id === 'volMa');
+      const nextTheme = {
+        ...chartTheme,
+        vol: {
+          upColor: u ? u.color : chartTheme.vol.upColor,
+          downColor: d ? d.color : chartTheme.vol.downColor,
+          noChangeColor: chartTheme.vol.noChangeColor,
+          maColor: ma ? ma.color : chartTheme.vol.maColor,
+        },
+      };
+      handleThemeChange(nextTheme);
+    } else if (indicatorId === 'rsi') {
+      const l = plots.find((p) => p.id === 'line');
+      const nextTheme = {
+        ...chartTheme,
+        rsi: {
+          lineColor: l ? l.color : chartTheme.rsi.lineColor,
+        },
+      };
+      handleThemeChange(nextTheme);
+    } else if (indicatorId === 'macd') {
+      const dif = plots.find((p) => p.id === 'dif');
+      const dea = plots.find((p) => p.id === 'dea');
+      const hist = plots.find((p) => p.id === 'hist');
+      const nextTheme = {
+        ...chartTheme,
+        macd: {
+          difColor: dif ? dif.color : chartTheme.macd.difColor,
+          deaColor: dea ? dea.color : chartTheme.macd.deaColor,
+          histUpColor: hist ? hist.color : chartTheme.macd.histUpColor,
+          histDownColor: hist ? hist.color : chartTheme.macd.histDownColor,
+        },
+      };
+      handleThemeChange(nextTheme);
     }
   };
 
@@ -1121,26 +1411,27 @@ export function StockChartPanel({
       aria-modal={isStandalone ? undefined : "true"}
       aria-label={`Biểu đồ kỹ thuật ${ticker}`}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/70 flex-shrink-0">
-        <div className="flex items-center space-x-3 min-w-0">
+      {/* ─── HÀNG 1: Thông tin Doanh nghiệp & Chỉ số Cơ bản ─── */}
+      <div className="flex items-center justify-between px-5 py-2 border-b border-gray-200 dark:border-gray-800/80 bg-gray-50/80 dark:bg-gray-900/80 flex-shrink-0 gap-4 flex-wrap min-h-[42px]">
+        {/* Block 1 (Trái): Mã CP, Sàn, Tên, Ngành */}
+        <div className="flex items-center space-x-2.5 min-w-0">
           {/* Ticker Switcher */}
           <div className="relative">
             <button
               onClick={() => setShowTickerSearch((v) => !v)}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-gray-200/80 dark:bg-gray-800 hover:bg-gray-300/80 dark:hover:bg-gray-700 transition cursor-pointer group"
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-gray-200/80 dark:bg-gray-800 hover:bg-gray-300/80 dark:hover:bg-gray-700 transition cursor-pointer group"
               title="Bấm để chuyển sang mã cổ phiếu khác"
             >
-              <span className="text-xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
+              <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono tracking-tight">
                 {ticker}
               </span>
-              <ChevronDown className="h-4 w-4 text-gray-500 group-hover:text-slate-900 dark:group-hover:text-white transition" />
+              <ChevronDown className="h-3.5 w-3.5 text-gray-500 group-hover:text-slate-900 dark:group-hover:text-white transition" />
             </button>
 
             {showTickerSearch && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowTickerSearch(false)} />
-                <div className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-3 select-none">
+                <div className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-3 select-none font-sans">
                   <div className="relative mb-2">
                     <input
                       type="text"
@@ -1159,11 +1450,10 @@ export function StockChartPanel({
                         }
                       }}
                       autoFocus
-                      className="w-full px-3 py-1.5 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 uppercase font-mono font-bold"
+                      className="w-full px-3 py-1.5 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 uppercase font-mono font-bold"
                     />
                   </div>
                   <div className="max-h-56 overflow-y-auto space-y-1">
-                    {/* Hiển thị nút nạp trực tiếp mã đã gõ nếu có input */}
                     {tickerSearchInput.trim().length > 0 && (
                       <button
                         type="button"
@@ -1173,17 +1463,16 @@ export function StockChartPanel({
                           setShowTickerSearch(false);
                           setTickerSearchInput('');
                         }}
-                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold transition mb-1.5"
+                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-bold transition mb-1.5"
                       >
                         <div className="flex items-center space-x-1.5 truncate">
-                          <Search className="w-3.5 h-3.5 flex-shrink-0 text-indigo-500" />
-                          <span>Xem biểu đồ mã <strong className="font-mono text-sm">{tickerSearchInput.trim().toUpperCase()}</strong></span>
+                          <Search className="w-3.5 h-3.5 flex-shrink-0 text-blue-500" />
+                          <span>Xem mã <strong className="font-mono text-sm">{tickerSearchInput.trim().toUpperCase()}</strong></span>
                         </div>
-                        <span className="text-[10px] bg-indigo-200 dark:bg-indigo-800 px-1.5 py-0.5 rounded font-mono">↵ Enter</span>
+                        <span className="text-[10px] bg-blue-200 dark:bg-blue-800 px-1.5 py-0.5 rounded font-mono">↵ Enter</span>
                       </button>
                     )}
 
-                    {/* Danh sách các mã gợi ý */}
                     {allStocks && allStocks.length > 0 ? (
                       allStocks
                         .filter(
@@ -1200,8 +1489,8 @@ export function StockChartPanel({
                               setShowTickerSearch(false);
                               setTickerSearchInput('');
                             }}
-                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition ${
-                              s.ticker === ticker ? 'bg-indigo-50/80 dark:bg-indigo-950/80 font-bold' : ''
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-blue-50 dark:hover:bg-blue-950/60 transition ${
+                              s.ticker === ticker ? 'bg-blue-50/80 dark:bg-blue-950/80 font-bold' : ''
                             }`}
                           >
                             <div className="flex items-center space-x-2 truncate">
@@ -1224,210 +1513,192 @@ export function StockChartPanel({
             )}
           </div>
 
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-gray-200/90 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-mono">
             {effectiveStockData.exchange}
           </span>
-          <span className={`text-xs font-black px-2.5 py-0.5 rounded-full border ${gradeColor(effectiveStockData.rankGrade)}`}>
-            Hạng {effectiveStockData.rankGrade}
-          </span>
-          <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 truncate max-w-[320px] hidden md:inline">
+          <span className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-gray-200 truncate max-w-[240px] sm:max-w-[320px]">
             {effectiveStockData.companyName}
           </span>
-          <span className="text-xs text-gray-400 dark:text-gray-500 hidden lg:inline">
+          <span className="text-xs text-gray-400 dark:text-gray-500 hidden md:inline truncate">
             • {effectiveStockData.industry}
           </span>
         </div>
 
-        <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
-          {!isStandalone ? (
-            <>
-              <Link
-                href={`/chart?ticker=${ticker}`}
-                className="px-2.5 py-1 rounded-xl text-xs font-medium text-slate-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition flex items-center space-x-1.5 border border-gray-200 dark:border-gray-700/80 shadow-2xs"
-                title="Mở biểu đồ trong tab riêng"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Mở tab riêng</span>
-              </Link>
-              <span className="text-xs text-gray-400 hidden sm:inline">
-                Nhấn <kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">ESC</kbd> để đóng
-              </span>
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition flex-shrink-0 cursor-pointer"
-                  aria-label="Đóng toàn màn hình"
-                  title="Đóng (ESC)"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <Link
-                href="/ranking"
-                className="px-2.5 py-1 rounded-xl text-xs font-medium text-slate-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition flex items-center space-x-1.5 border border-gray-200 dark:border-gray-700/80 shadow-2xs"
-                title="Xem bộ lọc & xếp hạng RS"
-              >
-                <Trophy className="h-3.5 w-3.5 text-amber-500" />
-                <span className="hidden sm:inline">Bộ Lọc RS</span>
-              </Link>
-              <button
-                onClick={toggleFullScreen}
-                className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition flex-shrink-0 cursor-pointer"
-                aria-label="Chế độ toàn màn hình"
-                title={isFullscreen ? 'Thu nhỏ (ESC)' : 'Toàn màn hình'}
-              >
-                {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Row 2: Price & ROC Pill + Cycle Pill + Key Metrics */}
-      <div className="px-6 py-2 border-b border-gray-100 dark:border-gray-800/80 bg-white dark:bg-gray-950 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Combined Price + ROC Pill */}
-          <div className="flex items-center space-x-2 px-3 py-1 rounded-xl bg-gray-100/90 dark:bg-gray-800/90 border border-gray-300/70 dark:border-gray-700/70 text-xs">
-            <span className={`font-bold tabular-nums ${priceColor}`}>
-              {fmt(displayPrice)} đ
-            </span>
-            {priceChange !== null && (
-              <span className={`font-bold tabular-nums flex items-center space-x-1 ${priceColor}`}>
-                <span className="text-gray-400 dark:text-gray-600 font-normal">|</span>
-                <span>{priceChange.abs > 0 ? '▲ +' : priceChange.abs < 0 ? '▼ ' : '● '}</span>
-                <span>{fmt(Math.abs(priceChange.abs))}đ</span>
-                <span>({priceChange.pct > 0 ? '+' : ''}{priceChange.pct.toFixed(2)}%)</span>
-              </span>
-            )}
-            <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium border-l border-gray-300 dark:border-gray-700 pl-2">
-              ⏱ 15s
+        {/* Block 2 (Phải): Điểm RS, Điểm ValueX (Hạng/ điểm), EPS core YoY, LNST YoY + Actions */}
+        <div className="flex items-center space-x-3 sm:space-x-4 flex-shrink-0 text-xs">
+          {/* Điểm RS */}
+          <div className="flex items-center space-x-1.5" title="Sức mạnh giá RS 1 Tháng">
+            <span className="text-gray-400">RS (1T):</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+              {effectiveStockData.rsRating}
             </span>
           </div>
 
-          {/* Cycle (Resolution) Pill */}
-          <div className="flex items-center bg-gray-200/90 dark:bg-gray-800/90 p-1 rounded-xl border border-gray-300/70 dark:border-gray-700/70 shadow-2xs">
-            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 px-2 select-none">
-              Chu kỳ:
+          {/* Điểm ValueX (Hạng / Điểm) */}
+          <div className="flex items-center space-x-1.5" title="Điểm xếp hạng ValueX">
+            <span className="text-gray-400">ValueX:</span>
+            <span className="font-bold text-slate-800 dark:text-gray-200 font-mono">
+              Hạng {effectiveStockData.rankGrade} ({effectiveStockData.totalScore}/150đ)
             </span>
+          </div>
+
+          {/* EPS core YoY */}
+          <div className="hidden sm:flex items-center space-x-1.5" title="Tăng trưởng EPS cốt lõi cùng kỳ">
+            <span className="text-gray-400">EPS core:</span>
+            <span className={`font-bold font-mono ${effectiveStockData.coreEpsGrowthYoY >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              {effectiveStockData.coreEpsGrowthYoY > 0 ? `+${effectiveStockData.coreEpsGrowthYoY}%` : `${effectiveStockData.coreEpsGrowthYoY}%`}
+            </span>
+          </div>
+
+          {/* LNST core YoY */}
+          <div className="hidden md:flex items-center space-x-1.5" title="Tăng trưởng LNST cốt lõi cùng kỳ">
+            <span className="text-gray-400">LNST core:</span>
+            <span className={`font-bold font-mono ${effectiveStockData.coreNetProfitGrowthYoY >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              {effectiveStockData.coreNetProfitGrowthYoY > 0 ? `+${effectiveStockData.coreNetProfitGrowthYoY}%` : `${effectiveStockData.coreNetProfitGrowthYoY}%`}
+            </span>
+          </div>
+
+          {/* Action Buttons: Bộ lọc RS, Toàn màn hình, Thoát/Đóng */}
+          <div className="flex items-center space-x-2 pl-2 border-l border-gray-200 dark:border-gray-800">
+            {!isStandalone ? (
+              <>
+                <Link
+                  href={`/chart?ticker=${ticker}`}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition flex items-center space-x-1 border border-gray-200 dark:border-gray-700/80 shadow-2xs"
+                  title="Mở biểu đồ trong tab riêng"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Tab riêng</span>
+                </Link>
+                {onClose && (
+                  <button
+                    onClick={onClose}
+                    className="p-1 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition cursor-pointer"
+                    aria-label="Đóng biểu đồ"
+                    title="Đóng (ESC)"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/ranking"
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition flex items-center space-x-1.5 border border-gray-200 dark:border-gray-700/80 shadow-2xs"
+                  title="Xem bộ lọc & xếp hạng RS"
+                >
+                  <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="hidden sm:inline">Bộ Lọc RS</span>
+                </Link>
+                <button
+                  onClick={toggleFullScreen}
+                  className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition cursor-pointer"
+                  aria-label="Chế độ toàn màn hình"
+                  title={isFullscreen ? 'Thu nhỏ (ESC)' : 'Toàn màn hình'}
+                >
+                  {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── HÀNG 2: Dòng Trạng Thái Phiên & Công Cụ Kỹ Thuật ─── */}
+      <div className="flex items-center justify-between px-5 py-1.5 border-b border-gray-200 dark:border-gray-800/80 bg-white dark:bg-gray-950 flex-shrink-0 gap-3 flex-wrap min-h-[36px]">
+        {/* Block 1 (Trái): Ngày, OHLC, Chênh lệch tăng giảm, Vol, GTGD 20N */}
+        <div className="flex items-center space-x-3 sm:space-x-4 text-xs tabular-nums font-mono overflow-x-auto text-slate-700 dark:text-gray-200 min-w-0">
+          {activeOhlc ? (
+            <>
+              {/* Ngày */}
+              {statusLineConfig.showDate && (
+                <span className="text-gray-500 dark:text-gray-400 font-sans font-medium text-[11px] flex-shrink-0">
+                  {crosshairData ? (
+                    <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-900/60">
+                      {formatDateStr(activeOhlc.date) || 'Đang trỏ'}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold border border-gray-200 dark:border-gray-700">
+                      {activeOhlc.date ? `${formatDateStr(activeOhlc.date)}` : 'Phiên gần nhất'}
+                    </span>
+                  )}
+                </span>
+              )}
+
+              {/* OHLC */}
+              {statusLineConfig.showOhlc && (
+                <div className="flex items-center space-x-2.5 flex-shrink-0">
+                  <span>O: <strong className="font-bold text-slate-900 dark:text-white">{fmt(activeOhlc.o)}</strong></span>
+                  <span>H: <strong className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(activeOhlc.h)}</strong></span>
+                  <span>L: <strong className="font-bold text-rose-600 dark:text-rose-400">{fmt(activeOhlc.l)}</strong></span>
+                  <span>C: <strong className={`font-bold ${closeColor}`}>{fmt(activeOhlc.c)}</strong></span>
+                </div>
+              )}
+
+              {/* Chênh lệch tăng/giảm */}
+              {statusLineConfig.showChange && (
+                <span className="flex-shrink-0">
+                  <strong className={`font-bold ${closeColor}`}>
+                    {candleDiff > 0 ? '+' : ''}{fmt(candleDiff)} ({candleDiff > 0 ? '+' : ''}{candleDiffPct.toFixed(2)}%)
+                  </strong>
+                </span>
+              )}
+
+              {/* Vol */}
+              {statusLineConfig.showVolume && (
+                <span className="flex-shrink-0 hidden sm:inline text-slate-600 dark:text-gray-300">
+                  Vol: <strong className="font-bold text-slate-900 dark:text-white">{fmtVol(activeOhlc.v)}</strong>
+                </span>
+              )}
+
+              {/* GTGD 20N */}
+              {statusLineConfig.showAdtv20 && (
+                <span className="flex-shrink-0 hidden md:inline text-gray-400 dark:text-gray-500 font-sans">
+                  GTGD 20N: <strong className="font-bold text-slate-800 dark:text-gray-200 font-mono">{effectiveStockData.adtv20Billion.toFixed(1)} Tỷ</strong>
+                </span>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center space-x-2 text-gray-400 font-sans text-xs">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              <span>Đang tải thông số phiên...</span>
+            </div>
+          )}
+        </div>
+
+        {/* Block 2 (Phải): Chu kỳ D W M + Chỉ báo (fx), Cổ tức, Cài đặt ⚙️ */}
+        <div className="flex items-center space-x-2.5 ml-auto flex-shrink-0">
+          {/* Chu kỳ nến D W M */}
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800/90 p-0.5 rounded-lg border border-gray-200 dark:border-gray-700/80 text-xs">
             {(['D', 'W', 'M'] as Resolution[]).map((res) => {
-              const label = res;
               const active = resolution === res;
               return (
                 <button
                   key={res}
                   onClick={() => handleSelectResolution(res)}
-                  className={`
-                    px-2.5 py-0.5 rounded-lg text-xs font-bold transition-all cursor-pointer
-                    ${active
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-700/60'
-                    }
-                  `}
+                  className={`px-2.5 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
+                    active
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
                 >
-                  {label}
+                  {res}
                 </button>
               );
             })}
           </div>
-        </div>
 
-        {/* Key Metrics */}
-        <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-xs text-gray-500 dark:text-gray-400">
-          <div>
-            <span className="text-gray-400">RS (1T): </span>
-            <span className="font-bold text-indigo-600 dark:text-indigo-400">{effectiveStockData.rsRating}</span>
-          </div>
-          <div>
-            <span className="text-gray-400">Điểm ValueX: </span>
-            <span className="font-bold text-slate-800 dark:text-gray-200">{effectiveStockData.totalScore}/150đ</span>
-          </div>
-          <div>
-            <span className="text-gray-400">GTGD 20N: </span>
-            <span className="font-bold text-slate-800 dark:text-gray-200">{effectiveStockData.adtv20Billion.toFixed(1)} Tỷ</span>
-          </div>
-          <div>
-            <span className="text-gray-400">EPS Core YoY: </span>
-            <span className="font-bold text-slate-800 dark:text-gray-200">
-              {effectiveStockData.coreEpsGrowthYoY > 0 ? `+${effectiveStockData.coreEpsGrowthYoY}%` : `${effectiveStockData.coreEpsGrowthYoY}%`}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">LNST Core YoY: </span>
-            <span className="font-bold text-slate-800 dark:text-gray-200">
-              {effectiveStockData.coreNetProfitGrowthYoY > 0 ? `+${effectiveStockData.coreNetProfitGrowthYoY}%` : `${effectiveStockData.coreNetProfitGrowthYoY}%`}
-            </span>
-          </div>
-          {liveVolume !== null && (
-            <div>
-              <span className="text-gray-400">Khối lượng: </span>
-              <span className="font-bold text-slate-800 dark:text-gray-200">{fmtVol(liveVolume)} cp</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Row 3: Combined Toolbar (OHLC left + fx & Dividend right) */}
-      <div className="flex items-center justify-between px-6 py-1.5 border-b border-gray-100 dark:border-gray-800/60 bg-gray-50/60 dark:bg-gray-900/40 flex-shrink-0 gap-4 flex-wrap min-h-[36px]">
-        {/* Left: OHLC Bar */}
-        <div className="flex items-center space-x-3 sm:space-x-4 text-xs tabular-nums font-mono overflow-x-auto text-slate-700 dark:text-gray-200">
-          {activeOhlc ? (
-            <>
-              <span className="text-gray-500 dark:text-gray-400 font-sans font-medium text-[11px] flex items-center gap-1.5">
-                {crosshairData ? (
-                  <span className="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-semibold">
-                    {formatDateStr(activeOhlc.date) || 'Đang chọn'}
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-md bg-gray-200/90 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold">
-                    Phiên {activeOhlc.date ? `${formatDateStr(activeOhlc.date)}` : 'gần nhất'}
-                  </span>
-                )}
-              </span>
-              <span>O: <strong className="font-bold text-slate-900 dark:text-white">{fmt(activeOhlc.o)}</strong></span>
-              <span>H: <strong className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(activeOhlc.h)}</strong></span>
-              <span>L: <strong className="font-bold text-rose-600 dark:text-rose-400">{fmt(activeOhlc.l)}</strong></span>
-              <span>C: <strong className={`font-bold ${closeColor}`}>{fmt(activeOhlc.c)}</strong></span>
-              <span className="hidden sm:inline">
-                Diff: <strong className={`font-bold ${closeColor}`}>
-                  {candleDiff > 0 ? '+' : ''}{fmt(candleDiff)} ({candleDiff > 0 ? '+' : ''}{candleDiffPct.toFixed(2)}%)
-                </strong>
-              </span>
-              <span>Vol: <strong className="font-bold text-slate-800 dark:text-gray-200">{fmtVol(activeOhlc.v)}</strong></span>
-            </>
-          ) : (
-            <div className="flex items-center space-x-2 text-gray-400 font-sans text-xs">
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              <span>Đang tải thông số giá OHLC...</span>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Indicators & Event toggles */}
-        <div className="flex items-center space-x-3 ml-auto">
-          {/* Theme & Color Settings Button */}
-          <button
-            onClick={() => {
-              setColorModalTab('candle');
-              setShowColorModal(true);
-            }}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition cursor-pointer shadow-2xs"
-            title="Tùy biến bảng màu nến và chỉ báo kỹ thuật"
-          >
-            <Palette className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Màu sắc</span>
-          </button>
+          <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
 
           {/* Indicators Dropdown Button */}
           <div className="relative">
             <button
               onClick={() => setShowIndicatorMenu((v) => !v)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition cursor-pointer shadow-2xs"
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer shadow-2xs"
               title="Quản lý các chỉ báo kỹ thuật & tùy chỉnh thông số"
             >
-              <Activity className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <Activity className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
               <span>Chỉ báo (fx)</span>
               <ChevronDown className="h-3 w-3 opacity-70" />
             </button>
@@ -1439,14 +1710,14 @@ export function StockChartPanel({
                   className="fixed inset-0 z-40"
                   onClick={() => setShowIndicatorMenu(false)}
                 />
-                <div className="absolute right-0 top-full mt-2 z-50 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-3 text-xs space-y-2 select-none animate-in fade-in slide-in-from-top-2 duration-150 max-h-[80vh] overflow-y-auto">
-                  <div className="flex items-center justify-between px-1 pb-1 border-b border-gray-100 dark:border-gray-800">
+                <div className="absolute right-0 top-full mt-2 z-50 w-80 bg-white dark:bg-[#1e222d] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#2a2e39] p-3 text-xs space-y-2 select-none animate-in fade-in slide-in-from-top-2 duration-150 max-h-[80vh] overflow-y-auto font-sans">
+                  <div className="flex items-center justify-between px-1 pb-1 border-b border-gray-100 dark:border-[#2a2e39]">
                     <span className="font-extrabold text-slate-800 dark:text-white text-xs uppercase tracking-wider">
-                      Quản lý & Cấu hình Chỉ báo
+                      Quản lý Chỉ báo
                     </span>
                     <button
                       onClick={() => setShowIndicatorMenu(false)}
-                      className="p-1 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                      className="p-1 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#2a2e39]"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -1454,12 +1725,12 @@ export function StockChartPanel({
 
                   {/* Group 1: Trên nến */}
                   <div className="space-y-1.5 pt-1">
-                    <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1">
+                    <div className="text-[10px] font-bold text-gray-400 dark:text-[#787b86] uppercase tracking-wider px-1">
                       Chỉ báo trên nến
                     </div>
 
                     {/* Đỉnh - Đáy cá nhân */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
                       <div className="flex items-center justify-between">
                         <label className="flex items-center space-x-2 cursor-pointer select-none">
                           <input
@@ -1474,14 +1745,12 @@ export function StockChartPanel({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setColorModalTab('overlay');
-                            setShowColorModal(true);
-                            setShowIndicatorMenu(false);
+                            openIndicatorSettings('swingHl');
                           }}
-                          className="p-1 rounded-md text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Cài đặt màu sắc cho SMC Đỉnh Đáy"
+                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Định dạng chỉ báo SMC"
                         >
-                          <Palette className="h-3.5 w-3.5" />
+                          <Settings className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       {activeIndicators.swingHl && (
@@ -1546,7 +1815,7 @@ export function StockChartPanel({
                     </div>
 
                     {/* Đường EMA */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
                       <div className="flex items-center justify-between">
                         <label className="flex items-center space-x-2 cursor-pointer select-none">
                           <input
@@ -1561,14 +1830,12 @@ export function StockChartPanel({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setColorModalTab('overlay');
-                            setShowColorModal(true);
-                            setShowIndicatorMenu(false);
+                            openIndicatorSettings('ema');
                           }}
                           className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Cài đặt màu sắc cho EMA"
+                          title="Định dạng chỉ báo EMA (như Ảnh 1)"
                         >
-                          <Palette className="h-3.5 w-3.5" />
+                          <Settings className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       {activeIndicators.ema && (
@@ -1600,7 +1867,7 @@ export function StockChartPanel({
                     </div>
 
                     {/* Bollinger Bands */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
                       <div className="flex items-center justify-between">
                         <label className="flex items-center space-x-2 cursor-pointer select-none">
                           <input
@@ -1615,14 +1882,12 @@ export function StockChartPanel({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setColorModalTab('overlay');
-                            setShowColorModal(true);
-                            setShowIndicatorMenu(false);
+                            openIndicatorSettings('boll');
                           }}
-                          className="p-1 rounded-md text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Cài đặt màu sắc cho BOLL"
+                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Định dạng chỉ báo BOLL"
                         >
-                          <Palette className="h-3.5 w-3.5" />
+                          <Settings className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       {activeIndicators.boll && (
@@ -1656,13 +1921,13 @@ export function StockChartPanel({
                   </div>
 
                   {/* Group 2: Bảng phụ bên dưới */}
-                  <div className="space-y-1.5 pt-2 border-t border-gray-100 dark:border-gray-800">
-                    <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1">
+                  <div className="space-y-1.5 pt-2 border-t border-gray-100 dark:border-[#2a2e39]">
+                    <div className="text-[10px] font-bold text-gray-400 dark:text-[#787b86] uppercase tracking-wider px-1">
                       Bảng phụ bên dưới
                     </div>
 
                     {/* Khối lượng (VOL) */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
                       <div className="flex items-center justify-between">
                         <label className="flex items-center space-x-2 cursor-pointer select-none">
                           <input
@@ -1677,20 +1942,18 @@ export function StockChartPanel({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setColorModalTab('candle');
-                            setShowColorModal(true);
-                            setShowIndicatorMenu(false);
+                            openIndicatorSettings('vol');
                           }}
-                          className="p-1 rounded-md text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Cài đặt màu sắc cho Khối lượng"
+                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Định dạng Khối lượng"
                         >
-                          <Palette className="h-3.5 w-3.5" />
+                          <Settings className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </div>
 
                     {/* RSI */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
                       <div className="flex items-center justify-between">
                         <label className="flex items-center space-x-2 cursor-pointer select-none">
                           <input
@@ -1705,14 +1968,12 @@ export function StockChartPanel({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setColorModalTab('subpanes');
-                            setShowColorModal(true);
-                            setShowIndicatorMenu(false);
+                            openIndicatorSettings('rsi');
                           }}
-                          className="p-1 rounded-md text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Cài đặt màu sắc cho RSI"
+                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Định dạng RSI"
                         >
-                          <Palette className="h-3.5 w-3.5" />
+                          <Settings className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       {activeIndicators.rsi && (
@@ -1731,7 +1992,7 @@ export function StockChartPanel({
                     </div>
 
                     {/* MACD */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
                       <div className="flex items-center justify-between">
                         <label className="flex items-center space-x-2 cursor-pointer select-none">
                           <input
@@ -1746,14 +2007,12 @@ export function StockChartPanel({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setColorModalTab('subpanes');
-                            setShowColorModal(true);
-                            setShowIndicatorMenu(false);
+                            openIndicatorSettings('macd');
                           }}
-                          className="p-1 rounded-md text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Cài đặt màu sắc cho MACD"
+                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Định dạng MACD"
                         >
-                          <Palette className="h-3.5 w-3.5" />
+                          <Settings className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       {activeIndicators.macd && (
@@ -1804,7 +2063,7 @@ export function StockChartPanel({
           <button
             onClick={() => setShowDividendMarkers((v) => !v)}
             className={`
-              flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer
+              flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer
               ${showDividendMarkers
                 ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 shadow-2xs'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700'
@@ -1813,8 +2072,17 @@ export function StockChartPanel({
             title="Ẩn/hiện sự kiện cổ tức & chia tách"
           >
             <Calendar className="h-3.5 w-3.5" />
-            <span>Cổ tức</span>
-            <span className={`w-2 h-2 rounded-full ${showDividendMarkers ? 'bg-amber-500' : 'bg-gray-400'}`} />
+            <span className="hidden sm:inline">Cổ tức</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${showDividendMarkers ? 'bg-amber-500' : 'bg-gray-400'}`} />
+          </button>
+
+          {/* Cài đặt (⚙️) Button */}
+          <button
+            onClick={() => setShowChartSettingsModal(true)}
+            className="p-1.5 rounded-lg text-gray-500 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700/80 transition cursor-pointer"
+            title="Cài đặt biểu đồ TradingView (Mã, Dòng trạng thái, Canvas)"
+          >
+            <Settings className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -1862,13 +2130,26 @@ export function StockChartPanel({
         </span>
       </div>
 
-      {/* Modal Cài đặt Màu sắc & Giao diện */}
-      <ChartColorSettingsModal
-        isOpen={showColorModal}
-        onClose={() => setShowColorModal(false)}
+      {/* Modal Cài đặt Biểu đồ Chuẩn TradingView (Mã, Dòng trạng thái, Canvas) */}
+      <ChartSettingsModal
+        isOpen={showChartSettingsModal}
+        onClose={() => setShowChartSettingsModal(false)}
         theme={chartTheme}
         onThemeChange={handleThemeChange}
-        initialTab={colorModalTab}
+        statusLineConfig={statusLineConfig}
+        onStatusLineConfigChange={handleStatusLineConfigChange}
+        canvasConfig={canvasConfig}
+        onCanvasConfigChange={handleCanvasConfigChange}
+        initialTab={settingsModalTab}
+      />
+
+      {/* Hộp thoại Định dạng Chỉ Báo Chuẩn TradingView (1 Tab Định Dạng) */}
+      <IndicatorSettingsDialog
+        isOpen={indicatorDialogState.isOpen}
+        onClose={() => setIndicatorDialogState((prev) => ({ ...prev, isOpen: false }))}
+        title={indicatorDialogState.title}
+        plots={indicatorDialogState.plots}
+        onSavePlots={handleSaveIndicatorPlots}
       />
     </div>
   );
