@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -10,8 +10,6 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-
-type EMACondition = 'EMA20' | 'EMA50' | 'EMA200';
 
 interface BreadthPoint {
   date?: string;
@@ -24,12 +22,12 @@ interface BreadthPoint {
   totalCount?: number;
 }
 
-interface ChartPoint {
+interface CombinedPoint {
   date: string;
-  value: number; // 0–100 percent
+  ema20?: number;
+  ema50?: number;
+  ema200?: number;
 }
-
-const CONDITIONS: EMACondition[] = ['EMA20', 'EMA50', 'EMA200'];
 
 const formatDateLabel = (dStr: string) => {
   if (!dStr) return '';
@@ -41,88 +39,161 @@ const formatDateLabel = (dStr: string) => {
   return clean;
 };
 
+const fetchBreadthCond = async (cond: string): Promise<{ date: string; value: number }[]> => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const from = new Date();
+    from.setFullYear(from.getFullYear() - 2);
+    const fromStr = from.toISOString().split('T')[0];
+
+    const res = await fetch(
+      `/api/market-watch/breadth?condition=${cond}&exchange=HSX,HNX,UPCOM&fromDate=${fromStr}&toDate=${today}`
+    );
+    if (!res.ok) return [];
+    const json = await res.json();
+    const raw: BreadthPoint[] = Array.isArray(json)
+      ? json
+      : Array.isArray(json?.data)
+      ? json.data
+      : [];
+
+    return raw.map((d) => {
+      let val: number = d.value ?? d.ratio ?? d.percent ?? 0;
+      if (val <= 1) val = val * 100;
+      if (d.aboveCount && d.totalCount) val = (d.aboveCount / d.totalCount) * 100;
+      return { date: String(d.date ?? d.time ?? d.t ?? ''), value: parseFloat(val.toFixed(1)) };
+    }).filter((p) => p.value >= 0);
+  } catch {
+    return [];
+  }
+};
+
 export const BreadthChart: React.FC = () => {
-  const [condition, setCondition] = useState<EMACondition>('EMA50');
-  const [data, setData] = useState<ChartPoint[]>([]);
+  const [data, setData] = useState<CombinedPoint[]>([]);
+  const [visible, setVisible] = useState({ ema20: true, ema50: true, ema200: true });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [currentVal, setCurrentVal] = useState<number | null>(null);
 
-  const load = useCallback(async (cond: EMACondition) => {
-    try {
-      setLoading(true);
-      setError(false);
-      const today = new Date().toISOString().split('T')[0];
-      const from = new Date();
-      from.setFullYear(from.getFullYear() - 2);
-      const fromStr = from.toISOString().split('T')[0];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(false);
+        const [e20, e50, e200] = await Promise.all([
+          fetchBreadthCond('EMA20'),
+          fetchBreadthCond('EMA50'),
+          fetchBreadthCond('EMA200'),
+        ]);
 
-      const res = await fetch(
-        `/api/market-watch/breadth?condition=${cond}&exchange=HSX,HNX,UPCOM&fromDate=${fromStr}&toDate=${today}`
-      );
-      if (!res.ok) throw new Error('upstream');
-      const json = await res.json();
+        if (e20.length === 0 && e50.length === 0 && e200.length === 0) {
+          setError(true);
+          return;
+        }
 
-      const raw: BreadthPoint[] = Array.isArray(json)
-        ? json
-        : Array.isArray(json?.data)
-        ? json.data
-        : [];
+        // Map by date
+        const dateMap = new Map<string, CombinedPoint>();
 
-      const points: ChartPoint[] = raw.slice(-120).map((d) => {
-        let val: number = d.value ?? d.ratio ?? d.percent ?? 0;
-        // Normalize to percent if needed
-        if (val <= 1) val = val * 100;
-        if (d.aboveCount && d.totalCount) val = (d.aboveCount / d.totalCount) * 100;
-        return { date: String(d.date ?? d.time ?? d.t ?? ''), value: parseFloat(val.toFixed(1)) };
-      }).filter((p) => p.value >= 0);
+        e20.forEach((p) => {
+          dateMap.set(p.date, { date: p.date, ema20: p.value });
+        });
+        e50.forEach((p) => {
+          const existing = dateMap.get(p.date) ?? { date: p.date };
+          existing.ema50 = p.value;
+          dateMap.set(p.date, existing);
+        });
+        e200.forEach((p) => {
+          const existing = dateMap.get(p.date) ?? { date: p.date };
+          existing.ema200 = p.value;
+          dateMap.set(p.date, existing);
+        });
 
-      if (points.length === 0) { setError(true); return; }
-      setCurrentVal(points[points.length - 1].value);
-      setData(points);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
+        const combined = Array.from(dateMap.values())
+          .filter((p) => p.date !== '')
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .slice(-120);
+
+        setData(combined);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
-  useEffect(() => { load(condition); }, [condition, load]);
+  const currentVals = useMemo(() => {
+    if (data.length === 0) return { ema20: null, ema50: null, ema200: null };
+    const last = data[data.length - 1];
+    return {
+      ema20: last.ema20 ?? null,
+      ema50: last.ema50 ?? null,
+      ema200: last.ema200 ?? null,
+    };
+  }, [data]);
 
   const startDateStr = data.length > 0 ? formatDateLabel(data[0].date) : '';
   const midDateStr = data.length > 0 ? formatDateLabel(data[Math.floor(data.length / 2)].date) : '';
   const endDateStr = data.length > 0 ? formatDateLabel(data[data.length - 1].date) : '';
 
+  const toggleLine = (key: 'ema20' | 'ema50' | 'ema200') => {
+    setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
     <div className="w-full font-sans select-none">
-      {/* Toggle EMA */}
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex gap-1">
-          {CONDITIONS.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCondition(c)}
-              className={`text-[10px] font-bold px-2 py-0.5 rounded transition cursor-pointer ${
-                condition === c
-                  ? 'bg-violet-600 text-white'
-                  : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
+      {/* Legend Toggles for EMA20, EMA50, EMA200 */}
+      <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* EMA20 */}
+          <button
+            onClick={() => toggleLine('ema20')}
+            className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded cursor-pointer transition ${
+              visible.ema20
+                ? 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through opacity-60'
+            }`}
+            title="Bật/tắt đường % cổ phiếu trên EMA20"
+          >
+            <span className="w-2 h-2 rounded-full bg-cyan-500 shrink-0" />
+            <span>EMA20</span>
+            {currentVals.ema20 !== null && <span className="font-mono">({currentVals.ema20.toFixed(1)}%)</span>}
+          </button>
+
+          {/* EMA50 */}
+          <button
+            onClick={() => toggleLine('ema50')}
+            className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded cursor-pointer transition ${
+              visible.ema50
+                ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through opacity-60'
+            }`}
+            title="Bật/tắt đường % cổ phiếu trên EMA50"
+          >
+            <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
+            <span>EMA50</span>
+            {currentVals.ema50 !== null && <span className="font-mono">({currentVals.ema50.toFixed(1)}%)</span>}
+          </button>
+
+          {/* EMA200 */}
+          <button
+            onClick={() => toggleLine('ema200')}
+            className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded cursor-pointer transition ${
+              visible.ema200
+                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through opacity-60'
+            }`}
+            title="Bật/tắt đường % cổ phiếu trên EMA200"
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <span>EMA200</span>
+            {currentVals.ema200 !== null && <span className="font-mono">({currentVals.ema200.toFixed(1)}%)</span>}
+          </button>
         </div>
-        {currentVal !== null && (
-          <span className={`text-xs font-bold ${
-            currentVal >= 70 ? 'text-emerald-500' : currentVal >= 50 ? 'text-amber-500' : 'text-red-500'
-          }`}>
-            {currentVal.toFixed(1)}%
-          </span>
-        )}
       </div>
 
-      {loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Đang tải...</div>}
-      {error && !loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Không có dữ liệu</div>}
+      {loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Đang tải 3 đường độ rộng...</div>}
+      {error && !loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Không có dữ liệu độ rộng</div>}
       {!loading && !error && data.length > 0 && (
         <div className="relative w-full bg-gray-50/50 dark:bg-black/20 rounded-lg p-2 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
           <ResponsiveContainer width="100%" height={105}>
@@ -140,17 +211,42 @@ export const BreadthChart: React.FC = () => {
                   fontSize: 11,
                   color: '#e2e8f0',
                 }}
-                formatter={(val: number) => [`${val.toFixed(1)}%`, `% mã trên ${condition}`]}
+                formatter={(val: number, name: string) => [`${val.toFixed(1)}%`, `% mã trên ${name.toUpperCase()}`]}
                 labelFormatter={(label) => label}
               />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#8b5cf6"
-                strokeWidth={1.5}
-                dot={false}
-                activeDot={{ r: 3 }}
-              />
+              {visible.ema20 && (
+                <Line
+                  type="monotone"
+                  dataKey="ema20"
+                  name="EMA20"
+                  stroke="#06b6d4"
+                  strokeWidth={1.5}
+                  dot={false}
+                  activeDot={{ r: 3 }}
+                />
+              )}
+              {visible.ema50 && (
+                <Line
+                  type="monotone"
+                  dataKey="ema50"
+                  name="EMA50"
+                  stroke="#8b5cf6"
+                  strokeWidth={1.5}
+                  dot={false}
+                  activeDot={{ r: 3 }}
+                />
+              )}
+              {visible.ema200 && (
+                <Line
+                  type="monotone"
+                  dataKey="ema200"
+                  name="EMA200"
+                  stroke="#f59e0b"
+                  strokeWidth={1.5}
+                  dot={false}
+                  activeDot={{ r: 3 }}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
 

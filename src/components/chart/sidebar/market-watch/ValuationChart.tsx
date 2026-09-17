@@ -183,7 +183,7 @@ export const ValuationChart: React.FC = () => {
                 stroke="rgba(239, 68, 68, 0.65)"
                 strokeDasharray="3 3"
                 strokeWidth={1}
-                label={{ value: `+1SD: ${stats.plus1SD}x`, fill: 'rgba(239, 68, 68, 0.75)', fontSize: 8, position: 'insideTopLeft' }}
+                label={{ value: '+1SD', fill: 'rgba(239, 68, 68, 0.85)', fontSize: 9, position: 'insideTopLeft' }}
               />
 
               {/* Mean / Median Line (Amber/Gold) */}
@@ -192,7 +192,7 @@ export const ValuationChart: React.FC = () => {
                 stroke="#f59e0b"
                 strokeDasharray="3 3"
                 strokeWidth={1}
-                label={{ value: `TB: ${stats.medianVal}x`, fill: '#f59e0b', fontSize: 8, position: 'insideBottomLeft' }}
+                label={{ value: 'TB', fill: '#f59e0b', fontSize: 9, position: 'insideBottomLeft' }}
               />
 
               {/* -1 Standard Deviation Line (Emerald/Green) */}
@@ -201,7 +201,7 @@ export const ValuationChart: React.FC = () => {
                 stroke="rgba(34, 197, 94, 0.65)"
                 strokeDasharray="3 3"
                 strokeWidth={1}
-                label={{ value: `-1SD: ${stats.minus1SD}x`, fill: 'rgba(34, 197, 94, 0.75)', fontSize: 8, position: 'insideBottomLeft' }}
+                label={{ value: '-1SD', fill: 'rgba(34, 197, 94, 0.85)', fontSize: 9, position: 'insideBottomLeft' }}
               />
 
               <Tooltip
