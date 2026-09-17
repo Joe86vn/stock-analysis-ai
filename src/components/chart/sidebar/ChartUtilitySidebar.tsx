@@ -63,7 +63,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
       {/* ─── Header Tiện Ích & Thanh Chọn Tabs ─── */}
       <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 dark:border-gray-800/80 bg-gray-50 dark:bg-[#1e222d] flex-shrink-0 select-none">
         {/* 4 Tabs Phân hệ */}
-        <div className="flex items-center space-x-1 overflow-x-auto min-w-0 pr-1">
+        <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar min-w-0 pr-1">
           {/* Tab 1: Danh mục / Bộ lọc */}
           <button
             onClick={() => handleSelectTab('watchlist')}

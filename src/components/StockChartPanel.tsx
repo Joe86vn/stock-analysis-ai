@@ -1901,7 +1901,7 @@ export function StockChartPanel({
       {/* ─── HÀNG 2: Dòng Trạng Thái Phiên & Công Cụ Kỹ Thuật ─── */}
       <div className="flex items-center justify-between px-5 py-1.5 border-b border-gray-200 dark:border-gray-800/80 bg-white dark:bg-gray-950 flex-shrink-0 gap-3 flex-wrap min-h-[36px]">
         {/* Block 1 (Trái): Ngày, OHLC, Chênh lệch tăng giảm, Vol, GTGD 20N */}
-        <div className="flex items-center space-x-3 sm:space-x-4 text-xs tabular-nums font-mono overflow-x-auto text-slate-700 dark:text-gray-200 min-w-0">
+        <div className="flex items-center space-x-3 sm:space-x-4 text-xs tabular-nums font-mono overflow-x-auto no-scrollbar text-slate-700 dark:text-gray-200 min-w-0">
           {activeOhlc ? (
             <>
               {/* Ngày */}
