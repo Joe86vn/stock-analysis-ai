@@ -8,14 +8,16 @@ import {
   Calendar,
   Newspaper,
   ChevronRight,
+  TrendingUp,
 } from 'lucide-react';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { WatchlistMiniTab } from './WatchlistMiniTab';
 import { FinancialMetricsTab } from './FinancialMetricsTab';
 import { DividendHistoryTab } from './DividendHistoryTab';
 import { CompanyInfoTab } from './CompanyInfoTab';
+import { MarketWatchTab } from './MarketWatchTab';
 
-export type SidebarTabType = 'watchlist' | 'financials' | 'dividends' | 'company';
+export type SidebarTabType = 'watchlist' | 'financials' | 'dividends' | 'company' | 'market-watch';
 
 interface ChartUtilitySidebarProps {
   isOpen: boolean;
@@ -38,7 +40,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
   useEffect(() => {
     try {
       const saved = localStorage.getItem('stock_chart_sidebar_tab') as SidebarTabType;
-      if (saved && ['watchlist', 'financials', 'dividends', 'company'].includes(saved)) {
+      if (saved && ['watchlist', 'financials', 'dividends', 'company', 'market-watch'].includes(saved)) {
         setActiveTab(saved);
       }
     } catch {}
@@ -117,6 +119,20 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
             <Newspaper className="w-3.5 h-3.5 text-cyan-500" />
             <span>Tin tức</span>
           </button>
+
+          {/* Tab 5: Market Watch */}
+          <button
+            onClick={() => handleSelectTab('market-watch')}
+            className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex-shrink-0 ${
+              activeTab === 'market-watch'
+                ? 'bg-white dark:bg-[#131722] text-violet-600 dark:text-violet-400 shadow-2xs border border-gray-200/80 dark:border-gray-700/80'
+                : 'text-gray-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+            title="Market Watch — Sức khỏe & dòng tiền thị trường"
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-violet-500" />
+            <span>Market</span>
+          </button>
         </div>
 
         {/* Nút Đóng Sidebar */}
@@ -150,6 +166,10 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
 
         {activeTab === 'company' && (
           <CompanyInfoTab ticker={currentTicker} />
+        )}
+
+        {activeTab === 'market-watch' && (
+          <MarketWatchTab />
         )}
       </div>
     </aside>
