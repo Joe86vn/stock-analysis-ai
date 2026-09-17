@@ -9,7 +9,6 @@ import {
   LayoutGrid,
   ChevronDown,
   Check,
-  Palette,
 } from 'lucide-react';
 import {
   ChartColorTheme,
@@ -33,10 +32,10 @@ interface ChartSettingsModalProps {
   onStatusLineConfigChange: (newConfig: StatusLineConfig) => void;
   canvasConfig: CanvasConfig;
   onCanvasConfigChange: (newConfig: CanvasConfig) => void;
-  initialTab?: 'symbol' | 'status' | 'canvas' | 'indicators';
+  initialTab?: 'symbol' | 'status' | 'canvas';
 }
 
-type TabType = 'symbol' | 'status' | 'canvas' | 'indicators';
+type TabType = 'symbol' | 'status' | 'canvas';
 
 export function ChartSettingsModal({
   isOpen,
@@ -180,18 +179,6 @@ export function ChartSettingsModal({
             >
               <LayoutGrid className="h-4 w-4 flex-shrink-0" />
               <span>Canvas</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('indicators')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${
-                activeTab === 'indicators'
-                  ? 'bg-blue-50 dark:bg-[#2962ff]/15 text-blue-600 dark:text-[#2962ff]'
-                  : 'text-gray-600 dark:text-[#848e9c] hover:bg-gray-100 dark:hover:bg-[#2a2e39]/60 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Palette className="h-4 w-4 flex-shrink-0" />
-              <span>Màu chỉ báo</span>
             </button>
           </div>
 
@@ -598,109 +585,6 @@ export function ChartSettingsModal({
                   <div className="flex items-center justify-between">
                     <span>Trên đầu</span>
                     <span className="font-mono font-bold text-gray-600 dark:text-gray-300">10%</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ─── Tab 4: Màu sắc chỉ báo ─────────────────────────── */}
-            {activeTab === 'indicators' && (
-              <div className="space-y-4">
-                <h3 className="text-[11px] font-bold text-gray-400 dark:text-[#787b86] uppercase tracking-wider mb-2">
-                  Tùy chỉnh màu sắc các chỉ báo
-                </h3>
-
-                {/* EMA */}
-                <div className="p-3 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-200 dark:border-[#2a2e39] space-y-2">
-                  <div className="font-bold text-slate-800 dark:text-white">Đường EMA</div>
-                  <div className="flex items-center space-x-6">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-[11px] text-gray-500">EMA 1 (20):</span>
-                      <label className="relative flex items-center cursor-pointer">
-                        <span
-                          className="w-5 h-5 rounded border border-gray-300 dark:border-[#434651] block"
-                          style={{ backgroundColor: theme.ema.ema1Color }}
-                        />
-                        <input
-                          type="color"
-                          value={theme.ema.ema1Color}
-                          onChange={(e) =>
-                            onThemeChange({
-                              ...theme,
-                              ema: { ...theme.ema, ema1Color: e.target.value },
-                            })
-                          }
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                        />
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-[11px] text-gray-500">EMA 2 (200):</span>
-                      <label className="relative flex items-center cursor-pointer">
-                        <span
-                          className="w-5 h-5 rounded border border-gray-300 dark:border-[#434651] block"
-                          style={{ backgroundColor: theme.ema.ema2Color }}
-                        />
-                        <input
-                          type="color"
-                          value={theme.ema.ema2Color}
-                          onChange={(e) =>
-                            onThemeChange({
-                              ...theme,
-                              ema: { ...theme.ema, ema2Color: e.target.value },
-                            })
-                          }
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SMC Swing H/L */}
-                <div className="p-3 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-200 dark:border-[#2a2e39] space-y-2">
-                  <div className="font-bold text-slate-800 dark:text-white">Cấu trúc SMC (Đỉnh - Đáy)</div>
-                  <div className="flex items-center space-x-6">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-[11px] text-gray-500">Đỉnh (HH/LH):</span>
-                      <label className="relative flex items-center cursor-pointer">
-                        <span
-                          className="w-5 h-5 rounded border border-gray-300 dark:border-[#434651] block"
-                          style={{ backgroundColor: theme.smc.peakColor }}
-                        />
-                        <input
-                          type="color"
-                          value={theme.smc.peakColor}
-                          onChange={(e) =>
-                            onThemeChange({
-                              ...theme,
-                              smc: { ...theme.smc, peakColor: e.target.value },
-                            })
-                          }
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                        />
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-[11px] text-gray-500">Đáy (HL/LL):</span>
-                      <label className="relative flex items-center cursor-pointer">
-                        <span
-                          className="w-5 h-5 rounded border border-gray-300 dark:border-[#434651] block"
-                          style={{ backgroundColor: theme.smc.troughColor }}
-                        />
-                        <input
-                          type="color"
-                          value={theme.smc.troughColor}
-                          onChange={(e) =>
-                            onThemeChange({
-                              ...theme,
-                              smc: { ...theme.smc, troughColor: e.target.value },
-                            })
-                          }
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                        />
-                      </label>
-                    </div>
                   </div>
                 </div>
               </div>

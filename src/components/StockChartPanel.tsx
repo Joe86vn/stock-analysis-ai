@@ -306,18 +306,20 @@ export function StockChartPanel({
   const [statusLineConfig, setStatusLineConfig] = useState<StatusLineConfig>(() => loadSavedStatusLineConfig());
   const [canvasConfig, setCanvasConfig] = useState<CanvasConfig>(() => loadSavedCanvasConfig());
   const [showChartSettingsModal, setShowChartSettingsModal] = useState(false);
-  const [settingsModalTab, setSettingsModalTab] = useState<'symbol' | 'status' | 'canvas' | 'indicators'>('symbol');
+  const [settingsModalTab, setSettingsModalTab] = useState<'symbol' | 'status' | 'canvas'>('symbol');
 
   const [indicatorDialogState, setIndicatorDialogState] = useState<{
     isOpen: boolean;
     indicatorId: string;
     title: string;
     plots: IndicatorPlotConfig[];
+    initialTab?: 'params' | 'format';
   }>({
     isOpen: false,
     indicatorId: '',
     title: '',
     plots: [],
+    initialTab: 'params',
   });
 
   const isOpen = !!ticker;
@@ -762,13 +764,14 @@ export function StockChartPanel({
     saveStatusLineConfig(newConfig);
   };
 
-  const openIndicatorSettings = (indicatorId: string) => {
+  const openIndicatorSettings = (indicatorId: string, initialTab: 'params' | 'format' = 'params') => {
     setShowIndicatorMenu(false);
     if (indicatorId === 'ema') {
       setIndicatorDialogState({
         isOpen: true,
         indicatorId: 'ema',
         title: 'Đường trung bình EMA',
+        initialTab,
         plots: [
           {
             id: 'ema1',
@@ -793,6 +796,7 @@ export function StockChartPanel({
         isOpen: true,
         indicatorId: 'boll',
         title: 'Bollinger Bands (BOLL)',
+        initialTab,
         plots: [
           {
             id: 'up',
@@ -825,6 +829,7 @@ export function StockChartPanel({
         isOpen: true,
         indicatorId: 'swingHl',
         title: 'Cấu trúc SMC (Đỉnh - Đáy)',
+        initialTab,
         plots: [
           {
             id: 'zigzag',
@@ -857,6 +862,7 @@ export function StockChartPanel({
         isOpen: true,
         indicatorId: 'vol',
         title: 'Khối lượng (VOL)',
+        initialTab,
         plots: [
           {
             id: 'volUp',
@@ -889,6 +895,7 @@ export function StockChartPanel({
         isOpen: true,
         indicatorId: 'rsi',
         title: 'Chỉ số RSI',
+        initialTab,
         plots: [
           {
             id: 'line',
@@ -905,6 +912,7 @@ export function StockChartPanel({
         isOpen: true,
         indicatorId: 'macd',
         title: 'Chỉ báo MACD',
+        initialTab,
         plots: [
           {
             id: 'dif',
@@ -1016,6 +1024,58 @@ export function StockChartPanel({
       };
       handleThemeChange(nextTheme);
     }
+  };
+
+  const handleSaveIndicatorParams = (newParams: any) => {
+    setIndicatorParams((prev) => {
+      const next = { ...prev, ...newParams };
+      const chart = chartRef.current;
+      const { indicatorId } = indicatorDialogState;
+
+      if (chart) {
+        if (indicatorId === 'swingHl' && activeIndicators.swingHl) {
+          chart.overrideIndicator(
+            {
+              name: 'SWING_HL',
+              calcParams: [
+                next.swingHlWindow,
+                next.swingHlShowLine ? 1 : 0,
+                next.swingHlShowChochBos ? 1 : 0,
+                next.swingHlConfirmBars,
+                next.swingHlShowPercent ? 1 : 0,
+              ],
+            },
+            'candle_pane'
+          );
+        } else if (indicatorId === 'ema' && activeIndicators.ema) {
+          chart.overrideIndicator(
+            { name: 'EMA', calcParams: [next.emaShort, next.emaLong] },
+            'candle_pane'
+          );
+        } else if (indicatorId === 'boll' && activeIndicators.boll) {
+          chart.overrideIndicator(
+            { name: 'BOLL', calcParams: [next.bollPeriod, next.bollStdDev] },
+            'candle_pane'
+          );
+        } else if (indicatorId === 'vol' && activeIndicators.vol && subPanesRef.current.vol) {
+          chart.overrideIndicator(
+            { name: 'VOL', calcParams: [next.volMaPeriod ?? 20] },
+            subPanesRef.current.vol
+          );
+        } else if (indicatorId === 'rsi' && activeIndicators.rsi && subPanesRef.current.rsi) {
+          chart.overrideIndicator(
+            { name: 'RSI', calcParams: [next.rsiPeriod] },
+            subPanesRef.current.rsi
+          );
+        } else if (indicatorId === 'macd' && activeIndicators.macd && subPanesRef.current.macd) {
+          chart.overrideIndicator(
+            { name: 'MACD', calcParams: [next.macdFast, next.macdSlow, next.macdSignal] },
+            subPanesRef.current.macd
+          );
+        }
+      }
+      return next;
+    });
   };
 
   // ─── Bật / Tắt & Đổi Tham Số Chỉ Báo ──────────────────────────────────────
@@ -1730,193 +1790,77 @@ export function StockChartPanel({
                     </div>
 
                     {/* Đỉnh - Đáy cá nhân */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center space-x-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={activeIndicators.swingHl}
-                            onChange={() => toggleIndicator('swingHl')}
-                            className="rounded text-amber-500 focus:ring-amber-400 h-4 w-4 cursor-pointer"
-                          />
-                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
-                          <span className="font-bold text-slate-800 dark:text-gray-100">Đỉnh - Đáy &amp; Cấu trúc SMC</span>
-                        </label>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openIndicatorSettings('swingHl');
-                          }}
-                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Định dạng chỉ báo SMC"
-                        >
-                          <Settings className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      {activeIndicators.swingHl && (
-                        <div className="mt-2 pl-6 flex flex-col space-y-2 text-[11px] text-gray-500 dark:text-gray-400">
-                          <div className="flex items-center justify-between">
-                            <span>Số nến kiểm tra đỉnh đáy:</span>
-                            <div className="flex items-center space-x-1">
-                              <input
-                                type="number"
-                                min={1}
-                                max={50}
-                                value={indicatorParams.swingHlWindow}
-                                onChange={(e) => handleParamChange('swingHlWindow', Number(e.target.value))}
-                                className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-amber-500 text-center"
-                              />
-                              <span className="text-[10px] text-gray-400">(nến)</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span>Nến xác nhận CHoCH:</span>
-                            <div className="flex items-center space-x-1">
-                              <input
-                                type="number"
-                                min={1}
-                                max={10}
-                                value={indicatorParams.swingHlConfirmBars}
-                                onChange={(e) => handleParamChange('swingHlConfirmBars', Number(e.target.value))}
-                                className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-amber-500 text-center"
-                              />
-                              <span className="text-[10px] text-gray-400">(đóng cửa)</span>
-                            </div>
-                          </div>
-                          <label className="flex items-center space-x-2 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={indicatorParams.swingHlShowLine}
-                              onChange={(e) => handleToggleSwingHlLine(e.target.checked)}
-                              className="rounded text-amber-500 focus:ring-amber-400 h-3.5 w-3.5 cursor-pointer"
-                            />
-                            <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện đường nối Zigzag</span>
-                          </label>
-                          <label className="flex items-center space-x-2 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={indicatorParams.swingHlShowChochBos}
-                              onChange={(e) => handleToggleChochBos(e.target.checked)}
-                              className="rounded text-emerald-500 focus:ring-emerald-400 h-3.5 w-3.5 cursor-pointer"
-                            />
-                            <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện đường CHoCH &amp; BOS</span>
-                          </label>
-                          <label className="flex items-center space-x-2 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={indicatorParams.swingHlShowPercent}
-                              onChange={(e) => handleToggleSwingHlPercent(e.target.checked)}
-                              className="rounded text-sky-500 focus:ring-sky-400 h-3.5 w-3.5 cursor-pointer"
-                            />
-                            <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện % tăng/giảm nhịp sóng</span>
-                          </label>
-                        </div>
-                      )}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.swingHl}
+                          onChange={() => toggleIndicator('swingHl')}
+                          className="rounded text-amber-500 focus:ring-amber-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">Đỉnh - Đáy &amp; Cấu trúc SMC</span>
+                      </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('swingHl');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt tham số &amp; định dạng SMC"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
                     {/* Đường EMA */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center space-x-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={activeIndicators.ema}
-                            onChange={() => toggleIndicator('ema')}
-                            className="rounded text-blue-500 focus:ring-blue-400 h-4 w-4 cursor-pointer"
-                          />
-                          <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
-                          <span className="font-bold text-slate-800 dark:text-gray-100">Đường trung bình EMA</span>
-                        </label>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openIndicatorSettings('ema');
-                          }}
-                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Định dạng chỉ báo EMA (như Ảnh 1)"
-                        >
-                          <Settings className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      {activeIndicators.ema && (
-                        <div className="mt-2 pl-6 flex items-center space-x-3 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-y-1">
-                          <div className="flex items-center space-x-1">
-                            <span className="text-blue-500 font-bold">EMA 1:</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={500}
-                              value={indicatorParams.emaShort}
-                              onChange={(e) => handleParamChange('emaShort', Number(e.target.value))}
-                              className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-blue-500 text-center"
-                            />
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-amber-500 font-bold">EMA 2:</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={500}
-                              value={indicatorParams.emaLong}
-                              onChange={(e) => handleParamChange('emaLong', Number(e.target.value))}
-                              className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-amber-500 text-center"
-                            />
-                          </div>
-                        </div>
-                      )}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.ema}
+                          onChange={() => toggleIndicator('ema')}
+                          className="rounded text-blue-500 focus:ring-blue-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">Đường trung bình EMA</span>
+                        <span className="text-[10px] text-gray-400 font-mono">({indicatorParams.emaShort}, {indicatorParams.emaLong})</span>
+                      </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('ema');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt tham số &amp; định dạng EMA"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
                     {/* Bollinger Bands */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center space-x-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={activeIndicators.boll}
-                            onChange={() => toggleIndicator('boll')}
-                            className="rounded text-purple-500 focus:ring-purple-400 h-4 w-4 cursor-pointer"
-                          />
-                          <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0" />
-                          <span className="font-bold text-slate-800 dark:text-gray-100">Bollinger Bands (BOLL)</span>
-                        </label>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openIndicatorSettings('boll');
-                          }}
-                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Định dạng chỉ báo BOLL"
-                        >
-                          <Settings className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      {activeIndicators.boll && (
-                        <div className="mt-2 pl-6 flex items-center space-x-3 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-y-1">
-                          <div className="flex items-center space-x-1">
-                            <span>Chu kỳ:</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={200}
-                              value={indicatorParams.bollPeriod}
-                              onChange={(e) => handleParamChange('bollPeriod', Number(e.target.value))}
-                              className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-purple-500 text-center"
-                            />
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span>Độ lệch:</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={10}
-                              step={0.5}
-                              value={indicatorParams.bollStdDev}
-                              onChange={(e) => handleParamChange('bollStdDev', Number(e.target.value))}
-                              className="w-12 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-purple-500 text-center"
-                            />
-                          </div>
-                        </div>
-                      )}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.boll}
+                          onChange={() => toggleIndicator('boll')}
+                          className="rounded text-purple-500 focus:ring-purple-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">Bollinger Bands (BOLL)</span>
+                        <span className="text-[10px] text-gray-400 font-mono">({indicatorParams.bollPeriod}, {indicatorParams.bollStdDev})</span>
+                      </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('boll');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt tham số &amp; định dạng BOLL"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
 
@@ -1927,131 +1871,77 @@ export function StockChartPanel({
                     </div>
 
                     {/* Khối lượng (VOL) */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center space-x-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={activeIndicators.vol}
-                            onChange={() => toggleIndicator('vol')}
-                            className="rounded text-emerald-500 focus:ring-emerald-400 h-4 w-4 cursor-pointer"
-                          />
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                          <span className="font-bold text-slate-800 dark:text-gray-100">Khối lượng (VOL)</span>
-                        </label>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openIndicatorSettings('vol');
-                          }}
-                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Định dạng Khối lượng"
-                        >
-                          <Settings className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.vol}
+                          onChange={() => toggleIndicator('vol')}
+                          className="rounded text-emerald-500 focus:ring-emerald-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">Khối lượng (VOL)</span>
+                      </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('vol');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt tham số &amp; định dạng Khối lượng"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
                     {/* RSI */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center space-x-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={activeIndicators.rsi}
-                            onChange={() => toggleIndicator('rsi')}
-                            className="rounded text-cyan-500 focus:ring-cyan-400 h-4 w-4 cursor-pointer"
-                          />
-                          <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 flex-shrink-0" />
-                          <span className="font-bold text-slate-800 dark:text-gray-100">Chỉ số RSI</span>
-                        </label>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openIndicatorSettings('rsi');
-                          }}
-                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Định dạng RSI"
-                        >
-                          <Settings className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      {activeIndicators.rsi && (
-                        <div className="mt-2 pl-6 flex items-center space-x-2 text-[11px] text-gray-500 dark:text-gray-400">
-                          <span>Chu kỳ:</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={200}
-                            value={indicatorParams.rsiPeriod}
-                            onChange={(e) => handleParamChange('rsiPeriod', Number(e.target.value))}
-                            className="w-14 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-cyan-500 text-center"
-                          />
-                        </div>
-                      )}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.rsi}
+                          onChange={() => toggleIndicator('rsi')}
+                          className="rounded text-cyan-500 focus:ring-cyan-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">Chỉ số RSI</span>
+                        <span className="text-[10px] text-gray-400 font-mono">({indicatorParams.rsiPeriod})</span>
+                      </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('rsi');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt tham số &amp; định dạng RSI"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
                     {/* MACD */}
-                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] transition">
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center space-x-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={activeIndicators.macd}
-                            onChange={() => toggleIndicator('macd')}
-                            className="rounded text-rose-500 focus:ring-rose-400 h-4 w-4 cursor-pointer"
-                          />
-                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 flex-shrink-0" />
-                          <span className="font-bold text-slate-800 dark:text-gray-100">Đường MACD</span>
-                        </label>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openIndicatorSettings('macd');
-                          }}
-                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
-                          title="Định dạng MACD"
-                        >
-                          <Settings className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      {activeIndicators.macd && (
-                        <div className="mt-2 pl-6 flex items-center space-x-2 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-y-1">
-                          <div className="flex items-center space-x-1">
-                            <span>Nhanh:</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={100}
-                              value={indicatorParams.macdFast}
-                              onChange={(e) => handleParamChange('macdFast', Number(e.target.value))}
-                              className="w-11 px-1 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-rose-500 text-center"
-                            />
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span>Chậm:</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={200}
-                              value={indicatorParams.macdSlow}
-                              onChange={(e) => handleParamChange('macdSlow', Number(e.target.value))}
-                              className="w-11 px-1 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-rose-500 text-center"
-                            />
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span>Signal:</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={100}
-                              value={indicatorParams.macdSignal}
-                              onChange={(e) => handleParamChange('macdSignal', Number(e.target.value))}
-                              className="w-11 px-1 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-rose-500 text-center"
-                            />
-                          </div>
-                        </div>
-                      )}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.macd}
+                          onChange={() => toggleIndicator('macd')}
+                          className="rounded text-rose-500 focus:ring-rose-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">Đường MACD</span>
+                        <span className="text-[10px] text-gray-400 font-mono">({indicatorParams.macdFast}, {indicatorParams.macdSlow}, {indicatorParams.macdSignal})</span>
+                      </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('macd');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt tham số &amp; định dạng MACD"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2143,13 +2033,17 @@ export function StockChartPanel({
         initialTab={settingsModalTab}
       />
 
-      {/* Hộp thoại Định dạng Chỉ Báo Chuẩn TradingView (1 Tab Định Dạng) */}
+      {/* Hộp thoại Tham số & Định dạng Chỉ Báo Chuẩn TradingView (2 Tab: Các tham số & Định dạng) */}
       <IndicatorSettingsDialog
         isOpen={indicatorDialogState.isOpen}
         onClose={() => setIndicatorDialogState((prev) => ({ ...prev, isOpen: false }))}
+        indicatorId={indicatorDialogState.indicatorId}
         title={indicatorDialogState.title}
         plots={indicatorDialogState.plots}
         onSavePlots={handleSaveIndicatorPlots}
+        params={indicatorParams}
+        onSaveParams={handleSaveIndicatorParams}
+        initialTab={indicatorDialogState.initialTab || 'params'}
       />
     </div>
   );
