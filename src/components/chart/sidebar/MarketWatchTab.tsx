@@ -63,8 +63,8 @@ export const MarketWatchTab: React.FC = () => {
         <IntradayChart />
       </Section>
 
-      {/* Section 2 — Nến VNINDEX & Phân phối CANSLIM */}
-      <Section title="Nến VNINDEX & Phân phối" badge="CANSLIM" defaultOpen={true}>
+      {/* Section 2 — Biểu đồ Vnindex */}
+      <Section title="Biểu đồ Vnindex" badge="CANSLIM" defaultOpen={true}>
         <VnindexCandleChart />
       </Section>
 

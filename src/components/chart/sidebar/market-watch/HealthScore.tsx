@@ -88,13 +88,26 @@ const countDistributionDays = (days: DayData[]): number => {
   return active.length;
 };
 
+interface FtdAnalysis {
+  ftdDetected: boolean;
+  ftdIndex: number | null;
+  postFtdPenalty: number;
+  ftdFailureProb: number | null;
+  postFtdDistribDay: number | null;
+}
+
 /**
- * Detect Follow-through Day (FTD) within Day 4 to Day 10 of Rally Attempt:
+ * Detect Follow-through Day (FTD) within Day 4 to Day 10 of Rally Attempt
+ * and analyze early distribution days occurring 1-5 days post-FTD:
+ * - 1-2 days post FTD: -3 pts penalty (95% failure prob -> drops to 4/10 Correction)
+ * - 3 days post FTD: -2 pts penalty (70% failure prob -> drops to 5/10 Pressure)
+ * - 4-5 days post FTD: -1 pt penalty (30% failure prob -> drops to 6/10 Pressure)
  */
-const detectFTD = (days: DayData[]): boolean => {
+const analyzeFTD = (days: DayData[]): FtdAnalysis => {
   let rallyStartLow = Infinity;
   let rallyDayCount = 0;
   let inConfirmedUptrend = false;
+  let lastFtdIdx: number | null = null;
 
   for (let i = 1; i < days.length; i++) {
     const prev = days[i - 1];
@@ -106,6 +119,7 @@ const detectFTD = (days: DayData[]): boolean => {
         inConfirmedUptrend = false;
         rallyDayCount = 0;
         rallyStartLow = Infinity;
+        lastFtdIdx = null;
       }
     } else {
       if (rallyDayCount === 0) {
@@ -125,13 +139,60 @@ const detectFTD = (days: DayData[]): boolean => {
         } else {
           rallyDayCount++;
           if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
-            return true;
+            lastFtdIdx = i;
+            inConfirmedUptrend = true;
           }
         }
       }
     }
   }
-  return false;
+
+  if (lastFtdIdx === null) {
+    return { ftdDetected: false, ftdIndex: null, postFtdPenalty: 0, ftdFailureProb: null, postFtdDistribDay: null };
+  }
+
+  // Check distribution days occurring within 1 to 5 sessions after lastFtdIdx
+  let penalty = 0;
+  let failProb: number | null = null;
+  let distribDay: number | null = null;
+
+  for (let i = lastFtdIdx + 1; i < Math.min(days.length, lastFtdIdx + 6); i++) {
+    const prev = days[i - 1];
+    const curr = days[i];
+    const pctChange = (curr.close - prev.close) / prev.close;
+    const isDistrib = pctChange <= -0.002 && curr.volume > prev.volume;
+
+    if (isDistrib) {
+      const offset = i - lastFtdIdx; // 1 to 5
+      if (offset === 1 || offset === 2) {
+        if (3 > penalty) {
+          penalty = 3;
+          failProb = 95;
+          distribDay = offset;
+        }
+      } else if (offset === 3) {
+        if (2 > penalty) {
+          penalty = 2;
+          failProb = 70;
+          distribDay = offset;
+        }
+      } else if (offset === 4 || offset === 5) {
+        if (1 > penalty) {
+          penalty = 1;
+          failProb = 30;
+          distribDay = offset;
+        }
+      }
+    }
+  }
+
+  return {
+    ftdDetected: true,
+    ftdIndex: lastFtdIdx,
+    postFtdPenalty: penalty,
+    ftdFailureProb: failProb,
+    postFtdDistribDay: distribDay,
+  };
 };
 
 /**
@@ -206,7 +267,11 @@ const STATUS_CONFIG: Record<MarketStatus, {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const HealthScore: React.FC = () => {
-  const [result, setResult] = useState<HealthResult | null>(null);
+  const [result, setResult] = useState<(HealthResult & {
+    ftdFailureProb?: number | null;
+    postFtdDistribDay?: number | null;
+    postFtdPenalty?: number;
+  }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -247,15 +312,47 @@ export const HealthScore: React.FC = () => {
         const isBelowMa20 = !isNaN(lastMa20) && lastClose < lastMa20;
 
         const distDays = countDistributionDays(days);
-        const ftdDetected = detectFTD(days);
+        const ftdInfo = analyzeFTD(days);
 
-        // Calculate 10-Point Health Score:
-        // - Base: 10 points
-        // - Each active distribution day: -1 point
-        // - VNINDEX below MA20: -1 point
-        const score = Math.max(0, Math.min(10, 10 - distDays - (isBelowMa20 ? 1 : 0)));
+        // Quy tắc điểm sức khỏe thị trường:
+        // 1. Sau FTD, điểm gốc mặc định = 7 điểm. Nếu chưa có FTD, điểm gốc = 10.
+        // 2. Trừ điểm phân phối 1-5 ngày sau FTD (-3đ nếu 1-2 ngày, -2đ nếu 3 ngày, -1đ nếu 4-5 ngày).
+        // 3. Trừ điểm các phiên phân phối bổ sung (-1đ/phiên) & MA20 (-1đ nếu dưới MA20).
+        let baseScore = 10;
+        let postFtdPenalty = 0;
+        let otherDistribDays = distDays;
+
+        if (ftdInfo.ftdDetected) {
+          baseScore = 7; // Mặc định sau phiên FTD được 7 điểm
+          postFtdPenalty = ftdInfo.postFtdPenalty;
+          if (ftdInfo.postFtdDistribDay !== null) {
+            otherDistribDays = Math.max(0, distDays - 1);
+          }
+        }
+
+        const rawScore = baseScore - postFtdPenalty - otherDistribDays - (isBelowMa20 ? 1 : 0);
+        const score = Math.max(0, Math.min(10, rawScore));
         const status = determineStatusByScore(score);
         const cfg = STATUS_CONFIG[status];
+
+        // Cập nhật chiến lược & cảnh báo xác suất thất bại FTD nếu có
+        let strategy = cfg.strategy;
+        let note = cfg.note;
+
+        if (ftdInfo.ftdFailureProb !== null) {
+          const prob = ftdInfo.ftdFailureProb;
+          const dayNum = ftdInfo.postFtdDistribDay;
+          if (prob === 95) {
+            strategy = `⚠️ CẢNH BÁO FTD THẤT BẠI 95%! Phân phối ở phiên thứ ${dayNum} ngay sau FTD. Giảm toàn bộ Margin trước tiên, ngừng mua mới và cắt lỗ quyết liệt.`;
+            note = `Thị trường quay trở lại Market in Correction (Điểm: ${score}/10). Ưu tiên hạ đòn bẩy Margin bảo vệ vốn.`;
+          } else if (prob === 70) {
+            strategy = `⚠️ CẢNH BÁO FTD THẤT BẠI 70%! Phân phối ở phiên thứ ${dayNum} sau FTD. Thận trọng mua mới, hạ đòn bẩy Margin và phòng thủ từng vị thế.`;
+            note = `Thị trường chuyển sang Uptrend Under Pressure (Điểm: ${score}/10). Giữ tỷ trọng an toàn.`;
+          } else if (prob === 30) {
+            strategy = `⚠️ CẢNH BÁO FTD THẤT BẠI 30%! Phân phối ở phiên thứ ${dayNum} sau FTD. Thận trọng trước bất kỳ quyết định mua mới nào.`;
+            note = `Thị trường gặp áp lực điều chỉnh (Điểm: ${score}/10). Tỷ trọng đề xuất 25-50%.`;
+          }
+        }
 
         setResult({
           score,
@@ -265,11 +362,14 @@ export const HealthScore: React.FC = () => {
           ma20: isNaN(lastMa20) ? null : lastMa20,
           currentClose: lastClose,
           isBelowMa20,
-          ftdDetected,
+          ftdDetected: ftdInfo.ftdDetected,
           exposureLow: cfg.exposureLow,
           exposureHigh: cfg.exposureHigh,
-          strategy: cfg.strategy,
-          note: cfg.note,
+          strategy,
+          note,
+          ftdFailureProb: ftdInfo.ftdFailureProb,
+          postFtdDistribDay: ftdInfo.postFtdDistribDay,
+          postFtdPenalty: ftdInfo.postFtdPenalty,
         });
       } catch {
         setError(true);
@@ -330,8 +430,15 @@ export const HealthScore: React.FC = () => {
         </div>
 
         {result.ftdDetected && (
-          <div className="col-span-2 flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-            <span>✓ Phát hiện FTD bùng nổ theo đà (Phiên 4–10)</span>
+          <div className="col-span-2 flex flex-col gap-0.5 text-[10px] text-emerald-400 font-bold border-t border-gray-100/10 dark:border-gray-800/40 pt-1 mt-0.5">
+            <div className="flex items-center gap-1">
+              <span>✓ Phát hiện FTD bùng nổ theo đà (Phiên 4–10)</span>
+            </div>
+            {result.ftdFailureProb && (
+              <div className="text-red-400 font-bold text-[9.5px] flex items-center gap-1">
+                <span>⚠️ Phân phối ở phiên thứ {result.postFtdDistribDay} sau FTD (-{result.postFtdPenalty}đ, XSTB: {result.ftdFailureProb}%)</span>
+              </div>
+            )}
           </div>
         )}
       </div>

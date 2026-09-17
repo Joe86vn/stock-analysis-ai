@@ -62,8 +62,11 @@ Ngày bùng nổ theo đà cho thấy nỗ lực phục hồi đã thành công
 Ngày bùng nổ theo đà về cơ bản là sẽ xuất hiện bất cứ khi nào kể từ ngày thứ 4 hoặc trễ hơn của đợt nỗ lực phục hồi. Nó có thể xuất hiện sớm ở ngày thứ 3 nhưng thông thuờng 3 ngày đầu tiên là quá sớm để xác nhận một uptrend mới
 
 Note:
-Ngày bùng nổ theo đà có thể thất bại, nhưng không có uptrend nào mà không bắt đầu bằng ngày bùng nổ theo đà
-Thống kê về ngày bùng nổ theo đà:
-Ngày phân phối tại phiên 1 hoặc 2 sau ngày FTD thì xác suất thất bại 95%
-Ngày phân phối diễn ra tại phiên thứ 3 sau ngày FTD thì xác suất thất bại là 70%
-Ngày phân phối diễn ra tại phiên thứ 4 hoặc 5 sau ngày FTD thì xác suất thất bại là  30%
+Ngày bùng nổ theo đà có thể thất bại, nhưng không có uptrend nào mà không bắt đầu bằng ngày bùng nổ theo đà.
+
+Thống kê về ngày bùng nổ theo đà (FTD Failure Probabilities):
+- Phân phối tại phiên 1 hoặc 2 sau FTD: Xác suất thất bại 95% -> Trừ 3 điểm sức khỏe (về 4/10 -> Market in Correction ngay lập tức, hạ toàn bộ Margin).
+- Phân phối tại phiên thứ 3 sau FTD: Xác suất thất bại 70% -> Trừ 2 điểm sức khỏe (về 5/10 -> Uptrend under Pressure).
+- Phân phối tại phiên thứ 4 hoặc 5 sau FTD: Xác suất thất bại 30% -> Trừ 1 điểm sức khỏe (về 6/10 -> Uptrend under Pressure).
+
+Chi tiết toàn bộ quy tắc tính điểm sức khỏe thị trường, tỷ trọng Exposure và Action Plan xem tại: [MARKET_HEALTH_RULES.md](file:///d:/2%20ANTIGRAVITY/analysis-report/docs/MARKET_HEALTH_RULES.md)

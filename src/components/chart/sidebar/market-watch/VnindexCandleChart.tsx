@@ -106,9 +106,10 @@ export const VnindexCandleChart: React.FC = () => {
         const ma20VolArr = calcMA(vols, 20);
 
         // CANSLIM FTD Rule: Day 4 to Day 10 of Rally Attempt ONLY.
-        // Identify Day 1 of Rally Attempt (Đáy ngày nỗ lực phục hồi đầu tiên)
+        // Identify Day 1 of Rally Attempt (Đáy 1 - chỉ giữ lại đáy sau cùng thành công)
         let rallyStartLow = Infinity;
         let rallyDayCount = 0;
+        let currentRallyDay1Idx: number | null = null;
         let inConfirmedUptrend = false;
         const ftdSet = new Set<number>();
         const rallyDay1Set = new Set<number>();
@@ -123,34 +124,45 @@ export const VnindexCandleChart: React.FC = () => {
               inConfirmedUptrend = false;
               rallyDayCount = 0;
               rallyStartLow = Infinity;
+              currentRallyDay1Idx = null;
             }
           } else {
             if (rallyDayCount === 0) {
               if (pct > 0) {
                 rallyDayCount = 1;
                 rallyStartLow = prev.low;
-                rallyDay1Set.add(i); // Flag Day 1 of Rally Attempt
+                currentRallyDay1Idx = i; // Ghi nhận Đáy 1 tạm thời
               }
             } else {
               if (curr.low < rallyStartLow) {
+                // Đợt phục hồi trước thất bại do gãy đáy cũ -> Reset Đáy 1
                 if (pct > 0) {
                   rallyDayCount = 1;
                   rallyStartLow = prev.low;
-                  rallyDay1Set.add(i); // New Rally Attempt Day 1
+                  currentRallyDay1Idx = i; // Đáy 1 mới của đợt nỗ lực mới
                 } else {
                   rallyDayCount = 0;
                   rallyStartLow = Infinity;
+                  currentRallyDay1Idx = null;
                 }
               } else {
                 rallyDayCount++;
-                // FTD Rule: Day 4 to Day 10 of rally attempt, gain > 1.25%, volume > prev volume
+                // FTD Rule: Phiên 4 đến phiên 10 của đợt phục hồi, tăng > 1.25%, vol > vol phiên trước
                 if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
                   ftdSet.add(i);
+                  if (currentRallyDay1Idx !== null) {
+                    rallyDay1Set.add(currentRallyDay1Idx); // Chỉ giữ lại Đáy 1 sau cùng thành công khởi đầu FTD
+                  }
                   inConfirmedUptrend = true;
                 }
               }
             }
           }
+        }
+
+        // Nếu đang trong đợt nỗ lực phục hồi tích cực (chưa gãy đáy và chưa FTD), giữ lại Đáy 1 hiện tại
+        if (!inConfirmedUptrend && currentRallyDay1Idx !== null) {
+          rallyDay1Set.add(currentRallyDay1Idx);
         }
 
         // Identify Distribution Days according to CANSLIM rules
