@@ -131,6 +131,11 @@ export default function RankingPage() {
       if (json.success && Array.isArray(json.data)) {
         setLiveRankings(json.data);
         setLiveMeta(json.meta);
+        try {
+          localStorage.setItem('valuex_latest_screened_stocks', JSON.stringify(json.data));
+          localStorage.setItem('valuex_latest_screened_time', Date.now().toString());
+          window.dispatchEvent(new CustomEvent('valuex-screened-updated', { detail: json.data }));
+        } catch {}
       }
     } catch (err: any) {
       console.error('Error running live screening:', err);

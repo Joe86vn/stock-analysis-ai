@@ -57,15 +57,42 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
   const [presets, setPresets] = useState<{
     top150_cap: StockRankingItem[];
     top150_adtv: StockRankingItem[];
-    filter_75: StockRankingItem[];
+    filter_valuex: StockRankingItem[];
     universe: StockRankingItem[];
   }>({
     top150_cap: [],
     top150_adtv: [],
-    filter_75: [],
+    filter_valuex: [],
     universe: [],
   });
   const [isLoadingPresets, setIsLoadingPresets] = useState<boolean>(true);
+
+  // Danh sách cổ phiếu vừa quét trực tiếp từ Tab "Bộ lọc & Xếp hạng RS"
+  const [screenedRankings, setScreenedRankings] = useState<StockRankingItem[]>([]);
+
+  // Lắng nghe và đồng bộ kết quả mới nhất từ Tab "Bộ lọc & Xếp hạng RS"
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('valuex_latest_screened_stocks');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setScreenedRankings(parsed);
+        }
+      }
+    } catch {}
+
+    const handleScreenedUpdated = (e: any) => {
+      if (e.detail && Array.isArray(e.detail)) {
+        setScreenedRankings(e.detail);
+      }
+    };
+
+    window.addEventListener('valuex-screened-updated', handleScreenedUpdated);
+    return () => {
+      window.removeEventListener('valuex-screened-updated', handleScreenedUpdated);
+    };
+  }, []);
 
   // ─── Custom Watchlists State (localStorage) ──────────────────────────────
   const [customLists, setCustomLists] = useState<CustomWatchlist[]>([]);
@@ -107,7 +134,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
           setPresets({
             top150_cap: json.data.top150_cap || [],
             top150_adtv: json.data.top150_adtv || [],
-            filter_75: json.data.filter_75 || [],
+            filter_valuex: json.data.filter_valuex || json.data.filter_75 || [],
             universe: json.data.universe || [],
           });
         }
@@ -169,9 +196,10 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       if (presets.top150_adtv.length > 0) return presets.top150_adtv;
       return allStocks.length > 0 ? allStocks : [];
     }
-    // Preset: Bộ lọc RS 75 mã
-    if (activeListId === 'preset:filter_75') {
-      if (presets.filter_75.length > 0) return presets.filter_75;
+    // Preset: Bộ lọc ValueX (Lấy trực tiếp kết quả từ tab Bộ lọc & Xếp hạng nếu có, fallback sang bộ lọc động từ API)
+    if (activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75') {
+      if (screenedRankings.length > 0) return screenedRankings;
+      if (presets.filter_valuex.length > 0) return presets.filter_valuex;
       return allStocks.length > 0 ? allStocks : [];
     }
 
@@ -223,8 +251,8 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     if (activeListId === 'preset:top150_adtv') {
       return { title: 'Top 150 GTGD BQ 20P', isCustom: false, count: activeStocks.length, icon: '💧' };
     }
-    if (activeListId === 'preset:filter_75') {
-      return { title: 'Bộ lọc RS 75 mã', isCustom: false, count: activeStocks.length, icon: '🎯' };
+    if (activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75') {
+      return { title: 'Bộ lọc ValueX', isCustom: false, count: activeStocks.length, icon: '🎯' };
     }
     const customId = activeListId.replace('custom:', '');
     const found = customLists.find((c) => c.id === customId);
@@ -393,8 +421,9 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       sourceTickers = presets.top150_cap.map((s) => s.ticker);
     } else if (newListSource === 'top150_adtv') {
       sourceTickers = presets.top150_adtv.map((s) => s.ticker);
-    } else if (newListSource === 'filter_75') {
-      sourceTickers = presets.filter_75.map((s) => s.ticker);
+    } else if (newListSource === 'filter_valuex' || newListSource === 'filter_75') {
+      const sourceList = screenedRankings.length > 0 ? screenedRankings : presets.filter_valuex;
+      sourceTickers = sourceList.map((s) => s.ticker);
     } else if (newListSource.startsWith('custom:')) {
       const srcId = newListSource.replace('custom:', '');
       const src = customLists.find((c) => c.id === srcId);
@@ -589,16 +618,20 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
               </button>
 
               <button
-                onClick={() => handleSelectWatchlist('preset:filter_75')}
+                onClick={() => handleSelectWatchlist('preset:filter_valuex')}
                 className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
-                  activeListId === 'preset:filter_75' ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
+                  activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75'
+                    ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40'
+                    : 'text-slate-700 dark:text-gray-200'
                 }`}
               >
                 <div className="flex items-center space-x-2">
                   <span>🎯</span>
-                  <span>Bộ lọc RS 75 mã</span>
+                  <span>Bộ lọc ValueX</span>
                 </div>
-                {activeListId === 'preset:filter_75' && <Check className="w-3.5 h-3.5 text-blue-500" />}
+                {(activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75') && (
+                  <Check className="w-3.5 h-3.5 text-blue-500" />
+                )}
               </button>
 
               <div className="px-3 py-1 mt-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-t border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
@@ -1118,7 +1151,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                   <option value="empty">Danh mục trống (Tự thêm mã sau)</option>
                   <option value="top150_cap">Mẫu: Top 150 Vốn hóa (150 mã)</option>
                   <option value="top150_adtv">Mẫu: Top 150 GTGD BQ 20P (150 mã)</option>
-                  <option value="filter_75">Mẫu: Bộ lọc RS 75 mã (75 mã)</option>
+                  <option value="filter_valuex">Mẫu: Bộ lọc ValueX ({activeListId.includes('filter') ? activeStocks.length : screenedRankings.length || presets.filter_valuex.length || 70} mã)</option>
                   {customLists.map((c) => (
                     <option key={c.id} value={`custom:${c.id}`}>
                       Sao chép từ: {c.name} ({c.tickers.length} mã)

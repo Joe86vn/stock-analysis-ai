@@ -146,14 +146,10 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.adtv20Billion - a.adtv20Billion)
       .slice(0, 150);
 
-    // 3. Bộ lọc 75 mã
-    const filter75Map = new Set(FILTER_75_TICKERS);
-    const filter75 = universe
-      .filter((s) => filter75Map.has(s.ticker))
-      .map((s) => ({
-        ...s,
-        rsRating: FILTER_75_RS_MAP[s.ticker] || s.rsRating,
-      }));
+    // 3. Bộ lọc ValueX (Động theo tiêu chuẩn ValueX: RS >= 70 & ADTV 20N >= 5 Tỷ)
+    const filterValueX = [...universe]
+      .filter((s) => (s.rsRating || 0) >= 70 && (s.adtv20Billion || 0) >= 5)
+      .sort((a, b) => (b.rsRating || 0) - (a.rsRating || 0));
 
     // Cập nhật Cache
     memoryCache = {
@@ -161,7 +157,7 @@ export async function GET(req: NextRequest) {
       universe,
       top150Cap,
       top150Adtv,
-      filter75,
+      filter75: filterValueX,
     };
 
     return NextResponse.json({
@@ -170,7 +166,8 @@ export async function GET(req: NextRequest) {
       data: {
         top150_cap: top150Cap,
         top150_adtv: top150Adtv,
-        filter_75: filter75,
+        filter_valuex: filterValueX,
+        filter_75: filterValueX,
         universe,
       },
     });
