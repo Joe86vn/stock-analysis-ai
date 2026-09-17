@@ -16,14 +16,17 @@ import {
   Trophy,
   Search,
   Settings,
+  Layers,
 } from 'lucide-react';
 import Link from 'next/link';
+import { ChartUtilitySidebar } from './chart/sidebar/ChartUtilitySidebar';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { useTheme } from '@/components/ThemeProvider';
 import { DrawingToolType } from './chart/drawing-types';
 import { DrawingToolbar } from './chart/DrawingToolbar';
 import { registerSwingHighLowIndicator } from './chart/indicators/custom-swing-hl';
 import { registerMeasureOverlay } from './chart/overlays/measure-overlay';
+import { registerDividendMarkerOverlay } from './chart/overlays/dividend-marker-overlay';
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '@/lib/resample-ohlc';
 import {
   ChartColorTheme,
@@ -266,6 +269,7 @@ export function StockChartPanel({
   } | null>(null);
   const [showDividendMarkers, setShowDividendMarkers] = useState(true);
   const [dividendEvents, setDividendEvents] = useState<any[]>([]);
+  const dividendOverlayIdsRef = useRef<string[]>([]);
 
   // Ticker search switcher state
   const [showTickerSearch, setShowTickerSearch] = useState(false);
@@ -321,6 +325,66 @@ export function StockChartPanel({
     plots: [],
     initialTab: 'params',
   });
+
+  // ─── Utility Sidebar State ────────────────────────────────────────────────
+  const [showSidebar, setShowSidebar] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('stock_chart_sidebar_open');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setShowSidebar((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('stock_chart_sidebar_open', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // Phím tắt bàn phím \ để bật/tắt sidebar tiện ích
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+      if (e.key === '\\') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleSidebar]);
+
+  // Tự động resize KLineCharts khi container hoặc sidebar thay đổi
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+    const ro = new ResizeObserver(() => {
+      if (chartRef.current) {
+        chartRef.current.resize();
+      }
+    });
+    ro.observe(chartContainerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (chartRef.current) {
+        chartRef.current.resize();
+      }
+    }, 120);
+    return () => clearTimeout(t);
+  }, [showSidebar]);
 
   const isOpen = !!ticker;
 
@@ -479,6 +543,15 @@ export function StockChartPanel({
 
     Promise.all([fetchPriceHistory(ticker, 'D'), pollLivePrice(ticker)]);
 
+    fetch(`/api/stocks/${ticker}/events`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          setDividendEvents(json.data);
+        }
+      })
+      .catch(() => {});
+
     if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
     priceIntervalRef.current = setInterval(() => pollLivePrice(ticker), 15000);
 
@@ -518,6 +591,7 @@ export function StockChartPanel({
 
       registerSwingHighLowIndicator();
       registerMeasureOverlay();
+      registerDividendMarkerOverlay();
 
       const chart = klinecharts.init(chartContainerRef.current, {
         timezone: 'Asia/Ho_Chi_Minh',
@@ -1325,6 +1399,89 @@ export function StockChartPanel({
     }
   }, [allBars, resolution]);
 
+  // ─── Vẽ Marker Sự kiện Cổ tức & Phát hành (D / S) trên nến ────────────────
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    // 1. Xóa các overlay cũ trước
+    if (dividendOverlayIdsRef.current.length > 0) {
+      dividendOverlayIdsRef.current.forEach((id) => {
+        try {
+          chart.removeOverlay(id);
+        } catch {}
+      });
+      dividendOverlayIdsRef.current = [];
+    }
+
+    // 2. Nếu nút toggle tắt, dừng lại
+    if (!showDividendMarkers || dividendEvents.length === 0 || allBars.length === 0) {
+      return;
+    }
+
+    // 3. Khớp sự kiện theo ngày không hưởng quyền (exrightDate) với nến
+    const createdIds: string[] = [];
+
+    dividendEvents.forEach((ev) => {
+      if (!ev.exrightDate) return;
+      const exDateStr = ev.exrightDate.slice(0, 10); // YYYY-MM-DD
+
+      // Tìm nến tương ứng
+      let matchedBar: OhlcBar | undefined;
+      if (resolution === 'D') {
+        matchedBar = allBars.find((b) => b.fullDate === exDateStr);
+      } else {
+        const exTime = new Date(exDateStr + 'T00:00:00Z').getTime();
+        const maxDiff = resolution === 'W' ? 7 * 86400000 : 31 * 86400000;
+        matchedBar = allBars.find((b) => {
+          const bTime = new Date(b.fullDate + 'T00:00:00Z').getTime();
+          return Math.abs(bTime - exTime) <= maxDiff;
+        });
+      }
+
+      if (!matchedBar) return;
+
+      const ts = new Date(matchedBar.fullDate + 'T00:00:00Z').getTime();
+      const isCash =
+        ev.eventTitleVi?.toLowerCase().includes('tiền mặt') ||
+        ev.eventNameVi?.toLowerCase().includes('tiền mặt');
+
+      let shortLabel = '';
+      const ratioMatch = ev.eventTitleVi?.match(/(\d+(\.\d+)?%)/);
+      if (ratioMatch) {
+        shortLabel = ratioMatch[1];
+      } else if (ev.exerciseRatio) {
+        shortLabel = `${Math.round(ev.exerciseRatio * 100)}%`;
+      }
+
+      try {
+        const overlayId = chart.createOverlay(
+          {
+            name: 'dividendMarker',
+            lock: true,
+            points: [{ timestamp: ts, value: matchedBar.lowestPrice }],
+            extendData: {
+              type: isCash ? 'cash' : 'stock',
+              title: ev.eventTitleVi || ev.eventNameVi,
+              dateStr: exDateStr,
+              ratio: ev.exerciseRatio,
+              shortLabel,
+            },
+          },
+          'candle_pane'
+        );
+
+        if (typeof overlayId === 'string') {
+          createdIds.push(overlayId);
+        }
+      } catch (err) {
+        console.warn('[StockChartPanel] Failed to create dividend overlay:', err);
+      }
+    });
+
+    dividendOverlayIdsRef.current = createdIds;
+  }, [showDividendMarkers, dividendEvents, allBars, resolution]);
+
   // ─── Cập nhật nến cuối với livePrice ──────────────────────────────────────
 
   useEffect(() => {
@@ -1974,14 +2131,30 @@ export function StockChartPanel({
           >
             <Settings className="h-4 w-4" />
           </button>
+
+          <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
+
+          {/* Tiện ích Sidebar Toggle Button */}
+          <button
+            onClick={toggleSidebar}
+            className={`
+              flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer
+              ${showSidebar
+                ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 shadow-2xs'
+                : 'bg-gray-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white border border-gray-200 dark:border-gray-700/80'
+              }
+            `}
+            title="Bật/tắt thanh tiện ích: Bảng giá mini, Tài chính 4 kỳ, Cổ tức, Tin tức (phím tắt \)"
+          >
+            <Layers className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <span className="hidden sm:inline">Tiện ích</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${showSidebar ? 'bg-blue-500' : 'bg-gray-400'}`} />
+          </button>
         </div>
       </div>
 
-      {/* Main Chart Area */}
-      <div
-        className="relative flex-1 min-h-0 w-full h-full"
-        onMouseLeave={() => setCrosshairData(null)}
-      >
+      {/* Main Chart Area with Sidebar */}
+      <div className="relative flex-1 min-h-0 w-full h-full flex overflow-hidden">
         {/* TradingView Left Drawing Toolbar */}
         <DrawingToolbar
           activeTool={activeTool}
@@ -1989,23 +2162,40 @@ export function StockChartPanel({
           onClearAll={handleClearAllOverlays}
         />
 
-        {isLoadingChart && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-950/80 backdrop-blur-xs">
-            <RefreshCw className="h-9 w-9 text-indigo-500 animate-spin mb-3" />
-            <p className="text-sm font-bold text-gray-600 dark:text-gray-300">
-              Đang tải dữ liệu biểu đồ {resolution === 'W' ? 'tuần (Weekly)' : resolution === 'M' ? 'tháng (Monthly)' : 'ngày (Daily)'} ({ticker})...
-            </p>
-          </div>
-        )}
-        {!isLoadingChart && allBars.length === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
-            <TrendingUp className="h-12 w-12 text-gray-300 dark:text-gray-700 mb-3" />
-            <p className="text-base font-bold text-gray-400">Không có dữ liệu giá cho {ticker}</p>
-          </div>
-        )}
+        {/* Chart Canvas Area */}
+        <div
+          className="relative flex-1 min-h-0 w-full h-full overflow-hidden"
+          onMouseLeave={() => setCrosshairData(null)}
+        >
+          {isLoadingChart && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-950/80 backdrop-blur-xs">
+              <RefreshCw className="h-9 w-9 text-indigo-500 animate-spin mb-3" />
+              <p className="text-sm font-bold text-gray-600 dark:text-gray-300">
+                Đang tải dữ liệu biểu đồ {resolution === 'W' ? 'tuần (Weekly)' : resolution === 'M' ? 'tháng (Monthly)' : 'ngày (Daily)'} ({ticker})...
+              </p>
+            </div>
+          )}
+          {!isLoadingChart && allBars.length === 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
+              <TrendingUp className="h-12 w-12 text-gray-300 dark:text-gray-700 mb-3" />
+              <p className="text-base font-bold text-gray-400">Không có dữ liệu giá cho {ticker}</p>
+            </div>
+          )}
 
-        {/* KLineCharts canvas container */}
-        <div ref={chartContainerRef} className="absolute inset-0 w-full h-full" />
+          {/* KLineCharts canvas container */}
+          <div ref={chartContainerRef} className="absolute inset-0 w-full h-full" />
+        </div>
+
+        {/* Collapsible Utility Sidebar */}
+        <ChartUtilitySidebar
+          isOpen={showSidebar}
+          onClose={() => setShowSidebar(false)}
+          currentTicker={ticker || 'FPT'}
+          allStocks={allStocks}
+          onSelectTicker={(newTicker) => {
+            if (onSelectTicker) onSelectTicker(newTicker);
+          }}
+        />
       </div>
 
       {/* Footer */}
