@@ -31,6 +31,16 @@ interface ChartPoint {
 
 const CONDITIONS: EMACondition[] = ['EMA20', 'EMA50', 'EMA200'];
 
+const formatDateLabel = (dStr: string) => {
+  if (!dStr) return '';
+  const clean = dStr.slice(0, 10);
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0].slice(2)}`;
+  }
+  return clean;
+};
+
 export const BreadthChart: React.FC = () => {
   const [condition, setCondition] = useState<EMACondition>('EMA50');
   const [data, setData] = useState<ChartPoint[]>([]);
@@ -79,8 +89,12 @@ export const BreadthChart: React.FC = () => {
 
   useEffect(() => { load(condition); }, [condition, load]);
 
+  const startDateStr = data.length > 0 ? formatDateLabel(data[0].date) : '';
+  const midDateStr = data.length > 0 ? formatDateLabel(data[Math.floor(data.length / 2)].date) : '';
+  const endDateStr = data.length > 0 ? formatDateLabel(data[data.length - 1].date) : '';
+
   return (
-    <div className="w-full">
+    <div className="w-full font-sans select-none">
       {/* Toggle EMA */}
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex gap-1">
@@ -90,7 +104,7 @@ export const BreadthChart: React.FC = () => {
               onClick={() => setCondition(c)}
               className={`text-[10px] font-bold px-2 py-0.5 rounded transition cursor-pointer ${
                 condition === c
-                  ? 'bg-violet-500 text-white'
+                  ? 'bg-violet-600 text-white'
                   : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
@@ -107,37 +121,46 @@ export const BreadthChart: React.FC = () => {
         )}
       </div>
 
-      {loading && <div className="h-[110px] flex items-center justify-center text-xs text-gray-400">Đang tải...</div>}
-      {error && !loading && <div className="h-[110px] flex items-center justify-center text-xs text-gray-400">Không có dữ liệu</div>}
-      {!loading && !error && (
-        <ResponsiveContainer width="100%" height={110}>
-          <LineChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-            <XAxis dataKey="date" hide />
-            <YAxis hide domain={[0, 100]} />
-            <ReferenceLine y={70} stroke="rgba(239, 68, 68, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '70%', fill: 'rgba(239, 68, 68, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
-            <ReferenceLine y={50} stroke="rgba(255, 255, 255, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '50%', fill: 'rgba(255, 255, 255, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
-            <ReferenceLine y={30} stroke="rgba(34, 197, 94, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '30%', fill: 'rgba(34, 197, 94, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
-            <Tooltip
-              contentStyle={{
-                background: 'rgba(15,23,42,0.9)',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 11,
-                color: '#e2e8f0',
-              }}
-              formatter={(val: number) => [`${val.toFixed(1)}%`, `% mã trên ${condition}`]}
-              labelFormatter={(label) => label}
-            />
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke="#8b5cf6"
-              strokeWidth={1.5}
-              dot={false}
-              activeDot={{ r: 3 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      {loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Đang tải...</div>}
+      {error && !loading && <div className="h-[120px] flex items-center justify-center text-xs text-gray-400">Không có dữ liệu</div>}
+      {!loading && !error && data.length > 0 && (
+        <div className="relative w-full bg-gray-50/50 dark:bg-black/20 rounded-lg p-2 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
+          <ResponsiveContainer width="100%" height={105}>
+            <LineChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+              <XAxis dataKey="date" hide />
+              <YAxis hide domain={[0, 100]} />
+              <ReferenceLine y={70} stroke="rgba(239, 68, 68, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '70%', fill: 'rgba(239, 68, 68, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
+              <ReferenceLine y={50} stroke="rgba(148, 163, 184, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '50%', fill: 'rgba(148, 163, 184, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
+              <ReferenceLine y={30} stroke="rgba(34, 197, 94, 0.45)" strokeDasharray="3 3" strokeWidth={1} label={{ value: '30%', fill: 'rgba(34, 197, 94, 0.6)', fontSize: 8, position: 'insideTopLeft' }} />
+              <Tooltip
+                contentStyle={{
+                  background: 'rgba(15,23,42,0.9)',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontSize: 11,
+                  color: '#e2e8f0',
+                }}
+                formatter={(val: number) => [`${val.toFixed(1)}%`, `% mã trên ${condition}`]}
+                labelFormatter={(label) => label}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="#8b5cf6"
+                strokeWidth={1.5}
+                dot={false}
+                activeDot={{ r: 3 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+
+          {/* Bottom Time Axis */}
+          <div className="flex justify-between items-center text-[9.5px] text-gray-400 font-sans font-medium px-1 mt-1 border-t border-gray-100 dark:border-gray-800/60 pt-0.5">
+            <span>{startDateStr}</span>
+            <span>{midDateStr}</span>
+            <span>{endDateStr}</span>
+          </div>
+        </div>
       )}
     </div>
   );
