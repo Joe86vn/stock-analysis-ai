@@ -64,84 +64,74 @@ export const MarketInfluenceTable: React.FC = () => {
     return allVals.length > 0 ? Math.max(...allVals, 0.1) : 1;
   }, [topUp, topDown]);
 
-  if (loading) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Đang tải biểu đồ ảnh hưởng...</div>;
+  if (loading) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Đang tải đóng góp điểm số...</div>;
   if (error) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Không có dữ liệu ảnh hưởng</div>;
 
   return (
     <div className="w-full font-sans select-none text-[10px]">
-      {/* Header titles */}
-      <div className="grid grid-cols-2 gap-2 mb-1.5 pb-1 border-b border-gray-100 dark:border-gray-800/80 font-extrabold uppercase tracking-tight text-[9.5px]">
-        <div className="text-left text-emerald-700 dark:text-emerald-400">Top 10 đóng góp tăng</div>
-        <div className="text-right text-red-700 dark:text-red-400">Top 10 đóng góp giảm</div>
+      {/* Header titles (Vietcap style) */}
+      <div className="grid grid-cols-2 gap-3 mb-2 font-black tracking-tight text-[11px]">
+        <div className="text-center text-slate-900 dark:text-white">Đóng góp tăng</div>
+        <div className="text-center text-slate-900 dark:text-white">Đóng góp giảm</div>
       </div>
 
-      {/* 2-Column Horizontal Bar Chart Grid */}
-      <div className="grid grid-cols-2 gap-2">
-        {/* Left Column: Top 10 Kéo Tăng */}
-        <div className="flex flex-col gap-1">
+      {/* 2-Column Vietcap Horizontal Bar Chart Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Left Column: Top Đóng Góp Tăng */}
+        <div className="flex flex-col gap-1.5">
           {topUp.map((item) => {
             const inf = item.InfluenceIndex ?? 0;
             const barWidthPct = Math.min((Math.abs(inf) / maxVal) * 100, 100);
-            const perChg = item.PerChange !== undefined ? item.PerChange * (item.PerChange < 1 && item.PerChange > -1 ? 100 : 1) : 0;
 
             return (
-              <div key={item.StockCode} className="flex items-center gap-1 h-5">
-                {/* Ticker - Dark slate in light, White in dark */}
-                <span className="font-extrabold text-slate-900 dark:text-white w-7 shrink-0 text-[10px]">
-                  {item.StockCode}
-                </span>
-
-                {/* Per Change % */}
-                <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 w-10 shrink-0 text-right">
-                  +{perChg.toFixed(1)}%
-                </span>
-
-                {/* Horizontal Bar (grows left-to-right) */}
-                <div className="flex-1 h-4 bg-emerald-50/80 dark:bg-emerald-950/40 rounded border border-emerald-100/80 dark:border-emerald-900/40 relative flex items-center min-w-0 overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-xs transition-all duration-300 flex items-center justify-center min-w-[42px] px-1"
-                    style={{ width: `${Math.max(barWidthPct, 22)}%` }}
-                  >
-                    <span className="text-[9px] font-black text-white whitespace-nowrap drop-shadow-2xs">
-                      +{inf.toFixed(2)}
-                    </span>
+              <div key={item.StockCode} className="flex items-center gap-1.5 h-5">
+                {/* Number on left + Green Bar growing to right */}
+                <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
+                  <span className="text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                    {inf > 0 ? `+${inf.toFixed(2)}` : inf.toFixed(2)}
+                  </span>
+                  <div className="flex-1 flex items-center justify-end h-3 min-w-0">
+                    <div
+                      className="h-2.5 bg-[#22c55e] dark:bg-emerald-500 rounded-full transition-all duration-300 min-w-[4px]"
+                      style={{ width: `${Math.max(barWidthPct, 4)}%` }}
+                    />
                   </div>
                 </div>
+
+                {/* Ticker on right */}
+                <span className="font-extrabold text-slate-900 dark:text-white w-7 shrink-0 text-left text-[10px]">
+                  {item.StockCode}
+                </span>
               </div>
             );
           })}
         </div>
 
-        {/* Right Column: Top 10 Kéo Giảm */}
-        <div className="flex flex-col gap-1">
+        {/* Right Column: Top Đóng Góp Giảm */}
+        <div className="flex flex-col gap-1.5">
           {topDown.map((item) => {
             const inf = item.InfluenceIndex ?? 0;
             const barWidthPct = Math.min((Math.abs(inf) / maxVal) * 100, 100);
-            const perChg = item.PerChange !== undefined ? item.PerChange * (item.PerChange < 1 && item.PerChange > -1 ? 100 : 1) : 0;
 
             return (
-              <div key={item.StockCode} className="flex items-center gap-1 h-5">
-                {/* Horizontal Bar (grows right-to-left) */}
-                <div className="flex-1 h-4 bg-red-50/80 dark:bg-red-950/40 rounded border border-red-100/80 dark:border-red-900/40 relative flex items-center justify-end min-w-0 overflow-hidden">
-                  <div
-                    className="h-full bg-red-500 rounded-xs transition-all duration-300 flex items-center justify-center min-w-[42px] px-1"
-                    style={{ width: `${Math.max(barWidthPct, 22)}%` }}
-                  >
-                    <span className="text-[9px] font-black text-white whitespace-nowrap drop-shadow-2xs">
-                      {inf.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Per Change % */}
-                <span className="text-[9px] font-bold text-red-700 dark:text-red-400 w-10 shrink-0 text-left">
-                  {perChg.toFixed(1)}%
-                </span>
-
-                {/* Ticker - Dark slate in light, White in dark */}
+              <div key={item.StockCode} className="flex items-center gap-1.5 h-5">
+                {/* Ticker on left */}
                 <span className="font-extrabold text-slate-900 dark:text-white w-7 shrink-0 text-right text-[10px]">
                   {item.StockCode}
                 </span>
+
+                {/* Red Bar growing to right + Number on right */}
+                <div className="flex-1 flex items-center justify-start gap-1.5 min-w-0">
+                  <div className="flex-1 flex items-center justify-start h-3 min-w-0">
+                    <div
+                      className="h-2.5 bg-[#dc2626] dark:bg-red-500 rounded-full transition-all duration-300 min-w-[4px]"
+                      style={{ width: `${Math.max(barWidthPct, 4)}%` }}
+                    />
+                  </div>
+                  <span className="text-[9.5px] font-bold text-red-600 dark:text-red-400 shrink-0">
+                    {inf.toFixed(2)}
+                  </span>
+                </div>
               </div>
             );
           })}

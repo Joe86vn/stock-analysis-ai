@@ -17,7 +17,7 @@ interface FlowItem {
 
 const formatBillion = (v: number) => {
   const abs = Math.abs(v);
-  if (abs >= 1e9) return `${(abs / 1e9).toFixed(1)}B`;
+  if (abs >= 1e9) return `${(abs / 1e9).toFixed(1)}`;
   if (abs >= 1e6) return `${(abs / 1e6).toFixed(0)}M`;
   return abs.toFixed(0);
 };
@@ -83,21 +83,26 @@ export const NetFlowTable: React.FC = () => {
     return all.length > 0 ? Math.max(...all, 1e6) : 1e9;
   }, [foreignBuy, foreignSell]);
 
-  if (loading) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Đang tải dòng tiền nước ngoài...</div>;
+  if (loading) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Đang tải giao dịch NN...</div>;
   if (error) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Không có dữ liệu nước ngoài</div>;
 
   return (
     <div className="w-full font-sans select-none text-[10px]">
-      {/* Header titles */}
-      <div className="grid grid-cols-2 gap-2 mb-1.5 pb-1 border-b border-gray-100 dark:border-gray-800/80 font-extrabold uppercase tracking-tight text-[9.5px]">
-        <div className="text-left text-emerald-700 dark:text-emerald-400">▲ Top Mua ròng (Tỷ đ)</div>
-        <div className="text-right text-red-700 dark:text-red-400">▼ Top Bán ròng (Tỷ đ)</div>
+      {/* Title & Header titles (Vietcap style) */}
+      <div className="mb-2">
+        <div className="text-[11px] font-extrabold text-slate-900 dark:text-white mb-1">
+          Top cổ phiếu giao dịch (tỷ VNĐ)
+        </div>
+        <div className="grid grid-cols-2 gap-3 font-black tracking-tight text-[10.5px]">
+          <div className="text-center text-slate-900 dark:text-white">Mua ròng</div>
+          <div className="text-center text-slate-900 dark:text-white">Bán ròng</div>
+        </div>
       </div>
 
-      {/* 2-Column Horizontal Bar Chart Grid */}
-      <div className="grid grid-cols-2 gap-2">
-        {/* Left Column: Top Mua Ròng Nước Ngoài */}
-        <div className="flex flex-col gap-1">
+      {/* 2-Column Vietcap Horizontal Bar Chart Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Left Column: Mua Ròng Nước Ngoài */}
+        <div className="flex flex-col gap-1.5">
           {foreignBuy.map((item, i) => {
             const val = getNetVal(item, true);
             const barWidthPct = Math.min((val / maxVal) * 100, 100);
@@ -105,29 +110,30 @@ export const NetFlowTable: React.FC = () => {
 
             return (
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
-                {/* Ticker - Black in Light Mode, White in Dark Mode */}
-                <span className="font-extrabold text-slate-900 dark:text-white w-8 shrink-0 text-[10px]">
-                  {ticker}
-                </span>
-
-                {/* Horizontal Bar (grows left-to-right) */}
-                <div className="flex-1 h-4 bg-emerald-50/80 dark:bg-emerald-950/40 rounded border border-emerald-100/80 dark:border-emerald-900/40 relative flex items-center min-w-0 overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-xs transition-all duration-300 flex items-center justify-center min-w-[48px] px-1"
-                    style={{ width: `${Math.max(barWidthPct, 24)}%` }}
-                  >
-                    <span className="text-[9px] font-black text-white whitespace-nowrap drop-shadow-2xs">
-                      +{formatBillion(val)}
-                    </span>
+                {/* Number on left + Green Bar growing to right */}
+                <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
+                  <span className="text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                    {formatBillion(val)}
+                  </span>
+                  <div className="flex-1 flex items-center justify-end h-3 min-w-0">
+                    <div
+                      className="h-2.5 bg-[#22c55e] dark:bg-emerald-500 rounded-full transition-all duration-300 min-w-[4px]"
+                      style={{ width: `${Math.max(barWidthPct, 4)}%` }}
+                    />
                   </div>
                 </div>
+
+                {/* Ticker on right */}
+                <span className="font-extrabold text-slate-900 dark:text-white w-8 shrink-0 text-left text-[10px]">
+                  {ticker}
+                </span>
               </div>
             );
           })}
         </div>
 
-        {/* Right Column: Top Bán Ròng Nước Ngoài */}
-        <div className="flex flex-col gap-1">
+        {/* Right Column: Bán Ròng Nước Ngoài */}
+        <div className="flex flex-col gap-1.5">
           {foreignSell.map((item, i) => {
             const val = getNetVal(item, false);
             const barWidthPct = Math.min((val / maxVal) * 100, 100);
@@ -135,22 +141,23 @@ export const NetFlowTable: React.FC = () => {
 
             return (
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
-                {/* Horizontal Bar (grows right-to-left) */}
-                <div className="flex-1 h-4 bg-red-50/80 dark:bg-red-950/40 rounded border border-red-100/80 dark:border-red-900/40 relative flex items-center justify-end min-w-0 overflow-hidden">
-                  <div
-                    className="h-full bg-red-500 rounded-xs transition-all duration-300 flex items-center justify-center min-w-[48px] px-1"
-                    style={{ width: `${Math.max(barWidthPct, 24)}%` }}
-                  >
-                    <span className="text-[9px] font-black text-white whitespace-nowrap drop-shadow-2xs">
-                      -{formatBillion(val)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Ticker - Black in Light Mode, White in Dark Mode */}
+                {/* Ticker on left */}
                 <span className="font-extrabold text-slate-900 dark:text-white w-8 shrink-0 text-right text-[10px]">
                   {ticker}
                 </span>
+
+                {/* Red Bar growing to right + Number on right */}
+                <div className="flex-1 flex items-center justify-start gap-1.5 min-w-0">
+                  <div className="flex-1 flex items-center justify-start h-3 min-w-0">
+                    <div
+                      className="h-2.5 bg-[#dc2626] dark:bg-red-500 rounded-full transition-all duration-300 min-w-[4px]"
+                      style={{ width: `${Math.max(barWidthPct, 4)}%` }}
+                    />
+                  </div>
+                  <span className="text-[9.5px] font-bold text-red-600 dark:text-red-400 shrink-0">
+                    -{formatBillion(val)}
+                  </span>
+                </div>
               </div>
             );
           })}
