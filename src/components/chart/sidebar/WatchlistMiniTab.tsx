@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import {
   ChevronDown,
@@ -9,7 +9,9 @@ import {
   ArrowDown,
   Search,
   SlidersHorizontal,
+  RefreshCw,
 } from 'lucide-react';
+import { LiveQuoteItem } from '@/app/api/stocks/live-quotes/route';
 
 interface WatchlistMiniTabProps {
   currentTicker: string;
@@ -21,6 +23,11 @@ type SortField = 'ticker' | 'currentPrice' | 'priceChangePercent' | 'volOrVal' |
 type SortOrder = 'asc' | 'desc';
 type IndustrySortMode = 'stock_count' | 'total_adtv' | 'performance' | 'alphabetical';
 
+interface EnrichedStockItem extends StockRankingItem {
+  sessionValueBillion?: number;
+  sessionVolume?: number;
+}
+
 export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
   currentTicker,
   allStocks = [],
@@ -31,20 +38,85 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
   const [collapsedIndustries, setCollapsedIndustries] = useState<Record<string, boolean>>({});
   const [sortField, setSortField] = useState<SortField>('adtv20Billion');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [showValueMode, setShowValueMode] = useState<'val' | 'vol'>('val'); // GTGD (Tỷ) vs Khối lượng
+  const [showValueMode, setShowValueMode] = useState<'val' | 'vol'>('val'); // GTGD (Tỷ) vs Khối lượng (Tr)
+
+  // Bảng giá realtime MAS
+  const [liveQuotes, setLiveQuotes] = useState<Record<string, LiveQuoteItem>>({});
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Danh sách các mã cần lấy live quote
+  const symbolList = useMemo(() => {
+    return allStocks.map((s) => s.ticker).filter(Boolean);
+  }, [allStocks]);
+
+  // Polling lấy bảng giá live cho toàn bộ danh sách mã
+  useEffect(() => {
+    if (symbolList.length === 0) return;
+
+    const fetchQuotes = async () => {
+      try {
+        const symbolsParam = symbolList.join(',');
+        const res = await fetch(`/api/stocks/live-quotes?symbols=${symbolsParam}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.success && json.quotes) {
+          setLiveQuotes((prev) => ({ ...prev, ...json.quotes }));
+        }
+      } catch (err) {
+        console.warn('[WatchlistMiniTab] Live quote fetch failed:', err);
+      }
+    };
+
+    fetchQuotes();
+    pollIntervalRef.current = setInterval(fetchQuotes, 15000); // Cập nhật mỗi 15s
+
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, [symbolList]);
+
+  // Ghép dữ liệu realtime vào allStocks
+  const enrichedStocks = useMemo((): EnrichedStockItem[] => {
+    return allStocks.map((stock) => {
+      const quote = liveQuotes[stock.ticker];
+      if (!quote) return stock;
+
+      const currentPrice = quote.price > 0 ? quote.price : stock.currentPrice;
+      let priceChangePercent = quote.changePercent;
+      if (
+        priceChangePercent === 0 &&
+        quote.price > 0 &&
+        quote.refPrice > 0 &&
+        quote.price !== quote.refPrice
+      ) {
+        priceChangePercent =
+          Math.round((((quote.price - quote.refPrice) / quote.refPrice) * 100) * 100) / 100;
+      }
+
+      return {
+        ...stock,
+        currentPrice,
+        priceChange: quote.change,
+        priceChangePercent,
+        refPrice: quote.refPrice > 0 ? quote.refPrice : stock.refPrice,
+        sessionValueBillion: quote.sessionValueBillion,
+        sessionVolume: quote.sessionVolume,
+      };
+    });
+  }, [allStocks, liveQuotes]);
 
   // Lọc theo từ khóa tìm kiếm
   const filteredStocks = useMemo(() => {
-    if (!searchQuery.trim()) return allStocks;
+    if (!searchQuery.trim()) return enrichedStocks;
     const q = searchQuery.trim().toUpperCase();
-    return allStocks.filter(
+    return enrichedStocks.filter(
       (s) => s.ticker.includes(q) || s.companyName.toLowerCase().includes(q.toLowerCase())
     );
-  }, [allStocks, searchQuery]);
+  }, [enrichedStocks, searchQuery]);
 
   // Nhóm theo ngành
   const industryGroups = useMemo(() => {
-    const map = new Map<string, StockRankingItem[]>();
+    const map = new Map<string, EnrichedStockItem[]>();
 
     for (const stock of filteredStocks) {
       const ind = stock.industry?.trim() || 'Ngành khác';
@@ -73,14 +145,17 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
           valA = a.adtv20Billion || 0;
           valB = b.adtv20Billion || 0;
         } else if (sortField === 'volOrVal') {
-          valA = a.adtv20Billion || 0;
-          valB = b.adtv20Billion || 0;
+          valA = a.sessionValueBillion ?? (a.adtv20Billion || 0);
+          valB = b.sessionValueBillion ?? (b.adtv20Billion || 0);
         }
 
         return sortOrder === 'asc' ? valA - valB : valB - valA;
       });
 
-      const totalAdtv = stocks.reduce((sum, s) => sum + (s.adtv20Billion || 0), 0);
+      const totalSessionVal = stocks.reduce(
+        (sum, s) => sum + (s.sessionValueBillion ?? (s.adtv20Billion || 0)),
+        0
+      );
       const avgChange =
         stocks.length > 0
           ? stocks.reduce((sum, s) => sum + (s.priceChangePercent || 0), 0) / stocks.length
@@ -90,7 +165,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
         industry,
         stocks: sortedStocks,
         count: stocks.length,
-        totalAdtv,
+        totalSessionVal,
         avgChange,
       };
     });
@@ -100,7 +175,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       if (industrySortMode === 'stock_count') {
         return b.count - a.count; // Ưu tiên ngành nhiều mã nhất lên trên
       } else if (industrySortMode === 'total_adtv') {
-        return b.totalAdtv - a.totalAdtv;
+        return b.totalSessionVal - a.totalSessionVal;
       } else if (industrySortMode === 'performance') {
         return b.avgChange - a.avgChange;
       } else {
@@ -129,7 +204,8 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
   const fmtPrice = (p: number) => {
     if (!p) return '-';
-    return (p / 1000).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+    const val = p >= 1000 ? p / 1000 : p;
+    return val.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
   };
 
   return (
@@ -174,9 +250,9 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
           <button
             onClick={() => setShowValueMode((m) => (m === 'val' ? 'vol' : 'val'))}
             className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-[10px] font-mono text-gray-600 dark:text-gray-300 font-medium transition cursor-pointer"
-            title="Đổi giữa GTGD (Tỷ) và Khối lượng"
+            title="Đổi giữa GTGD phiên và Khối lượng phiên"
           >
-            {showValueMode === 'val' ? 'GTGD (Tỷ)' : 'Khối lượng'}
+            {showValueMode === 'val' ? 'GTGD (Tỷ)' : 'Khối lượng (Tr)'}
           </button>
         </div>
       </div>
@@ -216,7 +292,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
         <div
           className="col-span-2 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
           onClick={() => handleSort('volOrVal')}
-          title={showValueMode === 'val' ? 'Giá trị giao dịch' : 'Khối lượng giao dịch'}
+          title={showValueMode === 'val' ? 'Giá trị giao dịch phiên hôm nay' : 'Khối lượng giao dịch phiên hôm nay'}
         >
           <span>{showValueMode === 'val' ? 'GTGD' : 'KL'}</span>
           {sortField === 'volOrVal' && (
@@ -227,7 +303,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
         <div
           className="col-span-3 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
           onClick={() => handleSort('adtv20Billion')}
-          title="GTGD bình quân 20 phiên"
+          title="GTGD bình quân 20 phiên gần nhất"
         >
           <span>20N (Tỷ)</span>
           {sortField === 'adtv20Billion' && (
@@ -238,7 +314,12 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
       {/* ─── Danh sách Cổ phiếu Nhóm theo Ngành (Scrollable) ─── */}
       <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-gray-100 dark:divide-gray-800/60">
-        {industryGroups.length === 0 ? (
+        {allStocks.length === 0 ? (
+          <div className="p-8 flex flex-col items-center justify-center text-center text-gray-400 space-y-2">
+            <RefreshCw className="w-5 h-5 animate-spin text-blue-500" />
+            <span>Đang tải danh mục cổ phiếu...</span>
+          </div>
+        ) : industryGroups.length === 0 ? (
           <div className="p-8 text-center text-gray-400">
             Không tìm thấy mã cổ phiếu nào
           </div>
@@ -272,17 +353,17 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                     <span
                       className={`font-semibold ${
                         group.avgChange > 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
+                          ? 'text-emerald-500 dark:text-emerald-400'
                           : group.avgChange < 0
-                          ? 'text-rose-600 dark:text-rose-400'
-                          : 'text-amber-500'
+                          ? 'text-rose-500 dark:text-rose-400'
+                          : 'text-amber-400'
                       }`}
                     >
                       {group.avgChange > 0 ? '+' : ''}
                       {group.avgChange.toFixed(1)}%
                     </span>
                     <span className="text-gray-400 hidden sm:inline">
-                      ({group.totalAdtv.toFixed(0)} Tỷ)
+                      ({group.totalSessionVal.toFixed(0)} Tỷ)
                     </span>
                   </div>
                 </button>
@@ -296,10 +377,14 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                       const isUp = pct > 0;
                       const isDown = pct < 0;
                       const colorClass = isUp
-                        ? 'text-emerald-600 dark:text-emerald-400'
+                        ? 'text-emerald-500 dark:text-emerald-400'
                         : isDown
-                        ? 'text-rose-600 dark:text-rose-400'
-                        : 'text-amber-500';
+                        ? 'text-rose-500 dark:text-rose-400'
+                        : 'text-amber-400';
+
+                      // GTGD phiên hôm nay
+                      const sessionVal = s.sessionValueBillion;
+                      const sessionVol = s.sessionVolume;
 
                       return (
                         <div
@@ -334,11 +419,17 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                             {pct.toFixed(1)}%
                           </div>
 
-                          {/* KL hoặc GTGD */}
+                          {/* KL hoặc GTGD phiên */}
                           <div className="col-span-2 text-right text-slate-600 dark:text-gray-300 text-[11px]">
                             {showValueMode === 'val'
-                              ? `${s.adtv20Billion ? s.adtv20Billion.toFixed(1) : '-'} T`
-                              : `${s.adtv20Billion ? (s.adtv20Billion / ((s.currentPrice || 1) / 1000)).toFixed(1) : '-'} tr`}
+                              ? sessionVal !== undefined
+                                ? `${sessionVal.toFixed(1)} T`
+                                : s.adtv20Billion ? `${s.adtv20Billion.toFixed(1)} T` : '-'
+                              : sessionVol !== undefined
+                              ? `${(sessionVol / 1_000_000).toFixed(2)} tr`
+                              : s.adtv20Billion && s.currentPrice
+                              ? `${(s.adtv20Billion / (s.currentPrice / 1000)).toFixed(1)} tr`
+                              : '-'}
                           </div>
 
                           {/* 20N (Tỷ) */}
@@ -359,7 +450,9 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       {/* ─── Chân bảng: Thống kê nhanh ─── */}
       <div className="px-3 py-1.5 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1e222d] flex items-center justify-between text-[11px] text-gray-400 flex-shrink-0">
         <span>Tổng: <strong className="text-slate-700 dark:text-gray-200 font-mono">{filteredStocks.length}</strong> mã</span>
-        <span className="text-[10px]">Click mã để đổi nến</span>
+        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+          ● {Object.keys(liveQuotes).length > 0 ? `Realtime MAS (${Object.keys(liveQuotes).length} mã)` : 'Đang đồng bộ giá...'}
+        </span>
       </div>
     </div>
   );

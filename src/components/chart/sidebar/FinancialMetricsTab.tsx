@@ -19,14 +19,43 @@ interface FinancialMetricsTabProps {
 
 type PeriodType = 'quarter' | 'year';
 
+// ─── Hàm tính toán Tăng trưởng cùng kỳ (YoY Growth %) chuẩn hóa ──────────────
+function getYoYGrowth(
+  current: ParsedVietcapQuarter,
+  allData: ParsedVietcapQuarter[],
+  getValue: (q: ParsedVietcapQuarter) => number
+): number | null {
+  if (!current || !allData || allData.length === 0) return null;
+
+  let prev: ParsedVietcapQuarter | undefined;
+  // Nếu là xem theo quý: tìm quý cùng kỳ năm trước (ví dụ Q2/2026 so với Q2/2025)
+  if (current.quarter && current.quarter >= 1 && current.quarter <= 4) {
+    prev = allData.find(
+      (item) => item.year === current.year - 1 && item.quarter === current.quarter
+    );
+  }
+  // Nếu là xem theo năm: tìm năm trước (ví dụ 2025 so với 2024)
+  if (!prev) {
+    prev = allData.find((item) => item.year === current.year - 1);
+  }
+
+  if (!prev) return null;
+
+  const prevVal = getValue(prev);
+  const currVal = getValue(current);
+
+  if (prevVal === 0 || isNaN(prevVal) || isNaN(currVal)) return null;
+
+  return ((currVal - prevVal) / Math.abs(prevVal)) * 100;
+}
+
 interface MetricItem {
   id: string;
   label: string;
   unit: string;
   isPercent?: boolean;
   isRatio?: boolean;
-  getValue: (q: ParsedVietcapQuarter) => number;
-  getGrowth?: (curr: ParsedVietcapQuarter, prev?: ParsedVietcapQuarter) => number | null;
+  getValue: (q: ParsedVietcapQuarter, allData?: ParsedVietcapQuarter[]) => number | null;
 }
 
 interface MetricSection {
@@ -45,7 +74,6 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         label: 'Tổng tài sản',
         unit: 'Tỷ',
         getValue: (q) => q.totalAssets || 0,
-        getGrowth: (curr, prev) => (prev && prev.totalAssets > 0 ? ((curr.totalAssets - prev.totalAssets) / prev.totalAssets) * 100 : null),
       },
       {
         id: 'cashAndShortTermInv',
@@ -90,11 +118,6 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         label: 'Tổng nợ vay (ngắn + dài)',
         unit: 'Tỷ',
         getValue: (q) => (q.shortTermLoans || 0) + (q.longTermLoans || 0),
-        getGrowth: (curr, prev) => {
-          const dCurr = (curr.shortTermLoans || 0) + (curr.longTermLoans || 0);
-          const dPrev = prev ? (prev.shortTermLoans || 0) + (prev.longTermLoans || 0) : 0;
-          return dPrev > 0 ? ((dCurr - dPrev) / dPrev) * 100 : null;
-        },
       },
       {
         id: 'otherLiabilities',
@@ -110,7 +133,6 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         label: 'Vốn chủ sở hữu',
         unit: 'Tỷ',
         getValue: (q) => q.ownerEquity || 0,
-        getGrowth: (curr, prev) => (prev && prev.ownerEquity > 0 ? ((curr.ownerEquity - prev.ownerEquity) / prev.ownerEquity) * 100 : null),
       },
     ],
   },
@@ -122,14 +144,13 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         label: 'Doanh thu',
         unit: 'Tỷ',
         getValue: (q) => q.revenue || 0,
-        getGrowth: (curr, prev) => (prev && prev.revenue > 0 ? ((curr.revenue - prev.revenue) / prev.revenue) * 100 : null),
       },
       {
         id: 'revenueGrowth',
         label: 'Tăng trưởng doanh thu',
         unit: '%',
         isPercent: true,
-        getValue: (q) => (q as any).revenueGrowthYoY || 0,
+        getValue: (q, allData) => getYoYGrowth(q, allData || [], (x) => x.revenue || 0),
       },
       {
         id: 'grossProfit',
@@ -149,21 +170,26 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         label: 'Tăng trưởng LN gộp',
         unit: '%',
         isPercent: true,
-        getValue: (q) => 0,
-        getGrowth: (curr, prev) => (prev && prev.grossProfit > 0 ? ((curr.grossProfit - prev.grossProfit) / prev.grossProfit) * 100 : null),
+        getValue: (q, allData) => getYoYGrowth(q, allData || [], (x) => x.grossProfit || 0),
       },
       {
         id: 'netProfit',
         label: 'Lợi nhuận ròng (LNST)',
         unit: 'Tỷ',
         getValue: (q) => q.netProfit || 0,
-        getGrowth: (curr, prev) => (prev && prev.netProfit > 0 ? ((curr.netProfit - prev.netProfit) / prev.netProfit) * 100 : null),
       },
       {
         id: 'coreNetProfit',
         label: 'Lợi nhuận ròng cốt lõi',
         unit: 'Tỷ',
         getValue: (q) => q.operatingProfit || q.netProfit || 0,
+      },
+      {
+        id: 'coreNetProfitGrowth',
+        label: 'Tăng trưởng LNST cốt lõi',
+        unit: '%',
+        isPercent: true,
+        getValue: (q, allData) => getYoYGrowth(q, allData || [], (x) => x.operatingProfit || x.netProfit || 0),
       },
       {
         id: 'coreNetMargin',
@@ -176,7 +202,25 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         id: 'coreEps',
         label: 'EPS cốt lõi',
         unit: 'đ/cp',
-        getValue: (q) => q.eps || 0,
+        getValue: (q) => {
+          if (q.sharesOutstandingMillions > 0 && (q.operatingProfit || q.netProfit)) {
+            return Math.round(((q.operatingProfit || q.netProfit) / q.sharesOutstandingMillions) * 1000);
+          }
+          return q.eps > 0 && q.eps < 500000 ? q.eps : 0;
+        },
+      },
+      {
+        id: 'coreEpsGrowth',
+        label: 'Tăng trưởng EPS cốt lõi',
+        unit: '%',
+        isPercent: true,
+        getValue: (q, allData) =>
+          getYoYGrowth(q, allData || [], (x) => {
+            if (x.sharesOutstandingMillions > 0 && (x.operatingProfit || x.netProfit)) {
+              return Math.round(((x.operatingProfit || x.netProfit) / x.sharesOutstandingMillions) * 1000);
+            }
+            return x.eps > 0 && x.eps < 500000 ? x.eps : 0;
+          }),
       },
     ],
   },
@@ -187,7 +231,12 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         id: 'epsMetric',
         label: 'EPS cốt lõi',
         unit: 'đ/cp',
-        getValue: (q) => q.eps || 0,
+        getValue: (q) => {
+          if (q.sharesOutstandingMillions > 0 && (q.operatingProfit || q.netProfit)) {
+            return Math.round(((q.operatingProfit || q.netProfit) / q.sharesOutstandingMillions) * 1000);
+          }
+          return q.eps > 0 && q.eps < 500000 ? q.eps : 0;
+        },
       },
       {
         id: 'roe',
@@ -360,6 +409,8 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
       const sumGrossProfit = qInYear.reduce((s, it) => s + (it.grossProfit || 0), 0);
       const sumNetProfit = qInYear.reduce((s, it) => s + (it.netProfit || 0), 0);
       const sumOperatingProfit = qInYear.reduce((s, it) => s + (it.operatingProfit || 0), 0);
+      const latestShares = latestQ.sharesOutstandingMillions || 0;
+      const yearlyCoreEps = latestShares > 0 ? Math.round(((sumOperatingProfit || sumNetProfit) / latestShares) * 1000) : latestQ.eps;
 
       const yearlyItem: ParsedVietcapQuarter = {
         ...latestQ,
@@ -370,6 +421,7 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
         grossProfit: sumGrossProfit,
         netProfit: sumNetProfit,
         operatingProfit: sumOperatingProfit,
+        eps: yearlyCoreEps,
         grossMargin: sumRevenue > 0 ? (sumGrossProfit / sumRevenue) * 100 : latestQ.grossMargin,
         netMargin: sumRevenue > 0 ? (sumNetProfit / sumRevenue) * 100 : latestQ.netMargin,
       };
@@ -430,7 +482,7 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
     const slice = aggregatedData.slice(-12);
     return slice.map((it) => ({
       period: it.period,
-      value: activeMetric.getValue(it),
+      value: activeMetric.getValue(it, aggregatedData) ?? 0,
     }));
   }, [aggregatedData, activeMetric]);
 
@@ -438,7 +490,7 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
     setCollapsedSections((prev) => ({ ...prev, [title]: !prev[title] }));
   };
 
-  const fmtVal = (val: number, isPercent?: boolean, isRatio?: boolean) => {
+  const fmtVal = (val: number | null | undefined, isPercent?: boolean, isRatio?: boolean) => {
     if (val === undefined || val === null || isNaN(val)) return '-';
     if (isPercent) {
       return `${val > 0 ? '+' : ''}${val.toFixed(1)}%`;
@@ -621,53 +673,46 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
       </div>
 
       {/* ─── Header Bảng Số Liệu (Cửa sổ 4 kỳ trượt) ─── */}
-      <div className="grid grid-cols-12 px-2.5 py-1.5 border-b border-gray-200 dark:border-gray-800 bg-gray-100/90 dark:bg-[#1e222d] text-[10px] font-bold text-gray-500 dark:text-gray-400 items-center flex-shrink-0">
-        <div className="col-span-4 truncate pl-1">Chỉ tiêu</div>
+      <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-gray-200 dark:border-gray-800 bg-gray-100/90 dark:bg-[#1e222d] text-[10px] font-bold text-gray-500 dark:text-gray-400 flex-shrink-0">
+        <div className="w-[125px] sm:w-[135px] truncate pl-1 flex-shrink-0">Chỉ tiêu</div>
 
-        {/* Nút lùi về quá khứ (<) */}
-        <div className="col-span-1 text-center">
+        <div className="flex-1 flex items-center justify-between min-w-0">
+          {/* Nút lùi về quá khứ (<) */}
           <button
             onClick={handleSlideLeft}
             disabled={!canGoBack}
-            className={`p-0.5 rounded transition ${
+            className={`p-1 rounded transition flex-shrink-0 cursor-pointer ${
               canGoBack
-                ? 'text-blue-600 dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
-                : 'text-gray-300 dark:text-gray-600 opacity-40 cursor-not-allowed'
+                ? 'text-blue-600 dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                : 'text-gray-300 dark:text-gray-600 opacity-30 cursor-not-allowed'
             }`}
             title="Xem các kỳ trước đó (lùi quá khứ)"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
-        </div>
 
-        {/* 4 Cột Kỳ Thời Gian */}
-        <div className="col-span-5 grid grid-cols-4 text-center font-mono font-bold text-slate-700 dark:text-gray-200">
-          {visibleQuarters.map((q) => (
-            <div key={q.period} className="truncate text-[10px]" title={q.period}>
-              {q.period.replace('20', "'")}
-            </div>
-          ))}
-        </div>
+          {/* 4 Cột Kỳ Thời Gian */}
+          <div className="flex-1 grid grid-cols-4 text-center font-mono font-bold text-slate-700 dark:text-gray-200 px-1">
+            {visibleQuarters.map((q) => (
+              <div key={q.period} className="truncate text-[10.5px]" title={q.period}>
+                {q.period.replace('20', "'")}
+              </div>
+            ))}
+          </div>
 
-        {/* Nút tiến về hiện tại (>) */}
-        <div className="col-span-1 text-center">
+          {/* Nút tiến về hiện tại (>) */}
           <button
             onClick={handleSlideRight}
             disabled={!canGoForward}
-            className={`p-0.5 rounded transition ${
+            className={`p-1 rounded transition flex-shrink-0 cursor-pointer ${
               canGoForward
-                ? 'text-blue-600 dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
-                : 'text-gray-300 dark:text-gray-600 opacity-40 cursor-not-allowed'
+                ? 'text-blue-600 dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                : 'text-gray-300 dark:text-gray-600 opacity-30 cursor-not-allowed'
             }`}
             title="Xem các kỳ mới hơn (tiến hiện tại)"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
-        </div>
-
-        {/* Cột Tăng trưởng */}
-        <div className="col-span-1 text-right text-[9.5px] truncate" title="Tăng trưởng so với cùng kỳ YoY">
-          +/-
         </div>
       </div>
 
@@ -700,60 +745,51 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
                   {sec.metrics.map((metric) => {
                     const isSelected = metric.id === selectedMetricId;
 
-                    // Tính tăng trưởng kỳ mới nhất so với cùng kỳ
-                    const latestQ = visibleQuarters[visibleQuarters.length - 1];
-                    const prevQ = visibleQuarters[visibleQuarters.length - 2];
-                    const growthVal =
-                      metric.getGrowth && latestQ
-                        ? metric.getGrowth(latestQ, prevQ)
-                        : null;
-
                     return (
                       <div
                         key={metric.id}
                         onClick={() => setSelectedMetricId(metric.id)}
-                        className={`grid grid-cols-12 px-2.5 py-1.5 items-center cursor-pointer transition text-[10.5px] font-mono ${
+                        className={`flex items-center justify-between px-2.5 py-1.5 cursor-pointer transition text-[10.5px] font-mono ${
                           isSelected
                             ? 'bg-blue-50 dark:bg-blue-950/70 font-bold border-l-2 border-blue-600'
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                         }`}
                       >
                         {/* Tên chỉ tiêu */}
-                        <div className="col-span-5 font-sans font-medium text-slate-800 dark:text-gray-200 truncate pr-1 flex items-center space-x-1">
+                        <div className="w-[125px] sm:w-[135px] font-sans font-medium text-slate-800 dark:text-gray-200 truncate pr-1 flex items-center space-x-1 flex-shrink-0">
                           {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
                           <span className="truncate">{metric.label}</span>
                         </div>
 
                         {/* 4 Giá trị tương ứng 4 kỳ */}
-                        <div className="col-span-5 grid grid-cols-4 text-right">
-                          {visibleQuarters.map((q) => {
-                            const val = metric.getValue(q);
-                            return (
-                              <div
-                                key={q.period}
-                                className="truncate px-0.5 text-slate-700 dark:text-gray-300"
-                                title={`${q.period}: ${fmtVal(val, metric.isPercent, metric.isRatio)}`}
-                              >
-                                {fmtVal(val, metric.isPercent, metric.isRatio)}
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <div className="flex-1 flex items-center justify-between min-w-0">
+                          <div className="w-5 flex-shrink-0" />
+                          <div className="flex-1 grid grid-cols-4 text-right px-1">
+                            {visibleQuarters.map((q) => {
+                              const val = metric.getValue(q, aggregatedData);
+                              const isGrowth =
+                                metric.isPercent &&
+                                (metric.id.toLowerCase().includes('growth') || metric.id.includes('Growth'));
+                              const colorCls = isGrowth
+                                ? val !== null && val > 0
+                                  ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                                  : val !== null && val < 0
+                                  ? 'text-rose-600 dark:text-rose-400 font-bold'
+                                  : 'text-gray-400'
+                                : 'text-slate-700 dark:text-gray-300';
 
-                        {/* Khoảng đệm trống cột nút */}
-                        <div className="col-span-1" />
-
-                        {/* Cột Tăng trưởng */}
-                        <div
-                          className={`col-span-1 text-right font-bold text-[9.5px] ${
-                            growthVal && growthVal > 0
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : growthVal && growthVal < 0
-                              ? 'text-rose-600 dark:text-rose-400'
-                              : 'text-gray-400'
-                          }`}
-                        >
-                          {growthVal !== null ? `${growthVal > 0 ? '+' : ''}${Math.round(growthVal)}%` : '-'}
+                              return (
+                                <div
+                                  key={q.period}
+                                  className={`truncate px-0.5 ${colorCls}`}
+                                  title={`${q.period}: ${fmtVal(val, metric.isPercent, metric.isRatio)}`}
+                                >
+                                  {fmtVal(val, metric.isPercent, metric.isRatio)}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="w-5 flex-shrink-0" />
                         </div>
                       </div>
                     );
