@@ -221,41 +221,47 @@ export function StockChartPanel({
       .catch(() => {});
   }, [ticker, allStocks, internalStockData]);
 
-  const effectiveStockData: StockRankingItem = internalStockData || stockData || {
-    ticker: ticker || 'FPT',
-    companyName: ticker || 'Cổ phiếu',
-    exchange: 'HOSE',
-    industry: 'Cổ phiếu niêm yết',
-    currentPrice: 0,
-    rsRating: 80,
-    totalScore: 100,
-    maxScore: 150,
-    totalPercentage: 67,
-    rankGrade: 'B',
-    rankTitle: 'Khá',
-    financialHealthScore: 35,
-    growthQualityScore: 40,
-    businessQualityScore: 25,
-    financialHealthGrade: 'Tốt',
-    growthQualityGrade: 'Tốt',
-    businessQualityGrade: 'Khá',
-    adtv20Billion: 10,
-    marketCapBillion: 1000,
-    foreignPercentage: 0,
-    freeFloatPercentage: 0,
-    coreEpsGrowthYoY: 0,
-    coreNetProfitGrowthYoY: 0,
-    headlineNetProfitGrowthYoY: 0,
-    q0RevenueGrowthYoY: 0,
-    roic: 15,
-    roe: 18,
-    grossMargin: 20,
-    netMargin: 10,
-    netDebtToEbitda: 1.0,
-    cfoBillion: 500,
-    latestQuarter: 'Q2/2026',
-    updatedAt: new Date().toISOString(),
-  };
+  const effectiveStockData: StockRankingItem = (
+    internalStockData?.ticker === ticker
+      ? internalStockData
+      : stockData?.ticker === ticker
+      ? stockData
+      : {
+          ticker: ticker || 'CP',
+          companyName: ticker || 'Cổ phiếu',
+          exchange: 'HOSE',
+          industry: 'Cổ phiếu niêm yết',
+          currentPrice: 0,
+          rsRating: 80,
+          totalScore: 100,
+          maxScore: 150,
+          totalPercentage: 67,
+          rankGrade: 'B',
+          rankTitle: 'Khá',
+          financialHealthScore: 35,
+          growthQualityScore: 40,
+          businessQualityScore: 25,
+          financialHealthGrade: 'Tốt',
+          growthQualityGrade: 'Tốt',
+          businessQualityGrade: 'Khá',
+          adtv20Billion: 10,
+          marketCapBillion: 1000,
+          foreignPercentage: 0,
+          freeFloatPercentage: 0,
+          coreEpsGrowthYoY: 0,
+          coreNetProfitGrowthYoY: 0,
+          headlineNetProfitGrowthYoY: 0,
+          q0RevenueGrowthYoY: 0,
+          roic: 15,
+          roe: 18,
+          grossMargin: 20,
+          netMargin: 10,
+          netDebtToEbitda: 1.0,
+          cfoBillion: 500,
+          latestQuarter: 'Q2/2026',
+          updatedAt: new Date().toISOString(),
+        }
+  ) as StockRankingItem;
 
   const [allBars, setAllBars] = useState<OhlcBar[]>([]);
   const [isLoadingChart, setIsLoadingChart] = useState(false);
@@ -513,6 +519,11 @@ export function StockChartPanel({
     }
   }, [fetchPhase2Background]);
 
+  const currentTickerRef = useRef<string | null>(ticker);
+  useEffect(() => {
+    currentTickerRef.current = ticker;
+  }, [ticker]);
+
   // ─── Poll live price ─────────────────────────────────────────────────────
 
   const pollLivePrice = useCallback(async (t: string) => {
@@ -520,6 +531,8 @@ export function StockChartPanel({
       const res = await fetch(`/api/stocks/${t}/price`);
       if (!res.ok) return;
       const data = await res.json();
+      // Ngăn chặn ghi đè giá nếu user đã chuyển sang ticker khác trong lúc chờ fetch
+      if (currentTickerRef.current !== t) return;
       if (data && typeof data.price === 'number' && data.price > 0) {
         setLivePrice(data.price);
         if (typeof data.changePercent === 'number') {
@@ -561,12 +574,21 @@ export function StockChartPanel({
 
     setResolution('D');
     setActiveTimeframe('1N');
-    setLivePrice(stockData?.currentPrice || null);
-    if (stockData && typeof stockData.priceChangePercent === 'number') {
-      setPriceChange({ abs: stockData.priceChange || 0, pct: stockData.priceChangePercent });
+
+    // Chỉ gán livePrice ban đầu nếu stockData truyền vào khớp với ticker hiện tại
+    if (stockData && stockData.ticker === ticker) {
+      setLivePrice(stockData.currentPrice || null);
+      if (typeof stockData.priceChangePercent === 'number') {
+        setPriceChange({ abs: stockData.priceChange || 0, pct: stockData.priceChangePercent });
+      } else {
+        setPriceChange(null);
+      }
     } else {
+      setLivePrice(null);
       setPriceChange(null);
+      setInternalStockData(null);
     }
+
     setCrosshairData(null);
     setActiveTool('cursor');
 
@@ -1527,6 +1549,14 @@ export function StockChartPanel({
   useEffect(() => {
     if (!livePrice || !chartRef.current || allBars.length === 0) return;
     const lastBar = allBars[allBars.length - 1];
+
+    // Kiểm tra an toàn: Nếu livePrice lệch trên 40% so với giá đóng cửa nến cuối của lịch sử,
+    // đây là hiện tượng nốt giá cũ của mã khác hoặc sai số đòn bẩy -> Bỏ qua để tránh đột biến nến.
+    if (lastBar.closePrice > 0) {
+      const deviation = Math.abs(livePrice - lastBar.closePrice) / lastBar.closePrice;
+      if (deviation > 0.4) return;
+    }
+
     const ts = new Date(lastBar.fullDate + 'T00:00:00Z').getTime();
     chartRef.current.updateData({
       timestamp: isNaN(ts) ? Date.now() : ts,
