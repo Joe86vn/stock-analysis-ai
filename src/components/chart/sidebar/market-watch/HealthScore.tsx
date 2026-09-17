@@ -315,18 +315,41 @@ export const HealthScore: React.FC = () => {
         const ftdInfo = analyzeFTD(days);
 
         // Quy tắc điểm sức khỏe thị trường:
-        // 1. Sau FTD, điểm gốc mặc định = 7 điểm. Nếu chưa có FTD, điểm gốc = 10.
-        // 2. Trừ điểm phân phối 1-5 ngày sau FTD (-3đ nếu 1-2 ngày, -2đ nếu 3 ngày, -1đ nếu 4-5 ngày).
-        // 3. Trừ điểm các phiên phân phối bổ sung (-1đ/phiên) & MA20 (-1đ nếu dưới MA20).
+        // 1. Sau FTD (trong vòng 5 phiên đầu): điểm gốc mặc định = 7 điểm.
+        // 2. Nếu xuất hiện phân phối trong 1-5 ngày sau FTD:
+        //    - 1-2 ngày: -3đ (xác suất thất bại 95% -> vọt về 4/10 Correction)
+        //    - 3 ngày: -2đ (xác suất thất bại 70% -> vọt về 5/10 Pressure)
+        //    - 4-5 ngày: -1đ (xác suất thất bại 30% -> vọt về 6/10 Pressure)
+        // 3. SAU FTD TRÊN 5 PHIÊN MÀ KHÔNG CÓ PHIÊN PHÂN PHỐI NÀO -> Khôi phục trở lại 10 điểm gốc!
+        // 4. Trừ điểm các phiên phân phối phát sinh (-1đ/phiên) & MA20 (-1đ nếu dưới MA20).
         let baseScore = 10;
         let postFtdPenalty = 0;
         let otherDistribDays = distDays;
 
-        if (ftdInfo.ftdDetected) {
-          baseScore = 7; // Mặc định sau phiên FTD được 7 điểm
-          postFtdPenalty = ftdInfo.postFtdPenalty;
-          if (ftdInfo.postFtdDistribDay !== null) {
-            otherDistribDays = Math.max(0, distDays - 1);
+        if (ftdInfo.ftdDetected && ftdInfo.ftdIndex !== null) {
+          const lastIndex = days.length - 1;
+          const sessionsSinceFtd = lastIndex - ftdInfo.ftdIndex;
+
+          if (sessionsSinceFtd <= 5) {
+            // Trong vòng 5 phiên đầu sau FTD
+            baseScore = 7;
+            postFtdPenalty = ftdInfo.postFtdPenalty;
+            if (ftdInfo.postFtdDistribDay !== null) {
+              otherDistribDays = Math.max(0, distDays - 1);
+            }
+          } else {
+            // Sau FTD hơn 5 phiên
+            if (ftdInfo.postFtdDistribDay !== null) {
+              // Đã bị dính phân phối trong 5 phiên đầu -> Giữ điểm phạt
+              baseScore = 7;
+              postFtdPenalty = ftdInfo.postFtdPenalty;
+              otherDistribDays = Math.max(0, distDays - 1);
+            } else {
+              // KHÔNG CÓ phiên phân phối nào trong 5 phiên đầu -> Khôi phục trở lại 10 điểm!
+              baseScore = 10;
+              postFtdPenalty = 0;
+              otherDistribDays = distDays;
+            }
           }
         }
 

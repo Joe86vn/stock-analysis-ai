@@ -20,6 +20,7 @@ Sức khỏe thị trường được tính theo thang điểm từ **0 đến 1
 
 ### 2.1 Mức Điểm Gốc Ban Đầu
 - **Sau phiên FTD (Bùng nổ theo đà)**: Mặc định điểm sức khỏe thị trường = **7 / 10** (*Confirmed Uptrend*).
+- **Khôi phục 10 điểm**: Nếu sau **trên 5 phiên** kể từ ngày FTD mà **không xuất hiện bất kỳ phiên phân phối nào**, điểm sức khỏe thị trường sẽ được **khôi phục trở lại 10 / 10**.
 - **Trong thị trường thông thường / chưa FTD**: Mặc định điểm gốc = **10 / 10**.
 
 ### 2.2 Trừ Điểm Khi Xuất Hiện Phiên Phân Phối Sau FTD (Khoảng 1–5 Phiên)

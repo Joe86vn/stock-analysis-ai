@@ -68,5 +68,6 @@ Thống kê về ngày bùng nổ theo đà (FTD Failure Probabilities):
 - Phân phối tại phiên 1 hoặc 2 sau FTD: Xác suất thất bại 95% -> Trừ 3 điểm sức khỏe (về 4/10 -> Market in Correction ngay lập tức, hạ toàn bộ Margin).
 - Phân phối tại phiên thứ 3 sau FTD: Xác suất thất bại 70% -> Trừ 2 điểm sức khỏe (về 5/10 -> Uptrend under Pressure).
 - Phân phối tại phiên thứ 4 hoặc 5 sau FTD: Xác suất thất bại 30% -> Trừ 1 điểm sức khỏe (về 6/10 -> Uptrend under Pressure).
+- Sau FTD trên 5 phiên mà không xuất hiện phiên phân phối nào: Điểm sức khỏe thị trường được khôi phục trở lại 10/10.
 
 Chi tiết toàn bộ quy tắc tính điểm sức khỏe thị trường, tỷ trọng Exposure và Action Plan xem tại: [MARKET_HEALTH_RULES.md](file:///d:/2%20ANTIGRAVITY/analysis-report/docs/MARKET_HEALTH_RULES.md)
