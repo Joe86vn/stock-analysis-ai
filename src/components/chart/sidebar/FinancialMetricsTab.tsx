@@ -94,6 +94,18 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         getValue: (q) => q.inventories || 0,
       },
       {
+        id: 'fixedAssets',
+        label: 'Tài sản cố định',
+        unit: 'Tỷ',
+        getValue: (q) => q.fixedAssets || 0,
+      },
+      {
+        id: 'constructionInProgress',
+        label: 'Tài sản dở dang dài hạn',
+        unit: 'Tỷ',
+        getValue: (q) => q.constructionInProgress || 0,
+      },
+      {
         id: 'longTermInvestments',
         label: 'Đầu tư dài hạn',
         unit: 'Tỷ',
@@ -104,7 +116,14 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         label: 'Tài sản khác',
         unit: 'Tỷ',
         getValue: (q) => {
-          const main = (q.cashAndEquivalents || 0) + (q.shortTermInvestments || 0) + (q.receivables || 0) + (q.inventories || 0) + (q.longTermInvestments || 0);
+          const main =
+            (q.cashAndEquivalents || 0) +
+            (q.shortTermInvestments || 0) +
+            (q.receivables || 0) +
+            (q.inventories || 0) +
+            (q.fixedAssets || 0) +
+            (q.constructionInProgress || 0) +
+            (q.longTermInvestments || 0);
           return Math.max(0, (q.totalAssets || 0) - main);
         },
       },
