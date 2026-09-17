@@ -13,12 +13,12 @@ import {
   Plus,
   Copy,
   Trash2,
-  Edit2,
   FolderPlus,
   Check,
   X,
-  Layers,
-  Sparkles,
+  List,
+  LayoutGrid,
+  Grid3X3,
 } from 'lucide-react';
 import { LiveQuoteItem } from '@/app/api/stocks/live-quotes/route';
 
@@ -36,6 +36,7 @@ export interface CustomWatchlist {
   updatedAt: number;
 }
 
+type ViewMode = 'table' | 'grid_compact' | 'grid_card';
 type SortField = 'ticker' | 'rsRating' | 'currentPrice' | 'priceChangePercent' | 'volOrVal' | 'adtv20Billion';
 type SortOrder = 'asc' | 'desc';
 type IndustrySortMode = 'stock_count' | 'total_adtv' | 'performance' | 'alphabetical';
@@ -47,12 +48,16 @@ interface EnrichedStockItem extends StockRankingItem {
 
 const STORAGE_KEY_CUSTOM_LISTS = 'valuex_custom_watchlists';
 const STORAGE_KEY_ACTIVE_LIST = 'valuex_active_watchlist';
+const STORAGE_KEY_VIEW_MODE = 'valuex_watchlist_view_mode';
 
 export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
   currentTicker,
   allStocks = [],
   onSelectTicker,
 }) => {
+  // ─── Chế Độ Hiển Thị: Bảng (Table) | Lưới Nhiệt (Grid Compact) | Thẻ (Grid Card) ───
+  const [viewMode, setViewMode] = useState<ViewMode>('grid_compact');
+
   // ─── Watchlist Presets & Universe State ───────────────────────────────────
   const [presets, setPresets] = useState<{
     top150_cap: StockRankingItem[];
@@ -105,8 +110,6 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
   const [addTickerQuery, setAddTickerQuery] = useState<string>('');
   const [newListName, setNewListName] = useState<string>('');
   const [newListSource, setNewListSource] = useState<string>('current');
-  const [editingListId, setEditingListId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState<string>('');
 
   // ─── Filtering & Sorting ──────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -151,7 +154,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     };
   }, []);
 
-  // 2. Khởi tạo danh mục tự tạo từ localStorage
+  // 2. Khởi tạo danh mục tự tạo & chế độ xem từ localStorage
   useEffect(() => {
     try {
       const storedLists = localStorage.getItem(STORAGE_KEY_CUSTOM_LISTS);
@@ -165,8 +168,20 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       if (storedActive) {
         setActiveListId(storedActive);
       }
+      const storedViewMode = localStorage.getItem(STORAGE_KEY_VIEW_MODE) as ViewMode;
+      if (storedViewMode && ['table', 'grid_compact', 'grid_card'].includes(storedViewMode)) {
+        setViewMode(storedViewMode);
+      }
     } catch {}
   }, []);
+
+  // Lưu Chế độ xem
+  const handleSetViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem(STORAGE_KEY_VIEW_MODE, mode);
+    } catch {}
+  };
 
   // Lưu Custom Watchlists vào localStorage khi thay đổi
   const saveCustomLists = (lists: CustomWatchlist[]) => {
@@ -196,7 +211,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       if (presets.top150_adtv.length > 0) return presets.top150_adtv;
       return allStocks.length > 0 ? allStocks : [];
     }
-    // Preset: Bộ lọc ValueX (Lấy trực tiếp kết quả từ tab Bộ lọc & Xếp hạng nếu có, fallback sang bộ lọc động từ API)
+    // Preset: Bộ lọc ValueX (Ưu tiên lấy kết quả trực tiếp từ tab Bộ lọc & Xếp hạng nếu có, fallback sang bộ lọc động từ API)
     if (activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75') {
       if (screenedRankings.length > 0) return screenedRankings;
       if (presets.filter_valuex.length > 0) return presets.filter_valuex;
@@ -241,7 +256,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     }
 
     return presets.top150_cap.length > 0 ? presets.top150_cap : allStocks;
-  }, [activeListId, presets, customLists, allStocks]);
+  }, [activeListId, presets, customLists, allStocks, screenedRankings]);
 
   // Tên hiển thị của danh mục hiện tại
   const activeWatchlistInfo = useMemo(() => {
@@ -407,6 +422,93 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     return groups;
   }, [filteredStocks, sortField, sortOrder, industrySortMode]);
 
+  // ─── Hàm Tính Màu Nhiệt Động Chuẩn TTCK Việt Nam (Heatmap Colors) ───────────
+  const getHeatmapColorClass = (s: EnrichedStockItem) => {
+    const pct = s.priceChangePercent ?? 0;
+    const ex = (s.exchange || 'HSX').toUpperCase();
+    const ceilingPct = ex === 'UPCOM' ? 14.3 : ex === 'HNX' ? 9.5 : 6.7;
+    const floorPct = ex === 'UPCOM' ? -14.3 : ex === 'HNX' ? -9.5 : -6.7;
+
+    // 1. Tím trần (Ceiling)
+    if (pct >= ceilingPct && pct > 0) {
+      return {
+        bg: 'bg-[#d946ef] hover:bg-[#c026d3] text-white border-[#f0abfc] shadow-xs',
+        badge: 'bg-purple-950/60 text-purple-200',
+        textColor: 'text-white',
+      };
+    }
+
+    // 2. Xanh lơ sàn (Floor)
+    if (pct <= floorPct && pct < 0) {
+      return {
+        bg: 'bg-[#06b6d4] hover:bg-[#0891b2] text-slate-950 font-bold border-[#67e8f9] shadow-xs',
+        badge: 'bg-cyan-950/60 text-cyan-200',
+        textColor: 'text-slate-950',
+      };
+    }
+
+    // 3. Tăng mạnh > 3.0% (Xanh lá đậm neon)
+    if (pct >= 3.0) {
+      return {
+        bg: 'bg-[#16a34a] hover:bg-[#15803d] text-white font-bold border-[#4ade80] shadow-xs',
+        badge: 'bg-emerald-950/60 text-emerald-200',
+        textColor: 'text-white',
+      };
+    }
+
+    // 4. Tăng vừa 1.0% - 3.0% (Xanh lá vừa)
+    if (pct >= 1.0) {
+      return {
+        bg: 'bg-[#22c55e] hover:bg-[#16a34a] text-slate-950 font-bold border-[#86efac]',
+        badge: 'bg-emerald-950/30 text-emerald-950 dark:text-emerald-100',
+        textColor: 'text-slate-950',
+      };
+    }
+
+    // 5. Tăng nhẹ 0.1% - 1.0% (Xanh lá sáng dịu)
+    if (pct > 0) {
+      return {
+        bg: 'bg-[#86efac] hover:bg-[#4ade80] text-slate-950 font-bold border-[#bbf7d0]',
+        badge: 'bg-emerald-900/20 text-emerald-950',
+        textColor: 'text-slate-950',
+      };
+    }
+
+    // 6. Tham chiếu / Đứng giá 0.0% (Vàng tươi sáng)
+    if (pct === 0) {
+      return {
+        bg: 'bg-[#fde047] hover:bg-[#facc15] text-slate-950 font-bold border-[#fef08a]',
+        badge: 'bg-amber-900/20 text-amber-950',
+        textColor: 'text-slate-950',
+      };
+    }
+
+    // 7. Giảm nhẹ -0.1% đến -1.5% (Cam hồng nhạt)
+    if (pct > -1.5) {
+      return {
+        bg: 'bg-[#fca5a5] hover:bg-[#f87171] text-slate-950 font-bold border-[#fecaca]',
+        badge: 'bg-rose-950/30 text-rose-950',
+        textColor: 'text-slate-950',
+      };
+    }
+
+    // 8. Giảm vừa -1.5% đến -3.0% (Cam đỏ đậm)
+    if (pct >= -3.0) {
+      return {
+        bg: 'bg-[#f97316] hover:bg-[#ea580c] text-white font-bold border-[#fdba74] shadow-xs',
+        badge: 'bg-orange-950/60 text-orange-200',
+        textColor: 'text-white',
+      };
+    }
+
+    // 9. Giảm sâu > -3.0% (Đỏ đậm rực)
+    return {
+      bg: 'bg-[#dc2626] hover:bg-[#b91c1c] text-white font-bold border-[#f87171] shadow-xs',
+      badge: 'bg-rose-950/60 text-rose-200',
+      textColor: 'text-white',
+    };
+  };
+
   // ─── Các hàm thao tác Danh mục tự tạo ─────────────────────────────────────
 
   // Tạo danh mục mới (hoặc copy từ nguồn)
@@ -429,7 +531,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       const src = customLists.find((c) => c.id === srcId);
       sourceTickers = src ? [...src.tickers] : [];
     } else {
-      sourceTickers = []; // Trống
+      sourceTickers = [];
     }
 
     const newCustom: CustomWatchlist = {
@@ -507,22 +609,6 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     saveCustomLists(updated);
   };
 
-  // Đổi tên danh mục
-  const handleSaveRename = (id: string, e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = editingName.trim();
-    if (!trimmed) return;
-
-    const updated = customLists.map((c) => {
-      if (c.id === id) {
-        return { ...c, name: trimmed, updatedAt: Date.now() };
-      }
-      return c;
-    });
-    saveCustomLists(updated);
-    setEditingListId(null);
-  };
-
   // Gợi ý tìm kiếm mã khi gõ thêm mã
   const candidateTickersToAdd = useMemo(() => {
     if (!addTickerQuery.trim()) return [];
@@ -584,123 +670,121 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                 className="fixed inset-0 z-40"
                 onClick={() => setShowWatchlistMenu(false)}
               />
-              <div
-                className="absolute left-0 top-full mt-1 w-64 bg-white dark:bg-[#1e222d] rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-1.5 z-50 text-xs font-sans ring-1 ring-black/20 animate-in fade-in zoom-in-95 duration-100"
-              >
-              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">
-                Danh mục Mẫu (Preset)
-              </div>
-
-              <button
-                onClick={() => handleSelectWatchlist('preset:top150_cap')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
-                  activeListId === 'preset:top150_cap' ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <span>👑</span>
-                  <span>Top 150 Vốn hóa</span>
+              <div className="absolute left-0 top-full mt-1 w-64 bg-white dark:bg-[#1e222d] rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-1.5 z-50 text-xs font-sans ring-1 ring-black/20 animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">
+                  Danh mục Mẫu (Preset)
                 </div>
-                {activeListId === 'preset:top150_cap' && <Check className="w-3.5 h-3.5 text-blue-500" />}
-              </button>
 
-              <button
-                onClick={() => handleSelectWatchlist('preset:top150_adtv')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
-                  activeListId === 'preset:top150_adtv' ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <span>💧</span>
-                  <span>Top 150 GTGD BQ 20P</span>
-                </div>
-                {activeListId === 'preset:top150_adtv' && <Check className="w-3.5 h-3.5 text-blue-500" />}
-              </button>
+                <button
+                  onClick={() => handleSelectWatchlist('preset:top150_cap')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
+                    activeListId === 'preset:top150_cap' ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span>👑</span>
+                    <span>Top 150 Vốn hóa</span>
+                  </div>
+                  {activeListId === 'preset:top150_cap' && <Check className="w-3.5 h-3.5 text-blue-500" />}
+                </button>
 
-              <button
-                onClick={() => handleSelectWatchlist('preset:filter_valuex')}
-                className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
-                  activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75'
-                    ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40'
-                    : 'text-slate-700 dark:text-gray-200'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <span>🎯</span>
-                  <span>Bộ lọc ValueX</span>
+                <button
+                  onClick={() => handleSelectWatchlist('preset:top150_adtv')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
+                    activeListId === 'preset:top150_adtv' ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span>💧</span>
+                    <span>Top 150 GTGD BQ 20P</span>
+                  </div>
+                  {activeListId === 'preset:top150_adtv' && <Check className="w-3.5 h-3.5 text-blue-500" />}
+                </button>
+
+                <button
+                  onClick={() => handleSelectWatchlist('preset:filter_valuex')}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
+                    activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75'
+                      ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40'
+                      : 'text-slate-700 dark:text-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span>🎯</span>
+                    <span>Bộ lọc ValueX</span>
+                  </div>
+                  {(activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75') && (
+                    <Check className="w-3.5 h-3.5 text-blue-500" />
+                  )}
+                </button>
+
+                <div className="px-3 py-1 mt-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-t border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                  <span>Danh mục của bạn ({customLists.length})</span>
                 </div>
-                {(activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75') && (
-                  <Check className="w-3.5 h-3.5 text-blue-500" />
+
+                {customLists.length === 0 ? (
+                  <div className="px-3 py-2 text-[11px] text-gray-400 italic text-center">
+                    Chưa có danh mục tự tạo nào
+                  </div>
+                ) : (
+                  customLists.map((cl) => {
+                    const isCur = activeListId === `custom:${cl.id}`;
+                    return (
+                      <div
+                        key={cl.id}
+                        onClick={() => handleSelectWatchlist(`custom:${cl.id}`)}
+                        className={`group flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
+                          isCur ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2 truncate">
+                          <span>⭐</span>
+                          <span className="truncate">{cl.name}</span>
+                          <span className="text-[10px] text-gray-400 font-mono">({cl.tickers.length})</span>
+                        </div>
+                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition">
+                          <button
+                            onClick={(e) => handleDeleteCustomWatchlist(cl.id, e)}
+                            className="p-1 text-gray-400 hover:text-rose-500 cursor-pointer"
+                            title="Xóa danh mục này"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
-              </button>
 
-              <div className="px-3 py-1 mt-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 border-t border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-                <span>Danh mục của bạn ({customLists.length})</span>
-              </div>
+                <div className="border-t border-gray-100 dark:border-gray-800 mt-1 pt-1">
+                  <button
+                    onClick={() => {
+                      setNewListSource('current');
+                      setNewListName(`${activeWatchlistInfo.title} (Bản sao)`);
+                      setShowCreateModal(true);
+                      setShowWatchlistMenu(false);
+                    }}
+                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 font-medium cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Sao chép danh mục này...</span>
+                  </button>
 
-              {customLists.length === 0 ? (
-                <div className="px-3 py-2 text-[11px] text-gray-400 italic text-center">
-                  Chưa có danh mục tự tạo nào
+                  <button
+                    onClick={() => {
+                      setNewListSource('empty');
+                      setNewListName('Danh mục mới');
+                      setShowCreateModal(true);
+                      setShowWatchlistMenu(false);
+                    }}
+                    className="w-full flex items-center space-x-2 px-3 py-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 font-medium cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Tạo danh mục mới...</span>
+                  </button>
                 </div>
-              ) : (
-                customLists.map((cl) => {
-                  const isCur = activeListId === `custom:${cl.id}`;
-                  return (
-                    <div
-                      key={cl.id}
-                      onClick={() => handleSelectWatchlist(`custom:${cl.id}`)}
-                      className={`group flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
-                        isCur ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2 truncate">
-                        <span>⭐</span>
-                        <span className="truncate">{cl.name}</span>
-                        <span className="text-[10px] text-gray-400 font-mono">({cl.tickers.length})</span>
-                      </div>
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition">
-                        <button
-                          onClick={(e) => handleDeleteCustomWatchlist(cl.id, e)}
-                          className="p-1 text-gray-400 hover:text-rose-500 cursor-pointer"
-                          title="Xóa danh mục này"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-
-              <div className="border-t border-gray-100 dark:border-gray-800 mt-1 pt-1">
-                <button
-                  onClick={() => {
-                    setNewListSource('current');
-                    setNewListName(`${activeWatchlistInfo.title} (Bản sao)`);
-                    setShowCreateModal(true);
-                    setShowWatchlistMenu(false);
-                  }}
-                  className="w-full flex items-center space-x-2 px-3 py-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 font-medium cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Sao chép danh mục này...</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setNewListSource('empty');
-                    setNewListName('Danh mục mới');
-                    setShowCreateModal(true);
-                    setShowWatchlistMenu(false);
-                  }}
-                  className="w-full flex items-center space-x-2 px-3 py-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 font-medium cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tạo danh mục mới...</span>
-                </button>
               </div>
-            </div>
-          </>
+            </>
           )}
         </div>
 
@@ -810,7 +894,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
         </div>
       )}
 
-      {/* ─── Thanh Tìm Kiếm & Ưu Tiên Sắp Xếp Ngành ─── */}
+      {/* ─── Thanh Tìm Kiếm, Chọn Chế Độ Xem (Bảng / Lưới / Thẻ) & Sắp Xếp Ngành ─── */}
       <div className="p-2 border-b border-gray-100 dark:border-gray-800/80 space-y-1.5 flex-shrink-0 bg-gray-50/40 dark:bg-[#1e222d]/30">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -831,14 +915,57 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
           )}
         </div>
 
+        {/* Hàng điều khiển: Chế độ hiển thị 3 nấc + Sắp xếp ngành */}
         <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
-          <div className="flex items-center space-x-1.5">
+          {/* Bộ chuyển đổi chế độ xem 3 nấc (Option C: Bảng 📋 | Lưới Nhiệt 🔲 | Thẻ 🗂️) */}
+          <div className="flex items-center p-0.5 rounded-lg bg-gray-200/80 dark:bg-gray-800 border border-gray-300/80 dark:border-gray-700/80 text-[10.5px]">
+            <button
+              onClick={() => handleSetViewMode('table')}
+              className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+              title="Bảng chi tiết (Mã, RS, Giá, % , GTGD, 20N)"
+            >
+              <List className="w-3 h-3" />
+              <span>Bảng</span>
+            </button>
+
+            <button
+              onClick={() => handleSetViewMode('grid_compact')}
+              className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
+                viewMode === 'grid_compact'
+                  ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+              title="Lưới nhiệt siêu gọn (Heatmap toàn ngành)"
+            >
+              <LayoutGrid className="w-3 h-3" />
+              <span>Lưới</span>
+            </button>
+
+            <button
+              onClick={() => handleSetViewMode('grid_card')}
+              className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
+                viewMode === 'grid_card'
+                  ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+              title="Thẻ chi tiết 2 dòng (Mã, %, Giá, RS)"
+            >
+              <Grid3X3 className="w-3 h-3" />
+              <span>Thẻ</span>
+            </button>
+          </div>
+
+          {/* Sắp xếp Thứ Tự Ngành */}
+          <div className="flex items-center space-x-1">
             <SlidersHorizontal className="w-3 h-3 text-blue-500" />
-            <span>Ưu tiên:</span>
             <select
               value={industrySortMode}
               onChange={(e) => setIndustrySortMode(e.target.value as IndustrySortMode)}
-              className="bg-transparent font-semibold text-slate-800 dark:text-gray-200 focus:outline-none cursor-pointer border-b border-dashed border-gray-300 dark:border-gray-600"
+              className="bg-transparent font-semibold text-slate-800 dark:text-gray-200 focus:outline-none cursor-pointer text-[10.5px] border-b border-dashed border-gray-300 dark:border-gray-600"
             >
               <option value="stock_count" className="dark:bg-gray-900">Nhiều mã nhất</option>
               <option value="total_adtv" className="dark:bg-gray-900">Tổng GTGD lớn</option>
@@ -847,90 +974,94 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
             </select>
           </div>
 
-          <button
-            onClick={() => setShowValueMode((m) => (m === 'val' ? 'vol' : 'val'))}
-            className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-[10px] font-mono text-gray-600 dark:text-gray-300 font-medium transition cursor-pointer"
-            title="Đổi giữa GTGD phiên và Khối lượng phiên"
+          {viewMode === 'table' && (
+            <button
+              onClick={() => setShowValueMode((m) => (m === 'val' ? 'vol' : 'val'))}
+              className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-[10px] font-mono text-gray-600 dark:text-gray-300 font-medium transition cursor-pointer"
+              title="Đổi giữa GTGD phiên và Khối lượng phiên"
+            >
+              {showValueMode === 'val' ? 'GTGD' : 'KL'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ─── Header Cột Dữ Liệu (Chỉ hiển thị khi ở chế độ Table View) ─── */}
+      {viewMode === 'table' && (
+        <div className="grid grid-cols-12 px-2.5 py-1.5 border-b border-gray-200 dark:border-gray-800 bg-gray-100/90 dark:bg-[#1e222d] text-[10.5px] font-bold text-gray-500 dark:text-gray-400 flex-shrink-0">
+          {/* Mã */}
+          <div
+            className="col-span-3 flex items-center space-x-1 cursor-pointer hover:text-blue-600"
+            onClick={() => handleSort('ticker')}
           >
-            {showValueMode === 'val' ? 'GTGD (Tỷ)' : 'Khối lượng (Tr)'}
-          </button>
-        </div>
-      </div>
+            <span>Mã</span>
+            {sortField === 'ticker' && (
+              sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+            )}
+          </div>
 
-      {/* ─── Header Cột Dữ Liệu (ĐÃ BỔ SUNG CỘT RS ĐỘC LẬP & SORTABLE) ─── */}
-      <div className="grid grid-cols-12 px-2.5 py-1.5 border-b border-gray-200 dark:border-gray-800 bg-gray-100/90 dark:bg-[#1e222d] text-[10.5px] font-bold text-gray-500 dark:text-gray-400 flex-shrink-0">
-        {/* Mã */}
-        <div
-          className="col-span-3 flex items-center space-x-1 cursor-pointer hover:text-blue-600"
-          onClick={() => handleSort('ticker')}
-        >
-          <span>Mã</span>
-          {sortField === 'ticker' && (
-            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
-          )}
-        </div>
+          {/* Cột RS độc lập */}
+          <div
+            className="col-span-1 text-center flex items-center justify-center space-x-0.5 cursor-pointer hover:text-blue-600"
+            onClick={() => handleSort('rsRating')}
+            title="Chỉ số Sức mạnh giá RS Rating (0 - 99)"
+          >
+            <span>RS</span>
+            {sortField === 'rsRating' && (
+              sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+            )}
+          </div>
 
-        {/* Cột RS độc lập chuẩn mực */}
-        <div
-          className="col-span-1 text-center flex items-center justify-center space-x-0.5 cursor-pointer hover:text-blue-600"
-          onClick={() => handleSort('rsRating')}
-          title="Chỉ số Sức mạnh giá RS Rating (0 - 99)"
-        >
-          <span>RS</span>
-          {sortField === 'rsRating' && (
-            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
-          )}
-        </div>
+          {/* Giá */}
+          <div
+            className="col-span-2 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
+            onClick={() => handleSort('currentPrice')}
+          >
+            <span>Giá</span>
+            {sortField === 'currentPrice' && (
+              sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+            )}
+          </div>
 
-        {/* Giá */}
-        <div
-          className="col-span-2 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
-          onClick={() => handleSort('currentPrice')}
-        >
-          <span>Giá</span>
-          {sortField === 'currentPrice' && (
-            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
-          )}
-        </div>
+          {/* +/- % */}
+          <div
+            className="col-span-2 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
+            onClick={() => handleSort('priceChangePercent')}
+          >
+            <span>+/- %</span>
+            {sortField === 'priceChangePercent' && (
+              sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+            )}
+          </div>
 
-        {/* +/- % */}
-        <div
-          className="col-span-2 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
-          onClick={() => handleSort('priceChangePercent')}
-        >
-          <span>+/- %</span>
-          {sortField === 'priceChangePercent' && (
-            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
-          )}
-        </div>
+          {/* GTGD / KL */}
+          <div
+            className="col-span-2 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
+            onClick={() => handleSort('volOrVal')}
+            title={showValueMode === 'val' ? 'Giá trị giao dịch khớp lệnh phiên' : 'Khối lượng giao dịch phiên'}
+          >
+            <span>{showValueMode === 'val' ? 'GTGD' : 'KL'}</span>
+            {sortField === 'volOrVal' && (
+              sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+            )}
+          </div>
 
-        {/* GTGD / KL */}
-        <div
-          className="col-span-2 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
-          onClick={() => handleSort('volOrVal')}
-          title={showValueMode === 'val' ? 'Giá trị giao dịch khớp lệnh phiên' : 'Khối lượng giao dịch phiên'}
-        >
-          <span>{showValueMode === 'val' ? 'GTGD' : 'KL'}</span>
-          {sortField === 'volOrVal' && (
-            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
-          )}
+          {/* 20N (Tỷ) */}
+          <div
+            className="col-span-2 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
+            onClick={() => handleSort('adtv20Billion')}
+            title="GTGD bình quân 20 phiên gần nhất"
+          >
+            <span>20N</span>
+            {sortField === 'adtv20Billion' && (
+              sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+            )}
+          </div>
         </div>
-
-        {/* 20N (Tỷ) */}
-        <div
-          className="col-span-2 text-right flex items-center justify-end space-x-0.5 cursor-pointer hover:text-blue-600"
-          onClick={() => handleSort('adtv20Billion')}
-          title="GTGD bình quân 20 phiên gần nhất"
-        >
-          <span>20N</span>
-          {sortField === 'adtv20Billion' && (
-            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
-          )}
-        </div>
-      </div>
+      )}
 
       {/* ─── Danh Sách Cổ Phiếu Nhóm Theo Ngành (Scrollable) ─── */}
-      <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-gray-100 dark:divide-gray-800/60">
+      <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-gray-100 dark:divide-gray-800/60 bg-white dark:bg-[#131722]">
         {isLoadingPresets && activeStocks.length === 0 ? (
           <div className="p-8 flex flex-col items-center justify-center text-center text-gray-400 space-y-2">
             <RefreshCw className="w-5 h-5 animate-spin text-blue-500" />
@@ -957,29 +1088,29 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
             return (
               <div key={group.industry} className="group/ind">
-                {/* Thanh Tiêu đề Ngành (Accordion) */}
+                {/* Thanh Tiêu đề Ngành (Accordion) - Tiêu đề vàng nổi bật chuẩn hình mẫu */}
                 <button
                   type="button"
                   onClick={() => toggleCollapse(group.industry)}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-gray-50/80 dark:bg-[#1a1e29] hover:bg-gray-100 dark:hover:bg-gray-800/80 text-left transition cursor-pointer"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-gray-50/90 dark:bg-[#181c27] hover:bg-gray-100 dark:hover:bg-gray-800/90 text-left transition cursor-pointer border-b border-gray-100 dark:border-gray-800/50"
                 >
                   <div className="flex items-center space-x-1.5 truncate">
                     {isCollapsed ? (
-                      <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      <ChevronRight className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                      <ChevronDown className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
                     )}
-                    <span className="font-bold text-slate-800 dark:text-gray-200 truncate">
+                    <span className="font-black text-amber-600 dark:text-amber-400 text-xs tracking-wide uppercase truncate">
                       {group.industry}
                     </span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold font-mono">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-bold font-mono">
                       {group.count}
                     </span>
                   </div>
 
                   <div className="flex items-center space-x-2 text-[10px] font-mono flex-shrink-0">
                     <span
-                      className={`font-semibold ${
+                      className={`font-bold ${
                         group.avgChange > 0
                           ? 'text-emerald-500 dark:text-emerald-400'
                           : group.avgChange < 0
@@ -996,101 +1127,211 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                   </div>
                 </button>
 
-                {/* Danh sách mã trong ngành */}
+                {/* Danh sách mã trong ngành theo từng View Mode */}
                 {!isCollapsed && (
-                  <div className="divide-y divide-gray-50 dark:divide-gray-800/30">
-                    {group.stocks.map((s) => {
-                      const isSelected = s.ticker === currentTicker;
-                      const pct = s.priceChangePercent ?? 0;
-                      const isUp = pct > 0;
-                      const isDown = pct < 0;
-                      const colorClass = isUp
-                        ? 'text-emerald-500 dark:text-emerald-400'
-                        : isDown
-                        ? 'text-rose-500 dark:text-rose-400'
-                        : 'text-amber-400';
+                  <>
+                    {/* ════ CHẾ ĐỘ 1: BẢNG CHI TIẾT (Table View) ════ */}
+                    {viewMode === 'table' && (
+                      <div className="divide-y divide-gray-50 dark:divide-gray-800/30">
+                        {group.stocks.map((s) => {
+                          const isSelected = s.ticker === currentTicker;
+                          const pct = s.priceChangePercent ?? 0;
+                          const isUp = pct > 0;
+                          const isDown = pct < 0;
+                          const colorClass = isUp
+                            ? 'text-emerald-500 dark:text-emerald-400'
+                            : isDown
+                            ? 'text-rose-500 dark:text-rose-400'
+                            : 'text-amber-400';
 
-                      const sessionVal = s.sessionValueBillion;
-                      const sessionVol = s.sessionVolume;
+                          const sessionVal = s.sessionValueBillion;
+                          const sessionVol = s.sessionVolume;
 
-                      return (
-                        <div
-                          key={s.ticker}
-                          onClick={() => onSelectTicker(s.ticker)}
-                          className={`group/row grid grid-cols-12 px-2.5 py-1.5 items-center cursor-pointer transition text-xs font-mono relative ${
-                            isSelected
-                              ? 'bg-blue-50 dark:bg-blue-950/70 font-bold border-l-2 border-blue-600'
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                          }`}
-                        >
-                          {/* 1. Mã cổ phiếu (gọn gàng, không đính kèm RS98) */}
-                          <div className="col-span-3 flex items-center space-x-1 truncate">
-                            <span className="font-extrabold text-slate-900 dark:text-white">
-                              {s.ticker}
-                            </span>
-                            {activeWatchlistInfo.isCustom && (
-                              <button
-                                onClick={(e) => handleRemoveTickerFromActiveCustom(s.ticker, e)}
-                                className="opacity-0 group-hover/row:opacity-100 p-0.5 rounded text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition cursor-pointer"
-                                title={`Xóa ${s.ticker} khỏi danh mục`}
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
+                          return (
+                            <div
+                              key={s.ticker}
+                              onClick={() => onSelectTicker(s.ticker)}
+                              className={`group/row grid grid-cols-12 px-2.5 py-1.5 items-center cursor-pointer transition text-xs font-mono relative ${
+                                isSelected
+                                  ? 'bg-blue-50 dark:bg-blue-950/70 font-bold border-l-2 border-blue-600'
+                                  : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                              }`}
+                            >
+                              {/* 1. Mã cổ phiếu */}
+                              <div className="col-span-3 flex items-center space-x-1 truncate">
+                                <span className="font-extrabold text-slate-900 dark:text-white">
+                                  {s.ticker}
+                                </span>
+                                {activeWatchlistInfo.isCustom && (
+                                  <button
+                                    onClick={(e) => handleRemoveTickerFromActiveCustom(s.ticker, e)}
+                                    className="opacity-0 group-hover/row:opacity-100 p-0.5 rounded text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition cursor-pointer"
+                                    title={`Xóa ${s.ticker} khỏi danh mục`}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
 
-                          {/* 2. Cột RS: chỉ hiện số, không chữ RS98 */}
-                          <div className="col-span-1 text-center font-mono font-bold text-[11px]">
-                            {s.rsRating ? (
-                              <span
-                                className={
-                                  s.rsRating >= 80
-                                    ? 'text-amber-500 dark:text-amber-400 font-extrabold'
-                                    : s.rsRating >= 70
-                                    ? 'text-blue-500 dark:text-blue-400'
-                                    : 'text-gray-400'
-                                }
-                                title={`RS: ${s.rsRating}`}
-                              >
-                                {Math.round(s.rsRating)}
+                              {/* 2. Cột RS: chỉ hiện số */}
+                              <div className="col-span-1 text-center font-mono font-bold text-[11px]">
+                                {s.rsRating ? (
+                                  <span
+                                    className={
+                                      s.rsRating >= 80
+                                        ? 'text-amber-500 dark:text-amber-400 font-extrabold'
+                                        : s.rsRating >= 70
+                                        ? 'text-blue-500 dark:text-blue-400'
+                                        : 'text-gray-400'
+                                    }
+                                    title={`RS: ${s.rsRating}`}
+                                  >
+                                    {Math.round(s.rsRating)}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </div>
+
+                              {/* 3. Giá */}
+                              <div className={`col-span-2 text-right font-bold ${colorClass}`}>
+                                {fmtPrice(s.currentPrice)}
+                              </div>
+
+                              {/* 4. +/- % */}
+                              <div className={`col-span-2 text-right font-bold ${colorClass}`}>
+                                {isUp ? '+' : ''}
+                                {pct.toFixed(1)}%
+                              </div>
+
+                              {/* 5. KL hoặc GTGD phiên */}
+                              <div className="col-span-2 text-right text-slate-600 dark:text-gray-300 text-[11px]">
+                                {showValueMode === 'val'
+                                  ? sessionVal !== undefined
+                                  ? `${sessionVal.toFixed(1)} T`
+                                  : s.adtv20Billion ? `${s.adtv20Billion.toFixed(1)} T` : '-'
+                                  : sessionVol !== undefined
+                                  ? `${(sessionVol / 1_000_000).toFixed(2)} tr`
+                                  : s.adtv20Billion && s.currentPrice
+                                  ? `${(s.adtv20Billion / (s.currentPrice / 1000)).toFixed(1)} tr`
+                                  : '-'}
+                              </div>
+
+                              {/* 6. 20N (Tỷ) */}
+                              <div className="col-span-2 text-right font-semibold text-gray-500 dark:text-gray-400 text-[11px]">
+                                {s.adtv20Billion ? `${s.adtv20Billion.toFixed(1)} T` : '-'}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* ════ CHẾ ĐỘ 2: LƯỚI NHIỆT SIÊU GỌN (Compact Heatmap Grid) ════ */}
+                    {viewMode === 'grid_compact' && (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-1 p-1.5 bg-gray-950/20 dark:bg-[#0f121a]">
+                        {group.stocks.map((s) => {
+                          const isSelected = s.ticker === currentTicker;
+                          const color = getHeatmapColorClass(s);
+                          const pct = s.priceChangePercent ?? 0;
+                          const sign = pct > 0 ? '+' : '';
+
+                          return (
+                            <div
+                              key={s.ticker}
+                              onClick={() => onSelectTicker(s.ticker)}
+                              className={`group/tile relative flex items-center justify-between px-1.5 py-1 rounded border text-[11px] font-mono cursor-pointer transition-all duration-75 select-none ${
+                                color.bg
+                              } ${
+                                isSelected
+                                  ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-black scale-[1.04] shadow-md z-10'
+                                  : 'hover:scale-[1.02]'
+                              }`}
+                              title={`${s.ticker} - ${s.companyName}\nGiá: ${fmtPrice(s.currentPrice)} (${sign}${pct.toFixed(1)}%)\nRS: ${s.rsRating || '-'}\nGTGD: ${s.sessionValueBillion ? s.sessionValueBillion.toFixed(1) + ' Tỷ' : s.adtv20Billion ? s.adtv20Billion.toFixed(1) + ' Tỷ (20N)' : '-'}`}
+                            >
+                              <span className="font-extrabold tracking-tight truncate mr-0.5">
+                                {s.ticker}
                               </span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </div>
+                              <span className="font-black text-[10px] tracking-tighter whitespace-nowrap">
+                                {sign}{pct.toFixed(1)}%
+                              </span>
 
-                          {/* 3. Giá */}
-                          <div className={`col-span-2 text-right font-bold ${colorClass}`}>
-                            {fmtPrice(s.currentPrice)}
-                          </div>
+                              {/* Nút xóa nhanh nếu ở danh mục cá nhân */}
+                              {activeWatchlistInfo.isCustom && (
+                                <button
+                                  onClick={(e) => handleRemoveTickerFromActiveCustom(s.ticker, e)}
+                                  className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover/tile:opacity-100 hover:bg-rose-700 shadow-xs cursor-pointer z-20"
+                                  title={`Xóa ${s.ticker}`}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                          {/* 4. +/- % */}
-                          <div className={`col-span-2 text-right font-bold ${colorClass}`}>
-                            {isUp ? '+' : ''}
-                            {pct.toFixed(1)}%
-                          </div>
+                    {/* ════ CHẾ ĐỘ 3: THẺ CHI TIẾT 2 DÒNG (Card Grid - Ticker + % & Giá + RS) ════ */}
+                    {viewMode === 'grid_card' && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-1.5 bg-gray-950/20 dark:bg-[#0f121a]">
+                        {group.stocks.map((s) => {
+                          const isSelected = s.ticker === currentTicker;
+                          const color = getHeatmapColorClass(s);
+                          const pct = s.priceChangePercent ?? 0;
+                          const sign = pct > 0 ? '+' : '';
 
-                          {/* 5. KL hoặc GTGD phiên */}
-                          <div className="col-span-2 text-right text-slate-600 dark:text-gray-300 text-[11px]">
-                            {showValueMode === 'val'
-                              ? sessionVal !== undefined
-                                ? `${sessionVal.toFixed(1)} T`
-                                : s.adtv20Billion ? `${s.adtv20Billion.toFixed(1)} T` : '-'
-                              : sessionVol !== undefined
-                              ? `${(sessionVol / 1_000_000).toFixed(2)} tr`
-                              : s.adtv20Billion && s.currentPrice
-                              ? `${(s.adtv20Billion / (s.currentPrice / 1000)).toFixed(1)} tr`
-                              : '-'}
-                          </div>
+                          return (
+                            <div
+                              key={s.ticker}
+                              onClick={() => onSelectTicker(s.ticker)}
+                              className={`group/card relative p-1.5 rounded-lg border flex flex-col justify-between text-xs font-mono cursor-pointer transition-all duration-75 select-none ${
+                                color.bg
+                              } ${
+                                isSelected
+                                  ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-black scale-[1.03] shadow-md z-10'
+                                  : 'hover:scale-[1.02]'
+                              }`}
+                              title={`${s.ticker} - ${s.companyName}\nGiá: ${fmtPrice(s.currentPrice)} (${sign}${pct.toFixed(1)}%)\nRS: ${s.rsRating || '-'}\nGTGD: ${s.sessionValueBillion ? s.sessionValueBillion.toFixed(1) + ' Tỷ' : s.adtv20Billion ? s.adtv20Billion.toFixed(1) + ' Tỷ (20N)' : '-'}`}
+                            >
+                              {/* Dòng 1: Ticker + % */}
+                              <div className="flex items-center justify-between w-full">
+                                <span className="font-black text-xs tracking-tight">
+                                  {s.ticker}
+                                </span>
+                                <span className="font-black text-[11px] tracking-tighter">
+                                  {sign}{pct.toFixed(1)}%
+                                </span>
+                              </div>
 
-                          {/* 6. 20N (Tỷ) */}
-                          <div className="col-span-2 text-right font-semibold text-gray-500 dark:text-gray-400 text-[11px]">
-                            {s.adtv20Billion ? `${s.adtv20Billion.toFixed(1)} T` : '-'}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                              {/* Dòng 2: Giá + RS */}
+                              <div className="flex items-center justify-between w-full mt-1 pt-0.5 border-t border-black/10 dark:border-white/10 text-[10.5px]">
+                                <span className="font-bold opacity-90">
+                                  {fmtPrice(s.currentPrice)}
+                                </span>
+                                {s.rsRating ? (
+                                  <span className={`px-1 py-0.2 rounded text-[9px] font-black ${color.badge}`}>
+                                    RS{s.rsRating}
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {/* Nút xóa nhanh nếu ở danh mục cá nhân */}
+                              {activeWatchlistInfo.isCustom && (
+                                <button
+                                  onClick={(e) => handleRemoveTickerFromActiveCustom(s.ticker, e)}
+                                  className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover/card:opacity-100 hover:bg-rose-700 shadow-xs cursor-pointer z-20"
+                                  title={`Xóa ${s.ticker}`}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             );

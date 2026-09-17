@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
       data: {
         top150_cap: memoryCache.top150Cap,
         top150_adtv: memoryCache.top150Adtv,
+        filter_valuex: memoryCache.filter75,
         filter_75: memoryCache.filter75,
         universe: memoryCache.universe,
       },
