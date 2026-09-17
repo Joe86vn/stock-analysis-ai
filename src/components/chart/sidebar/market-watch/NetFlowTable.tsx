@@ -102,6 +102,7 @@ export const NetFlowTable: React.FC = () => {
             const val = getNetVal(item, true);
             const barWidthPct = Math.min((val / maxVal) * 100, 100);
             const ticker = getTicker(item);
+            const isWide = barWidthPct >= 40;
 
             return (
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
@@ -111,14 +112,22 @@ export const NetFlowTable: React.FC = () => {
                 </span>
 
                 {/* Horizontal Bar (grows left-to-right) */}
-                <div className="flex-1 h-4 bg-emerald-50/90 dark:bg-gray-800/80 rounded border border-emerald-100 dark:border-gray-700/50 relative overflow-hidden flex items-center">
+                <div className="flex-1 h-4 bg-emerald-50/80 dark:bg-emerald-950/30 rounded border border-emerald-100/80 dark:border-emerald-900/40 relative overflow-hidden flex items-center">
                   <div
-                    className="h-full bg-emerald-500 rounded-xs transition-all duration-300"
-                    style={{ width: `${Math.max(barWidthPct, 10)}%` }}
-                  />
-                  <span className="absolute left-1.5 text-[9px] font-black text-slate-900 dark:text-white drop-shadow-2xs z-10">
-                    +{formatBillion(val)}
-                  </span>
+                    className="h-full bg-emerald-500 rounded-xs transition-all duration-300 flex items-center px-1.5 shrink-0"
+                    style={{ width: `${Math.max(barWidthPct, 4)}%` }}
+                  >
+                    {isWide && (
+                      <span className="text-[9px] font-bold text-white whitespace-nowrap drop-shadow-2xs">
+                        +{formatBillion(val)}
+                      </span>
+                    )}
+                  </div>
+                  {!isWide && (
+                    <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap ml-1.5">
+                      +{formatBillion(val)}
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -131,18 +140,27 @@ export const NetFlowTable: React.FC = () => {
             const val = getNetVal(item, false);
             const barWidthPct = Math.min((val / maxVal) * 100, 100);
             const ticker = getTicker(item);
+            const isWide = barWidthPct >= 40;
 
             return (
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
                 {/* Horizontal Bar (grows right-to-left) */}
-                <div className="flex-1 h-4 bg-red-50/90 dark:bg-gray-800/80 rounded border border-red-100 dark:border-gray-700/50 relative overflow-hidden flex items-center justify-end">
+                <div className="flex-1 h-4 bg-red-50/80 dark:bg-red-950/30 rounded border border-red-100/80 dark:border-red-900/40 relative overflow-hidden flex items-center justify-end">
+                  {!isWide && (
+                    <span className="text-[9px] font-bold text-red-700 dark:text-red-400 whitespace-nowrap mr-1.5">
+                      -{formatBillion(val)}
+                    </span>
+                  )}
                   <div
-                    className="h-full bg-red-500 rounded-xs transition-all duration-300"
-                    style={{ width: `${Math.max(barWidthPct, 10)}%` }}
-                  />
-                  <span className="absolute right-1.5 text-[9px] font-black text-slate-900 dark:text-white drop-shadow-2xs z-10">
-                    -{formatBillion(val)}
-                  </span>
+                    className="h-full bg-red-500 rounded-xs transition-all duration-300 flex items-center justify-end px-1.5 shrink-0"
+                    style={{ width: `${Math.max(barWidthPct, 4)}%` }}
+                  >
+                    {isWide && (
+                      <span className="text-[9px] font-bold text-white whitespace-nowrap drop-shadow-2xs">
+                        -{formatBillion(val)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Ticker */}
