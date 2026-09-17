@@ -70,9 +70,9 @@ export const MarketInfluenceTable: React.FC = () => {
   return (
     <div className="w-full font-sans select-none text-[10px]">
       {/* Header titles */}
-      <div className="grid grid-cols-2 gap-2 mb-1.5 pb-1 border-b border-gray-100 dark:border-gray-800/80 font-bold text-gray-400 uppercase tracking-tight text-[9px]">
-        <div className="text-left text-emerald-500">Top 10 đóng góp tăng</div>
-        <div className="text-right text-red-500">Top 10 đóng góp giảm</div>
+      <div className="grid grid-cols-2 gap-2 mb-1.5 pb-1 border-b border-gray-100 dark:border-gray-800/80 font-extrabold uppercase tracking-tight text-[9.5px]">
+        <div className="text-left text-emerald-700 dark:text-emerald-400">Top 10 đóng góp tăng</div>
+        <div className="text-right text-red-700 dark:text-red-400">Top 10 đóng góp giảm</div>
       </div>
 
       {/* 2-Column Horizontal Bar Chart Grid */}
@@ -87,22 +87,22 @@ export const MarketInfluenceTable: React.FC = () => {
             return (
               <div key={item.StockCode} className="flex items-center gap-1 h-5">
                 {/* Ticker */}
-                <span className="font-bold text-gray-800 dark:text-gray-100 w-7 shrink-0 text-[10px]">
+                <span className="font-bold text-slate-800 dark:text-gray-100 w-7 shrink-0 text-[10px]">
                   {item.StockCode}
                 </span>
 
                 {/* Per Change % */}
-                <span className="text-[9px] font-semibold text-emerald-500 w-10 shrink-0 text-right">
+                <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 w-10 shrink-0 text-right">
                   +{perChg.toFixed(1)}%
                 </span>
 
                 {/* Horizontal Bar (grows left-to-right) */}
-                <div className="flex-1 h-3.5 bg-gray-100 dark:bg-gray-800/60 rounded-xs relative overflow-hidden flex items-center">
+                <div className="flex-1 h-4 bg-emerald-50/90 dark:bg-gray-800/80 rounded border border-emerald-100 dark:border-gray-700/50 relative overflow-hidden flex items-center">
                   <div
-                    className="h-full bg-emerald-500/80 dark:bg-emerald-500/90 rounded-xs transition-all duration-300"
-                    style={{ width: `${Math.max(barWidthPct, 8)}%` }}
+                    className="h-full bg-emerald-500 rounded-xs transition-all duration-300"
+                    style={{ width: `${Math.max(barWidthPct, 10)}%` }}
                   />
-                  <span className="absolute left-1 text-[8.5px] font-black text-white drop-shadow-xs z-10">
+                  <span className="absolute left-1.5 text-[9px] font-black text-slate-900 dark:text-white drop-shadow-2xs z-10">
                     +{inf.toFixed(2)}
                   </span>
                 </div>
@@ -121,23 +121,23 @@ export const MarketInfluenceTable: React.FC = () => {
             return (
               <div key={item.StockCode} className="flex items-center gap-1 h-5">
                 {/* Horizontal Bar (grows right-to-left) */}
-                <div className="flex-1 h-3.5 bg-gray-100 dark:bg-gray-800/60 rounded-xs relative overflow-hidden flex items-center justify-end">
+                <div className="flex-1 h-4 bg-red-50/90 dark:bg-gray-800/80 rounded border border-red-100 dark:border-gray-700/50 relative overflow-hidden flex items-center justify-end">
                   <div
-                    className="h-full bg-red-500/80 dark:bg-red-500/90 rounded-xs transition-all duration-300"
-                    style={{ width: `${Math.max(barWidthPct, 8)}%` }}
+                    className="h-full bg-red-500 rounded-xs transition-all duration-300"
+                    style={{ width: `${Math.max(barWidthPct, 10)}%` }}
                   />
-                  <span className="absolute right-1 text-[8.5px] font-black text-white drop-shadow-xs z-10">
+                  <span className="absolute right-1.5 text-[9px] font-black text-slate-900 dark:text-white drop-shadow-2xs z-10">
                     {inf.toFixed(2)}
                   </span>
                 </div>
 
                 {/* Per Change % */}
-                <span className="text-[9px] font-semibold text-red-500 w-10 shrink-0 text-left">
+                <span className="text-[9px] font-bold text-red-700 dark:text-red-400 w-10 shrink-0 text-left">
                   {perChg.toFixed(1)}%
                 </span>
 
                 {/* Ticker */}
-                <span className="font-bold text-gray-800 dark:text-gray-100 w-7 shrink-0 text-right text-[10px]">
+                <span className="font-bold text-slate-800 dark:text-gray-100 w-7 shrink-0 text-right text-[10px]">
                   {item.StockCode}
                 </span>
               </div>

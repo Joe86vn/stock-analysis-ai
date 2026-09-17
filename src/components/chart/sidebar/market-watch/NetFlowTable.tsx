@@ -89,9 +89,9 @@ export const NetFlowTable: React.FC = () => {
   return (
     <div className="w-full font-sans select-none text-[10px]">
       {/* Header titles */}
-      <div className="grid grid-cols-2 gap-2 mb-1.5 pb-1 border-b border-gray-100 dark:border-gray-800/80 font-bold text-gray-400 uppercase tracking-tight text-[9px]">
-        <div className="text-left text-emerald-500">▲ Top Mua ròng (Tỷ đ)</div>
-        <div className="text-right text-red-500">▼ Top Bán ròng (Tỷ đ)</div>
+      <div className="grid grid-cols-2 gap-2 mb-1.5 pb-1 border-b border-gray-100 dark:border-gray-800/80 font-extrabold uppercase tracking-tight text-[9.5px]">
+        <div className="text-left text-emerald-700 dark:text-emerald-400">▲ Top Mua ròng (Tỷ đ)</div>
+        <div className="text-right text-red-700 dark:text-red-400">▼ Top Bán ròng (Tỷ đ)</div>
       </div>
 
       {/* 2-Column Horizontal Bar Chart Grid */}
@@ -106,17 +106,17 @@ export const NetFlowTable: React.FC = () => {
             return (
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
                 {/* Ticker */}
-                <span className="font-bold text-gray-800 dark:text-gray-100 w-8 shrink-0 text-[10px]">
+                <span className="font-bold text-slate-800 dark:text-gray-100 w-8 shrink-0 text-[10px]">
                   {ticker}
                 </span>
 
                 {/* Horizontal Bar (grows left-to-right) */}
-                <div className="flex-1 h-3.5 bg-gray-100 dark:bg-gray-800/60 rounded-xs relative overflow-hidden flex items-center">
+                <div className="flex-1 h-4 bg-emerald-50/90 dark:bg-gray-800/80 rounded border border-emerald-100 dark:border-gray-700/50 relative overflow-hidden flex items-center">
                   <div
-                    className="h-full bg-emerald-500/80 dark:bg-emerald-500/90 rounded-xs transition-all duration-300"
-                    style={{ width: `${Math.max(barWidthPct, 8)}%` }}
+                    className="h-full bg-emerald-500 rounded-xs transition-all duration-300"
+                    style={{ width: `${Math.max(barWidthPct, 10)}%` }}
                   />
-                  <span className="absolute left-1 text-[8.5px] font-black text-white drop-shadow-xs z-10">
+                  <span className="absolute left-1.5 text-[9px] font-black text-slate-900 dark:text-white drop-shadow-2xs z-10">
                     +{formatBillion(val)}
                   </span>
                 </div>
@@ -135,18 +135,18 @@ export const NetFlowTable: React.FC = () => {
             return (
               <div key={ticker + i} className="flex items-center gap-1.5 h-5">
                 {/* Horizontal Bar (grows right-to-left) */}
-                <div className="flex-1 h-3.5 bg-gray-100 dark:bg-gray-800/60 rounded-xs relative overflow-hidden flex items-center justify-end">
+                <div className="flex-1 h-4 bg-red-50/90 dark:bg-gray-800/80 rounded border border-red-100 dark:border-gray-700/50 relative overflow-hidden flex items-center justify-end">
                   <div
-                    className="h-full bg-red-500/80 dark:bg-red-500/90 rounded-xs transition-all duration-300"
-                    style={{ width: `${Math.max(barWidthPct, 8)}%` }}
+                    className="h-full bg-red-500 rounded-xs transition-all duration-300"
+                    style={{ width: `${Math.max(barWidthPct, 10)}%` }}
                   />
-                  <span className="absolute right-1 text-[8.5px] font-black text-white drop-shadow-xs z-10">
+                  <span className="absolute right-1.5 text-[9px] font-black text-slate-900 dark:text-white drop-shadow-2xs z-10">
                     -{formatBillion(val)}
                   </span>
                 </div>
 
                 {/* Ticker */}
-                <span className="font-bold text-gray-800 dark:text-gray-100 w-8 shrink-0 text-right text-[10px]">
+                <span className="font-bold text-slate-800 dark:text-gray-100 w-8 shrink-0 text-right text-[10px]">
                   {ticker}
                 </span>
               </div>

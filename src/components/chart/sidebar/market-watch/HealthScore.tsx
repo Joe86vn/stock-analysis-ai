@@ -221,9 +221,9 @@ const STATUS_CONFIG: Record<MarketStatus, {
   confirmed_uptrend: {
     label: 'Confirmed Uptrend (Xác Nhận Tăng)',
     icon: TrendingUp,
-    color: 'text-emerald-500',
-    bgColor: 'bg-emerald-500/8 dark:bg-emerald-500/10',
-    borderColor: 'border-emerald-500/30',
+    color: 'text-emerald-700 dark:text-emerald-400',
+    bgColor: 'bg-emerald-50/90 dark:bg-emerald-500/10',
+    borderColor: 'border-emerald-200 dark:border-emerald-500/30',
     exposureLow: 75,
     exposureHigh: 100,
     strategy: 'Tập trung vào cổ phiếu cơ bản thoát nền giá đẹp. Tham gia gia tăng vị thế.',
@@ -232,9 +232,9 @@ const STATUS_CONFIG: Record<MarketStatus, {
   uptrend_under_pressure: {
     label: 'Uptrend Under Pressure (Gặp Áp Lực)',
     icon: AlertTriangle,
-    color: 'text-amber-500',
-    bgColor: 'bg-amber-500/8 dark:bg-amber-500/10',
-    borderColor: 'border-amber-500/30',
+    color: 'text-amber-700 dark:text-amber-400',
+    bgColor: 'bg-amber-50/90 dark:bg-amber-500/10',
+    borderColor: 'border-amber-200 dark:border-amber-500/30',
     exposureLow: 25,
     exposureHigh: 50,
     strategy: 'Cẩn thận trước mọi quyết định mua mới. Lên kế hoạch phòng thủ từng cổ phiếu.',
@@ -243,9 +243,9 @@ const STATUS_CONFIG: Record<MarketStatus, {
   correction: {
     label: 'Market in Correction (Điều Chỉnh)',
     icon: TrendingDown,
-    color: 'text-red-500',
-    bgColor: 'bg-red-500/8 dark:bg-red-500/10',
-    borderColor: 'border-red-500/30',
+    color: 'text-red-700 dark:text-red-400',
+    bgColor: 'bg-red-50/90 dark:bg-red-500/10',
+    borderColor: 'border-red-200 dark:border-red-500/30',
     exposureLow: 0,
     exposureHigh: 25,
     strategy: 'Tránh mua mới. Giảm toàn bộ Margin trước tiên, bảo vệ lợi nhuận và cắt lỗ 7-8%. Cân nhắc hạ tỷ trọng cổ phiếu yếu.',
@@ -413,7 +413,7 @@ export const HealthScore: React.FC = () => {
     : '—';
 
   return (
-    <div className={`w-full rounded-lg border p-3 ${cfg.bgColor} ${cfg.borderColor} font-sans select-none`}>
+    <div className={`w-full rounded-xl border p-3 ${cfg.bgColor} ${cfg.borderColor} font-sans select-none shadow-2xs`}>
       {/* Top Header & Score Badge */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
@@ -423,13 +423,13 @@ export const HealthScore: React.FC = () => {
 
         {/* 10-Point Score Badge */}
         <div className="flex items-center gap-1">
-          <span className="text-[10px] text-gray-400">Điểm sức khỏe:</span>
-          <span className={`text-sm font-black px-2 py-0.5 rounded-full ${
+          <span className="text-[10px] text-gray-600 dark:text-gray-400 font-medium">Điểm sức khỏe:</span>
+          <span className={`text-sm font-black px-2.5 py-0.5 rounded-full ${
             result.score >= 7
-              ? 'bg-emerald-500 text-white'
+              ? 'bg-emerald-600 text-white dark:bg-emerald-500'
               : result.score >= 5
-              ? 'bg-amber-500 text-white'
-              : 'bg-red-500 text-white'
+              ? 'bg-amber-600 text-white dark:bg-amber-500'
+              : 'bg-red-600 text-white dark:bg-red-500'
           }`}>
             {result.score}/10
           </span>
@@ -437,28 +437,28 @@ export const HealthScore: React.FC = () => {
       </div>
 
       {/* Metrics & Deductions Grid */}
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-2.5 text-[11px] bg-black/20 p-2 rounded border border-gray-100/10 dark:border-gray-800/40">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-2.5 text-[11px] bg-white/90 dark:bg-black/40 p-2.5 rounded-lg border border-gray-200/80 dark:border-gray-800/60 shadow-2xs">
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-[10px]">Phiên phân phối</span>
-          <span className={`font-bold text-[10px] ${result.distributionDays > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+          <span className="text-gray-600 dark:text-gray-400 text-[10px] font-medium">Phiên phân phối</span>
+          <span className={`font-bold text-[10px] ${result.distributionDays > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
             {result.distributionDays} phiên (-{result.distributionDays}đ)
           </span>
         </div>
 
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-[10px]">Xu hướng MA20</span>
-          <span className={`font-bold text-[10px] ${result.isBelowMa20 ? 'text-red-400' : 'text-emerald-400'}`}>
+          <span className="text-gray-600 dark:text-gray-400 text-[10px] font-medium">Xu hướng MA20</span>
+          <span className={`font-bold text-[10px] ${result.isBelowMa20 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
             {result.isBelowMa20 ? `Dưới MA20 (-1đ)` : `Trên MA20 (${ma20Str})`}
           </span>
         </div>
 
         {result.ftdDetected && (
-          <div className="col-span-2 flex flex-col gap-0.5 text-[10px] text-emerald-400 font-bold border-t border-gray-100/10 dark:border-gray-800/40 pt-1 mt-0.5">
+          <div className="col-span-2 flex flex-col gap-0.5 text-[10px] text-emerald-700 dark:text-emerald-400 font-bold border-t border-gray-200/80 dark:border-gray-800/40 pt-1.5 mt-0.5">
             <div className="flex items-center gap-1">
               <span>✓ Phát hiện FTD bùng nổ theo đà (Phiên 4–10)</span>
             </div>
             {result.ftdFailureProb && (
-              <div className="text-red-400 font-bold text-[9.5px] flex items-center gap-1">
+              <div className="text-red-600 dark:text-red-400 font-bold text-[9.5px] flex items-center gap-1">
                 <span>⚠️ Phân phối ở phiên thứ {result.postFtdDistribDay} sau FTD (-{result.postFtdPenalty}đ, XSTB: {result.ftdFailureProb}%)</span>
               </div>
             )}
@@ -468,7 +468,7 @@ export const HealthScore: React.FC = () => {
 
       {/* Exposure Recommendation */}
       <div className="flex items-center justify-between mb-1.5 px-0.5">
-        <span className="text-[10px] text-gray-400">Tỷ trọng Exposure đề xuất</span>
+        <span className="text-[10px] text-gray-600 dark:text-gray-400 font-medium">Tỷ trọng Exposure đề xuất</span>
         <span className={`text-xs font-black ${cfg.color}`}>
           {result.exposureLow}–{result.exposureHigh}%
         </span>
@@ -485,11 +485,11 @@ export const HealthScore: React.FC = () => {
       </div>
 
       {/* Strategy Recommendation */}
-      <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+      <p className="text-[10px] text-slate-800 dark:text-gray-200 leading-relaxed font-semibold">
         {result.strategy}
       </p>
       {result.note && (
-        <p className="text-[9.5px] text-gray-400 dark:text-gray-500 leading-relaxed mt-1 italic">
+        <p className="text-[9.5px] text-slate-500 dark:text-gray-400 leading-relaxed mt-1 italic font-medium">
           {result.note}
         </p>
       )}
