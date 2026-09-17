@@ -25,6 +25,8 @@ export interface SwingResult {
   troughPrice?: number;
   structureLabel?: StructureLabel;
   structureBreaks?: StructureBreak[];
+  diffPct?: number; // % biên độ thay đổi so với swing đối lập liền trước
+  barsCount?: number; // Số nến từ swing đối lập liền trước
 }
 
 export const SWING_HL_INDICATOR_NAME = 'SWING_HL';
@@ -100,7 +102,7 @@ export function calculateSwingHighLow(
     }
   }
 
-  // Bước 2: Bộ lọc đan xen tuần tự & Quy tắc Ngoại lệ Breakout
+  // Bước 2: Chuẩn hóa toàn diện Engine Đỉnh Đáy sang Kiến trúc Tuyến tính Đơn luồng
   let lastConfirmed: 'PEAK' | 'TROUGH' | null = null;
   let lastConfirmedIndex = -1;
 
@@ -292,7 +294,8 @@ export function calculateSwingHighLow(
   let prevPeak: ConfirmedSwing | null = null;
   let prevTrough: ConfirmedSwing | null = null;
 
-  for (const s of swings) {
+  for (let idx = 0; idx < swings.length; idx++) {
+    const s = swings[idx];
     if (s.type === 'PEAK') {
       if (prevPeak) {
         if (Math.round(s.price) === Math.round(prevPeak.price)) {
@@ -318,6 +321,14 @@ export function calculateSwingHighLow(
     }
     if (result[s.index]) {
       result[s.index]!.structureLabel = s.label;
+      // Tính % biên độ tăng/giảm và số nến so với swing đối lập liền trước
+      if (idx > 0) {
+        const prevPrice = swings[idx - 1].price;
+        if (prevPrice > 0) {
+          result[s.index]!.diffPct = ((s.price - prevPrice) / prevPrice) * 100;
+          result[s.index]!.barsCount = s.index - swings[idx - 1].index;
+        }
+      }
     }
   }
 
@@ -497,6 +508,19 @@ function drawRoundedRect(
   ctx.closePath();
 }
 
+function hexToRgba(hex: string, alpha: number = 0.5): string {
+  if (!hex || typeof hex !== 'string') return `rgba(34, 197, 94, ${alpha})`;
+  let clean = hex.replace('#', '').trim();
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('');
+  }
+  if (clean.length !== 6) return `rgba(34, 197, 94, ${alpha})`;
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 let isIndicatorRegistered = false;
 
 /**
@@ -509,7 +533,7 @@ export function registerSwingHighLowIndicator(): void {
     registerIndicator<SwingResult | null>({
       name: SWING_HL_INDICATOR_NAME,
       shortName: 'Đỉnh Đáy & SMC',
-      calcParams: [9, 1, 1, 3], // [windowSize, showZigzag, showChochBos, confirmBars]
+      calcParams: [9, 1, 1, 3, 1], // [windowSize, showZigzag, showChochBos, confirmBars, showPercent]
       series: IndicatorSeries.Price,
       precision: 0,
       shouldOhlc: true,
@@ -525,12 +549,21 @@ export function registerSwingHighLowIndicator(): void {
 
         const showZigzag = indicator?.calcParams?.[1] !== undefined ? Boolean(indicator.calcParams[1]) : true;
         const showChochBos = indicator?.calcParams?.[2] !== undefined ? Boolean(indicator.calcParams[2]) : true;
+        const showPercent = indicator?.calcParams?.[4] !== undefined ? Boolean(indicator.calcParams[4]) : true;
+
+        // Đọc màu sắc động từ styles hoặc fallback về mã màu chuẩn
+        const customStyles = (indicator as any)?.styles || {};
+        const zigzagColor = customStyles.zigzagColor || '#eab308';
+        const peakColor = customStyles.peakColor || '#ef4444';
+        const troughColor = customStyles.troughColor || '#10b981';
+        const bullishColor = customStyles.bullishBreakColor || '#10b981';
+        const bearishColor = customStyles.bearishBreakColor || '#ef4444';
 
         // 1. Vẽ đường Zigzag nét đứt màu vàng hổ phách nối các đỉnh - đáy (nếu được bật)
         if (showZigzag) {
           ctx.save();
           ctx.beginPath();
-          ctx.strokeStyle = '#eab308'; // Amber-500
+          ctx.strokeStyle = zigzagColor;
           ctx.lineWidth = 1.5;
           ctx.setLineDash([4, 4]);
 
@@ -566,7 +599,7 @@ export function registerSwingHighLowIndicator(): void {
             if (Math.max(x1, x2) < -50 || Math.min(x1, x2) > ctx.canvas.width + 50) continue;
 
             const isBullish = b.direction === 'BULLISH';
-            const color = isBullish ? '#10b981' : '#ef4444'; // Xanh nếu từ giảm sang tăng / tăng tiếp diễn; Đỏ nếu từ tăng sang giảm / giảm tiếp diễn
+            const color = isBullish ? bullishColor : bearishColor;
 
             ctx.save();
             ctx.beginPath();
@@ -596,7 +629,7 @@ export function registerSwingHighLowIndicator(): void {
 
             ctx.setLineDash([]);
             // Nền badge bán trong suốt
-            ctx.fillStyle = isBullish ? 'rgba(16, 185, 129, 0.22)' : 'rgba(239, 68, 68, 0.22)';
+            ctx.fillStyle = isBullish ? hexToRgba(bullishColor, 0.22) : hexToRgba(bearishColor, 0.22);
             drawRoundedRect(ctx, badgeX, badgeY, badgeW, badgeH, 3);
             ctx.fill();
 
@@ -615,7 +648,7 @@ export function registerSwingHighLowIndicator(): void {
           }
         }
 
-        // 3. Vẽ nhãn giá và cấu trúc đỉnh đáy (HH, LH, HL, LL)
+        // 3. Vẽ nhãn giá và cấu trúc đỉnh đáy (HH, LH, HL, LL) kèm % tăng giảm
         const from = Math.max(0, visibleRange.from - 2);
         const to = Math.min(results.length, visibleRange.to + 2);
 
@@ -627,23 +660,26 @@ export function registerSwingHighLowIndicator(): void {
           const y = yAxis.convertToPixel(item.price);
           const priceStr = Math.round(item.price).toLocaleString('en-US');
           const structLabel = item.structureLabel; // 'HH' | 'LH' | 'HL' | 'LL'
+          const pctStr = (showPercent && item.diffPct !== undefined)
+            ? ` (${item.diffPct > 0 ? '+' : ''}${item.diffPct.toFixed(1)}%)`
+            : '';
 
           ctx.save();
           ctx.font = 'bold 10px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
           if (item.confirmedType === 'PEAK') {
-            // ĐỈNH: Màu đỏ, hiển thị nhãn HH/LH kèm giá
-            ctx.fillStyle = '#ef4444'; // Red-500
+            // ĐỈNH: Màu peakColor (mặc định đỏ), hiển thị nhãn HH/LH kèm giá & %
+            ctx.fillStyle = peakColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
-            const text = structLabel ? `${structLabel} ${priceStr}` : priceStr;
+            const text = (structLabel ? `${structLabel} ${priceStr}` : priceStr) + pctStr;
             ctx.fillText(text, x, y - 4);
           } else if (item.confirmedType === 'TROUGH') {
-            // ĐÁY: Màu xanh, hiển thị nhãn HL/LL kèm giá
-            ctx.fillStyle = '#10b981'; // Emerald-500
+            // ĐÁY: Màu troughColor (mặc định xanh), hiển thị nhãn HL/LL kèm giá & %
+            ctx.fillStyle = troughColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            const text = structLabel ? `${structLabel} ${priceStr}` : priceStr;
+            const text = (structLabel ? `${structLabel} ${priceStr}` : priceStr) + pctStr;
             ctx.fillText(text, x, y + 4);
           }
 

@@ -3,6 +3,7 @@
 import React from 'react';
 import {
   MousePointer,
+  Ruler,
   TrendingUp,
   ArrowUpRight,
   Minus,
@@ -32,6 +33,11 @@ export function DrawingToolbar({
       type: 'cursor',
       label: 'Con trỏ chuột (Di chuyển / Zoom)',
       icon: <MousePointer className="h-4 w-4" />,
+    },
+    {
+      type: 'measure',
+      label: 'Thước đo biên độ Giá & % (Measure)',
+      icon: <Ruler className="h-4 w-4" />,
     },
     {
       type: 'segment',

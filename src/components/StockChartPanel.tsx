@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Trophy,
   Search,
+  Palette,
 } from 'lucide-react';
 import Link from 'next/link';
 import { StockRankingItem } from '@/lib/filter-rs-data';
@@ -22,7 +23,17 @@ import { useTheme } from '@/components/ThemeProvider';
 import { DrawingToolType } from './chart/drawing-types';
 import { DrawingToolbar } from './chart/DrawingToolbar';
 import { registerSwingHighLowIndicator } from './chart/indicators/custom-swing-hl';
+import { registerMeasureOverlay } from './chart/overlays/measure-overlay';
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '@/lib/resample-ohlc';
+import {
+  ChartColorTheme,
+  loadSavedTheme,
+  saveTheme,
+  getKLineThemeFromCustom,
+  hexToRgba,
+  DEFAULT_CHART_THEME,
+} from './chart/chart-theme-types';
+import { ChartColorSettingsModal } from './chart/ChartColorSettingsModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,131 +86,8 @@ export const RESOLUTION_TIMEFRAME_BARS: Record<Resolution, Record<string, number
 
 // ─── KLineCharts Styles & Theme ───────────────────────────────────────────────
 
-function getKLineTheme(isDark: boolean): any {
-  return {
-    grid: {
-      horizontal: {
-        style: 'dashed' as const,
-        size: 1,
-        color: isDark ? '#1f2937' : '#f3f4f6',
-        dashedValue: [4, 4],
-      },
-      vertical: {
-        style: 'dashed' as const,
-        size: 1,
-        color: isDark ? '#1f2937' : '#f3f4f6',
-        dashedValue: [4, 4],
-      },
-    },
-    candle: {
-      type: 'candle_solid' as const,
-      bar: {
-        upColor: '#22c55e',
-        downColor: '#ef4444',
-        noChangeColor: '#f59e0b',
-        upBorderColor: '#22c55e',
-        downBorderColor: '#ef4444',
-        noChangeBorderColor: '#f59e0b',
-        upWickColor: '#22c55e',
-        downWickColor: '#ef4444',
-        noChangeWickColor: '#f59e0b',
-      },
-      tooltip: {
-        showRule: 'none' as const,
-      },
-      priceMark: {
-        high: { show: false },
-        low: { show: false },
-        last: {
-          show: true,
-          upColor: '#22c55e',
-          downColor: '#ef4444',
-          noChangeColor: '#f59e0b',
-          line: {
-            show: false,
-            style: 'dashed' as const,
-            dashedValue: [4, 4],
-            size: 1,
-          },
-          text: {
-            color: '#ffffff',
-            size: 11,
-          },
-        },
-      },
-    },
-    indicator: {
-      tooltip: {
-        showRule: 'none' as const,
-      },
-      lines: [
-        { color: '#3b82f6', size: 1.5 }, // EMA20
-        { color: '#f59e0b', size: 1.5 }, // EMA200
-      ],
-      bars: [
-        {
-          upColor: isDark ? 'rgba(34,197,94,0.45)' : 'rgba(34,197,94,0.55)',
-          downColor: isDark ? 'rgba(239,68,68,0.45)' : 'rgba(239,68,68,0.55)',
-          noChangeColor: 'rgba(245,158,11,0.5)',
-        },
-      ],
-    },
-    xAxis: {
-      axisLine: { color: isDark ? '#1f2937' : '#e5e7eb' },
-      tickLine: { color: isDark ? '#1f2937' : '#e5e7eb' },
-      tickText: { color: isDark ? '#9ca3af' : '#64748b', size: 11 },
-    },
-    yAxis: {
-      axisLine: { color: isDark ? '#1f2937' : '#e5e7eb' },
-      tickLine: { color: isDark ? '#1f2937' : '#e5e7eb' },
-      tickText: { color: isDark ? '#9ca3af' : '#64748b', size: 11 },
-    },
-    separator: {
-      color: isDark ? '#1f2937' : '#e5e7eb',
-    },
-    crosshair: {
-      horizontal: {
-        line: { color: isDark ? '#4b5563' : '#9ca3af', style: 'dashed' as const, dashedValue: [4, 4] },
-        text: { backgroundColor: isDark ? '#374151' : '#e5e7eb', color: isDark ? '#ffffff' : '#111827' },
-      },
-      vertical: {
-        line: { color: isDark ? '#4b5563' : '#9ca3af', style: 'dashed' as const, dashedValue: [4, 4] },
-        text: { backgroundColor: isDark ? '#374151' : '#e5e7eb', color: isDark ? '#ffffff' : '#111827' },
-      },
-    },
-    overlay: {
-      point: {
-        color: '#3b82f6',
-        borderColor: '#ffffff',
-        borderSize: 2,
-        radius: 5,
-        activeColor: '#6366f1',
-        activeBorderColor: '#ffffff',
-        activeBorderSize: 2,
-        activeRadius: 6,
-      },
-      line: {
-        color: '#3b82f6',
-        size: 1.5,
-      },
-      rect: {
-        style: 'stroke_fill' as const,
-        color: 'rgba(59, 130, 246, 0.15)',
-        borderColor: '#3b82f6',
-        borderSize: 1.5,
-      },
-      polygon: {
-        style: 'stroke_fill' as const,
-        color: 'rgba(59, 130, 246, 0.15)',
-        borderColor: '#3b82f6',
-        borderSize: 1.5,
-      },
-      text: {
-        color: isDark ? '#ffffff' : '#111827',
-        size: 12,
-      },
-    },
-  };
+function getKLineTheme(isDark: boolean, customTheme?: ChartColorTheme): any {
+  return getKLineThemeFromCustom(customTheme || DEFAULT_CHART_THEME, isDark);
 }
 
 // ─── Global Client-Side RAM Cache for Chart Data ─────────────────────────────
@@ -387,6 +275,7 @@ export function StockChartPanel({
     swingHlShowLine: true,
     swingHlShowChochBos: true,
     swingHlConfirmBars: 3,
+    swingHlShowPercent: true,
     emaShort: 20,
     emaLong: 200,
     bollPeriod: 20,
@@ -398,6 +287,11 @@ export function StockChartPanel({
   });
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const subPanesRef = useRef<{ vol?: string; rsi?: string; macd?: string }>({});
+
+  // ─── Theme & Color Customization State ─────────────────────────────────────
+  const [chartTheme, setChartTheme] = useState<ChartColorTheme>(() => loadSavedTheme());
+  const [showColorModal, setShowColorModal] = useState(false);
+  const [colorModalTab, setColorModalTab] = useState<'candle' | 'overlay' | 'subpanes'>('candle');
 
   const isOpen = !!ticker;
 
@@ -594,6 +488,7 @@ export function StockChartPanel({
       }
 
       registerSwingHighLowIndicator();
+      registerMeasureOverlay();
 
       const chart = klinecharts.init(chartContainerRef.current, {
         timezone: 'Asia/Ho_Chi_Minh',
@@ -606,7 +501,7 @@ export function StockChartPanel({
       chart.setPriceVolumePrecision(0, 0);
 
       // Áp dụng styles theme
-      chart.setStyles(getKLineTheme(isDark));
+      chart.setStyles(getKLineTheme(isDark, chartTheme));
 
       // Đặt khoảng trống lề phải (right offset) cho cây nến cuối cùng
       chart.setOffsetRightDistance(80);
@@ -614,15 +509,60 @@ export function StockChartPanel({
       // Reset sub-panes
       subPanesRef.current = {};
 
-      // Tạo các chỉ báo theo activeIndicators & indicatorParams
+      // Tạo các chỉ báo theo activeIndicators & indicatorParams kèm custom styles
       if (activeIndicators.vol) {
-            subPanesRef.current.vol = chart.createIndicator({ name: 'VOL', calcParams: [20] }, false, { height: 85, dragEnabled: true }) ?? undefined;
+        subPanesRef.current.vol =
+          chart.createIndicator(
+            {
+              name: 'VOL',
+              calcParams: [20],
+              styles: {
+                bars: [
+                  {
+                    upColor: isDark ? hexToRgba(chartTheme.vol.upColor, 0.45) : hexToRgba(chartTheme.vol.upColor, 0.55),
+                    downColor: isDark ? hexToRgba(chartTheme.vol.downColor, 0.45) : hexToRgba(chartTheme.vol.downColor, 0.55),
+                    noChangeColor: hexToRgba(chartTheme.vol.noChangeColor, 0.5),
+                  },
+                ],
+                lines: [{ color: chartTheme.vol.maColor }],
+              } as any,
+            },
+            false,
+            { height: 85, dragEnabled: true }
+          ) ?? undefined;
       }
       if (activeIndicators.ema) {
-        chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, true, { id: 'candle_pane' });
+        chart.createIndicator(
+          {
+            name: 'EMA',
+            calcParams: [indicatorParams.emaShort, indicatorParams.emaLong],
+            styles: {
+              lines: [
+                { color: chartTheme.ema.ema1Color, size: 1.5 },
+                { color: chartTheme.ema.ema2Color, size: 1.5 },
+              ],
+            } as any,
+          },
+          true,
+          { id: 'candle_pane' }
+        );
       }
       if (activeIndicators.boll) {
-        chart.createIndicator({ name: 'BOLL', calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev] }, true, { id: 'candle_pane' });
+        chart.createIndicator(
+          {
+            name: 'BOLL',
+            calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev],
+            styles: {
+              lines: [
+                { color: chartTheme.boll.upColor },
+                { color: chartTheme.boll.midColor },
+                { color: chartTheme.boll.downColor },
+              ],
+            } as any,
+          },
+          true,
+          { id: 'candle_pane' }
+        );
       }
       if (activeIndicators.swingHl) {
         chart.createIndicator(
@@ -633,17 +573,51 @@ export function StockChartPanel({
               indicatorParams.swingHlShowLine ? 1 : 0,
               indicatorParams.swingHlShowChochBos ? 1 : 0,
               indicatorParams.swingHlConfirmBars,
+              indicatorParams.swingHlShowPercent ? 1 : 0,
             ],
+            styles: chartTheme.smc as any,
           },
           true,
           { id: 'candle_pane' }
         );
       }
       if (activeIndicators.rsi) {
-        subPanesRef.current.rsi = chart.createIndicator({ name: 'RSI', calcParams: [indicatorParams.rsiPeriod] }, false, { height: 90, dragEnabled: true }) ?? undefined;
+        subPanesRef.current.rsi =
+          chart.createIndicator(
+            {
+              name: 'RSI',
+              calcParams: [indicatorParams.rsiPeriod],
+              styles: {
+                lines: [{ color: chartTheme.rsi.lineColor }],
+              } as any,
+            },
+            false,
+            { height: 90, dragEnabled: true }
+          ) ?? undefined;
       }
       if (activeIndicators.macd) {
-        subPanesRef.current.macd = chart.createIndicator({ name: 'MACD', calcParams: [indicatorParams.macdFast, indicatorParams.macdSlow, indicatorParams.macdSignal] }, false, { height: 95, dragEnabled: true }) ?? undefined;
+        subPanesRef.current.macd =
+          chart.createIndicator(
+            {
+              name: 'MACD',
+              calcParams: [indicatorParams.macdFast, indicatorParams.macdSlow, indicatorParams.macdSignal],
+              styles: {
+                lines: [
+                  { color: chartTheme.macd.difColor },
+                  { color: chartTheme.macd.deaColor },
+                ],
+                bars: [
+                  {
+                    upColor: chartTheme.macd.histUpColor,
+                    downColor: chartTheme.macd.histDownColor,
+                    noChangeColor: '#94a3b8',
+                  },
+                ],
+              } as any,
+            },
+            false,
+            { height: 95, dragEnabled: true }
+          ) ?? undefined;
       }
 
       // Lắng nghe sự kiện di chuyển chuột / crosshair
@@ -701,13 +675,116 @@ export function StockChartPanel({
     };
   }, [ticker]);
 
-  // ─── Cập nhật Theme khi đổi Dark / Light ───────────────────────────────────
+  // ─── Cập nhật Theme khi đổi Dark / Light hoặc đổi chartTheme ───────────────
 
   useEffect(() => {
     if (chartRef.current) {
-      chartRef.current.setStyles(getKLineTheme(isDark));
+      chartRef.current.setStyles(getKLineTheme(isDark, chartTheme));
     }
-  }, [isDark]);
+  }, [isDark, chartTheme]);
+
+  // ─── Xử lý thay đổi Theme & Màu sắc động ──────────────────────────────────
+
+  const handleThemeChange = (newTheme: ChartColorTheme) => {
+    setChartTheme(newTheme);
+    saveTheme(newTheme);
+
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    // 1. Áp dụng styles tổng cho nến & lưới & trục giá
+    chart.setStyles(getKLineTheme(isDark, newTheme));
+
+    // 2. Override styles cho các chỉ báo đang mở
+    if (activeIndicators.vol && subPanesRef.current.vol) {
+      chart.overrideIndicator(
+        {
+          name: 'VOL',
+          styles: {
+            bars: [
+              {
+                upColor: isDark ? hexToRgba(newTheme.vol.upColor, 0.45) : hexToRgba(newTheme.vol.upColor, 0.55),
+                downColor: isDark ? hexToRgba(newTheme.vol.downColor, 0.45) : hexToRgba(newTheme.vol.downColor, 0.55),
+                noChangeColor: hexToRgba(newTheme.vol.noChangeColor, 0.5),
+              },
+            ],
+            lines: [{ color: newTheme.vol.maColor }],
+          } as any,
+        },
+        subPanesRef.current.vol
+      );
+    }
+    if (activeIndicators.ema) {
+      chart.overrideIndicator(
+        {
+          name: 'EMA',
+          styles: {
+            lines: [
+              { color: newTheme.ema.ema1Color, size: 1.5 },
+              { color: newTheme.ema.ema2Color, size: 1.5 },
+            ],
+          } as any,
+        },
+        'candle_pane'
+      );
+    }
+    if (activeIndicators.boll) {
+      chart.overrideIndicator(
+        {
+          name: 'BOLL',
+          styles: {
+            lines: [
+              { color: newTheme.boll.upColor },
+              { color: newTheme.boll.midColor },
+              { color: newTheme.boll.downColor },
+            ],
+          } as any,
+        },
+        'candle_pane'
+      );
+    }
+    if (activeIndicators.swingHl) {
+      chart.overrideIndicator(
+        {
+          name: 'SWING_HL',
+          styles: newTheme.smc as any,
+        },
+        'candle_pane'
+      );
+    }
+    if (activeIndicators.rsi && subPanesRef.current.rsi) {
+      chart.overrideIndicator(
+        {
+          name: 'RSI',
+          styles: {
+            lines: [{ color: newTheme.rsi.lineColor }],
+          } as any,
+        },
+        subPanesRef.current.rsi
+      );
+    }
+    if (activeIndicators.macd && subPanesRef.current.macd) {
+      chart.overrideIndicator(
+        {
+          name: 'MACD',
+          styles: {
+            lines: [
+              { color: newTheme.macd.difColor },
+              { color: newTheme.macd.deaColor },
+            ],
+            bars: [
+              {
+                upColor: newTheme.macd.histUpColor,
+                downColor: newTheme.macd.histDownColor,
+                noChangeColor: '#94a3b8',
+              },
+            ],
+          } as any,
+        },
+        subPanesRef.current.macd
+      );
+    }
+  };
 
   // ─── Bật / Tắt & Đổi Tham Số Chỉ Báo ──────────────────────────────────────
 
@@ -724,6 +801,7 @@ export function StockChartPanel({
               next.swingHlShowLine ? 1 : 0,
               next.swingHlShowChochBos ? 1 : 0,
               next.swingHlConfirmBars,
+              next.swingHlShowPercent ? 1 : 0,
             ],
           },
           'candle_pane'
@@ -746,6 +824,30 @@ export function StockChartPanel({
               next.swingHlShowLine ? 1 : 0,
               next.swingHlShowChochBos ? 1 : 0,
               next.swingHlConfirmBars,
+              next.swingHlShowPercent ? 1 : 0,
+            ],
+          },
+          'candle_pane'
+        );
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSwingHlPercent = (show: boolean) => {
+    setIndicatorParams((prev) => {
+      const next = { ...prev, swingHlShowPercent: show };
+      const chart = chartRef.current;
+      if (chart && activeIndicators.swingHl) {
+        chart.overrideIndicator(
+          {
+            name: 'SWING_HL',
+            calcParams: [
+              next.swingHlWindow,
+              next.swingHlShowLine ? 1 : 0,
+              next.swingHlShowChochBos ? 1 : 0,
+              next.swingHlConfirmBars,
+              next.swingHlShowPercent ? 1 : 0,
             ],
           },
           'candle_pane'
@@ -770,6 +872,7 @@ export function StockChartPanel({
                 next.swingHlShowLine ? 1 : 0,
                 next.swingHlShowChochBos ? 1 : 0,
                 next.swingHlConfirmBars,
+                next.swingHlShowPercent ? 1 : 0,
               ],
             },
             'candle_pane'
@@ -803,7 +906,9 @@ export function StockChartPanel({
                   indicatorParams.swingHlShowLine ? 1 : 0,
                   indicatorParams.swingHlShowChochBos ? 1 : 0,
                   indicatorParams.swingHlConfirmBars,
+                  indicatorParams.swingHlShowPercent ? 1 : 0,
                 ],
+                styles: chartTheme.smc as any,
               },
               true,
               { id: 'candle_pane' }
@@ -812,28 +917,111 @@ export function StockChartPanel({
             chart.removeIndicator('candle_pane', 'SWING_HL');
           }
         } else if (key === 'ema') {
-          if (nextVal) chart.createIndicator({ name: 'EMA', calcParams: [indicatorParams.emaShort, indicatorParams.emaLong] }, true, { id: 'candle_pane' });
-          else chart.removeIndicator('candle_pane', 'EMA');
+          if (nextVal) {
+            chart.createIndicator(
+              {
+                name: 'EMA',
+                calcParams: [indicatorParams.emaShort, indicatorParams.emaLong],
+                styles: {
+                  lines: [
+                    { color: chartTheme.ema.ema1Color, size: 1.5 },
+                    { color: chartTheme.ema.ema2Color, size: 1.5 },
+                  ],
+                } as any,
+              },
+              true,
+              { id: 'candle_pane' }
+            );
+          } else {
+            chart.removeIndicator('candle_pane', 'EMA');
+          }
         } else if (key === 'boll') {
-          if (nextVal) chart.createIndicator({ name: 'BOLL', calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev] }, true, { id: 'candle_pane' });
-          else chart.removeIndicator('candle_pane', 'BOLL');
+          if (nextVal) {
+            chart.createIndicator(
+              {
+                name: 'BOLL',
+                calcParams: [indicatorParams.bollPeriod, indicatorParams.bollStdDev],
+                styles: {
+                  lines: [
+                    { color: chartTheme.boll.upColor },
+                    { color: chartTheme.boll.midColor },
+                    { color: chartTheme.boll.downColor },
+                  ],
+                } as any,
+              },
+              true,
+              { id: 'candle_pane' }
+            );
+          } else {
+            chart.removeIndicator('candle_pane', 'BOLL');
+          }
         } else if (key === 'vol') {
           if (nextVal) {
-                subPanesRef.current.vol = chart.createIndicator({ name: 'VOL', calcParams: [20] }, false, { height: 85, dragEnabled: true }) ?? undefined;
+            subPanesRef.current.vol =
+              chart.createIndicator(
+                {
+                  name: 'VOL',
+                  calcParams: [20],
+                  styles: {
+                    bars: [
+                      {
+                        upColor: isDark ? hexToRgba(chartTheme.vol.upColor, 0.45) : hexToRgba(chartTheme.vol.upColor, 0.55),
+                        downColor: isDark ? hexToRgba(chartTheme.vol.downColor, 0.45) : hexToRgba(chartTheme.vol.downColor, 0.55),
+                        noChangeColor: hexToRgba(chartTheme.vol.noChangeColor, 0.5),
+                      },
+                    ],
+                    lines: [{ color: chartTheme.vol.maColor }],
+                  } as any,
+                },
+                false,
+                { height: 85, dragEnabled: true }
+              ) ?? undefined;
           } else if (subPanesRef.current.vol) {
             chart.removeIndicator(subPanesRef.current.vol);
             delete subPanesRef.current.vol;
           }
         } else if (key === 'rsi') {
           if (nextVal) {
-            subPanesRef.current.rsi = chart.createIndicator({ name: 'RSI', calcParams: [indicatorParams.rsiPeriod] }, false, { height: 90, dragEnabled: true }) ?? undefined;
+            subPanesRef.current.rsi =
+              chart.createIndicator(
+                {
+                  name: 'RSI',
+                  calcParams: [indicatorParams.rsiPeriod],
+                  styles: {
+                    lines: [{ color: chartTheme.rsi.lineColor }],
+                  } as any,
+                },
+                false,
+                { height: 90, dragEnabled: true }
+              ) ?? undefined;
           } else if (subPanesRef.current.rsi) {
             chart.removeIndicator(subPanesRef.current.rsi);
             delete subPanesRef.current.rsi;
           }
         } else if (key === 'macd') {
           if (nextVal) {
-            subPanesRef.current.macd = chart.createIndicator({ name: 'MACD', calcParams: [indicatorParams.macdFast, indicatorParams.macdSlow, indicatorParams.macdSignal] }, false, { height: 95, dragEnabled: true }) ?? undefined;
+            subPanesRef.current.macd =
+              chart.createIndicator(
+                {
+                  name: 'MACD',
+                  calcParams: [indicatorParams.macdFast, indicatorParams.macdSlow, indicatorParams.macdSignal],
+                  styles: {
+                    lines: [
+                      { color: chartTheme.macd.difColor },
+                      { color: chartTheme.macd.deaColor },
+                    ],
+                    bars: [
+                      {
+                        upColor: chartTheme.macd.histUpColor,
+                        downColor: chartTheme.macd.histDownColor,
+                        noChangeColor: '#94a3b8',
+                      },
+                    ],
+                  } as any,
+                },
+                false,
+                { height: 95, dragEnabled: true }
+              ) ?? undefined;
           } else if (subPanesRef.current.macd) {
             chart.removeIndicator(subPanesRef.current.macd);
             delete subPanesRef.current.macd;
@@ -1290,6 +1478,19 @@ export function StockChartPanel({
 
         {/* Right: Indicators & Event toggles */}
         <div className="flex items-center space-x-3 ml-auto">
+          {/* Theme & Color Settings Button */}
+          <button
+            onClick={() => {
+              setColorModalTab('candle');
+              setShowColorModal(true);
+            }}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition cursor-pointer shadow-2xs"
+            title="Tùy biến bảng màu nến và chỉ báo kỹ thuật"
+          >
+            <Palette className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Màu sắc</span>
+          </button>
+
           {/* Indicators Dropdown Button */}
           <div className="relative">
             <button
@@ -1341,6 +1542,18 @@ export function StockChartPanel({
                           <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
                           <span className="font-bold text-slate-800 dark:text-gray-100">Đỉnh - Đáy &amp; Cấu trúc SMC</span>
                         </label>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setColorModalTab('overlay');
+                            setShowColorModal(true);
+                            setShowIndicatorMenu(false);
+                          }}
+                          className="p-1 rounded-md text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Cài đặt màu sắc cho SMC Đỉnh Đáy"
+                        >
+                          <Palette className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                       {activeIndicators.swingHl && (
                         <div className="mt-2 pl-6 flex flex-col space-y-2 text-[11px] text-gray-500 dark:text-gray-400">
@@ -1390,6 +1603,15 @@ export function StockChartPanel({
                             />
                             <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện đường CHoCH &amp; BOS</span>
                           </label>
+                          <label className="flex items-center space-x-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={indicatorParams.swingHlShowPercent}
+                              onChange={(e) => handleToggleSwingHlPercent(e.target.checked)}
+                              className="rounded text-sky-500 focus:ring-sky-400 h-3.5 w-3.5 cursor-pointer"
+                            />
+                            <span className="font-semibold text-slate-700 dark:text-gray-300">Hiện % tăng/giảm nhịp sóng</span>
+                          </label>
                         </div>
                       )}
                     </div>
@@ -1407,6 +1629,18 @@ export function StockChartPanel({
                           <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
                           <span className="font-bold text-slate-800 dark:text-gray-100">Đường trung bình EMA</span>
                         </label>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setColorModalTab('overlay');
+                            setShowColorModal(true);
+                            setShowIndicatorMenu(false);
+                          }}
+                          className="p-1 rounded-md text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Cài đặt màu sắc cho EMA"
+                        >
+                          <Palette className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                       {activeIndicators.ema && (
                         <div className="mt-2 pl-6 flex items-center space-x-3 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-y-1">
@@ -1449,6 +1683,18 @@ export function StockChartPanel({
                           <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0" />
                           <span className="font-bold text-slate-800 dark:text-gray-100">Bollinger Bands (BOLL)</span>
                         </label>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setColorModalTab('overlay');
+                            setShowColorModal(true);
+                            setShowIndicatorMenu(false);
+                          }}
+                          className="p-1 rounded-md text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Cài đặt màu sắc cho BOLL"
+                        >
+                          <Palette className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                       {activeIndicators.boll && (
                         <div className="mt-2 pl-6 flex items-center space-x-3 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-y-1">
@@ -1488,16 +1734,30 @@ export function StockChartPanel({
 
                     {/* Khối lượng (VOL) */}
                     <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 transition">
-                      <label className="flex items-center space-x-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={activeIndicators.vol}
-                          onChange={() => toggleIndicator('vol')}
-                          className="rounded text-emerald-500 focus:ring-emerald-400 h-4 w-4 cursor-pointer"
-                        />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                        <span className="font-bold text-slate-800 dark:text-gray-100">Khối lượng (VOL)</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center space-x-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={activeIndicators.vol}
+                            onChange={() => toggleIndicator('vol')}
+                            className="rounded text-emerald-500 focus:ring-emerald-400 h-4 w-4 cursor-pointer"
+                          />
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-gray-100">Khối lượng (VOL)</span>
+                        </label>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setColorModalTab('candle');
+                            setShowColorModal(true);
+                            setShowIndicatorMenu(false);
+                          }}
+                          className="p-1 rounded-md text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Cài đặt màu sắc cho Khối lượng"
+                        >
+                          <Palette className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* RSI */}
@@ -1513,6 +1773,18 @@ export function StockChartPanel({
                           <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 flex-shrink-0" />
                           <span className="font-bold text-slate-800 dark:text-gray-100">Chỉ số RSI</span>
                         </label>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setColorModalTab('subpanes');
+                            setShowColorModal(true);
+                            setShowIndicatorMenu(false);
+                          }}
+                          className="p-1 rounded-md text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Cài đặt màu sắc cho RSI"
+                        >
+                          <Palette className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                       {activeIndicators.rsi && (
                         <div className="mt-2 pl-6 flex items-center space-x-2 text-[11px] text-gray-500 dark:text-gray-400">
@@ -1542,6 +1814,18 @@ export function StockChartPanel({
                           <span className="w-2.5 h-2.5 rounded-full bg-rose-500 flex-shrink-0" />
                           <span className="font-bold text-slate-800 dark:text-gray-100">Đường MACD</span>
                         </label>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setColorModalTab('subpanes');
+                            setShowColorModal(true);
+                            setShowIndicatorMenu(false);
+                          }}
+                          className="p-1 rounded-md text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition"
+                          title="Cài đặt màu sắc cho MACD"
+                        >
+                          <Palette className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                       {activeIndicators.macd && (
                         <div className="mt-2 pl-6 flex items-center space-x-2 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-y-1">
@@ -1648,6 +1932,15 @@ export function StockChartPanel({
             : ''}
         </span>
       </div>
+
+      {/* Modal Cài đặt Màu sắc & Giao diện */}
+      <ChartColorSettingsModal
+        isOpen={showColorModal}
+        onClose={() => setShowColorModal(false)}
+        theme={chartTheme}
+        onThemeChange={handleThemeChange}
+        initialTab={colorModalTab}
+      />
     </div>
   );
 }

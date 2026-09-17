@@ -1,8 +1,9 @@
 export type DrawingToolType =
   | 'cursor'
+  | 'measure'
+  | 'segment'
   | 'straightLine'
   | 'rayLine'
-  | 'segment'
   | 'horizontalStraightLine'
   | 'priceLine'
   | 'rect'
