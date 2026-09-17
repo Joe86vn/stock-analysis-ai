@@ -15,6 +15,7 @@ export interface DividendMarkerExtendData {
   ratio?: number;
   dateStr?: string;
   shortLabel?: string;
+  rawEvent?: any;
 }
 
 export const dividendMarkerOverlayTemplate: OverlayTemplate = {
@@ -23,6 +24,29 @@ export const dividendMarkerOverlayTemplate: OverlayTemplate = {
   needDefaultPointFigure: false,
   needDefaultXAxisFigure: false,
   needDefaultYAxisFigure: false,
+
+  onMouseEnter: (event: any) => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('dividend-marker-hover', {
+          detail: {
+            data: event.overlay?.extendData,
+            x: event.x,
+            y: event.y,
+          },
+        })
+      );
+    }
+    return true;
+  },
+
+  onMouseLeave: () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('dividend-marker-leave'));
+    }
+    return true;
+  },
+
   createPointFigures: ({
     coordinates,
     overlay,
@@ -122,7 +146,6 @@ export const dividendMarkerOverlayTemplate: OverlayTemplate = {
           weight: 'bold',
           family: 'sans-serif',
         },
-        ignoreEvent: true,
       });
     }
 

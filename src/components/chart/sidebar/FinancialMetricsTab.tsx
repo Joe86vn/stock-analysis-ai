@@ -114,19 +114,22 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
     title: '2. Cơ cấu vốn chủ & Nợ phải trả (Tỷ VNĐ)',
     metrics: [
       {
+        id: 'shortTermLoans',
+        label: 'Vay ngắn hạn',
+        unit: 'Tỷ',
+        getValue: (q) => q.shortTermLoans || 0,
+      },
+      {
+        id: 'longTermLoans',
+        label: 'Vay dài hạn',
+        unit: 'Tỷ',
+        getValue: (q) => q.longTermLoans || 0,
+      },
+      {
         id: 'totalDebt',
         label: 'Tổng nợ vay (ngắn + dài)',
         unit: 'Tỷ',
         getValue: (q) => (q.shortTermLoans || 0) + (q.longTermLoans || 0),
-      },
-      {
-        id: 'otherLiabilities',
-        label: 'Nghĩa vụ phải trả khác',
-        unit: 'Tỷ',
-        getValue: (q) => {
-          const debt = (q.shortTermLoans || 0) + (q.longTermLoans || 0);
-          return Math.max(0, (q.totalLiabilities || 0) - debt);
-        },
       },
       {
         id: 'ownerEquity',

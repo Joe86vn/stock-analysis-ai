@@ -543,10 +543,18 @@ export function parseVietcapQuarter(
   const tradePayables = toBillion(bsItem.bsa56);
   const customerAdvances = toBillion(bsItem.bsa57);
   const nonCurrentLiabilities = toBillion(bsItem.bsa71);
-  const shortTermLoans = toBillion(bsItem.bsa67 || bsItem.bsa65 || bsItem.bsa66);
-  const longTermLoans = toBillion(bsItem.bsa78 || bsItem.bsa77);
+  // Theo chuẩn VAS/TT200 trong Vietcap IQ API:
+  // bsa56: Vay và nợ thuê tài chính ngắn hạn (Short-term borrowings)
+  // bsa71: Vay và nợ thuê tài chính dài hạn (Long-term borrowings)
+  // Lưu ý: bsa78 / bsa79 trong Vietcap API là Vốn chủ sở hữu (Equity), không phải vay dài hạn
+  const shortTermLoans = toBillion(
+    bsItem.bsa56 !== undefined && bsItem.bsa56 !== 0 ? bsItem.bsa56 : (bsItem.bsa67 || bsItem.bsa65)
+  );
+  const longTermLoans = toBillion(
+    bsItem.bsa71 !== undefined && bsItem.bsa71 !== 0 ? bsItem.bsa71 : bsItem.bsa77
+  );
   const totalDebt = Math.round((shortTermLoans + longTermLoans) * 10) / 10;
-  const ownerEquity = toBillion(bsItem.bsa79);
+  const ownerEquity = toBillion(bsItem.bsa79 || bsItem.bsa78);
   const charterCapital = toBillion(bsItem.bsa80);
   const retainedEarnings = toBillion(bsItem.bsa89 || bsItem.bsa90);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { Chart, KLineData } from 'klinecharts';
 import {
   X,
@@ -270,6 +270,35 @@ export function StockChartPanel({
   const [showDividendMarkers, setShowDividendMarkers] = useState(true);
   const [dividendEvents, setDividendEvents] = useState<any[]>([]);
   const dividendOverlayIdsRef = useRef<string[]>([]);
+  const [hoveredDividend, setHoveredDividend] = useState<{
+    data: any;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Lắng nghe sự kiện rê chuột vào / rời khỏi Marker Cổ tức từ KLineCharts Overlay
+  useEffect(() => {
+    const handleMarkerHover = (e: any) => {
+      if (e.detail && e.detail.data) {
+        setHoveredDividend({
+          data: e.detail.data,
+          x: e.detail.x ?? 0,
+          y: e.detail.y ?? 0,
+        });
+      }
+    };
+    const handleMarkerLeave = () => {
+      setHoveredDividend(null);
+    };
+
+    window.addEventListener('dividend-marker-hover', handleMarkerHover);
+    window.addEventListener('dividend-marker-leave', handleMarkerLeave);
+
+    return () => {
+      window.removeEventListener('dividend-marker-hover', handleMarkerHover);
+      window.removeEventListener('dividend-marker-leave', handleMarkerLeave);
+    };
+  }, []);
 
   // Ticker search switcher state
   const [showTickerSearch, setShowTickerSearch] = useState(false);
@@ -1466,6 +1495,17 @@ export function StockChartPanel({
               dateStr: exDateStr,
               ratio: ev.exerciseRatio,
               shortLabel,
+              rawEvent: {
+                eventTitleVi: ev.eventTitleVi,
+                eventNameVi: ev.eventNameVi,
+                eventCode: ev.eventCode,
+                exrightDate: ev.exrightDate,
+                recordDate: ev.recordDate,
+                publicDate: ev.publicDate,
+                exerciseRatio: ev.exerciseRatio,
+                isUpcoming: ev.isUpcoming,
+                category: ev.category,
+              },
             },
           },
           'candle_pane'
@@ -1562,7 +1602,8 @@ export function StockChartPanel({
 
   const formatDateStr = (d?: string) => {
     if (!d) return '';
-    const parts = d.split('-');
+    const clean = d.slice(0, 10);
+    const parts = clean.split('-');
     if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
     return d;
   };
@@ -1606,6 +1647,11 @@ export function StockChartPanel({
     v: liveVolume ?? latestBar.volume,
     date: latestBar.fullDate,
   } : null);
+
+  const candleDividend = useMemo(() => {
+    if (!activeOhlc?.date || dividendEvents.length === 0) return null;
+    return dividendEvents.find((ev) => ev.exrightDate?.slice(0, 10) === activeOhlc.date);
+  }, [activeOhlc?.date, dividendEvents]);
 
   const candleDiff = activeOhlc ? activeOhlc.c - activeOhlc.o : 0;
   const candleDiffPct = activeOhlc && activeOhlc.o > 0 ? (candleDiff / activeOhlc.o) * 100 : 0;
@@ -1873,6 +1919,19 @@ export function StockChartPanel({
               {statusLineConfig.showAdtv20 && (
                 <span className="flex-shrink-0 hidden md:inline text-gray-400 dark:text-gray-500 font-sans">
                   GTGD 20N: <strong className="font-bold text-slate-800 dark:text-gray-200 font-mono">{effectiveStockData.adtv20Billion.toFixed(1)} Tỷ</strong>
+                </span>
+              )}
+
+              {/* Sự kiện quyền / cổ tức trùng ngày phiên đang trỏ */}
+              {candleDividend && (
+                <span
+                  className="flex-shrink-0 flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[11px] font-sans font-bold shadow-2xs"
+                  title="Sự kiện quyền / cổ tức vào ngày này"
+                >
+                  <span className="text-xs">🎁</span>
+                  <span className="truncate max-w-[200px] sm:max-w-[320px]">
+                    {candleDividend.eventTitleVi || candleDividend.eventNameVi}
+                  </span>
                 </span>
               )}
             </>
@@ -2184,6 +2243,88 @@ export function StockChartPanel({
 
           {/* KLineCharts canvas container */}
           <div ref={chartContainerRef} className="absolute inset-0 w-full h-full" />
+
+          {/* Floating Rich Tooltip for Dividend Marker Hover */}
+          {hoveredDividend && (() => {
+            const item = hoveredDividend.data || {};
+            const raw = item.rawEvent || item;
+            const title = item.title || raw.eventTitleVi || raw.eventNameVi || 'Sự kiện cổ tức';
+            const isCash = item.type === 'cash' || title.toLowerCase().includes('tiền mặt');
+            const exDate = item.dateStr || raw.exrightDate;
+            const recordDate = raw.recordDate;
+            const publicDate = raw.publicDate;
+            const ratioStr = item.shortLabel || (raw.exerciseRatio ? `${Math.round(raw.exerciseRatio * 100)}%` : null);
+
+            return (
+              <div
+                className="absolute z-40 pointer-events-none transition-all duration-100 ease-out transform -translate-x-1/2 select-none"
+                style={{
+                  left: Math.max(140, Math.min((chartContainerRef.current?.clientWidth || 500) - 140, hoveredDividend.x)),
+                  top: hoveredDividend.y > 170 ? hoveredDividend.y - 155 : hoveredDividend.y + 32,
+                }}
+              >
+                <div className="bg-gray-900/95 backdrop-blur-md text-gray-100 border border-amber-500/40 rounded-xl shadow-2xl p-3 w-64 text-xs font-sans ring-1 ring-black/60 animate-in fade-in zoom-in-95 duration-150">
+                  {/* Header */}
+                  <div className="flex items-start gap-2 border-b border-gray-800 pb-2 mb-2">
+                    <span className="text-base flex-shrink-0 mt-0.5">
+                      {isCash ? '💵' : '📜'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-amber-400 text-xs leading-snug line-clamp-2">
+                        {title}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400 font-mono">
+                        <span className="px-1.5 py-0.2 rounded bg-gray-800 text-gray-300 font-bold">
+                          {ticker}
+                        </span>
+                        <span>•</span>
+                        <span className={isCash ? 'text-emerald-400' : 'text-blue-400'}>
+                          {isCash ? 'Cổ tức tiền mặt' : 'Cổ tức cổ phiếu / Thưởng'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Body details */}
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="flex justify-between items-center text-gray-300">
+                      <span className="text-gray-400">Ngày GDKHQ:</span>
+                      <span className="font-mono font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/50">
+                        {exDate ? formatDateStr(exDate) : '—'}
+                      </span>
+                    </div>
+
+                    {recordDate && (
+                      <div className="flex justify-between items-center text-gray-300">
+                        <span className="text-gray-400">Ngày ĐKCC:</span>
+                        <span className="font-mono text-gray-200">
+                          {formatDateStr(recordDate)}
+                        </span>
+                      </div>
+                    )}
+
+                    {publicDate && (
+                      <div className="flex justify-between items-center text-gray-300">
+                        <span className="text-gray-400">Ngày công bố:</span>
+                        <span className="font-mono text-gray-400">
+                          {formatDateStr(publicDate)}
+                        </span>
+                      </div>
+                    )}
+
+                    {ratioStr && (
+                      <div className="flex justify-between items-center text-gray-300 pt-1 border-t border-gray-800/80">
+                        <span className="text-gray-400">Tỷ lệ:</span>
+                        <span className="font-bold text-emerald-400 font-mono text-xs">
+                          {ratioStr}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Collapsible Utility Sidebar */}
