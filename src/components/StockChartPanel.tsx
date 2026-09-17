@@ -1952,17 +1952,27 @@ export function StockChartPanel({
                 </span>
               )}
 
-              {/* Sự kiện quyền / cổ tức trùng ngày phiên đang trỏ */}
-              {candleDividend && (
-                <span
-                  className="flex-shrink-0 flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[11px] font-sans font-bold shadow-2xs"
-                  title="Sự kiện quyền / cổ tức vào ngày này"
-                >
-                  <span className="text-xs">🎁</span>
-                  <span className="truncate max-w-[200px] sm:max-w-[320px]">
-                    {candleDividend.eventTitleVi || candleDividend.eventNameVi}
-                  </span>
-                </span>
+              {/* Sự kiện quyền / cổ tức trùng ngày phiên đang trỏ - Dạng Popup Tooltip chống giật/dịch chuyển layout */}
+              {candleDividend && (candleDividend.eventTitleVi || candleDividend.eventNameVi) && (
+                <div className="relative group flex-shrink-0 font-sans">
+                  <div
+                    className="flex items-center space-x-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-600 dark:text-amber-400 text-[11px] font-bold shadow-2xs cursor-pointer hover:bg-amber-500/25 transition"
+                    title="Rê chuột vào để xem thông tin cổ tức chi tiết"
+                  >
+                    <span className="text-xs">🎁</span>
+                    <span>Cổ tức</span>
+                  </div>
+
+                  {/* Hover Popup Floating Tooltip */}
+                  <div className="absolute left-0 top-full mt-1.5 z-50 hidden group-hover:flex flex-col gap-1 px-3 py-2 rounded-xl bg-slate-900/95 dark:bg-gray-900/95 text-amber-300 text-xs shadow-2xl border border-amber-500/40 whitespace-nowrap backdrop-blur-md pointer-events-none">
+                    <div className="font-bold flex items-center gap-1.5 text-amber-400">
+                      <span>🎁 Sự kiện cổ tức / Quyền ({formatDateStr(activeOhlc.date)})</span>
+                    </div>
+                    <div className="text-[11px] text-gray-200">
+                      {candleDividend.eventTitleVi || candleDividend.eventNameVi}
+                    </div>
+                  </div>
+                </div>
               )}
             </>
           ) : (
