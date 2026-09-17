@@ -29,7 +29,7 @@ interface ChartPoint {
 
 const fetchValuation = async (type: ValType): Promise<ChartPoint[]> => {
   try {
-    const res = await fetch(`/api/market-watch/valuation?type=${type}&comGroupCode=VNINDEX&timeFrame=FIVE_YEAR`);
+    const res = await fetch(`/api/market-watch/valuation?type=${type}&comGroupCode=VNINDEX&timeFrame=ALL`);
     if (!res.ok) return [];
     const json = await res.json();
     const raw: ValPoint[] = Array.isArray(json)

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Zap } from 'lucide-react';
 
 interface RawHistoryItem {
   tradingDate?: string;
@@ -30,6 +30,7 @@ export interface CandleDataPoint {
   pctChange: number;
   isDistribution: boolean;
   isDistribActive: boolean;
+  isFTD: boolean;
 }
 
 const formatVol = (v: number) => {
@@ -42,6 +43,7 @@ const formatVol = (v: number) => {
 export const VnindexCandleChart: React.FC = () => {
   const [candles, setCandles] = useState<CandleDataPoint[]>([]);
   const [activeCount, setActiveCount] = useState<number>(0);
+  const [hasFtd, setHasFtd] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -86,6 +88,41 @@ export const VnindexCandleChart: React.FC = () => {
           return;
         }
 
+        // Detect FTD (Follow-Through Day) according to CANSLIM rules
+        let rallyStartLow = Infinity;
+        let rallyDayCount = 0;
+        const ftdSet = new Set<number>();
+
+        for (let i = 1; i < sorted.length; i++) {
+          const prev = sorted[i - 1];
+          const curr = sorted[i];
+          const pct = (curr.close - prev.close) / prev.close;
+
+          if (rallyDayCount === 0) {
+            if (pct > 0) {
+              rallyDayCount = 1;
+              rallyStartLow = prev.low;
+            }
+          } else {
+            if (curr.low < rallyStartLow) {
+              // Rally attempt failed
+              if (pct > 0) {
+                rallyDayCount = 1;
+                rallyStartLow = prev.low;
+              } else {
+                rallyDayCount = 0;
+                rallyStartLow = Infinity;
+              }
+            } else {
+              rallyDayCount++;
+              // FTD Rule: Day 4+ of rally, gain > 1.25%, volume > prev volume
+              if (rallyDayCount >= 4 && pct > 0.0125 && curr.volume > prev.volume) {
+                ftdSet.add(i);
+              }
+            }
+          }
+        }
+
         // Identify Distribution Days according to CANSLIM rules
         const latestIdx = sorted.length - 1;
         const latestClose = sorted[latestIdx].close;
@@ -110,6 +147,7 @@ export const VnindexCandleChart: React.FC = () => {
             pctChange,
             isDistribution,
             isDistribActive: false,
+            isFTD: ftdSet.has(i),
           };
         });
 
@@ -130,6 +168,7 @@ export const VnindexCandleChart: React.FC = () => {
         const displayCandles = points.slice(-45);
         setCandles(displayCandles);
         setActiveCount(activeCounter);
+        setHasFtd(displayCandles.some((c) => c.isFTD));
       } catch {
         setError(true);
       } finally {
@@ -162,14 +201,14 @@ export const VnindexCandleChart: React.FC = () => {
 
   // SVG Dimension Specs
   const svgWidth = 360;
-  const svgHeight = 170;
+  const svgHeight = 175;
   const candleAreaHeight = 120;
   const volumeAreaHeight = 40;
   const candleWidth = Math.max((svgWidth - 10) / candles.length - 2, 3);
 
   const getPriceY = (price: number) => {
     const ratio = (price - minLow) / priceRange;
-    return candleAreaHeight - ratio * (candleAreaHeight - 15) + 5;
+    return candleAreaHeight - ratio * (candleAreaHeight - 22) + 5;
   };
 
   const getVolY = (vol: number) => {
@@ -201,8 +240,14 @@ export const VnindexCandleChart: React.FC = () => {
           )}
         </div>
 
-        {/* CANSLIM Distribution Badge */}
-        <div className="flex items-center gap-1">
+        {/* CANSLIM Distribution & FTD Badges */}
+        <div className="flex items-center gap-1.5">
+          {hasFtd && (
+            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5" title="Phát hiện phiên Bùng nổ theo đà FTD">
+              <Zap className="w-2.5 h-2.5 fill-emerald-400" />
+              FTD
+            </span>
+          )}
           <span
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
               activeCount >= 6
@@ -233,7 +278,7 @@ export const VnindexCandleChart: React.FC = () => {
       </div>
 
       {/* SVG Candle + Volume Chart */}
-      <div className="relative w-full h-[170px] bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
+      <div className="relative w-full h-[175px] bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="w-full h-full overflow-visible"
@@ -302,7 +347,6 @@ export const VnindexCandleChart: React.FC = () => {
                 {/* CANSLIM Distribution Marker Badge (🔴 D) */}
                 {c.isDistribution && (
                   <g>
-                    {/* Marker Pin Line */}
                     <line
                       x1={x + candleWidth / 2}
                       y1={yHigh - 2}
@@ -312,7 +356,6 @@ export const VnindexCandleChart: React.FC = () => {
                       strokeWidth="1"
                       strokeDasharray={c.isDistribActive ? 'none' : '1 1'}
                     />
-                    {/* Circle Badge */}
                     <circle
                       cx={x + candleWidth / 2}
                       cy={yHigh - 13}
@@ -321,7 +364,6 @@ export const VnindexCandleChart: React.FC = () => {
                       stroke="#ffffff"
                       strokeWidth="0.8"
                     />
-                    {/* Badge Letter D */}
                     <text
                       x={x + candleWidth / 2}
                       y={yHigh - 10.5}
@@ -334,20 +376,52 @@ export const VnindexCandleChart: React.FC = () => {
                     </text>
                   </g>
                 )}
+
+                {/* CANSLIM FTD Marker Badge (🟢 FTD) */}
+                {c.isFTD && (
+                  <g>
+                    <line
+                      x1={x + candleWidth / 2}
+                      y1={yLow + 2}
+                      x2={x + candleWidth / 2}
+                      y2={yLow + 9}
+                      stroke="#22c55e"
+                      strokeWidth="1"
+                    />
+                    <rect
+                      x={x + candleWidth / 2 - 11}
+                      y={yLow + 9}
+                      width="22"
+                      height="9"
+                      rx="2"
+                      fill="#22c55e"
+                    />
+                    <text
+                      x={x + candleWidth / 2}
+                      y={yLow + 16}
+                      textAnchor="middle"
+                      fill="#ffffff"
+                      fontSize="6.5"
+                      fontWeight="black"
+                    >
+                      FTD
+                    </text>
+                  </g>
+                )}
               </g>
             );
           })}
         </svg>
 
         {/* Legend Footnote */}
-        <div className="absolute bottom-1 right-2 flex items-center gap-2 text-[9px] text-gray-400 bg-black/40 px-1.5 py-0.5 rounded backdrop-blur-xs">
+        <div className="absolute bottom-1 right-2 flex items-center gap-2 text-[8.5px] text-gray-400 bg-black/50 px-1.5 py-0.5 rounded backdrop-blur-xs">
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-            <strong className="text-gray-200">D</strong>: Phân phối (Active)
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+            <strong className="text-gray-200">D</strong>: Phân phối
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-gray-500 inline-block" />
-            Hết hiệu lực
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+            <strong className="text-emerald-400">FTD</strong>: Bùng nổ theo đà
           </span>
         </div>
       </div>

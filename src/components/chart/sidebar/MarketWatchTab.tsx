@@ -68,29 +68,29 @@ export const MarketWatchTab: React.FC = () => {
         <VnindexCandleChart />
       </Section>
 
-      {/* Section 3 — Top CP ảnh hưởng VNINDEX */}
+      {/* Section 3 — Sức khỏe thị trường (Đưa lên ngay sau Nến VNINDEX) */}
+      <Section title="Sức khỏe thị trường" badge="CANSLIM" defaultOpen={true}>
+        <HealthScore />
+      </Section>
+
+      {/* Section 4 — Top CP ảnh hưởng VNINDEX */}
       <Section title="Ảnh hưởng VNINDEX" badge="LIVE" defaultOpen={true}>
         <MarketInfluenceTable />
       </Section>
 
-      {/* Section 4 — Độ rộng thị trường */}
-      <Section title="Độ rộng thị trường" defaultOpen={true}>
-        <BreadthChart />
-      </Section>
-
-      {/* Section 5 — Định giá PE/PB */}
-      <Section title="Định giá VNINDEX" defaultOpen={true}>
-        <ValuationChart />
-      </Section>
-
-      {/* Section 6 — Top Mua Bán Ròng Nước Ngoài */}
+      {/* Section 5 — Top Mua Bán Ròng Nước Ngoài */}
       <Section title="Nước ngoài Mua / Bán ròng" defaultOpen={true}>
         <NetFlowTable />
       </Section>
 
-      {/* Section 7 — Sức khỏe thị trường */}
-      <Section title="Sức khỏe thị trường" badge="CANSLIM" defaultOpen={true}>
-        <HealthScore />
+      {/* Section 6 — Độ rộng thị trường */}
+      <Section title="Độ rộng thị trường" defaultOpen={true}>
+        <BreadthChart />
+      </Section>
+
+      {/* Section 7 — Định giá PE/PB */}
+      <Section title="Định giá VNINDEX" defaultOpen={true}>
+        <ValuationChart />
       </Section>
     </div>
   );
