@@ -379,6 +379,10 @@ export function StockChartPanel({
     initialTab: 'params',
   });
 
+  const [indicatorFormatSettings, setIndicatorFormatSettings] = useState<
+    Record<string, { showPriceScaleLabel: boolean; showStatusValue: boolean }>
+  >({});
+
   // ─── Utility Sidebar State ────────────────────────────────────────────────
   const [showSidebar, setShowSidebar] = useState<boolean>(() => {
     try {
@@ -482,8 +486,8 @@ export function StockChartPanel({
   const fetchPriceHistory = useCallback(async (t: string, res: Resolution = 'D') => {
     const cached = getCachedData(t);
 
-    // 1. Kiểm tra RAM Cache (Trả về 0ms nếu đã có)
-    if (cached && cached.resolutions[res] && cached.resolutions[res]!.length > 0) {
+    // 1. Kiểm tra RAM Cache (Trả về 0ms nếu đã có tối thiểu 10 nến)
+    if (cached && cached.resolutions[res] && cached.resolutions[res]!.length >= 10) {
       const bars = cached.resolutions[res]!;
       setAllBars(bars);
       if (bars.length > 0 && res === 'D') setLiveVolume(bars[bars.length - 1].volume);
@@ -505,7 +509,7 @@ export function StockChartPanel({
       const json1 = await res1.json();
       const dailyBars1: OhlcBar[] = json1.history || [];
 
-      if (dailyBars1.length > 0) {
+      if (dailyBars1.length >= 5) {
         // Sinh ngay nến Tuần và Tháng từ nến Ngày Tầng 1
         const weeklyBars1 = resampleDailyToWeekly(dailyBars1);
         const monthlyBars1 = resampleDailyToMonthly(dailyBars1);
@@ -1146,10 +1150,39 @@ export function StockChartPanel({
     }
   };
 
-  const handleSaveIndicatorPlots = (plots: IndicatorPlotConfig[]) => {
+  const handleSaveIndicatorPlots = (
+    plots: IndicatorPlotConfig[],
+    extraConfig?: { showPriceScaleLabel?: boolean; showStatusValue?: boolean }
+  ) => {
     const { indicatorId } = indicatorDialogState;
     const chart = chartRef.current;
     if (!chart) return;
+
+    const showPriceScaleLabel =
+      extraConfig?.showPriceScaleLabel ??
+      indicatorFormatSettings[indicatorId]?.showPriceScaleLabel ??
+      true;
+    const showStatusValue =
+      extraConfig?.showStatusValue ??
+      indicatorFormatSettings[indicatorId]?.showStatusValue ??
+      true;
+
+    setIndicatorFormatSettings((prev) => ({
+      ...prev,
+      [indicatorId]: { showPriceScaleLabel, showStatusValue },
+    }));
+
+    const commonStyles = {
+      tooltip: {
+        showRule: showStatusValue ? ('always' as const) : ('none' as const),
+        showName: showStatusValue,
+        showParams: showStatusValue,
+      },
+      lastValueMark: {
+        show: showPriceScaleLabel,
+        text: { show: showPriceScaleLabel },
+      },
+    };
 
     if (indicatorId === 'ema' && activeIndicators.ema) {
       const p1 = plots.find((p) => p.id === 'ema1');
@@ -1166,6 +1199,7 @@ export function StockChartPanel({
         {
           name: 'EMA',
           styles: {
+            ...commonStyles,
             lines: [
               { color: p1?.color || chartTheme.ema.ema1Color, size: p1?.lineWidth || 1.5, style: (p1?.lineStyle || 'solid') as any, show: p1?.visible ?? true },
               { color: p2?.color || chartTheme.ema.ema2Color, size: p2?.lineWidth || 1.5, style: (p2?.lineStyle || 'solid') as any, show: p2?.visible ?? true },
@@ -1191,6 +1225,7 @@ export function StockChartPanel({
         {
           name: 'BOLL',
           styles: {
+            ...commonStyles,
             lines: [
               { color: up?.color || chartTheme.boll.upColor, size: up?.lineWidth || 1, style: (up?.lineStyle || 'solid') as any, show: up?.visible ?? true },
               { color: mid?.color || chartTheme.boll.midColor, size: mid?.lineWidth || 1, style: (mid?.lineStyle || 'solid') as any, show: mid?.visible ?? true },
@@ -1217,6 +1252,16 @@ export function StockChartPanel({
         handleToggleSwingHlLine(zz.visible);
       }
       handleThemeChange(nextTheme);
+      chart.overrideIndicator(
+        {
+          name: 'SWING_HL',
+          styles: {
+            ...commonStyles,
+            ...nextTheme.smc,
+          } as any,
+        },
+        'candle_pane'
+      );
     } else if (indicatorId === 'vol' && activeIndicators.vol && subPanesRef.current.vol) {
       const u = plots.find((p) => p.id === 'volUp');
       const d = plots.find((p) => p.id === 'volDown');
@@ -1235,6 +1280,7 @@ export function StockChartPanel({
         {
           name: 'VOL',
           styles: {
+            ...commonStyles,
             lines: [
               { color: ma?.color || chartTheme.vol.maColor, size: ma?.lineWidth || 1, style: (ma?.lineStyle || 'solid') as any, show: ma?.visible ?? true },
             ],
@@ -1262,6 +1308,7 @@ export function StockChartPanel({
         {
           name: 'RSI',
           styles: {
+            ...commonStyles,
             lines: [
               { color: l?.color || chartTheme.rsi.lineColor, size: l?.lineWidth || 1.2, style: (l?.lineStyle || 'solid') as any, show: l?.visible ?? true },
             ],
@@ -1287,6 +1334,7 @@ export function StockChartPanel({
         {
           name: 'MACD',
           styles: {
+            ...commonStyles,
             lines: [
               { color: dif?.color || chartTheme.macd.difColor, size: dif?.lineWidth || 1.2, style: (dif?.lineStyle || 'solid') as any, show: dif?.visible ?? true },
               { color: dea?.color || chartTheme.macd.deaColor, size: dea?.lineWidth || 1.2, style: (dea?.lineStyle || 'solid') as any, show: dea?.visible ?? true },
@@ -1314,6 +1362,7 @@ export function StockChartPanel({
         {
           name: 'FUNDAMENTAL_PE',
           styles: {
+            ...commonStyles,
             lines: [
               { color: p2?.color || '#6366f1', size: p2?.lineWidth || 1, style: (p2?.lineStyle || 'dashed') as any, show: p2?.visible ?? true },
               { color: p1?.color || '#3b82f6', size: p1?.lineWidth || 1, style: (p1?.lineStyle || 'solid') as any, show: p1?.visible ?? true },
@@ -1337,6 +1386,7 @@ export function StockChartPanel({
         {
           name: 'FUNDAMENTAL_PB',
           styles: {
+            ...commonStyles,
             lines: [
               { color: p2?.color || '#6366f1', size: p2?.lineWidth || 1, style: (p2?.lineStyle || 'dashed') as any, show: p2?.visible ?? true },
               { color: p1?.color || '#3b82f6', size: p1?.lineWidth || 1, style: (p1?.lineStyle || 'solid') as any, show: p1?.visible ?? true },
@@ -1355,6 +1405,7 @@ export function StockChartPanel({
         {
           name: 'FUNDAMENTAL_CORE_EPS',
           styles: {
+            ...commonStyles,
             lines: [
               { color: eps?.color || '#a855f7', size: eps?.lineWidth || 2, style: (eps?.lineStyle || 'solid') as any, show: eps?.visible ?? true },
             ],
@@ -1368,6 +1419,7 @@ export function StockChartPanel({
         {
           name: 'FUNDAMENTAL_REVENUE',
           styles: {
+            ...commonStyles,
             bars: [
               { color: rev?.color || '#06b6d4', show: rev?.visible ?? true },
             ],
@@ -1826,7 +1878,7 @@ export function StockChartPanel({
   // ─── Cập nhật nến cuối với livePrice ──────────────────────────────────────
 
   useEffect(() => {
-    if (!livePrice || !chartRef.current || allBars.length === 0) return;
+    if (!livePrice || !chartRef.current || allBars.length < 2) return;
     const lastBar = allBars[allBars.length - 1];
 
     // Kiểm tra an toàn: Nếu livePrice lệch trên 40% so với giá đóng cửa nến cuối của lịch sử,
@@ -2818,6 +2870,12 @@ export function StockChartPanel({
         params={indicatorParams}
         onSaveParams={handleSaveIndicatorParams}
         initialTab={indicatorDialogState.initialTab || 'params'}
+        showPriceScaleLabel={
+          indicatorFormatSettings[indicatorDialogState.indicatorId]?.showPriceScaleLabel ?? true
+        }
+        showStatusValue={
+          indicatorFormatSettings[indicatorDialogState.indicatorId]?.showStatusValue ?? true
+        }
       />
     </div>
   );

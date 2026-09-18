@@ -18,7 +18,10 @@ export interface IndicatorSettingsDialogProps {
   indicatorId: string;
   title: string;
   plots: IndicatorPlotConfig[];
-  onSavePlots: (plots: IndicatorPlotConfig[]) => void;
+  onSavePlots: (
+    plots: IndicatorPlotConfig[],
+    extraConfig?: { showPriceScaleLabel?: boolean; showStatusValue?: boolean }
+  ) => void;
   params?: any;
   onSaveParams?: (params: any) => void;
   initialTab?: 'params' | 'format';
@@ -50,14 +53,20 @@ export function IndicatorSettingsDialog({
   const [statusValue, setStatusValue] = useState(showStatusValue);
   const [showDefaultDropdown, setShowDefaultDropdown] = useState(false);
 
+  // Chỉ đồng bộ state local khi mở dialog (khi isOpen từ false sang true)
+  const prevIsOpenRef = React.useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setPlots(JSON.parse(JSON.stringify(initialPlots)));
       setLocalParams(JSON.parse(JSON.stringify(initialParams)));
       setPriceScaleLabel(showPriceScaleLabel);
       setStatusValue(showStatusValue);
       setActiveTab(initialTab);
+    }
+    prevIsOpenRef.current = isOpen;
 
+    if (isOpen) {
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
       };
@@ -68,11 +77,11 @@ export function IndicatorSettingsDialog({
 
   if (!isOpen) return null;
 
-  // Plot formatting handlers
+  // Plot formatting handlers (Cập nhật realtime không làm mất tab hiện tại)
   const handleTogglePlot = (id: string) => {
     setPlots((prev) => {
       const next = prev.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p));
-      onSavePlots(next);
+      onSavePlots(next, { showPriceScaleLabel: priceScaleLabel, showStatusValue: statusValue });
       return next;
     });
   };
@@ -80,7 +89,7 @@ export function IndicatorSettingsDialog({
   const handleColorChange = (id: string, color: string) => {
     setPlots((prev) => {
       const next = prev.map((p) => (p.id === id ? { ...p, color } : p));
-      onSavePlots(next);
+      onSavePlots(next, { showPriceScaleLabel: priceScaleLabel, showStatusValue: statusValue });
       return next;
     });
   };
@@ -88,7 +97,7 @@ export function IndicatorSettingsDialog({
   const handleWidthChange = (id: string, lineWidth: number) => {
     setPlots((prev) => {
       const next = prev.map((p) => (p.id === id ? { ...p, lineWidth } : p));
-      onSavePlots(next);
+      onSavePlots(next, { showPriceScaleLabel: priceScaleLabel, showStatusValue: statusValue });
       return next;
     });
   };
@@ -96,9 +105,21 @@ export function IndicatorSettingsDialog({
   const handleStyleChange = (id: string, lineStyle: 'solid' | 'dashed') => {
     setPlots((prev) => {
       const next = prev.map((p) => (p.id === id ? { ...p, lineStyle } : p));
-      onSavePlots(next);
+      onSavePlots(next, { showPriceScaleLabel: priceScaleLabel, showStatusValue: statusValue });
       return next;
     });
+  };
+
+  const handleTogglePriceScaleLabel = (val: boolean) => {
+    setPriceScaleLabel(val);
+    onSavePlots(plots, { showPriceScaleLabel: val, showStatusValue: statusValue });
+    if (onTogglePriceScaleLabel) onTogglePriceScaleLabel(val);
+  };
+
+  const handleToggleStatusValue = (val: boolean) => {
+    setStatusValue(val);
+    onSavePlots(plots, { showPriceScaleLabel: priceScaleLabel, showStatusValue: val });
+    if (onToggleStatusValue) onToggleStatusValue(val);
   };
 
   // Param update handler
@@ -107,7 +128,7 @@ export function IndicatorSettingsDialog({
   };
 
   const handleOk = () => {
-    onSavePlots(plots);
+    onSavePlots(plots, { showPriceScaleLabel: priceScaleLabel, showStatusValue: statusValue });
     if (onSaveParams) onSaveParams(localParams);
     if (onTogglePriceScaleLabel) onTogglePriceScaleLabel(priceScaleLabel);
     if (onToggleStatusValue) onToggleStatusValue(statusValue);
@@ -115,13 +136,16 @@ export function IndicatorSettingsDialog({
   };
 
   const handleCancel = () => {
-    onSavePlots(initialPlots);
+    onSavePlots(initialPlots, { showPriceScaleLabel, showStatusValue });
     onClose();
   };
 
   const handleResetDefaults = () => {
     setPlots(initialPlots);
     setLocalParams(initialParams);
+    setPriceScaleLabel(true);
+    setStatusValue(true);
+    onSavePlots(initialPlots, { showPriceScaleLabel: true, showStatusValue: true });
     setShowDefaultDropdown(false);
   };
 
@@ -466,7 +490,7 @@ export function IndicatorSettingsDialog({
                   <input
                     type="checkbox"
                     checked={priceScaleLabel}
-                    onChange={(e) => setPriceScaleLabel(e.target.checked)}
+                    onChange={(e) => handleTogglePriceScaleLabel(e.target.checked)}
                     className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
                   />
                   <span>Nhãn trên thang giá</span>
@@ -476,7 +500,7 @@ export function IndicatorSettingsDialog({
                   <input
                     type="checkbox"
                     checked={statusValue}
-                    onChange={(e) => setStatusValue(e.target.checked)}
+                    onChange={(e) => handleToggleStatusValue(e.target.checked)}
                     className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
                   />
                   <span>Giá trị trong dòng trạng thái</span>
