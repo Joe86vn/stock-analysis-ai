@@ -628,7 +628,23 @@ export function getKLineThemeFromCustom(
     },
     indicator: {
       tooltip: {
-        showRule: 'none' as const,
+        showRule: 'always' as const,
+        showName: true,
+        showParams: true,
+      },
+      lastValueMark: {
+        show: true,
+        text: {
+          show: true,
+          style: 'fill',
+          color: '#ffffff',
+          size: 11,
+          paddingLeft: 4,
+          paddingTop: 2,
+          paddingRight: 4,
+          paddingBottom: 2,
+          borderRadius: 2,
+        },
       },
       lines: [
         createIndicatorLine(e.ema1Color, 1.5), // EMA 1

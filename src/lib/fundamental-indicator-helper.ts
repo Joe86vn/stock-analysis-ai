@@ -66,16 +66,34 @@ export function prepareQuarterSeries(quarters: ParsedVietcapQuarter[]) {
 
   return sorted.map((q) => {
     const releaseTs = getQuarterReleaseTimestamp(q.year, q.quarter);
-    // Lợi nhuận sau thuế cốt lõi (Loại trừ lợi nhuận khác/bất thường)
+    // Lợi nhuận sau thuế cốt lõi (Tỷ VNĐ)
     const netProfit = q.netProfit || q.consolidatedNetProfit || 0;
     const otherProfit = q.otherProfit || 0;
-    const coreNetProfit = netProfit - otherProfit;
+    const coreNetProfitBillion = netProfit - otherProfit;
+    const coreNetProfitVnd = coreNetProfitBillion * 1_000_000_000;
 
-    // EPS cốt lõi quý
-    const shares = (q.sharesOutstandingMillions || 0) * 1_000_000;
-    let coreEpsQuarter = q.eps || 0;
-    if (shares > 0 && coreNetProfit !== 0) {
-      coreEpsQuarter = Math.round(coreNetProfit / shares);
+    // Ước tính số lượng cổ phiếu lưu hành (Shares)
+    let shares = (q.sharesOutstandingMillions || 0) * 1_000_000;
+    if (shares <= 0 && q.charterCapital && q.charterCapital > 0) {
+      // Mệnh giá 10,000 VNĐ/cp => Vốn điều lệ (Tỷ) * 1e9 / 10,000 = Vốn điều lệ * 100,000 cp
+      shares = q.charterCapital * 100_000;
+    }
+    if (shares <= 0 && q.ownerEquity > 0 && q.bvps > 0 && q.bvps < 500000) {
+      shares = Math.round((q.ownerEquity * 1_000_000_000) / q.bvps);
+    }
+
+    // EPS cốt lõi quý (VNĐ/cp)
+    let coreEpsQuarter = 0;
+    if (shares > 0 && coreNetProfitVnd !== 0) {
+      coreEpsQuarter = Math.round(coreNetProfitVnd / shares);
+    } else if (q.eps > 0 && q.eps < 500000) {
+      coreEpsQuarter = q.eps;
+    }
+
+    // BVPS (VNĐ/cp)
+    let bvpsVnd = q.bvps;
+    if ((!bvpsVnd || bvpsVnd <= 0 || bvpsVnd > 500000) && shares > 0 && q.ownerEquity > 0) {
+      bvpsVnd = Math.round((q.ownerEquity * 1_000_000_000) / shares);
     }
 
     return {
@@ -83,12 +101,12 @@ export function prepareQuarterSeries(quarters: ParsedVietcapQuarter[]) {
       quarter: q.quarter,
       period: q.period || `Q${q.quarter}/${q.year}`,
       releaseTs,
-      revenue: q.revenue || 0,
+      revenue: q.revenue || 0, // Tỷ VNĐ
       netProfit,
-      coreNetProfit,
+      coreNetProfitBillion,
       coreEpsQuarter,
-      eps: q.eps || 0,
-      bvps: q.bvps || 0,
+      eps: q.eps > 0 && q.eps < 500000 ? q.eps : coreEpsQuarter,
+      bvps: bvpsVnd,
       ownerEquity: q.ownerEquity || 0,
       shares,
     };
@@ -143,7 +161,7 @@ export function enrichKLineWithFundamentals<T extends { timestamp: number; close
 
     return {
       ...q,
-      coreEpsTTM: coreEpsTTM || q.eps * 4,
+      coreEpsTTM: coreEpsTTM || (q.eps > 0 && q.eps < 500000 ? q.eps * 4 : 0),
       revenueTTM,
     };
   });
@@ -171,7 +189,6 @@ export function enrichKLineWithFundamentals<T extends { timestamp: number; close
         pe = Number((priceVnd / matchedQ.coreEpsTTM).toFixed(2));
       }
       if (matchedQ.bvps > 0) {
-        // bvps in Vietcap is usually in VND (e.g. 15000)
         const bvpsVnd = matchedQ.bvps < 500 ? matchedQ.bvps * 1000 : matchedQ.bvps;
         pb = Number((priceVnd / bvpsVnd).toFixed(2));
       }
@@ -182,7 +199,7 @@ export function enrichKLineWithFundamentals<T extends { timestamp: number; close
       pe,
       pb,
       coreEps: matchedQ ? matchedQ.coreEpsTTM : undefined,
-      revenue: matchedQ ? Math.round((matchedQ.revenueTTM || 0) / 1_000_000_000) : undefined, // Tỷ VNĐ
+      revenue: matchedQ ? Math.round(matchedQ.revenueTTM || 0) : undefined, // Tỷ VNĐ
       quarterCode: matchedQ ? matchedQ.period : undefined,
     };
   });

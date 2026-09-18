@@ -17,6 +17,7 @@ import {
   Search,
   Settings,
   Layers,
+  Pencil,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ChartUtilitySidebar } from './chart/sidebar/ChartUtilitySidebar';
@@ -315,6 +316,7 @@ export function StockChartPanel({
 
   // ─── Drawing Tools State ──────────────────────────────────────────────────
   const [activeTool, setActiveTool] = useState<DrawingToolType>('cursor');
+  const [showDrawingToolbar, setShowDrawingToolbar] = useState(false);
 
   // ─── Indicators State & Parameters ───────────────────────────────────────
   const [activeIndicators, setActiveIndicators] = useState({
@@ -2365,6 +2367,23 @@ export function StockChartPanel({
             <span className={`w-1.5 h-1.5 rounded-full ${showDividendMarkers ? 'bg-amber-500' : 'bg-gray-400'}`} />
           </button>
 
+          {/* Công cụ vẽ Toggle Button */}
+          <button
+            onClick={() => setShowDrawingToolbar((v) => !v)}
+            className={`
+              flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer
+              ${showDrawingToolbar
+                ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 shadow-2xs'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700'
+              }
+            `}
+            title="Ẩn/hiện bộ công cụ vẽ kỹ thuật (Trendline, Thước đo, Hỗ trợ/Kháng cự...)"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Công cụ vẽ</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${showDrawingToolbar ? 'bg-purple-500' : 'bg-gray-400'}`} />
+          </button>
+
           {/* Cài đặt (⚙️) Button */}
           <button
             onClick={() => setShowChartSettingsModal(true)}
@@ -2398,11 +2417,13 @@ export function StockChartPanel({
       {/* Main Chart Area with Sidebar */}
       <div className="relative flex-1 min-h-0 w-full h-full flex overflow-hidden">
         {/* TradingView Left Drawing Toolbar */}
-        <DrawingToolbar
-          activeTool={activeTool}
-          onSelectTool={handleSelectTool}
-          onClearAll={handleClearAllOverlays}
-        />
+        {showDrawingToolbar && (
+          <DrawingToolbar
+            activeTool={activeTool}
+            onSelectTool={handleSelectTool}
+            onClearAll={handleClearAllOverlays}
+          />
+        )}
 
         {/* Chart Canvas Area */}
         <div

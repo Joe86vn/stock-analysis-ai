@@ -497,8 +497,19 @@ export function parseVietcapQuarter(
   // 1. Statistics & Valuation
   const sharesOutstandingMillions = statItem.numberOfSharesMktCap ? Math.round((Number(statItem.numberOfSharesMktCap) / 1e6) * 100) / 100 : 0;
   const marketCapBillion = toBillion(statItem.marketCap);
-  const eps = Math.round(Number(isItem.isa102 || isItem.isa103 || (isItem.isa22 && statItem.numberOfSharesMktCap ? (Number(isItem.isa22) / Number(statItem.numberOfSharesMktCap)) : 0)) || 0);
-  const bvps = bsItem.bsa79 && statItem.numberOfSharesMktCap ? Math.round(Number(bsItem.bsa79) / Number(statItem.numberOfSharesMktCap)) : 0;
+  
+  let rawEps = Number(isItem.isa102 || isItem.isa103 || 0);
+  if (!rawEps && isItem.isa22 && statItem.numberOfSharesMktCap && Number(statItem.numberOfSharesMktCap) > 0) {
+    rawEps = Number(isItem.isa22) / Number(statItem.numberOfSharesMktCap);
+  }
+  const eps = Math.round(rawEps > 0 && rawEps < 500000 ? rawEps : 0);
+
+  let rawBvps = Number(statItem.bvps || 0);
+  if (!rawBvps && bsItem.bsa79 && statItem.numberOfSharesMktCap && Number(statItem.numberOfSharesMktCap) > 0) {
+    rawBvps = Number(bsItem.bsa79) / Number(statItem.numberOfSharesMktCap);
+  }
+  const bvps = Math.round(rawBvps > 0 && rawBvps < 1000000 ? rawBvps : 0);
+
   const pe = toRatio(statItem.pe);
   const pb = toRatio(statItem.pb);
   const ps = toRatio(statItem.ps);
