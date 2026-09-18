@@ -204,29 +204,38 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         id: 'coreNetProfit',
         label: 'Lợi nhuận ròng cốt lõi',
         unit: 'Tỷ',
-        getValue: (q) => q.operatingProfit || q.netProfit || 0,
+        getValue: (q) => (q.netProfit || q.consolidatedNetProfit || 0) - (q.otherProfit || 0),
       },
       {
         id: 'coreNetProfitGrowth',
         label: 'Tăng trưởng LNST cốt lõi',
         unit: '%',
         isPercent: true,
-        getValue: (q, allData) => getYoYGrowth(q, allData || [], (x) => x.operatingProfit || x.netProfit || 0),
+        getValue: (q, allData) =>
+          getYoYGrowth(
+            q,
+            allData || [],
+            (x) => (x.netProfit || x.consolidatedNetProfit || 0) - (x.otherProfit || 0)
+          ),
       },
       {
         id: 'coreNetMargin',
         label: 'Biên LN ròng cốt lõi',
         unit: '%',
         isPercent: true,
-        getValue: (q) => (q.revenue > 0 ? ((q.operatingProfit || q.netProfit) / q.revenue) * 100 : 0),
+        getValue: (q) =>
+          q.revenue > 0
+            ? (((q.netProfit || q.consolidatedNetProfit || 0) - (q.otherProfit || 0)) / q.revenue) * 100
+            : 0,
       },
       {
         id: 'coreEps',
         label: 'EPS cốt lõi',
         unit: 'đ/cp',
         getValue: (q) => {
-          if (q.sharesOutstandingMillions > 0 && (q.operatingProfit || q.netProfit)) {
-            return Math.round(((q.operatingProfit || q.netProfit) / q.sharesOutstandingMillions) * 1000);
+          const coreProfit = (q.netProfit || q.consolidatedNetProfit || 0) - (q.otherProfit || 0);
+          if (q.sharesOutstandingMillions > 0 && coreProfit !== 0) {
+            return Math.round((coreProfit / q.sharesOutstandingMillions) * 1000);
           }
           return q.eps > 0 && q.eps < 500000 ? q.eps : 0;
         },
@@ -238,8 +247,9 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         isPercent: true,
         getValue: (q, allData) =>
           getYoYGrowth(q, allData || [], (x) => {
-            if (x.sharesOutstandingMillions > 0 && (x.operatingProfit || x.netProfit)) {
-              return Math.round(((x.operatingProfit || x.netProfit) / x.sharesOutstandingMillions) * 1000);
+            const coreProfit = (x.netProfit || x.consolidatedNetProfit || 0) - (x.otherProfit || 0);
+            if (x.sharesOutstandingMillions > 0 && coreProfit !== 0) {
+              return Math.round((coreProfit / x.sharesOutstandingMillions) * 1000);
             }
             return x.eps > 0 && x.eps < 500000 ? x.eps : 0;
           }),
@@ -254,8 +264,9 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
         label: 'EPS cốt lõi',
         unit: 'đ/cp',
         getValue: (q) => {
-          if (q.sharesOutstandingMillions > 0 && (q.operatingProfit || q.netProfit)) {
-            return Math.round(((q.operatingProfit || q.netProfit) / q.sharesOutstandingMillions) * 1000);
+          const coreProfit = (q.netProfit || q.consolidatedNetProfit || 0) - (q.otherProfit || 0);
+          if (q.sharesOutstandingMillions > 0 && coreProfit !== 0) {
+            return Math.round((coreProfit / q.sharesOutstandingMillions) * 1000);
           }
           return q.eps > 0 && q.eps < 500000 ? q.eps : 0;
         },
@@ -430,9 +441,11 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
       const sumRevenue = qInYear.reduce((s, it) => s + (it.revenue || 0), 0);
       const sumGrossProfit = qInYear.reduce((s, it) => s + (it.grossProfit || 0), 0);
       const sumNetProfit = qInYear.reduce((s, it) => s + (it.netProfit || 0), 0);
+      const sumOtherProfit = qInYear.reduce((s, it) => s + (it.otherProfit || 0), 0);
+      const sumCoreNetProfit = sumNetProfit - sumOtherProfit;
       const sumOperatingProfit = qInYear.reduce((s, it) => s + (it.operatingProfit || 0), 0);
       const latestShares = latestQ.sharesOutstandingMillions || 0;
-      const yearlyCoreEps = latestShares > 0 ? Math.round(((sumOperatingProfit || sumNetProfit) / latestShares) * 1000) : latestQ.eps;
+      const yearlyCoreEps = latestShares > 0 ? Math.round((sumCoreNetProfit / latestShares) * 1000) : latestQ.eps;
 
       const yearlyItem: ParsedVietcapQuarter = {
         ...latestQ,

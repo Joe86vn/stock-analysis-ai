@@ -70,27 +70,35 @@ export function IndicatorSettingsDialog({
 
   // Plot formatting handlers
   const handleTogglePlot = (id: string) => {
-    setPlots((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p))
-    );
+    setPlots((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p));
+      onSavePlots(next);
+      return next;
+    });
   };
 
   const handleColorChange = (id: string, color: string) => {
-    setPlots((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, color } : p))
-    );
+    setPlots((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, color } : p));
+      onSavePlots(next);
+      return next;
+    });
   };
 
   const handleWidthChange = (id: string, lineWidth: number) => {
-    setPlots((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, lineWidth } : p))
-    );
+    setPlots((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, lineWidth } : p));
+      onSavePlots(next);
+      return next;
+    });
   };
 
   const handleStyleChange = (id: string, lineStyle: 'solid' | 'dashed') => {
-    setPlots((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, lineStyle } : p))
-    );
+    setPlots((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, lineStyle } : p));
+      onSavePlots(next);
+      return next;
+    });
   };
 
   // Param update handler
@@ -107,6 +115,7 @@ export function IndicatorSettingsDialog({
   };
 
   const handleCancel = () => {
+    onSavePlots(initialPlots);
     onClose();
   };
 

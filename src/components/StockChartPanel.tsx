@@ -1093,12 +1093,65 @@ export function StockChartPanel({
           },
         ],
       });
+    } else if (indicatorId === 'pe') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'pe',
+        title: 'Chỉ báo P/E - TTM Band Chart',
+        initialTab,
+        plots: [
+          { id: 'plus2SD', name: 'Đường +2SD (Nét đứt)', visible: true, color: '#6366f1', lineWidth: 1, lineStyle: 'dashed' },
+          { id: 'plus1SD', name: 'Đường +1SD', visible: true, color: '#3b82f6', lineWidth: 1, lineStyle: 'solid' },
+          { id: 'mean', name: 'Đường Trung Bình (Mean)', visible: true, color: '#9ca3af', lineWidth: 1, lineStyle: 'solid' },
+          { id: 'minus1SD', name: 'Đường -1SD', visible: true, color: '#f97316', lineWidth: 1, lineStyle: 'solid' },
+          { id: 'minus2SD', name: 'Đường -2SD (Nét đứt)', visible: true, color: '#ef4444', lineWidth: 1, lineStyle: 'dashed' },
+          { id: 'pe', name: 'Đường P/E - TTM', visible: true, color: '#22c55e', lineWidth: 2, lineStyle: 'solid' },
+        ],
+      });
+    } else if (indicatorId === 'pb') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'pb',
+        title: 'Chỉ báo P/B - TTM Band Chart',
+        initialTab,
+        plots: [
+          { id: 'plus2SD', name: 'Đường +2SD (Nét đứt)', visible: true, color: '#6366f1', lineWidth: 1, lineStyle: 'dashed' },
+          { id: 'plus1SD', name: 'Đường +1SD', visible: true, color: '#3b82f6', lineWidth: 1, lineStyle: 'solid' },
+          { id: 'mean', name: 'Đường Trung Bình (Mean)', visible: true, color: '#9ca3af', lineWidth: 1, lineStyle: 'solid' },
+          { id: 'minus1SD', name: 'Đường -1SD', visible: true, color: '#f97316', lineWidth: 1, lineStyle: 'solid' },
+          { id: 'minus2SD', name: 'Đường -2SD (Nét đứt)', visible: true, color: '#ef4444', lineWidth: 1, lineStyle: 'dashed' },
+          { id: 'pb', name: 'Đường P/B - TTM', visible: true, color: '#22c55e', lineWidth: 2, lineStyle: 'solid' },
+        ],
+      });
+    } else if (indicatorId === 'coreEps') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'coreEps',
+        title: 'Chỉ báo EPS Cốt Lõi TTM',
+        initialTab,
+        plots: [
+          { id: 'coreEps', name: 'Đường EPS Cốt Lõi (VND)', visible: true, color: '#a855f7', lineWidth: 2, lineStyle: 'solid' },
+        ],
+      });
+    } else if (indicatorId === 'revenue') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'revenue',
+        title: 'Chỉ báo Doanh Thu TTM',
+        initialTab,
+        plots: [
+          { id: 'revenue', name: 'Cột Doanh Thu TTM (Tỷ VNĐ)', visible: true, color: '#06b6d4', lineWidth: 1, lineStyle: 'solid' },
+        ],
+      });
     }
   };
 
   const handleSaveIndicatorPlots = (plots: IndicatorPlotConfig[]) => {
     const { indicatorId } = indicatorDialogState;
-    if (indicatorId === 'ema') {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    if (indicatorId === 'ema' && activeIndicators.ema) {
       const p1 = plots.find((p) => p.id === 'ema1');
       const p2 = plots.find((p) => p.id === 'ema2');
       const nextTheme = {
@@ -1109,7 +1162,19 @@ export function StockChartPanel({
         },
       };
       handleThemeChange(nextTheme);
-    } else if (indicatorId === 'boll') {
+      chart.overrideIndicator(
+        {
+          name: 'EMA',
+          styles: {
+            lines: [
+              { color: p1?.color || chartTheme.ema.ema1Color, size: p1?.lineWidth || 1.5, style: (p1?.lineStyle || 'solid') as any, show: p1?.visible ?? true },
+              { color: p2?.color || chartTheme.ema.ema2Color, size: p2?.lineWidth || 1.5, style: (p2?.lineStyle || 'solid') as any, show: p2?.visible ?? true },
+            ],
+          } as any,
+        },
+        'candle_pane'
+      );
+    } else if (indicatorId === 'boll' && activeIndicators.boll) {
       const up = plots.find((p) => p.id === 'up');
       const mid = plots.find((p) => p.id === 'mid');
       const down = plots.find((p) => p.id === 'down');
@@ -1122,6 +1187,19 @@ export function StockChartPanel({
         },
       };
       handleThemeChange(nextTheme);
+      chart.overrideIndicator(
+        {
+          name: 'BOLL',
+          styles: {
+            lines: [
+              { color: up?.color || chartTheme.boll.upColor, size: up?.lineWidth || 1, style: (up?.lineStyle || 'solid') as any, show: up?.visible ?? true },
+              { color: mid?.color || chartTheme.boll.midColor, size: mid?.lineWidth || 1, style: (mid?.lineStyle || 'solid') as any, show: mid?.visible ?? true },
+              { color: down?.color || chartTheme.boll.downColor, size: down?.lineWidth || 1, style: (down?.lineStyle || 'solid') as any, show: down?.visible ?? true },
+            ],
+          } as any,
+        },
+        'candle_pane'
+      );
     } else if (indicatorId === 'swingHl') {
       const zz = plots.find((p) => p.id === 'zigzag');
       const pk = plots.find((p) => p.id === 'peak');
@@ -1139,7 +1217,7 @@ export function StockChartPanel({
         handleToggleSwingHlLine(zz.visible);
       }
       handleThemeChange(nextTheme);
-    } else if (indicatorId === 'vol') {
+    } else if (indicatorId === 'vol' && activeIndicators.vol && subPanesRef.current.vol) {
       const u = plots.find((p) => p.id === 'volUp');
       const d = plots.find((p) => p.id === 'volDown');
       const ma = plots.find((p) => p.id === 'volMa');
@@ -1153,7 +1231,25 @@ export function StockChartPanel({
         },
       };
       handleThemeChange(nextTheme);
-    } else if (indicatorId === 'rsi') {
+      chart.overrideIndicator(
+        {
+          name: 'VOL',
+          styles: {
+            lines: [
+              { color: ma?.color || chartTheme.vol.maColor, size: ma?.lineWidth || 1, style: (ma?.lineStyle || 'solid') as any, show: ma?.visible ?? true },
+            ],
+            bars: [
+              {
+                upColor: u?.color || chartTheme.vol.upColor,
+                downColor: d?.color || chartTheme.vol.downColor,
+                noChangeColor: chartTheme.vol.noChangeColor,
+              },
+            ],
+          } as any,
+        },
+        subPanesRef.current.vol
+      );
+    } else if (indicatorId === 'rsi' && activeIndicators.rsi && subPanesRef.current.rsi) {
       const l = plots.find((p) => p.id === 'line');
       const nextTheme = {
         ...chartTheme,
@@ -1162,7 +1258,18 @@ export function StockChartPanel({
         },
       };
       handleThemeChange(nextTheme);
-    } else if (indicatorId === 'macd') {
+      chart.overrideIndicator(
+        {
+          name: 'RSI',
+          styles: {
+            lines: [
+              { color: l?.color || chartTheme.rsi.lineColor, size: l?.lineWidth || 1.2, style: (l?.lineStyle || 'solid') as any, show: l?.visible ?? true },
+            ],
+          } as any,
+        },
+        subPanesRef.current.rsi
+      );
+    } else if (indicatorId === 'macd' && activeIndicators.macd && subPanesRef.current.macd) {
       const dif = plots.find((p) => p.id === 'dif');
       const dea = plots.find((p) => p.id === 'dea');
       const hist = plots.find((p) => p.id === 'hist');
@@ -1176,6 +1283,98 @@ export function StockChartPanel({
         },
       };
       handleThemeChange(nextTheme);
+      chart.overrideIndicator(
+        {
+          name: 'MACD',
+          styles: {
+            lines: [
+              { color: dif?.color || chartTheme.macd.difColor, size: dif?.lineWidth || 1.2, style: (dif?.lineStyle || 'solid') as any, show: dif?.visible ?? true },
+              { color: dea?.color || chartTheme.macd.deaColor, size: dea?.lineWidth || 1.2, style: (dea?.lineStyle || 'solid') as any, show: dea?.visible ?? true },
+            ],
+            bars: [
+              {
+                upColor: hist?.color || chartTheme.macd.histUpColor,
+                downColor: hist?.color || chartTheme.macd.histDownColor,
+                noChangeColor: hist?.color || '#94a3b8',
+                show: hist?.visible ?? true,
+              },
+            ],
+          } as any,
+        },
+        subPanesRef.current.macd
+      );
+    } else if (indicatorId === 'pe' && activeIndicators.pe && subPanesRef.current.pe) {
+      const p2 = plots.find((p) => p.id === 'plus2SD');
+      const p1 = plots.find((p) => p.id === 'plus1SD');
+      const mean = plots.find((p) => p.id === 'mean');
+      const m1 = plots.find((p) => p.id === 'minus1SD');
+      const m2 = plots.find((p) => p.id === 'minus2SD');
+      const pePlot = plots.find((p) => p.id === 'pe');
+      chart.overrideIndicator(
+        {
+          name: 'FUNDAMENTAL_PE',
+          styles: {
+            lines: [
+              { color: p2?.color || '#6366f1', size: p2?.lineWidth || 1, style: (p2?.lineStyle || 'dashed') as any, show: p2?.visible ?? true },
+              { color: p1?.color || '#3b82f6', size: p1?.lineWidth || 1, style: (p1?.lineStyle || 'solid') as any, show: p1?.visible ?? true },
+              { color: mean?.color || '#9ca3af', size: mean?.lineWidth || 1, style: (mean?.lineStyle || 'solid') as any, show: mean?.visible ?? true },
+              { color: m1?.color || '#f97316', size: m1?.lineWidth || 1, style: (m1?.lineStyle || 'solid') as any, show: m1?.visible ?? true },
+              { color: m2?.color || '#ef4444', size: m2?.lineWidth || 1, style: (m2?.lineStyle || 'dashed') as any, show: m2?.visible ?? true },
+              { color: pePlot?.color || '#22c55e', size: pePlot?.lineWidth || 2, style: (pePlot?.lineStyle || 'solid') as any, show: pePlot?.visible ?? true },
+            ],
+          } as any,
+        },
+        subPanesRef.current.pe
+      );
+    } else if (indicatorId === 'pb' && activeIndicators.pb && subPanesRef.current.pb) {
+      const p2 = plots.find((p) => p.id === 'plus2SD');
+      const p1 = plots.find((p) => p.id === 'plus1SD');
+      const mean = plots.find((p) => p.id === 'mean');
+      const m1 = plots.find((p) => p.id === 'minus1SD');
+      const m2 = plots.find((p) => p.id === 'minus2SD');
+      const pbPlot = plots.find((p) => p.id === 'pb');
+      chart.overrideIndicator(
+        {
+          name: 'FUNDAMENTAL_PB',
+          styles: {
+            lines: [
+              { color: p2?.color || '#6366f1', size: p2?.lineWidth || 1, style: (p2?.lineStyle || 'dashed') as any, show: p2?.visible ?? true },
+              { color: p1?.color || '#3b82f6', size: p1?.lineWidth || 1, style: (p1?.lineStyle || 'solid') as any, show: p1?.visible ?? true },
+              { color: mean?.color || '#9ca3af', size: mean?.lineWidth || 1, style: (mean?.lineStyle || 'solid') as any, show: mean?.visible ?? true },
+              { color: m1?.color || '#f97316', size: m1?.lineWidth || 1, style: (m1?.lineStyle || 'solid') as any, show: m1?.visible ?? true },
+              { color: m2?.color || '#ef4444', size: m2?.lineWidth || 1, style: (m2?.lineStyle || 'dashed') as any, show: m2?.visible ?? true },
+              { color: pbPlot?.color || '#22c55e', size: pbPlot?.lineWidth || 2, style: (pbPlot?.lineStyle || 'solid') as any, show: pbPlot?.visible ?? true },
+            ],
+          } as any,
+        },
+        subPanesRef.current.pb
+      );
+    } else if (indicatorId === 'coreEps' && activeIndicators.coreEps && subPanesRef.current.coreEps) {
+      const eps = plots.find((p) => p.id === 'coreEps');
+      chart.overrideIndicator(
+        {
+          name: 'FUNDAMENTAL_CORE_EPS',
+          styles: {
+            lines: [
+              { color: eps?.color || '#a855f7', size: eps?.lineWidth || 2, style: (eps?.lineStyle || 'solid') as any, show: eps?.visible ?? true },
+            ],
+          } as any,
+        },
+        subPanesRef.current.coreEps
+      );
+    } else if (indicatorId === 'revenue' && activeIndicators.revenue && subPanesRef.current.revenue) {
+      const rev = plots.find((p) => p.id === 'revenue');
+      chart.overrideIndicator(
+        {
+          name: 'FUNDAMENTAL_REVENUE',
+          styles: {
+            bars: [
+              { color: rev?.color || '#06b6d4', show: rev?.visible ?? true },
+            ],
+          } as any,
+        },
+        subPanesRef.current.revenue
+      );
     }
   };
 
@@ -2300,6 +2499,16 @@ export function StockChartPanel({
                         <span className="font-bold text-slate-800 dark:text-gray-100">P/E - TTM Band Chart</span>
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">(Mean, ±1SD, ±2SD)</span>
                       </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('pe', 'format');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt định dạng P/E Band Chart"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
                     {/* P/B - TTM Band Chart */}
@@ -2315,6 +2524,16 @@ export function StockChartPanel({
                         <span className="font-bold text-slate-800 dark:text-gray-100">P/B - TTM Band Chart</span>
                         <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono">(Mean, ±1SD, ±2SD)</span>
                       </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('pb', 'format');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt định dạng P/B Band Chart"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
                     {/* EPS Cốt lõi TTM */}
@@ -2329,6 +2548,16 @@ export function StockChartPanel({
                         <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0" />
                         <span className="font-bold text-slate-800 dark:text-gray-100">EPS Cốt Lõi TTM</span>
                       </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('coreEps', 'format');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt định dạng EPS Cốt Lõi"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
                     {/* Doanh Thu TTM */}
@@ -2343,6 +2572,16 @@ export function StockChartPanel({
                         <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 flex-shrink-0" />
                         <span className="font-bold text-slate-800 dark:text-gray-100">Doanh Thu TTM</span>
                       </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('revenue', 'format');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt định dạng Doanh Thu TTM"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>
