@@ -127,4 +127,7 @@ https://mastrade.masvn.com/api/v1/proprietaryHistory?from=20260617&to=20260917
 Mua ròng:
 https://mastrade.masvn.com/api/v1/market/top?top=TOP_FOREIGN_NET_BUY_VALUE&fetchCount=10
 Bán ròng:
-https://mastrade.masvn.com/api/v1/market/top?top=TOP_FOREIGN_NET_SELL_VALUE&fetchCount=10
+https://mastrade.masvn.com/api/v1/market/top?top=TOP_FOREIGN_NET_SELL_VALUE&fetchCount=10
+
+11. Lịch sử mua bán ròng NN
+https://mastrade.masvn.com/api/v2/vs/detailIndex?query=query{vsDetailIndex(from:%2220260617%22,to:%2220260917%22,symbol:%22ALL%22){TradingDate,TotalForeignBuyVol,TotalForeignSellVol,TotalForeignBuyVal,TotalForeignSellVal}}

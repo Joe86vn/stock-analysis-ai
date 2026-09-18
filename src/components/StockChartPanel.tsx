@@ -27,6 +27,9 @@ import { DrawingToolbar } from './chart/DrawingToolbar';
 import { registerSwingHighLowIndicator } from './chart/indicators/custom-swing-hl';
 import { registerMeasureOverlay } from './chart/overlays/measure-overlay';
 import { registerDividendMarkerOverlay } from './chart/overlays/dividend-marker-overlay';
+import { registerFundamentalIndicators } from './chart/indicators/fundamental-indicators';
+import { enrichKLineWithFundamentals } from '@/lib/fundamental-indicator-helper';
+import type { ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '@/lib/resample-ohlc';
 import {
   ChartColorTheme,
@@ -321,7 +324,12 @@ export function StockChartPanel({
     vol: true,
     rsi: false,
     macd: false,
+    pe: false,
+    pb: false,
+    coreEps: false,
+    revenue: false,
   });
+  const [quarterlyFinancials, setQuarterlyFinancials] = useState<ParsedVietcapQuarter[]>([]);
   const [indicatorParams, setIndicatorParams] = useState({
     swingHlWindow: 9,
     swingHlShowLine: true,
@@ -338,7 +346,15 @@ export function StockChartPanel({
     macdSignal: 9,
   });
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
-  const subPanesRef = useRef<{ vol?: string; rsi?: string; macd?: string }>({});
+  const subPanesRef = useRef<{
+    vol?: string;
+    rsi?: string;
+    macd?: string;
+    pe?: string;
+    pb?: string;
+    coreEps?: string;
+    revenue?: string;
+  }>({});
 
   // ─── Theme & Settings State ────────────────────────────────────────────────
   const [chartTheme, setChartTheme] = useState<ChartColorTheme>(() => loadSavedTheme());
@@ -603,6 +619,15 @@ export function StockChartPanel({
       })
       .catch(() => {});
 
+    fetch(`/api/stocks/${ticker}/financials`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.quarters && Array.isArray(json.quarters)) {
+          setQuarterlyFinancials(json.quarters);
+        }
+      })
+      .catch(() => {});
+
     if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
     priceIntervalRef.current = setInterval(() => pollLivePrice(ticker), 15000);
 
@@ -643,6 +668,7 @@ export function StockChartPanel({
       registerSwingHighLowIndicator();
       registerMeasureOverlay();
       registerDividendMarkerOverlay();
+      registerFundamentalIndicators();
 
       const chart = klinecharts.init(chartContainerRef.current, {
         timezone: 'Asia/Ho_Chi_Minh',
@@ -1409,6 +1435,54 @@ export function StockChartPanel({
             chart.removeIndicator(subPanesRef.current.macd);
             delete subPanesRef.current.macd;
           }
+        } else if (key === 'pe') {
+          if (nextVal) {
+            subPanesRef.current.pe =
+              chart.createIndicator(
+                { name: 'FUNDAMENTAL_PE' },
+                false,
+                { height: 110, dragEnabled: true }
+              ) ?? undefined;
+          } else if (subPanesRef.current.pe) {
+            chart.removeIndicator(subPanesRef.current.pe);
+            delete subPanesRef.current.pe;
+          }
+        } else if (key === 'pb') {
+          if (nextVal) {
+            subPanesRef.current.pb =
+              chart.createIndicator(
+                { name: 'FUNDAMENTAL_PB' },
+                false,
+                { height: 110, dragEnabled: true }
+              ) ?? undefined;
+          } else if (subPanesRef.current.pb) {
+            chart.removeIndicator(subPanesRef.current.pb);
+            delete subPanesRef.current.pb;
+          }
+        } else if (key === 'coreEps') {
+          if (nextVal) {
+            subPanesRef.current.coreEps =
+              chart.createIndicator(
+                { name: 'FUNDAMENTAL_CORE_EPS' },
+                false,
+                { height: 95, dragEnabled: true }
+              ) ?? undefined;
+          } else if (subPanesRef.current.coreEps) {
+            chart.removeIndicator(subPanesRef.current.coreEps);
+            delete subPanesRef.current.coreEps;
+          }
+        } else if (key === 'revenue') {
+          if (nextVal) {
+            subPanesRef.current.revenue =
+              chart.createIndicator(
+                { name: 'FUNDAMENTAL_REVENUE' },
+                false,
+                { height: 95, dragEnabled: true }
+              ) ?? undefined;
+          } else if (subPanesRef.current.revenue) {
+            chart.removeIndicator(subPanesRef.current.revenue);
+            delete subPanesRef.current.revenue;
+          }
         }
       }
       return { ...prev, [key]: nextVal };
@@ -1420,7 +1494,7 @@ export function StockChartPanel({
   useEffect(() => {
     if (!chartRef.current || allBars.length === 0) return;
 
-    const klineData: KLineData[] = allBars.map((b) => {
+    let klineData: KLineData[] = allBars.map((b) => {
       const ts = new Date(b.fullDate + 'T00:00:00Z').getTime();
       return {
         timestamp: isNaN(ts) ? Date.now() : ts,
@@ -1431,6 +1505,10 @@ export function StockChartPanel({
         volume: b.volume,
       };
     });
+
+    if (quarterlyFinancials.length > 0) {
+      klineData = enrichKLineWithFundamentals(klineData, quarterlyFinancials);
+    }
 
     chartRef.current.applyNewData(klineData);
 
@@ -2198,6 +2276,71 @@ export function StockChartPanel({
                       >
                         <Settings className="h-3.5 w-3.5" />
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Group 3: Chỉ báo Dữ liệu Cơ bản */}
+                  <div className="space-y-1.5 pt-2 border-t border-gray-100 dark:border-[#2a2e39]">
+                    <div className="text-[10px] font-bold text-gray-400 dark:text-[#787b86] uppercase tracking-wider px-1">
+                      Chỉ báo Dữ liệu Cơ bản (Fundamental)
+                    </div>
+
+                    {/* P/E - TTM Band Chart */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.pe}
+                          onChange={() => toggleIndicator('pe')}
+                          className="rounded text-emerald-500 focus:ring-emerald-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">P/E - TTM Band Chart</span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">(Mean, ±1SD, ±2SD)</span>
+                      </label>
+                    </div>
+
+                    {/* P/B - TTM Band Chart */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.pb}
+                          onChange={() => toggleIndicator('pb')}
+                          className="rounded text-blue-500 focus:ring-blue-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">P/B - TTM Band Chart</span>
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono">(Mean, ±1SD, ±2SD)</span>
+                      </label>
+                    </div>
+
+                    {/* EPS Cốt lõi TTM */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.coreEps}
+                          onChange={() => toggleIndicator('coreEps')}
+                          className="rounded text-purple-500 focus:ring-purple-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">EPS Cốt Lõi TTM</span>
+                      </label>
+                    </div>
+
+                    {/* Doanh Thu TTM */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.revenue}
+                          onChange={() => toggleIndicator('revenue')}
+                          className="rounded text-cyan-500 focus:ring-cyan-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">Doanh Thu TTM</span>
+                      </label>
                     </div>
                   </div>
                 </div>
