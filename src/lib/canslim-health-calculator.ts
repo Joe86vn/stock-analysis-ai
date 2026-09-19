@@ -161,6 +161,39 @@ export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
 }
 
 /**
+ * Đếm số ngày phân phối active từ phiên ftdIndex trở đi tính đến targetIndex
+ */
+export function countDistributionDaysAfter(days: DayData[], ftdIndex: number, targetIndex: number): number {
+  if (targetIndex < ftdIndex) return 0;
+
+  const distribDays: { sessionIndex: number; close: number }[] = [];
+
+  for (let i = ftdIndex; i <= targetIndex; i++) {
+    if (i < 1) continue;
+    const prev = days[i - 1];
+    const curr = days[i];
+    if (!prev || !curr) continue;
+
+    const pctChange = (curr.close - prev.close) / prev.close;
+    const isDistribution = pctChange <= -0.002 && curr.volume > prev.volume;
+    if (isDistribution) {
+      distribDays.push({ sessionIndex: i, close: curr.close });
+    }
+  }
+
+  const lastClose = days[targetIndex].close;
+
+  const active = distribDays.filter((d) => {
+    const sessionAge = targetIndex - d.sessionIndex;
+    if (sessionAge > 25) return false;
+    if (lastClose >= d.close * 1.05) return false;
+    return true;
+  });
+
+  return active.length;
+}
+
+/**
  * Tính điểm và Trạng thái Sức khỏe Thị trường tại phiên targetIndex
  */
 export function calculateHealthScoreForBar(days: DayData[], targetIndex: number): HealthScoreResult {
@@ -195,35 +228,44 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
   const vnindexVsMa20 = ma20 !== null ? ((currentClose - ma20) / ma20) * 100 : null;
 
   // 2. Đếm số ngày phân phối & phân tích FTD
-  const distDays = countDistributionDays(days, targetIndex);
+  const totalDistDays = countDistributionDays(days, targetIndex);
   const ftdInfo = analyzeFTD(days, targetIndex);
 
   let baseScore = 10;
   let postFtdPenalty = 0;
-  let otherDistribDays = distDays;
+  let activeDistribDays = totalDistDays;
 
-  if (ftdInfo.ftdDetected && ftdInfo.ftdIndex !== null) {
+  if (ftdInfo.ftdDetected && ftdInfo.ftdIndex !== null && targetIndex >= ftdInfo.ftdIndex) {
+    // Khi đợt nỗ lực phục hồi xuất hiện FTD thành công:
+    // Mọi phiên phân phối cũ trước FTD được RESET về 0. Chỉ đếm phân phối từ FTD trở đi!
+    activeDistribDays = countDistributionDaysAfter(days, ftdInfo.ftdIndex, targetIndex);
+
     const sessionsSinceFtd = targetIndex - ftdInfo.ftdIndex;
-    if (sessionsSinceFtd <= 5) {
-      baseScore = 7;
+    if (sessionsSinceFtd === 0) {
+      // Phiên FTD khởi đầu -> Xác nhận Uptrend 100% (Màu Xanh, Điểm >= 7)
+      baseScore = 9;
+      postFtdPenalty = 0;
+    } else if (sessionsSinceFtd <= 5) {
+      baseScore = 8;
       postFtdPenalty = ftdInfo.postFtdPenalty;
-      if (ftdInfo.postFtdDistribDay !== null) {
-        otherDistribDays = Math.max(0, distDays - 1);
+      if (ftdInfo.postFtdDistribDay !== null && activeDistribDays > 0) {
+        activeDistribDays = Math.max(0, activeDistribDays - 1);
       }
     } else {
       if (ftdInfo.postFtdDistribDay !== null) {
         baseScore = 7;
         postFtdPenalty = ftdInfo.postFtdPenalty;
-        otherDistribDays = Math.max(0, distDays - 1);
+        if (activeDistribDays > 0) {
+          activeDistribDays = Math.max(0, activeDistribDays - 1);
+        }
       } else {
         baseScore = 10;
         postFtdPenalty = 0;
-        otherDistribDays = distDays;
       }
     }
   }
 
-  const rawScore = baseScore - postFtdPenalty - otherDistribDays - (isBelowMa20 ? 1 : 0);
+  const rawScore = baseScore - postFtdPenalty - activeDistribDays - (isBelowMa20 ? 1 : 0);
   const score = Math.max(0, Math.min(10, rawScore));
 
   let status: MarketStatus = 'uptrend_under_pressure';
@@ -233,7 +275,7 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
   return {
     score,
     status,
-    distributionDays: distDays,
+    distributionDays: activeDistribDays,
     isBelowMa20,
     ma20,
     currentClose,
@@ -256,3 +298,88 @@ export function calculateHistoricalHealthScores(days: DayData[]): HealthScoreRes
   }
   return result;
 }
+
+export interface CanslimEvent {
+  index: number;
+  date: string;
+  type: 'distribution' | 'ftd' | 'rallyDay1';
+  isDistribActive?: boolean;
+}
+
+/**
+ * Trích xuất toàn bộ các sự kiện CANSLIM (Phân phối, FTD, Đáy 1) cho VN-Index lịch sử
+ */
+export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
+  const events: CanslimEvent[] = [];
+  if (days.length === 0) return events;
+
+  let rallyStartLow = Infinity;
+  let rallyDayCount = 0;
+  let inConfirmedUptrend = false;
+
+  for (let i = 1; i < days.length; i++) {
+    const prev = days[i - 1];
+    const curr = days[i];
+    const pct = (curr.close - prev.close) / prev.close;
+
+    // 1. Phân phối (Distribution Day)
+    const isDistrib = pct <= -0.002 && curr.volume > prev.volume;
+    if (isDistrib) {
+      events.push({
+        index: i,
+        date: curr.date,
+        type: 'distribution',
+        isDistribActive: true,
+      });
+    }
+
+    // 2. FTD & Rally Day 1
+    if (inConfirmedUptrend) {
+      if (curr.close < prev.close * 0.95) {
+        inConfirmedUptrend = false;
+        rallyDayCount = 0;
+        rallyStartLow = Infinity;
+      }
+    } else {
+      if (rallyDayCount === 0) {
+        if (pct > 0) {
+          rallyDayCount = 1;
+          rallyStartLow = prev.low ?? prev.close;
+          events.push({
+            index: i,
+            date: curr.date,
+            type: 'rallyDay1',
+          });
+        }
+      } else {
+        if (curr.close < rallyStartLow) {
+          if (pct > 0) {
+            rallyDayCount = 1;
+            rallyStartLow = prev.close;
+            events.push({
+              index: i,
+              date: curr.date,
+              type: 'rallyDay1',
+            });
+          } else {
+            rallyDayCount = 0;
+            rallyStartLow = Infinity;
+          }
+        } else {
+          rallyDayCount++;
+          if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
+            events.push({
+              index: i,
+              date: curr.date,
+              type: 'ftd',
+            });
+            inConfirmedUptrend = true;
+          }
+        }
+      }
+    }
+  }
+
+  return events;
+}
+
