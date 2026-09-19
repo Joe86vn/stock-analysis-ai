@@ -29,7 +29,9 @@ import { registerSwingHighLowIndicator } from './chart/indicators/custom-swing-h
 import { registerMeasureOverlay } from './chart/overlays/measure-overlay';
 import { registerDividendMarkerOverlay } from './chart/overlays/dividend-marker-overlay';
 import { registerFundamentalIndicators } from './chart/indicators/fundamental-indicators';
+import { registerRsVsIndexIndicator, RS_VS_INDEX_NAME } from './chart/indicators/rs-vs-index';
 import { enrichKLineWithFundamentals } from '@/lib/fundamental-indicator-helper';
+import { getVnindexHistoryMap, enrichKLineWithVnindex } from '@/lib/vnindex-enricher';
 import type { ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '@/lib/resample-ohlc';
 import {
@@ -326,12 +328,21 @@ export function StockChartPanel({
     vol: true,
     rsi: false,
     macd: false,
+    rsVsIndex: false,
     pe: false,
     pb: false,
     coreEps: false,
     revenue: false,
   });
   const [quarterlyFinancials, setQuarterlyFinancials] = useState<ParsedVietcapQuarter[]>([]);
+  const [vnindexMap, setVnindexMap] = useState<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    getVnindexHistoryMap().then((map) => {
+      if (map && map.size > 0) setVnindexMap(map);
+    });
+  }, []);
+
   const [indicatorParams, setIndicatorParams] = useState({
     swingHlWindow: 9,
     swingHlShowLine: true,
@@ -352,6 +363,7 @@ export function StockChartPanel({
     vol?: string;
     rsi?: string;
     macd?: string;
+    rsVsIndex?: string;
     pe?: string;
     pb?: string;
     coreEps?: string;
@@ -675,6 +687,7 @@ export function StockChartPanel({
       registerMeasureOverlay();
       registerDividendMarkerOverlay();
       registerFundamentalIndicators();
+      registerRsVsIndexIndicator();
 
       const chart = klinecharts.init(chartContainerRef.current, {
         timezone: 'Asia/Ho_Chi_Minh',
@@ -773,6 +786,14 @@ export function StockChartPanel({
             },
             false,
             { height: 95, dragEnabled: true }
+          ) ?? undefined;
+      }
+      if (activeIndicators.rsVsIndex) {
+        subPanesRef.current.rsVsIndex =
+          chart.createIndicator(
+            { name: RS_VS_INDEX_NAME },
+            false,
+            { height: 110, dragEnabled: true }
           ) ?? undefined;
       }
 
@@ -1688,6 +1709,18 @@ export function StockChartPanel({
             chart.removeIndicator(subPanesRef.current.macd);
             delete subPanesRef.current.macd;
           }
+        } else if (key === 'rsVsIndex') {
+          if (nextVal) {
+            subPanesRef.current.rsVsIndex =
+              chart.createIndicator(
+                { name: RS_VS_INDEX_NAME },
+                false,
+                { height: 110, dragEnabled: true }
+              ) ?? undefined;
+          } else if (subPanesRef.current.rsVsIndex) {
+            chart.removeIndicator(subPanesRef.current.rsVsIndex);
+            delete subPanesRef.current.rsVsIndex;
+          }
         } else if (key === 'pe') {
           if (nextVal) {
             subPanesRef.current.pe =
@@ -1747,7 +1780,7 @@ export function StockChartPanel({
   useEffect(() => {
     if (!chartRef.current || allBars.length === 0) return;
 
-    let klineData: KLineData[] = allBars.map((b) => {
+    let klineData: (KLineData & { fullDate?: string; vnindexClose?: number })[] = allBars.map((b) => {
       const ts = new Date(b.fullDate + 'T00:00:00Z').getTime();
       return {
         timestamp: isNaN(ts) ? Date.now() : ts,
@@ -1756,11 +1789,16 @@ export function StockChartPanel({
         low: b.lowestPrice,
         close: b.closePrice,
         volume: b.volume,
+        fullDate: b.fullDate,
       };
     });
 
     if (quarterlyFinancials.length > 0) {
       klineData = enrichKLineWithFundamentals(klineData, quarterlyFinancials);
+    }
+
+    if (vnindexMap.size > 0) {
+      klineData = enrichKLineWithVnindex(klineData, vnindexMap);
     }
 
     chartRef.current.applyNewData(klineData);
@@ -2528,6 +2566,21 @@ export function StockChartPanel({
                       >
                         <Settings className="h-3.5 w-3.5" />
                       </button>
+                    </div>
+
+                    {/* RS vs Index */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#171b26] border border-gray-100 dark:border-[#2a2e39] hover:border-gray-200 dark:hover:border-[#363a45] transition">
+                      <label className="flex items-center space-x-2.5 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={activeIndicators.rsVsIndex}
+                          onChange={() => toggleIndicator('rsVsIndex')}
+                          className="rounded text-indigo-500 focus:ring-indigo-400 h-4 w-4 cursor-pointer"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 flex-shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-gray-100">RS vs Index</span>
+                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">(Sức mạnh tương quan CP/VNINDEX)</span>
+                      </label>
                     </div>
                   </div>
 
