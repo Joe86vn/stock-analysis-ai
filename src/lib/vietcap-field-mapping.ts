@@ -1413,7 +1413,8 @@ export async function fetchVietcapGapChart(
     const len = data.t.length;
     for (let i = 0; i < len; i++) {
       const timeSec = data.t[i];
-      const dt = new Date(timeSec * 1000);
+      // Cộng 7 giờ (25200s) cho múi giờ Việt Nam (UTC+7) để toISOString() trả về đúng ngày giao dịch YYYY-MM-DD
+      const dt = new Date((timeSec + 25200) * 1000);
       const tradingDate = dt.toISOString().slice(0, 10);
       const openPrice = Number(data.o?.[i] ?? 0);
       const highestPrice = Number(data.h?.[i] ?? 0);

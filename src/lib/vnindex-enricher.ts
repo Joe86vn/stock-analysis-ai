@@ -10,6 +10,11 @@ export interface VnindexInfo {
 export let cachedVnindexMap: Map<string, VnindexInfo> | null = null;
 let lastFetchTime = 0;
 
+export function clearVnindexCache() {
+  cachedVnindexMap = null;
+  lastFetchTime = 0;
+}
+
 /**
  * Tải và cache danh sách lịch sử VN-Index kèm Health Score CANSLIM từng phiên
  * (Map: DateString YYYY-MM-DD -> VnindexInfo)
