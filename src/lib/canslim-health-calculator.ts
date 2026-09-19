@@ -72,6 +72,7 @@ export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
   let rallyDayCount = 0;
   let inConfirmedUptrend = false;
   let lastFtdIdx: number | null = null;
+  let ftdLow = Infinity;
 
   const maxLen = Math.min(days.length - 1, targetIndex);
 
@@ -81,11 +82,14 @@ export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
     const pct = (curr.close - prev.close) / prev.close;
 
     if (inConfirmedUptrend) {
-      if (curr.close < prev.close * 0.95) {
+      // Xu hướng tăng FTD bị vi phạm chỉ khi giá đóng cửa thủng Đáy FTD hoặc Đáy Rally
+      const breakLow = Math.min(ftdLow, rallyStartLow);
+      if (curr.close < breakLow) {
         inConfirmedUptrend = false;
         rallyDayCount = 0;
         rallyStartLow = Infinity;
         lastFtdIdx = null;
+        ftdLow = Infinity;
       }
     } else {
       if (rallyDayCount === 0) {
@@ -107,6 +111,7 @@ export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
           if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
             lastFtdIdx = i;
             inConfirmedUptrend = true;
+            ftdLow = curr.low ?? curr.close;
           }
         }
       }

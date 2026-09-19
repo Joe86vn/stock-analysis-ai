@@ -1959,12 +1959,11 @@ export function StockChartPanel({
     dividendOverlayIdsRef.current = createdIds;
   }, [showDividendMarkers, dividendEvents, allBars, resolution]);
 
-  // ─── Vẽ Marker CANSLIM (🔴 Phân phối, 🟢 FTD, 🔵 Đáy 1) lên nến VN-Index ────────
+  // ─── Dọn dẹp Marker CANSLIM khỏi biểu đồ nến VN-Index ────────
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
 
-    // 1. Xóa các CANSLIM overlay cũ
     if (canslimOverlayIdsRef.current.length > 0) {
       canslimOverlayIdsRef.current.forEach((id) => {
         try {
@@ -1973,54 +1972,6 @@ export function StockChartPanel({
       });
       canslimOverlayIdsRef.current = [];
     }
-
-    // 2. Chỉ hiển thị khi mã đang mở là VNINDEX (hoặc VN-INDEX)
-    const cleanTicker = (ticker || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (cleanTicker !== 'VNINDEX' || allBars.length < 5) return;
-
-    // 3. Chuẩn bị DayData[] để tính toán CANSLIM events
-    const days: DayData[] = allBars.map((b) => ({
-      date: b.fullDate,
-      close: b.closePrice,
-      low: b.lowestPrice,
-      volume: b.volume,
-    }));
-
-    const events = getAllCanslimEvents(days);
-    const createdIds: string[] = [];
-
-    events.forEach((ev) => {
-      const bar = allBars[ev.index];
-      if (!bar) return;
-
-      const ts = new Date(bar.fullDate + 'T00:00:00Z').getTime();
-      // Phân phối -> đính tại highestPrice (phía trên nến)
-      // FTD / Đáy 1 -> đính tại lowestPrice (phía dưới nến)
-      const val = ev.type === 'distribution' ? bar.highestPrice : bar.lowestPrice;
-
-      try {
-        const overlayId = chart.createOverlay(
-          {
-            name: CANSLIM_MARKER_OVERLAY_NAME,
-            lock: true,
-            points: [{ timestamp: ts, value: val }],
-            extendData: {
-              type: ev.type,
-              isDistribActive: ev.isDistribActive ?? true,
-            },
-          },
-          'candle_pane'
-        );
-
-        if (typeof overlayId === 'string') {
-          createdIds.push(overlayId);
-        }
-      } catch (err) {
-        console.warn('[StockChartPanel] Failed to create CANSLIM marker overlay:', err);
-      }
-    });
-
-    canslimOverlayIdsRef.current = createdIds;
   }, [ticker, allBars, resolution]);
 
   // ─── Cập nhật nến cuối với livePrice ──────────────────────────────────────
