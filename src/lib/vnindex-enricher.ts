@@ -1,10 +1,20 @@
-export let cachedVnindexMap: Map<string, number> | null = null;
+import { calculateHistoricalHealthScores, DayData, MarketStatus } from './canslim-health-calculator';
+
+export interface VnindexInfo {
+  close: number;
+  healthScore: number;
+  marketStatus: MarketStatus;
+  distributionDays: number;
+}
+
+export let cachedVnindexMap: Map<string, VnindexInfo> | null = null;
 let lastFetchTime = 0;
 
 /**
- * Tải và cache danh sách lịch sử giá đóng cửa VN-Index (dạng Map: DateString YYYY-MM-DD -> ClosePrice)
+ * Tải và cache danh sách lịch sử VN-Index kèm Health Score CANSLIM từng phiên
+ * (Map: DateString YYYY-MM-DD -> VnindexInfo)
  */
-export async function getVnindexHistoryMap(): Promise<Map<string, number>> {
+export async function getVnindexHistoryMap(): Promise<Map<string, VnindexInfo>> {
   const now = Date.now();
   if (cachedVnindexMap && now - lastFetchTime < 5 * 60 * 1000) {
     return cachedVnindexMap;
@@ -22,20 +32,42 @@ export async function getVnindexHistoryMap(): Promise<Map<string, number>> {
       ? json.data.content
       : [];
 
-    const map = new Map<string, number>();
-    for (const item of rawList) {
-      const close = Number(item.closeIndex ?? item.close ?? 0);
-      let dateStr = String(item.tradingDate ?? item.date ?? item.time ?? '').trim();
-      if (!dateStr || close <= 0) continue;
+    if (rawList.length === 0) return cachedVnindexMap || new Map();
 
-      // Chuẩn hóa định dạng dateStr về YYYY-MM-DD
-      if (dateStr.length === 8 && !dateStr.includes('-')) {
-        dateStr = `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
-      } else if (dateStr.includes('T')) {
-        dateStr = dateStr.split('T')[0];
-      }
+    // 1. Chuẩn hóa và sắp xếp nến VN-Index theo thời gian tăng dần
+    const days: DayData[] = rawList
+      .map((d: any) => {
+        const close = Number(d.closeIndex ?? d.close ?? d.indexValue ?? 0);
+        let dateStr = String(d.tradingDate ?? d.date ?? d.time ?? d.t ?? '').trim();
+        if (dateStr.length === 8 && !dateStr.includes('-')) {
+          dateStr = `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+        } else if (dateStr.includes('T')) {
+          dateStr = dateStr.split('T')[0];
+        }
 
-      map.set(dateStr, close);
+        return {
+          date: dateStr,
+          close,
+          low: Number(d.indexValue ?? d.lowestIndex ?? d.low ?? close),
+          volume: Number(d.totalMatchVolume ?? d.totalVolume ?? d.volume ?? d.matchVolume ?? 0),
+        };
+      })
+      .filter((d: DayData) => d.close > 0 && d.date !== '')
+      .sort((a: DayData, b: DayData) => a.date.localeCompare(b.date));
+
+    // 2. Tính toán điểm Health Score lịch sử từng phiên
+    const healthScores = calculateHistoricalHealthScores(days);
+
+    const map = new Map<string, VnindexInfo>();
+    for (let i = 0; i < days.length; i++) {
+      const d = days[i];
+      const hs = healthScores[i];
+      map.set(d.date, {
+        close: d.close,
+        healthScore: hs.score,
+        marketStatus: hs.status,
+        distributionDays: hs.distributionDays,
+      });
     }
 
     if (map.size > 0) {
@@ -50,12 +82,12 @@ export async function getVnindexHistoryMap(): Promise<Map<string, number>> {
 }
 
 /**
- * Ghép giá đóng cửa VNINDEX tương ứng vào từng cây nến của cổ phiếu
+ * Ghép giá đóng cửa VNINDEX và thông tin Health Score tương ứng vào từng cây nến của cổ phiếu
  */
 export function enrichKLineWithVnindex<T extends { date?: string; fullDate?: string; timestamp?: number; close: number }>(
   klineData: T[],
-  vnindexMap: Map<string, number>
-): (T & { vnindexClose?: number })[] {
+  vnindexMap: Map<string, VnindexInfo>
+): (T & { vnindexClose?: number; healthScore?: number; marketStatus?: MarketStatus })[] {
   if (!klineData || klineData.length === 0 || !vnindexMap || vnindexMap.size === 0) {
     return klineData.map((d) => ({ ...d }));
   }
@@ -76,13 +108,13 @@ export function enrichKLineWithVnindex<T extends { date?: string; fullDate?: str
       dateStr = `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
     }
 
-    let vnClose = vnindexMap.get(dateStr);
+    let vnInfo = vnindexMap.get(dateStr);
 
     // Fallback về ngày VN-Index gần nhất trước đó nếu lệch ngày giao dịch
-    if (!vnClose && sortedVnDates.length > 0) {
+    if (!vnInfo && sortedVnDates.length > 0) {
       for (let i = sortedVnDates.length - 1; i >= 0; i--) {
         if (sortedVnDates[i] <= dateStr) {
-          vnClose = vnindexMap.get(sortedVnDates[i]);
+          vnInfo = vnindexMap.get(sortedVnDates[i]);
           break;
         }
       }
@@ -90,7 +122,9 @@ export function enrichKLineWithVnindex<T extends { date?: string; fullDate?: str
 
     return {
       ...candle,
-      vnindexClose: vnClose,
+      vnindexClose: vnInfo?.close,
+      healthScore: vnInfo?.healthScore,
+      marketStatus: vnInfo?.marketStatus,
     };
   });
 }

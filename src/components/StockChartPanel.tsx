@@ -31,7 +31,7 @@ import { registerDividendMarkerOverlay } from './chart/overlays/dividend-marker-
 import { registerFundamentalIndicators } from './chart/indicators/fundamental-indicators';
 import { registerRsVsIndexIndicator, RS_VS_INDEX_NAME } from './chart/indicators/rs-vs-index';
 import { enrichKLineWithFundamentals } from '@/lib/fundamental-indicator-helper';
-import { getVnindexHistoryMap, enrichKLineWithVnindex } from '@/lib/vnindex-enricher';
+import { getVnindexHistoryMap, enrichKLineWithVnindex, type VnindexInfo } from '@/lib/vnindex-enricher';
 import type { ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '@/lib/resample-ohlc';
 import {
@@ -335,7 +335,7 @@ export function StockChartPanel({
     revenue: false,
   });
   const [quarterlyFinancials, setQuarterlyFinancials] = useState<ParsedVietcapQuarter[]>([]);
-  const [vnindexMap, setVnindexMap] = useState<Map<string, number>>(new Map());
+  const [vnindexMap, setVnindexMap] = useState<Map<string, VnindexInfo>>(new Map());
 
   useEffect(() => {
     getVnindexHistoryMap().then((map) => {
