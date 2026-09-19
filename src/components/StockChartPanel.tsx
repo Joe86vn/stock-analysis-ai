@@ -282,7 +282,7 @@ export function StockChartPanel({
   const [priceChange, setPriceChange] = useState<{ abs: number; pct: number } | null>(null);
   const [liveVolume, setLiveVolume] = useState<number | null>(null);
   const [crosshairData, setCrosshairData] = useState<{
-    o: number; h: number; l: number; c: number; v: number; date?: string;
+    o: number; h: number; l: number; c: number; v: number; date?: string; prevClose?: number | null;
   } | null>(null);
   const [showDividendMarkers, setShowDividendMarkers] = useState(true);
   const [dividendEvents, setDividendEvents] = useState<any[]>([]);
@@ -793,13 +793,20 @@ export function StockChartPanel({
           ) ?? undefined;
       }
 
-      // Lắng nghe sự kiện di chuyển chuột / crosshair
       chart.subscribeAction('onCrosshairChange' as any, (data: any) => {
         if (!data || !data.kLineData) {
           setCrosshairData(null);
           return;
         }
         const kd = data.kLineData as KLineData;
+        const dataIndex = data.dataIndex;
+        let prevClose: number | null = null;
+        if (typeof dataIndex === 'number' && dataIndex > 0 && chartRef.current) {
+          const dataList = chartRef.current.getDataList();
+          if (dataList && dataList[dataIndex - 1]) {
+            prevClose = dataList[dataIndex - 1].close;
+          }
+        }
         const d = new Date(kd.timestamp);
         const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
           d.getDate()
@@ -811,6 +818,7 @@ export function StockChartPanel({
           c: kd.close,
           v: kd.volume ?? 0,
           date: dateStr,
+          prevClose,
         });
       });
 
@@ -2072,6 +2080,7 @@ export function StockChartPanel({
   const displayPrice = livePrice ?? (effectiveStockData.currentPrice || 0);
 
   const latestBar = allBars.length > 0 ? allBars[allBars.length - 1] : null;
+  const prevBar = allBars.length > 1 ? allBars[allBars.length - 2] : null;
   const activeOhlc = crosshairData ?? (latestBar ? {
     o: latestBar.openPrice,
     h: livePrice ? Math.max(latestBar.highestPrice, livePrice) : latestBar.highestPrice,
@@ -2079,6 +2088,7 @@ export function StockChartPanel({
     c: livePrice ?? latestBar.closePrice,
     v: liveVolume ?? latestBar.volume,
     date: latestBar.fullDate,
+    prevClose: prevBar ? prevBar.closePrice : null,
   } : null);
 
   const candleDividend = useMemo(() => {
@@ -2086,8 +2096,9 @@ export function StockChartPanel({
     return dividendEvents.find((ev) => ev.exrightDate?.slice(0, 10) === activeOhlc.date);
   }, [activeOhlc?.date, dividendEvents]);
 
-  const candleDiff = activeOhlc ? activeOhlc.c - activeOhlc.o : 0;
-  const candleDiffPct = activeOhlc && activeOhlc.o > 0 ? (candleDiff / activeOhlc.o) * 100 : 0;
+  const refBasePrice = activeOhlc?.prevClose && activeOhlc.prevClose > 0 ? activeOhlc.prevClose : activeOhlc?.o ?? 0;
+  const candleDiff = activeOhlc && refBasePrice > 0 ? activeOhlc.c - refBasePrice : 0;
+  const candleDiffPct = activeOhlc && refBasePrice > 0 ? (candleDiff / refBasePrice) * 100 : 0;
   const closeColor = activeOhlc
     ? activeOhlc.c > activeOhlc.o
       ? 'text-emerald-600 dark:text-emerald-400'
