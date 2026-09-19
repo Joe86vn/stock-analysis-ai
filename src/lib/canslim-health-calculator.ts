@@ -98,10 +98,11 @@ export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
           rallyStartLow = prev.low ?? prev.close;
         }
       } else {
-        if (curr.close < rallyStartLow) {
+        // Vi phạm đáy khi giá tạo đáy mới thấp hơn đáy rally
+        if (curr.low < rallyStartLow || curr.close < rallyStartLow) {
           if (pct > 0) {
             rallyDayCount = 1;
-            rallyStartLow = prev.close;
+            rallyStartLow = curr.low ?? curr.close;
           } else {
             rallyDayCount = 0;
             rallyStartLow = Infinity;
@@ -355,10 +356,10 @@ export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
           candidateRallyDay1Idx = i;
         }
       } else {
-        if (curr.close < rallyStartLow) {
+        if (curr.low < rallyStartLow || curr.close < rallyStartLow) {
           if (pct > 0) {
             rallyDayCount = 1;
-            rallyStartLow = prev.close;
+            rallyStartLow = curr.low ?? curr.close;
             candidateRallyDay1Idx = i;
           } else {
             rallyDayCount = 0;

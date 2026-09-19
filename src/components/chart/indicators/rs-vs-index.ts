@@ -13,6 +13,11 @@ export interface RsVsIndexResult {
 }
 
 let registered = false;
+let activeCrosshairIndex: number | null = null;
+
+export function setRsVsIndexCrosshairIndex(index: number | null) {
+  activeCrosshairIndex = index;
+}
 
 export function registerRsVsIndexIndicator() {
   if (registered) return;
@@ -172,11 +177,16 @@ export function registerRsVsIndexIndicator() {
       }
 
       // ─── Step 2: Vẽ Badges Thông tin ở góc trên bên phải ────────────────────
-      const lastItem = results[results.length - 1];
-      if (lastItem) {
-        const score = lastItem.score || 0;
-        const healthScore = lastItem.healthScore !== null ? `${lastItem.healthScore}/10` : 'N/A';
-        const status = lastItem.marketStatus;
+      // Ưu tiên nến đang rê chuột (Crosshair), nếu không thì hiển thị nến mới nhất
+      const targetItem =
+        activeCrosshairIndex !== null && results[activeCrosshairIndex]
+          ? results[activeCrosshairIndex]
+          : results[results.length - 1];
+
+      if (targetItem) {
+        const score = targetItem.score || 0;
+        const healthScore = targetItem.healthScore !== null ? `${targetItem.healthScore}/10` : 'N/A';
+        const status = targetItem.marketStatus;
 
         let statusText = 'N/A';
         let statusBg = 'rgba(100, 116, 139, 0.85)';
