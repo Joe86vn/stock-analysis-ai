@@ -2342,11 +2342,10 @@ export function StockChartPanel({
           <div className="relative">
             <button
               onClick={() => setShowIndicatorMenu((v) => !v)}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer shadow-2xs"
-              title="Quản lý các chỉ báo kỹ thuật & tùy chỉnh thông số"
+              className="flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer shadow-2xs"
+              title="Chỉ báo (fx) - Quản lý các chỉ báo kỹ thuật & tùy chỉnh thông số"
             >
-              <Activity className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Chỉ báo (fx)</span>
+              <Activity className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <ChevronDown className="h-3 w-3 opacity-70" />
             </button>
 
@@ -2645,34 +2644,32 @@ export function StockChartPanel({
           <button
             onClick={() => setShowDividendMarkers((v) => !v)}
             className={`
-              flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer
+              relative p-1.5 rounded-lg transition flex-shrink-0 cursor-pointer flex items-center justify-center
               ${showDividendMarkers
                 ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 shadow-2xs'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700/80 hover:text-slate-900 dark:hover:text-white'
               }
             `}
-            title="Ẩn/hiện sự kiện cổ tức & chia tách"
+            title="Cổ tức & chia tách (Click để bật/tắt)"
           >
-            <Calendar className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Cổ tức</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${showDividendMarkers ? 'bg-amber-500' : 'bg-gray-400'}`} />
+            <Calendar className="h-4 w-4" />
+            <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-[#131722] ${showDividendMarkers ? 'bg-amber-500' : 'bg-gray-400 opacity-60'}`} />
           </button>
 
           {/* Công cụ vẽ Toggle Button */}
           <button
             onClick={() => setShowDrawingToolbar((v) => !v)}
             className={`
-              flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer
+              relative p-1.5 rounded-lg transition flex-shrink-0 cursor-pointer flex items-center justify-center
               ${showDrawingToolbar
                 ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 shadow-2xs'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700/80 hover:text-slate-900 dark:hover:text-white'
               }
             `}
-            title="Ẩn/hiện bộ công cụ vẽ kỹ thuật (Trendline, Thước đo, Hỗ trợ/Kháng cự...)"
+            title="Công cụ vẽ kỹ thuật (Trendline, Thước đo, Hỗ trợ/Kháng cự...)"
           >
-            <Pencil className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Công cụ vẽ</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${showDrawingToolbar ? 'bg-purple-500' : 'bg-gray-400'}`} />
+            <Pencil className="h-4 w-4" />
+            <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-[#131722] ${showDrawingToolbar ? 'bg-purple-500' : 'bg-gray-400 opacity-60'}`} />
           </button>
 
           {/* Cài đặt (⚙️) Button */}
@@ -2690,17 +2687,16 @@ export function StockChartPanel({
           <button
             onClick={toggleSidebar}
             className={`
-              flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer
+              relative p-1.5 rounded-lg transition flex-shrink-0 cursor-pointer flex items-center justify-center
               ${showSidebar
                 ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 shadow-2xs'
                 : 'bg-gray-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white border border-gray-200 dark:border-gray-700/80'
               }
             `}
-            title="Bật/tắt thanh tiện ích: Bảng giá mini, Tài chính 4 kỳ, Cổ tức, Tin tức (phím tắt \)"
+            title="Thanh tiện ích: Bảng giá mini, Tài chính 4 kỳ, Cổ tức, Tin tức (Phím tắt \)"
           >
-            <Layers className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            <span className="hidden sm:inline">Tiện ích</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${showSidebar ? 'bg-blue-500' : 'bg-gray-400'}`} />
+            <Layers className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-[#131722] ${showSidebar ? 'bg-blue-500' : 'bg-gray-400 opacity-60'}`} />
           </button>
         </div>
       </div>
