@@ -449,6 +449,81 @@ export function saveCanvasConfig(config: CanvasConfig): void {
   } catch {}
 }
 
+export interface ActiveIndicatorsState {
+  swingHl: boolean;
+  ema: boolean;
+  boll: boolean;
+  vol: boolean;
+  rsi: boolean;
+  macd: boolean;
+  rsVsIndex: boolean;
+  pe: boolean;
+  pb: boolean;
+  coreEps: boolean;
+  revenue: boolean;
+}
+
+export const DEFAULT_ACTIVE_INDICATORS: ActiveIndicatorsState = {
+  swingHl: true,
+  ema: true,
+  boll: false,
+  vol: true,
+  rsi: false,
+  macd: false,
+  rsVsIndex: false,
+  pe: false,
+  pb: false,
+  coreEps: false,
+  revenue: false,
+};
+
+export const LOCAL_STORAGE_ACTIVE_INDICATORS_KEY = 'stock_chart_active_indicators';
+export const LOCAL_STORAGE_INDICATOR_PARAMS_KEY = 'stock_chart_indicator_params';
+
+export function loadSavedActiveIndicators(): ActiveIndicatorsState {
+  if (typeof window === 'undefined') return DEFAULT_ACTIVE_INDICATORS;
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_ACTIVE_INDICATORS_KEY);
+    if (!raw) return DEFAULT_ACTIVE_INDICATORS;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      return {
+        ...DEFAULT_ACTIVE_INDICATORS,
+        ...parsed,
+      };
+    }
+  } catch {}
+  return DEFAULT_ACTIVE_INDICATORS;
+}
+
+export function saveActiveIndicators(state: ActiveIndicatorsState): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_INDICATORS_KEY, JSON.stringify(state));
+  } catch (err) {
+    console.error('Không thể lưu trạng thái chỉ báo vào localStorage:', err);
+  }
+}
+
+export function loadSavedIndicatorParams<T extends object>(defaultParams: T): T {
+  if (typeof window === 'undefined') return defaultParams;
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_INDICATOR_PARAMS_KEY);
+    if (!raw) return defaultParams;
+    const parsed = JSON.parse(raw);
+    return { ...defaultParams, ...parsed };
+  } catch {
+    return defaultParams;
+  }
+}
+
+export function saveIndicatorParams(params: object): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_STORAGE_INDICATOR_PARAMS_KEY, JSON.stringify(params));
+  } catch {}
+}
+
 // ─── Indicator Style Interfaces & Helper Functions ────────────────────────────
 
 export interface IndicatorLineStyle {

@@ -44,6 +44,11 @@ import {
   saveStatusLineConfig,
   loadSavedCanvasConfig,
   saveCanvasConfig,
+  ActiveIndicatorsState,
+  loadSavedActiveIndicators,
+  saveActiveIndicators,
+  loadSavedIndicatorParams,
+  saveIndicatorParams,
   getKLineThemeFromCustom,
   hexToRgba,
   DEFAULT_CHART_THEME,
@@ -321,19 +326,7 @@ export function StockChartPanel({
   const [showDrawingToolbar, setShowDrawingToolbar] = useState(false);
 
   // ─── Indicators State & Parameters ───────────────────────────────────────
-  const [activeIndicators, setActiveIndicators] = useState({
-    swingHl: true,
-    ema: true,
-    boll: false,
-    vol: true,
-    rsi: false,
-    macd: false,
-    rsVsIndex: false,
-    pe: false,
-    pb: false,
-    coreEps: false,
-    revenue: false,
-  });
+  const [activeIndicators, setActiveIndicators] = useState<ActiveIndicatorsState>(() => loadSavedActiveIndicators());
   const [quarterlyFinancials, setQuarterlyFinancials] = useState<ParsedVietcapQuarter[]>([]);
   const [vnindexMap, setVnindexMap] = useState<Map<string, VnindexInfo>>(new Map());
 
@@ -343,21 +336,23 @@ export function StockChartPanel({
     });
   }, []);
 
-  const [indicatorParams, setIndicatorParams] = useState({
-    swingHlWindow: 9,
-    swingHlShowLine: true,
-    swingHlShowChochBos: true,
-    swingHlConfirmBars: 3,
-    swingHlShowPercent: true,
-    emaShort: 20,
-    emaLong: 200,
-    bollPeriod: 20,
-    bollStdDev: 2,
-    rsiPeriod: 14,
-    macdFast: 12,
-    macdSlow: 26,
-    macdSignal: 9,
-  });
+  const [indicatorParams, setIndicatorParams] = useState(() =>
+    loadSavedIndicatorParams({
+      swingHlWindow: 9,
+      swingHlShowLine: true,
+      swingHlShowChochBos: true,
+      swingHlConfirmBars: 3,
+      swingHlShowPercent: true,
+      emaShort: 20,
+      emaLong: 200,
+      bollPeriod: 20,
+      bollStdDev: 2,
+      rsiPeriod: 14,
+      macdFast: 12,
+      macdSlow: 26,
+      macdSignal: 9,
+    })
+  );
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const subPanesRef = useRef<{
     vol?: string;
@@ -1604,6 +1599,7 @@ export function StockChartPanel({
           chart.overrideIndicator({ name: 'MACD', calcParams: [next.macdFast, next.macdSlow, next.macdSignal] }, subPanesRef.current.macd);
         }
       }
+      saveIndicatorParams(next);
       return next;
     });
   };
@@ -1771,7 +1767,9 @@ export function StockChartPanel({
           }
         }
       }
-      return { ...prev, [key]: nextVal };
+      const nextState = { ...prev, [key]: nextVal };
+      saveActiveIndicators(nextState);
+      return nextState;
     });
   };
 
