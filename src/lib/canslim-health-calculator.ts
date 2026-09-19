@@ -241,24 +241,23 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
     activeDistribDays = countDistributionDaysAfter(days, ftdInfo.ftdIndex, targetIndex);
 
     const sessionsSinceFtd = targetIndex - ftdInfo.ftdIndex;
-    if (sessionsSinceFtd === 0) {
-      // Phiên FTD khởi đầu -> Xác nhận Uptrend 100% (Màu Xanh, Điểm >= 7)
-      baseScore = 9;
-      postFtdPenalty = 0;
-    } else if (sessionsSinceFtd <= 5) {
-      baseScore = 8;
+    if (sessionsSinceFtd <= 5) {
+      // Trong 5 phiên đầu từ ngày FTD: Mặc định điểm gốc = 7 / 10 (Confirmed Uptrend)
+      baseScore = 7;
       postFtdPenalty = ftdInfo.postFtdPenalty;
       if (ftdInfo.postFtdDistribDay !== null && activeDistribDays > 0) {
         activeDistribDays = Math.max(0, activeDistribDays - 1);
       }
     } else {
       if (ftdInfo.postFtdDistribDay !== null) {
+        // Nếu xuất hiện phân phối trong 1-5 phiên ngay sau FTD
         baseScore = 7;
         postFtdPenalty = ftdInfo.postFtdPenalty;
         if (activeDistribDays > 0) {
           activeDistribDays = Math.max(0, activeDistribDays - 1);
         }
       } else {
+        // Khôi phục 10 điểm nếu sau trên 5 phiên kể từ FTD không xuất hiện phiên phân phối nào
         baseScore = 10;
         postFtdPenalty = 0;
       }
@@ -308,6 +307,7 @@ export interface CanslimEvent {
 
 /**
  * Trích xuất toàn bộ các sự kiện CANSLIM (Phân phối, FTD, Đáy 1) cho VN-Index lịch sử
+ * Tuân thủ quy tắc MARKET_HEALTH_RULES.md: Chỉ giữ Đáy 1 duy nhất phát động đợt nỗ lực phục hồi dẫn tới FTD.
  */
 export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
   const events: CanslimEvent[] = [];
@@ -316,6 +316,7 @@ export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
   let rallyStartLow = Infinity;
   let rallyDayCount = 0;
   let inConfirmedUptrend = false;
+  let candidateRallyDay1Idx: number | null = null;
 
   for (let i = 1; i < days.length; i++) {
     const prev = days[i - 1];
@@ -339,35 +340,37 @@ export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
         inConfirmedUptrend = false;
         rallyDayCount = 0;
         rallyStartLow = Infinity;
+        candidateRallyDay1Idx = null;
       }
     } else {
       if (rallyDayCount === 0) {
         if (pct > 0) {
           rallyDayCount = 1;
           rallyStartLow = prev.low ?? prev.close;
-          events.push({
-            index: i,
-            date: curr.date,
-            type: 'rallyDay1',
-          });
+          candidateRallyDay1Idx = i;
         }
       } else {
         if (curr.close < rallyStartLow) {
           if (pct > 0) {
             rallyDayCount = 1;
             rallyStartLow = prev.close;
-            events.push({
-              index: i,
-              date: curr.date,
-              type: 'rallyDay1',
-            });
+            candidateRallyDay1Idx = i;
           } else {
             rallyDayCount = 0;
             rallyStartLow = Infinity;
+            candidateRallyDay1Idx = null;
           }
         } else {
           rallyDayCount++;
           if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
+            // Đã xuất hiện FTD -> Thêm Đáy 1 phát động đợt FTD này (nếu chưa thêm) và thêm FTD
+            if (candidateRallyDay1Idx !== null) {
+              events.push({
+                index: candidateRallyDay1Idx,
+                date: days[candidateRallyDay1Idx].date,
+                type: 'rallyDay1',
+              });
+            }
             events.push({
               index: i,
               date: curr.date,
@@ -380,6 +383,16 @@ export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
     }
   }
 
-  return events;
+  // Nếu đang trong đợt nỗ lực phục hồi chưa có FTD, giữ Đáy 1 hiện tại
+  if (!inConfirmedUptrend && candidateRallyDay1Idx !== null) {
+    events.push({
+      index: candidateRallyDay1Idx,
+      date: days[candidateRallyDay1Idx].date,
+      type: 'rallyDay1',
+    });
+  }
+
+  // Sắp xếp các sự kiện theo index tăng dần
+  return events.sort((a, b) => a.index - b.index);
 }
 
