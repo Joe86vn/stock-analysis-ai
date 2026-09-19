@@ -21,7 +21,7 @@ export async function getVnindexHistoryMap(): Promise<Map<string, VnindexInfo>> 
   }
 
   try {
-    const res = await fetch('/api/market-watch/vnindex-history?index=VNINDEX&page=0&size=2000');
+    const res = await fetch('/api/market-watch/vnindex-history?index=VNINDEX&fromDate=20150101&page=0&size=3000');
     if (!res.ok) return cachedVnindexMap || new Map();
     const json = await res.json();
     const rawList = Array.isArray(json)
