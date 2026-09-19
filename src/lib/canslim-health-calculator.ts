@@ -68,34 +68,39 @@ export interface FtdAnalysis {
  * Phân tích Bùng nổ theo đà (FTD) từ phiên 4 đến 10 của đợt nỗ lực phục hồi
  */
 export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
+  // Xác định chu kỳ thị trường trong vòng tối đa 150 phiên giao dịch tính tới phiên targetIndex
+  const lookback = Math.min(150, targetIndex);
+  const startIdx = Math.max(1, targetIndex - lookback);
+
   let rallyStartLow = Infinity;
   let rallyDayCount = 0;
   let inConfirmedUptrend = false;
   let lastFtdIdx: number | null = null;
   let ftdLow = Infinity;
+  let recentHigh = 0;
 
-  const maxLen = Math.min(days.length - 1, targetIndex);
-
-  for (let i = 1; i <= maxLen; i++) {
+  for (let i = startIdx; i <= targetIndex; i++) {
     const prev = days[i - 1];
     const curr = days[i];
     const pct = (curr.close - prev.close) / prev.close;
 
     if (inConfirmedUptrend) {
-      // Xu hướng tăng FTD bị vi phạm chỉ khi giá đóng cửa thủng Đáy FTD hoặc Đáy Rally
+      recentHigh = Math.max(recentHigh, curr.close);
       const breakLow = Math.min(ftdLow, rallyStartLow);
-      if (curr.close < breakLow) {
+      // Uptrend kết thúc khi thủng đáy FTD hoặc giảm > 6% từ đỉnh ngắn hạn (bước vào đợt điều chỉnh mới)
+      if (curr.close < breakLow || (recentHigh > 0 && curr.close < recentHigh * 0.94)) {
         inConfirmedUptrend = false;
         rallyDayCount = 0;
         rallyStartLow = Infinity;
         lastFtdIdx = null;
         ftdLow = Infinity;
+        recentHigh = 0;
       }
     } else {
       if (rallyDayCount === 0) {
         if (pct > 0) {
           rallyDayCount = 1;
-          rallyStartLow = prev.low ?? prev.close;
+          rallyStartLow = curr.low ?? curr.close;
         }
       } else {
         // Vi phạm đáy khi giá tạo đáy mới thấp hơn đáy rally
@@ -113,6 +118,7 @@ export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
             lastFtdIdx = i;
             inConfirmedUptrend = true;
             ftdLow = curr.low ?? curr.close;
+            recentHigh = curr.close;
           }
         }
       }
@@ -127,7 +133,7 @@ export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
   let failProb: number | null = null;
   let distribDay: number | null = null;
 
-  for (let i = lastFtdIdx + 1; i < Math.min(maxLen + 1, lastFtdIdx + 6); i++) {
+  for (let i = lastFtdIdx + 1; i < Math.min(targetIndex + 1, lastFtdIdx + 6); i++) {
     const prev = days[i - 1];
     const curr = days[i];
     const pctChange = (curr.close - prev.close) / prev.close;
