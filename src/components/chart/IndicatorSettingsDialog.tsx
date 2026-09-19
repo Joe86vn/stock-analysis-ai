@@ -406,6 +406,23 @@ export function IndicatorSettingsDialog({
                   </div>
                 </div>
               )}
+
+              {/* RS vs Index */}
+              {indicatorId === 'rsVsIndex' && (
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Số nến tính đỉnh RS (Window):</span>
+                    <input
+                      type="number"
+                      min={5}
+                      max={100}
+                      value={localParams.rsVsIndexWindow ?? 20}
+                      onChange={(e) => handleParamChange('rsVsIndexWindow', Number(e.target.value))}
+                      className="w-20 px-2.5 py-1 rounded-lg border border-gray-300 dark:border-[#434651] bg-white dark:bg-[#1e222d] text-slate-900 dark:text-white font-mono font-bold text-center focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

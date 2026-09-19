@@ -351,6 +351,7 @@ export function StockChartPanel({
       macdFast: 12,
       macdSlow: 26,
       macdSignal: 9,
+      rsVsIndexWindow: 20,
     })
   );
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
@@ -1163,6 +1164,18 @@ export function StockChartPanel({
           { id: 'revenue', name: 'Cột Doanh Thu TTM (Tỷ VNĐ)', visible: true, color: '#06b6d4', lineWidth: 1, lineStyle: 'solid' },
         ],
       });
+    } else if (indicatorId === 'rsVsIndex') {
+      setIndicatorDialogState({
+        isOpen: true,
+        indicatorId: 'rsVsIndex',
+        title: 'Sức mạnh RS so với VN-Index',
+        initialTab,
+        plots: [
+          { id: 'rs', name: 'Đường RS (Relative Strength)', visible: true, color: '#2563eb', lineWidth: 2, lineStyle: 'solid' },
+          { id: 'rsMax20', name: 'Đường Đỉnh RS 20 Phiên', visible: true, color: '#9ca3af', lineWidth: 1, lineStyle: 'dashed' },
+          { id: 'breakoutMark', name: 'Chấm đột phá 20 phiên', visible: true, color: '#f59e0b', lineWidth: 1, lineStyle: 'solid' },
+        ],
+      });
     }
   };
 
@@ -1443,6 +1456,24 @@ export function StockChartPanel({
         },
         subPanesRef.current.revenue
       );
+    } else if (indicatorId === 'rsVsIndex' && activeIndicators.rsVsIndex && subPanesRef.current.rsVsIndex) {
+      const rs = plots.find((p) => p.id === 'rs');
+      const maxPlot = plots.find((p) => p.id === 'rsMax20');
+      const breakout = plots.find((p) => p.id === 'breakoutMark');
+      chart.overrideIndicator(
+        {
+          name: RS_VS_INDEX_NAME,
+          styles: {
+            ...commonStyles,
+            lines: [
+              { color: rs?.color || '#2563eb', size: rs?.lineWidth || 2, style: (rs?.lineStyle || 'solid') as any, show: rs?.visible ?? true },
+              { color: maxPlot?.color || '#9ca3af', size: maxPlot?.lineWidth || 1, style: (maxPlot?.lineStyle || 'dashed') as any, show: maxPlot?.visible ?? true },
+              { color: breakout?.color || '#f59e0b', size: breakout?.lineWidth || 1, style: (breakout?.lineStyle || 'solid') as any, show: breakout?.visible ?? true },
+            ],
+          } as any,
+        },
+        subPanesRef.current.rsVsIndex
+      );
     }
   };
 
@@ -1491,6 +1522,11 @@ export function StockChartPanel({
           chart.overrideIndicator(
             { name: 'MACD', calcParams: [next.macdFast, next.macdSlow, next.macdSignal] },
             subPanesRef.current.macd
+          );
+        } else if (indicatorId === 'rsVsIndex' && activeIndicators.rsVsIndex && subPanesRef.current.rsVsIndex) {
+          chart.overrideIndicator(
+            { name: RS_VS_INDEX_NAME, calcParams: [next.rsVsIndexWindow ?? 20] },
+            subPanesRef.current.rsVsIndex
           );
         }
       }
@@ -1815,7 +1851,7 @@ export function StockChartPanel({
       chartRef.current.setBarSpace(8);
       chartRef.current.setOffsetRightDistance(80);
     }
-  }, [allBars, resolution]);
+  }, [allBars, resolution, vnindexMap, quarterlyFinancials]);
 
   // ─── Vẽ Marker Sự kiện Cổ tức & Phát hành (D / S) trên nến ────────────────
   useEffect(() => {
@@ -2577,8 +2613,18 @@ export function StockChartPanel({
                         />
                         <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 flex-shrink-0" />
                         <span className="font-bold text-slate-800 dark:text-gray-100">RS vs Index</span>
-                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">(Sức mạnh tương quan CP/VNINDEX)</span>
+                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">({indicatorParams.rsVsIndexWindow ?? 20}P)</span>
                       </label>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openIndicatorSettings('rsVsIndex');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700/60 transition cursor-pointer"
+                        title="Cài đặt tham số & định dạng RS vs Index"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
 

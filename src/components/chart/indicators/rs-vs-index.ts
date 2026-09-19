@@ -21,9 +21,11 @@ export function registerRsVsIndexIndicator() {
   registerIndicator<RsVsIndexResult>({
     name: RS_VS_INDEX_NAME,
     shortName: 'RS vs Index',
-    calc: (dataList: KLineData[]) => {
+    calc: (dataList: KLineData[], indicator: any) => {
       const n = dataList.length;
       if (n === 0) return [];
+
+      const windowSize = (indicator?.calcParams && indicator.calcParams[0]) || 20;
 
       const rsValues: (number | null)[] = new Array(n);
       const healthScores: (number | null)[] = new Array(n);
@@ -47,7 +49,7 @@ export function registerRsVsIndexIndicator() {
         }
       }
 
-      // 2. Quét giá trị RS cao nhất 20 phiên trước & xác định các điểm Đột phá (Chấm tròn Vàng)
+      // 2. Quét giá trị RS cao nhất windowSize phiên trước & xác định các điểm Đột phá (Chấm tròn Vàng)
       const isBreakoutArr = new Array<boolean>(n).fill(false);
       const rsMax20Arr: (number | null)[] = new Array(n).fill(null);
       const breakoutMarkArr: (number | null)[] = new Array(n).fill(null);
@@ -56,20 +58,20 @@ export function registerRsVsIndexIndicator() {
         const curRS = rsValues[i];
         if (curRS === null) continue;
 
-        let max20: number | null = null;
-        const start = Math.max(0, i - 20);
+        let maxVal: number | null = null;
+        const start = Math.max(0, i - windowSize);
         for (let k = start; k < i; k++) {
           const prevRS = rsValues[k];
           if (prevRS !== null) {
-            if (max20 === null || prevRS > max20) {
-              max20 = prevRS;
+            if (maxVal === null || prevRS > maxVal) {
+              maxVal = prevRS;
             }
           }
         }
 
-        rsMax20Arr[i] = max20;
+        rsMax20Arr[i] = maxVal;
 
-        if (i >= 5 && max20 !== null && curRS > max20) {
+        if (i >= 5 && maxVal !== null && curRS > maxVal) {
           isBreakoutArr[i] = true;
           breakoutMarkArr[i] = curRS;
         }
@@ -107,13 +109,13 @@ export function registerRsVsIndexIndicator() {
       },
       {
         key: 'rsMax20',
-        title: 'Đỉnh 20P: ',
+        title: 'Đỉnh RS: ',
         type: 'line',
         styles: () => ({ color: '#9ca3af', style: 'dashed' as any, size: 1 }),
       },
       {
         key: 'breakoutMark',
-        title: 'Đột phá 20P: ',
+        title: 'Đột phá: ',
         type: 'circle',
         styles: () => ({ color: '#f59e0b', radius: 4.5, style: 'fill' as any }),
       },
@@ -127,9 +129,9 @@ export function registerRsVsIndexIndicator() {
       const results = indicator.result;
       if (!results || results.length === 0) return false;
 
-      const axisObj = xAxis as any;
+      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      const canvasW = ctx.canvas.width / dpr;
       const yAxisObj = yAxis as any;
-      const width = typeof axisObj?.width === 'function' ? axisObj.width() : axisObj?.width || 300;
       const paneHeight = typeof yAxisObj?.height === 'function' ? yAxisObj.height() : yAxisObj?.height || 120;
 
       ctx.save();
@@ -193,48 +195,47 @@ export function registerRsVsIndexIndicator() {
         const badge2Text = `★ Vượt đỉnh 1T: ${score} điểm`;
 
         const paddingX = 8;
-        const paddingY = 4;
         ctx.font = 'bold 11px sans-serif';
 
-        // Badge 1: Health Score Status
         const w1 = ctx.measureText(badge1Text).width + paddingX * 2;
-        const h1 = 20;
-        const x1 = Math.max(10, width - w1 - 12);
-        const y1 = 6;
+        const w2 = ctx.measureText(badge2Text).width + paddingX * 2;
+        const h = 20;
+        const y = 6;
 
+        // Căn lề góc trên bên phải (chừa lề ~75px cho trục Y bên phải)
+        const rightEdge = Math.max(200, canvasW - 75);
+        const x1 = rightEdge - w1;
+        const x2 = x1 - w2 - 8;
+
+        // Badge 1: Health Score Status
         ctx.fillStyle = statusBg;
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(x1, y1, w1, h1, 10);
+          ctx.roundRect(x1, y, w1, h, 10);
         } else {
-          ctx.rect(x1, y1, w1, h1);
+          ctx.rect(x1, y, w1, h);
         }
         ctx.fill();
 
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(badge1Text, x1 + w1 / 2, y1 + h1 / 2);
+        ctx.fillText(badge1Text, x1 + w1 / 2, y + h / 2);
 
         // Badge 2: Breakout 1T Score
-        const w2 = ctx.measureText(badge2Text).width + paddingX * 2;
-        const h2 = 20;
-        const x2 = Math.max(10, x1 - w2 - 8);
-        const y2 = 6;
-
         ctx.fillStyle = score > 0 ? 'rgba(16, 185, 129, 0.9)' : 'rgba(100, 116, 139, 0.85)';
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(x2, y2, w2, h2, 10);
+          ctx.roundRect(x2, y, w2, h, 10);
         } else {
-          ctx.rect(x2, y2, w2, h2);
+          ctx.rect(x2, y, w2, h);
         }
         ctx.fill();
 
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(badge2Text, x2 + w2 / 2, y2 + h2 / 2);
+        ctx.fillText(badge2Text, x2 + w2 / 2, y + h / 2);
       }
 
       ctx.restore();

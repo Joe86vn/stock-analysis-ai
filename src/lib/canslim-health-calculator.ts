@@ -13,6 +13,12 @@ export interface HealthScoreResult {
   distributionDays: number;
   isBelowMa20: boolean;
   ma20: number | null;
+  currentClose: number;
+  vnindexVsMa20: number | null;
+  ftdDetected: boolean;
+  postFtdPenalty: number;
+  ftdFailureProb: number | null;
+  postFtdDistribDay: number | null;
 }
 
 /**
@@ -159,7 +165,19 @@ export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
  */
 export function calculateHealthScoreForBar(days: DayData[], targetIndex: number): HealthScoreResult {
   if (days.length === 0 || targetIndex < 0 || targetIndex >= days.length) {
-    return { score: 5, status: 'uptrend_under_pressure', distributionDays: 0, isBelowMa20: false, ma20: null };
+    return {
+      score: 5,
+      status: 'uptrend_under_pressure',
+      distributionDays: 0,
+      isBelowMa20: false,
+      ma20: null,
+      currentClose: 0,
+      vnindexVsMa20: null,
+      ftdDetected: false,
+      postFtdPenalty: 0,
+      ftdFailureProb: null,
+      postFtdDistribDay: null,
+    };
   }
 
   // 1. Tính MA20
@@ -174,6 +192,7 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
 
   const currentClose = days[targetIndex].close;
   const isBelowMa20 = ma20 !== null ? currentClose < ma20 : false;
+  const vnindexVsMa20 = ma20 !== null ? ((currentClose - ma20) / ma20) * 100 : null;
 
   // 2. Đếm số ngày phân phối & phân tích FTD
   const distDays = countDistributionDays(days, targetIndex);
@@ -217,6 +236,12 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
     distributionDays: distDays,
     isBelowMa20,
     ma20,
+    currentClose,
+    vnindexVsMa20,
+    ftdDetected: ftdInfo.ftdDetected,
+    postFtdPenalty: ftdInfo.postFtdPenalty,
+    ftdFailureProb: ftdInfo.ftdFailureProb,
+    postFtdDistribDay: ftdInfo.postFtdDistribDay,
   };
 }
 

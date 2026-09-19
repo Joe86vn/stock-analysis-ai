@@ -48,7 +48,7 @@ export async function getVnindexHistoryMap(): Promise<Map<string, VnindexInfo>> 
         return {
           date: dateStr,
           close,
-          low: Number(d.indexValue ?? d.lowestIndex ?? d.low ?? close),
+          low: Number(d.lowestIndex ?? d.low ?? d.indexValue ?? d.closeIndex ?? d.close ?? close),
           volume: Number(d.totalMatchVolume ?? d.totalVolume ?? d.volume ?? d.matchVolume ?? 0),
         };
       })
