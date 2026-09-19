@@ -31,7 +31,7 @@ import { registerDividendMarkerOverlay } from './chart/overlays/dividend-marker-
 import { registerCanslimMarkerOverlay, CANSLIM_MARKER_OVERLAY_NAME } from './chart/overlays/canslim-marker-overlay';
 import { getAllCanslimEvents, type DayData } from '@/lib/canslim-health-calculator';
 import { registerFundamentalIndicators } from './chart/indicators/fundamental-indicators';
-import { registerRsVsIndexIndicator, RS_VS_INDEX_NAME, setRsVsIndexCrosshairIndex } from './chart/indicators/rs-vs-index';
+import { registerRsVsIndexIndicator, RS_VS_INDEX_NAME } from './chart/indicators/rs-vs-index';
 import { enrichKLineWithFundamentals } from '@/lib/fundamental-indicator-helper';
 import { getVnindexHistoryMap, enrichKLineWithVnindex, type VnindexInfo } from '@/lib/vnindex-enricher';
 import type { ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
@@ -800,12 +800,10 @@ export function StockChartPanel({
       chart.subscribeAction('onCrosshairChange' as any, (data: any) => {
         if (!data || !data.kLineData) {
           setCrosshairData(null);
-          setRsVsIndexCrosshairIndex(null);
           return;
         }
         const kd = data.kLineData as KLineData;
         const dataIndex = data.dataIndex;
-        setRsVsIndexCrosshairIndex(typeof dataIndex === 'number' ? dataIndex : null);
         let prevClose: number | null = null;
         if (typeof dataIndex === 'number' && dataIndex > 0 && chartRef.current) {
           const dataList = chartRef.current.getDataList();
@@ -2846,7 +2844,6 @@ export function StockChartPanel({
           className="relative flex-1 min-h-0 w-full h-full overflow-hidden"
           onMouseLeave={() => {
             setCrosshairData(null);
-            setRsVsIndexCrosshairIndex(null);
           }}
         >
           {isLoadingChart && (
