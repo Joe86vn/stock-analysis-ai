@@ -44,11 +44,14 @@ export const CompanyInfoTab: React.FC<CompanyInfoTabProps> = ({ ticker }) => {
   const [error, setError] = useState<string | null>(null);
   const [scope, setScope] = useState<NewsScope>('ticker');
   const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>('all');
+  const [retryCount, setRetryCount] = useState(0);
+  const [isFallbackToMarket, setIsFallbackToMarket] = useState(false);
 
   useEffect(() => {
     let isCancelled = false;
     setIsLoading(true);
     setError(null);
+    setIsFallbackToMarket(false);
 
     const endpoint =
       scope === 'ticker'
@@ -57,29 +60,44 @@ export const CompanyInfoTab: React.FC<CompanyInfoTabProps> = ({ ticker }) => {
 
     fetch(endpoint)
       .then((res) => {
-        if (!res.ok) throw new Error('Không thể tải tin tức doanh nghiệp');
+        if (!res.ok) throw new Error(`Lỗi ${res.status}: Không thể tải tin tức`);
         return res.json();
       })
       .then((json) => {
         if (isCancelled) return;
-        if (json.success && Array.isArray(json.data)) {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
           setNews(json.data);
+          setIsLoading(false);
+        } else if (scope === 'ticker') {
+          // Fallback: mã không có tin riêng → tự động chuyển sang tin thị trường chung
+          return fetch(`/api/stocks/${ticker}/news?general=true`)
+            .then((r) => r.json())
+            .then((fallbackJson) => {
+              if (isCancelled) return;
+              if (fallbackJson.success && Array.isArray(fallbackJson.data)) {
+                setNews(fallbackJson.data);
+                setIsFallbackToMarket(true);
+              } else {
+                setNews([]);
+              }
+              setIsLoading(false);
+            });
         } else {
           setNews([]);
+          setIsLoading(false);
         }
-        setIsLoading(false);
       })
       .catch((err) => {
         if (isCancelled) return;
         console.warn('[CompanyInfoTab] fetch error:', err);
-        setError(err.message || 'Lỗi tải tin tức');
+        setError(err.message || 'Lỗi kết nối đến Vietcap AI News');
         setIsLoading(false);
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [ticker, scope]);
+  }, [ticker, scope, retryCount]);
 
   const filteredNews = useMemo(() => {
     return news.filter((item) => {
@@ -231,19 +249,44 @@ export const CompanyInfoTab: React.FC<CompanyInfoTabProps> = ({ ticker }) => {
 
           {/* ─── Danh Sách Bài Báo (Scrollable) ─── */}
           <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-2.5">
+            {/* Banner fallback: hiển thị khi mã không có tin, tự động chuyển sang tin thị trường */}
+            {isFallbackToMarket && !isLoading && (
+              <div className="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-[10.5px] flex items-center space-x-2 flex-shrink-0">
+                <Globe className="w-3.5 h-3.5 flex-shrink-0" />
+                <span><span className="font-bold">{ticker}</span> chưa có tin riêng — đang hiển thị tin thị trường chung</span>
+              </div>
+            )}
+
             {isLoading ? (
               <div className="py-12 flex flex-col items-center justify-center space-y-2 text-gray-400">
                 <RefreshCw className="w-5 h-5 animate-spin text-cyan-500" />
                 <span className="text-xs">Đang tải tin tức AI Vietcap...</span>
               </div>
             ) : error ? (
-              <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs">
-                <AlertCircle className="w-4 h-4 mb-1" />
-                {error}
+              <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs space-y-2">
+                <div className="flex items-center space-x-1.5">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="font-medium">{error}</span>
+                </div>
+                <button
+                  onClick={() => setRetryCount((c) => c + 1)}
+                  className="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Thử lại</span>
+                </button>
               </div>
             ) : filteredNews.length === 0 ? (
-              <div className="py-12 text-center text-gray-400 text-xs">
-                Không có tin tức nào phù hợp bộ lọc
+              <div className="py-12 text-center text-gray-400 text-xs space-y-2">
+                <p>Không có tin tức nào phù hợp bộ lọc</p>
+                {sentimentFilter !== 'all' && (
+                  <button
+                    onClick={() => setSentimentFilter('all')}
+                    className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[11px] font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition cursor-pointer"
+                  >
+                    Xem tất cả tin
+                  </button>
+                )}
               </div>
             ) : (
               filteredNews.map((item) => {

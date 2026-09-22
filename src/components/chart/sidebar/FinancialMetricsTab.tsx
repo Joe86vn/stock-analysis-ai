@@ -369,6 +369,7 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
   const [quartersData, setQuartersData] = useState<ParsedVietcapQuarter[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Vị trí cửa sổ 4 kỳ: windowEndIndex là chỉ số của kỳ mới nhất trong cửa sổ 4 kỳ
   const [windowEndIndex, setWindowEndIndex] = useState<number>(0);
@@ -377,7 +378,7 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
   const [selectedMetricId, setSelectedMetricId] = useState<string>('revenue');
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
-  // Fetch dữ liệu tài chính
+  // Fetch dữ liệu tài chính — retryCount được dùng để kích hoạt retry
   useEffect(() => {
     if (!ticker) return;
     let isCancelled = false;
@@ -386,36 +387,36 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
 
     fetch(`/api/stocks/${ticker}/financials`)
       .then((res) => {
-        if (!res.ok) throw new Error('Không thể tải dữ liệu tài chính');
+        if (!res.ok) throw new Error(`Lỗi ${res.status}: Không thể tải dữ liệu tài chính`);
         return res.json();
       })
       .then((json) => {
         if (isCancelled) return;
         const qList: ParsedVietcapQuarter[] = json.quarters || [];
         if (qList.length > 0) {
-          // Sắp xếp tăng dần theo thời gian (cũ -> mới)
           qList.sort((a, b) => {
             if (a.year !== b.year) return a.year - b.year;
             return a.quarter - b.quarter;
           });
           setQuartersData(qList);
-          setWindowEndIndex(qList.length - 1); // Mặc định hiển thị 4 kỳ mới nhất ở cuối mảng
+          setWindowEndIndex(qList.length - 1);
         } else {
           setQuartersData([]);
+          setError('Không có dữ liệu tài chính cho mã này. Vietcap IQ có thể chưa cập nhật.');
         }
         setIsLoading(false);
       })
       .catch((err) => {
         if (isCancelled) return;
         console.warn('[FinancialMetricsTab] fetch error:', err);
-        setError(err.message || 'Lỗi tải dữ liệu');
+        setError(err.message || 'Lỗi kết nối đến nguồn dữ liệu Vietcap IQ');
         setIsLoading(false);
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [ticker]);
+  }, [ticker, retryCount]);
 
   // Nhóm theo Năm nếu người dùng chọn "Theo năm"
   const aggregatedData = useMemo(() => {
@@ -604,7 +605,11 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
         </div>
 
         <span className="text-[10.5px] text-gray-400 font-mono">
-          {aggregatedData.length} kỳ lịch sử
+          {error ? (
+            <span className="text-rose-500 font-bold">Lỗi dữ liệu</span>
+          ) : (
+            `${aggregatedData.length} kỳ lịch sử`
+          )}
         </span>
       </div>
 
@@ -632,7 +637,18 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
           {isLoading ? (
             <div className="flex items-center space-x-2 text-gray-400 text-xs">
               <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-500" />
-              <span>Đang tải dữ liệu...</span>
+              <span>Đang tải dữ liệu Vietcap IQ...</span>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center space-y-2 px-4 text-center">
+              <span className="text-rose-500 dark:text-rose-400 text-[11px] font-medium leading-snug">{error}</span>
+              <button
+                onClick={() => setRetryCount((c) => c + 1)}
+                className="flex items-center space-x-1 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition cursor-pointer"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Thử lại</span>
+              </button>
             </div>
           ) : chartSeries.length < 2 ? (
             <span className="text-gray-400 text-[11px]">Chưa đủ dữ liệu để vẽ biểu đồ</span>

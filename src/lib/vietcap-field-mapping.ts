@@ -755,6 +755,8 @@ export async function fetchFullVietcapData(ticker: string, options: { maxQuarter
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'application/json',
+    'Referer': 'https://iq.vietcap.com.vn/',
+    'Origin': 'https://iq.vietcap.com.vn',
   };
 
   const baseUrl = `https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/${cleanTicker}`;
@@ -1016,6 +1018,8 @@ export const VIETCAP_ICB_SECTORS: Record<string, string> = {
 const COMMON_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Accept': 'application/json',
+  'Referer': 'https://iq.vietcap.com.vn/',
+  'Origin': 'https://iq.vietcap.com.vn',
 };
 
 /**
