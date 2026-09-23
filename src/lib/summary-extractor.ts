@@ -240,22 +240,14 @@ export function extractDefaultExecutiveSummary(
     );
   } else {
     const bullets = extractBulletPoints(report.sectionB?.valueChainOutput || report.sectionA?.historyAndOverview, 4);
-    mainProducts = bullets.length > 0 ? bullets : ['Sản phẩm / Dịch vụ cốt lõi 1', 'Sản phẩm / Dịch vụ cốt lõi 2'];
+    // Không dùng mockup — nếu không có dữ liệu thực thì trả về N/A
+    mainProducts = bullets.length > 0 ? bullets : ['N/A — Cần cập nhật từ Tab B (Chuỗi Giá Trị)'];
   }
 
-  // 2. Chuỗi giá trị (được trích xuất trọn vẹn, không bị cắt cụt từ)
-  const valueChainInput = cleanExtractSnippet(
-    report.sectionB?.valueChainInput || 'Nguồn cung nguyên vật liệu đầu vào đa dạng, chủ động quản trị chuỗi cung ứng và kiểm soát biến động giá vốn.',
-    480
-  );
-  const valueChainProduction = cleanExtractSnippet(
-    report.sectionB?.valueChainProduction || 'Hệ thống nhà máy vận hành công suất cao, ứng dụng công nghệ hiện đại giúp tối ưu hóa định mức tiêu hao.',
-    480
-  );
-  const valueChainOutput = cleanExtractSnippet(
-    report.sectionB?.valueChainOutput || 'Mạng lưới phân phối sâu rộng khắp cả nước và đẩy mạnh xuất khẩu sang các thị trường quốc tế trọng điểm.',
-    480
-  );
+  // 2. Chuỗi giá trị — Không dùng fallback mockup, trả về rỗng nếu Tab B chưa có dữ liệu
+  const valueChainInput = cleanExtractSnippet(report.sectionB?.valueChainInput, 480);
+  const valueChainProduction = cleanExtractSnippet(report.sectionB?.valueChainProduction, 480);
+  const valueChainOutput = cleanExtractSnippet(report.sectionB?.valueChainOutput, 480);
   const revenueStructureSummary = report.sectionB?.revenueBreakdown?.length
     ? report.sectionB.revenueBreakdown.map((r) => `${r.name} (${r.value}%)`).join(' • ')
     : cleanExtractSnippet(report.sectionB?.valueChainOutput, 250);
@@ -280,30 +272,24 @@ export function extractDefaultExecutiveSummary(
   const catScore = report.sectionCatalysts?.scorecard?.totalScore || 20.0;
   const timingScore = report.sectionCatalysts?.timingScorecard?.totalScore || 7.5;
 
+  // Không dùng fallback mockup — trả về rỗng nếu Tab C/D/E chưa phân tích
   const financialHealthSummary = cleanExtractSnippet(
-    report.sectionC?.partA_LiquidityAndDebt ||
-      report.sectionC?.partB_CashFlowAndEarnings ||
-      'Sức khỏe tài chính lành mạnh, tỷ lệ đòn bẩy nợ vay trong tầm kiểm soát an toàn và dòng tiền kinh doanh duy trì dương bền vững.',
+    report.sectionC?.partA_LiquidityAndDebt || report.sectionC?.partB_CashFlowAndEarnings,
     480
   );
 
   const growthQualitySummary = cleanExtractSnippet(
-    report.sectionD?.partA_CurrentGrowth ||
-      report.sectionD?.partB_VisibilityNext2To4Q ||
-      'Tốc độ tăng trưởng doanh thu và lợi nhuận cốt lõi duy trì đà mở rộng tích cực với tầm nhìn chắc chắn trong 2-4 quý tới.',
+    report.sectionD?.partA_CurrentGrowth || report.sectionD?.partB_VisibilityNext2To4Q,
     480
   );
 
   const competitiveMoatSummary = cleanExtractSnippet(
-    report.sectionE?.partA_EconomicMoat ||
-      'Con hào kinh tế vững chắc nhờ lợi thế quy mô chi phí thấp, thương hiệu uy tín và rào cản gia nhập ngành cao.',
+    report.sectionE?.partA_EconomicMoat,
     480
   );
 
   const managementGovernanceSummary = cleanExtractSnippet(
-    report.sectionE?.partD_ManagementAndCapitalAllocation ||
-      report.sectionE?.partE_CorporateGovernance ||
-      'Ban lãnh đạo giàu kinh nghiệm, kỷ luật tài chính cao và có định hướng phân bổ vốn hiệu quả vì lợi ích cổ đông dài hạn.',
+    report.sectionE?.partD_ManagementAndCapitalAllocation || report.sectionE?.partE_CorporateGovernance,
     480
   );
 
@@ -329,32 +315,8 @@ export function extractDefaultExecutiveSummary(
     }
   }
 
-  // Fallback an toàn theo đúng ngành nghề cổ phiếu (không tạo thép lò cao cho doanh nghiệp phân phối)
-  if (investmentTheses.length === 0) {
-    investmentTheses = [
-      {
-        id: 'thesis-1',
-        title: `Vị thế dẫn đầu và mở rộng thị phần ngành ${report.industry || report.marketData?.industry || 'kinh doanh cốt lõi'}`,
-        content: 'Doanh nghiệp sở hữu hệ thống phân phối và tệp khách hàng sâu rộng, duy trì tốc độ tăng trưởng doanh thu cốt lõi vượt trội.',
-        tag: 'Thị phần',
-        impact: 'Tích cực',
-      },
-      {
-        id: 'thesis-2',
-        title: 'Cải thiện biên lợi nhuận gộp nhờ tối ưu hóa cơ cấu sản phẩm',
-        content: 'Chuyển dịch mạnh mẽ sang các nhóm sản phẩm giá trị gia tăng cao và kiểm soát tốt chi phí vận hành giúp mở rộng biên lợi nhuận.',
-        tag: 'Biên lợi nhuận',
-        impact: 'Tích cực',
-      },
-      {
-        id: 'thesis-3',
-        title: 'Tầm nhìn 2-4 quý tới vững vàng nhờ chu kỳ tiêu dùng và sản phẩm mới',
-        content: 'Hưởng lợi từ mùa cao điểm tiêu dùng trong các quý tới cùng việc liên tục ký kết và đưa về các nhãn hàng/đối tác chiến lược mới.',
-        tag: 'Chu kỳ kinh doanh',
-        impact: 'Tích cực',
-      },
-    ];
-  }
+  // Không dùng fallback mockup — trả về mảng rỗng nếu Tab D/F chưa có dữ liệu
+  // UI sẽ hiển thị "Cần phân tích Tab D để có luận điểm đầu tư"
 
   // Chất xúc tác
   const catalysts: ExecutiveSummaryItem[] = [];
@@ -368,24 +330,8 @@ export function extractDefaultExecutiveSummary(
         impact: c.impactLevel === 'Rất lớn' || c.impactLevel === 'Lớn' ? 'Cao' : 'Trung bình',
       });
     });
-  } else {
-    catalysts.push(
-      {
-        id: 'cat-1',
-        title: 'Nhà máy/Dây chuyền mới đi vào chạy thương mại',
-        content: 'Kỳ vọng: 6–12 tháng tới • Xác suất 80% • Đóng góp sản lượng đột biến',
-        tag: 'Dự án',
-        impact: 'Cao',
-      },
-      {
-        id: 'cat-2',
-        title: 'Chính sách bảo hộ/Thuế chống bán phá giá được phê duyệt',
-        content: 'Kỳ vọng: Quý tới • Xác suất 70% • Bảo vệ giá bán trong nước',
-        tag: 'Chính sách',
-        impact: 'Trung bình',
-      }
-    );
   }
+  // Không thêm catalyst mockup — để mảng rỗng khi Tab H chưa phân tích
 
   // 5. Dự phóng & Định giá
   let targetPriceBase = 0;
@@ -420,15 +366,7 @@ export function extractDefaultExecutiveSummary(
     }
   }
 
-  // Nếu thiếu số liệu, fallback hợp lý dựa trên giá hiện tại
-  if (targetPriceBase === 0 && currentPrice > 0) {
-    targetPriceBase = Math.round(currentPrice * 1.25);
-    targetPriceBull = Math.round(currentPrice * 1.45);
-    targetPriceBear = Math.round(currentPrice * 0.95);
-    upsideBasePct = 25.0;
-    upsideBullPct = 45.0;
-    upsideBearPct = -5.0;
-  }
+  // Không tính toán giá mục tiêu ảo — giữ nguyên 0 nếu chưa có định giá thực từ Tab G
 
   // Khuyến nghị
   let recommendation: 'MUA' | 'KHẢ QUAN' | 'THEO DÕI' | 'BÁN' = 'MUA';
@@ -442,11 +380,8 @@ export function extractDefaultExecutiveSummary(
     recommendation = 'BÁN';
   }
 
-  const forecastSummary = cleanExtractSnippet(
-    report.sectionF?.quarterlyForecastReasoning ||
-      'Dự phóng doanh thu và lợi nhuận sau thuế duy trì đà tăng trưởng 2 con số trong 4 quý tới nhờ sản lượng mở rộng và biên lợi nhuận phục hồi.',
-    320
-  );
+  // Không dùng fallback mockup cho dự phóng — để rỗng nếu Tab F chưa có reasoning
+  const forecastSummary = cleanExtractSnippet(report.sectionF?.quarterlyForecastReasoning, 320);
 
   // 6. Rủi ro trọng yếu
   const keyRisks: ExecutiveSummaryItem[] = [];
@@ -463,36 +398,13 @@ export function extractDefaultExecutiveSummary(
         impact: r.severity === 'Cao' ? 'Cao' : 'Trung bình',
       });
     });
-  } else {
-    keyRisks.push(
-      {
-        id: 'risk-1',
-        title: 'Biến động giá nguyên vật liệu đầu vào',
-        content: 'Giá hàng hóa thế giới tăng đột biến có thể làm thu hẹp biên lợi nhuận gộp trong ngắn hạn.',
-        tag: 'Vận hành & Chi phí',
-        impact: 'Trung bình',
-      },
-      {
-        id: 'risk-2',
-        title: 'Rủi ro tiến độ giải ngân dự án và nhu cầu thị trường',
-        content: 'Nhu cầu hấp thụ chậm hơn dự kiến có thể khiến công suất mới chưa đạt mức tối ưu.',
-        tag: 'Ngành & Thị trường',
-        impact: 'Trung bình',
-      },
-      {
-        id: 'risk-3',
-        title: 'Áp lực lãi vay và biến động tỷ giá',
-        content: 'Nợ vay đầu tư mở rộng có thể chịu ảnh hưởng nếu mặt bằng lãi suất hoặc tỷ giá USD/VND biến động mạnh.',
-        tag: 'Vĩ mô & Tỷ giá',
-        impact: 'Thấp',
-      }
-    );
   }
+  // Không thêm rủi ro mockup — để mảng rỗng khi Tab I chưa phân tích
 
-  // 7. Lời bình chuyên viên & Miễn trừ trách nhiệm
-  const analystNote =
-    `Doanh nghiệp sở hữu vị thế đầu ngành với bảng cân đối tài chính lành mạnh và động lực tăng trưởng rõ nét từ việc mở rộng công suất. ` +
-    `Định giá hiện tại đang ở vùng hấp dẫn với mức upside cơ sở ước tính +${upsideBasePct}% cho tầm nhìn đầu tư 12 tháng.`;
+  // 7. Lời bình chuyên viên — Chỉ hiển thị nếu có upside thực, không dùng template cứng
+  const analystNote = upsideBasePct !== 0
+    ? `Định giá hiện tại với mức kỳ vọng sinh lời cơ sở ước tính ${upsideBasePct >= 0 ? '+' : ''}${upsideBasePct}% cho tầm nhìn đầu tư 12 tháng.`
+    : '';
 
   const disclaimer =
     'Báo cáo này được lập bởi Nền tảng Phân tích Dữ liệu ValueX mang tính chất tham khảo thuần túy, không cấu thành lời mời chào hay khuyến nghị mua/bán chứng khoán. ' +

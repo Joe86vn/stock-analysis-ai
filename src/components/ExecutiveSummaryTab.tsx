@@ -969,12 +969,14 @@ export function ExecutiveSummaryTab({
                   rows={3}
                   value={summaryData.overviewSummary}
                   onChange={(e) => setSummaryData({ ...summaryData, overviewSummary: e.target.value })}
-                  className="w-full rounded-xl border border-gray-300 dark:border-gray-700 p-2.5 text-xs text-slate-900 dark:text-white"
+                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2.5 text-xs text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
                 />
-              ) : (
+              ) : summaryData.overviewSummary ? (
                 <p className="text-xs text-slate-700 dark:text-gray-300 leading-relaxed font-normal whitespace-pre-line print:line-clamp-4">
                   {summaryData.overviewSummary}
                 </p>
+              ) : (
+                <p className="text-xs text-amber-600 dark:text-amber-400 italic">⚠️ Chưa có dữ liệu tổng quan — Cần phân tích Tab A (Hồ Sơ Doanh Nghiệp)</p>
               )}
               <div className="flex flex-wrap gap-1.5 pt-0.5">
                 {summaryData.mainProducts.slice(0, 4).map((p, idx) => (
@@ -1006,12 +1008,14 @@ export function ExecutiveSummaryTab({
                       rows={2}
                       value={summaryData.valueChainInput}
                       onChange={(e) => setSummaryData({ ...summaryData, valueChainInput: e.target.value })}
-                      className="w-full rounded border p-1 text-[11px]"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-1 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
-                  ) : (
+                  ) : summaryData.valueChainInput ? (
                     <p className="text-[11px] text-slate-700 dark:text-gray-300 leading-relaxed whitespace-pre-line print:line-clamp-3">
                       {summaryData.valueChainInput}
                     </p>
+                  ) : (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần cập nhật từ Tab B</p>
                   )}
                 </div>
 
@@ -1024,12 +1028,14 @@ export function ExecutiveSummaryTab({
                       rows={2}
                       value={summaryData.valueChainProduction}
                       onChange={(e) => setSummaryData({ ...summaryData, valueChainProduction: e.target.value })}
-                      className="w-full rounded border p-1 text-[11px]"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-1 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
-                  ) : (
+                  ) : summaryData.valueChainProduction ? (
                     <p className="text-[11px] text-slate-700 dark:text-gray-300 leading-relaxed whitespace-pre-line print:line-clamp-3">
                       {summaryData.valueChainProduction}
                     </p>
+                  ) : (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần cập nhật từ Tab B</p>
                   )}
                 </div>
 
@@ -1042,12 +1048,14 @@ export function ExecutiveSummaryTab({
                       rows={2}
                       value={summaryData.valueChainOutput}
                       onChange={(e) => setSummaryData({ ...summaryData, valueChainOutput: e.target.value })}
-                      className="w-full rounded border p-1 text-[11px]"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-1 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
-                  ) : (
+                  ) : summaryData.valueChainOutput ? (
                     <p className="text-[11px] text-slate-700 dark:text-gray-300 leading-relaxed whitespace-pre-line print:line-clamp-3">
                       {summaryData.valueChainOutput}
                     </p>
+                  ) : (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần cập nhật từ Tab B</p>
                   )}
                 </div>
               </div>
@@ -1074,12 +1082,14 @@ export function ExecutiveSummaryTab({
                       rows={2}
                       value={summaryData.financialHealthSummary}
                       onChange={(e) => setSummaryData({ ...summaryData, financialHealthSummary: e.target.value })}
-                      className="w-full rounded border p-1 text-[11px]"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-1 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
-                  ) : (
+                  ) : summaryData.financialHealthSummary ? (
                     <p className="text-[11px] text-slate-600 dark:text-gray-400 leading-snug whitespace-pre-line print:line-clamp-3">
                       {summaryData.financialHealthSummary}
                     </p>
+                  ) : (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần phân tích Tab C (Đánh Giá Tài Chính)</p>
                   )}
                 </div>
 
@@ -1093,12 +1103,14 @@ export function ExecutiveSummaryTab({
                       rows={2}
                       value={summaryData.competitiveMoatSummary}
                       onChange={(e) => setSummaryData({ ...summaryData, competitiveMoatSummary: e.target.value })}
-                      className="w-full rounded border p-1 text-[11px]"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-1 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
-                  ) : (
+                  ) : summaryData.competitiveMoatSummary ? (
                     <p className="text-[11px] text-slate-600 dark:text-gray-400 leading-snug whitespace-pre-line print:line-clamp-3">
                       {summaryData.competitiveMoatSummary}
                     </p>
+                  ) : (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần phân tích Tab E (Năng Lực Cạnh Tranh)</p>
                   )}
                 </div>
               </div>
@@ -1136,7 +1148,7 @@ export function ExecutiveSummaryTab({
               </div>
 
               <div className="space-y-1.5">
-                {summaryData.investmentTheses.slice(0, 3).map((thesis, idx) => (
+                {summaryData.investmentTheses.length > 0 ? summaryData.investmentTheses.slice(0, 3).map((thesis, idx) => (
                   <div
                     key={thesis.id}
                     className="rounded-lg border border-gray-200 dark:border-gray-800/80 bg-gray-50/40 dark:bg-gray-800/30 p-2 space-y-0.5"
@@ -1151,7 +1163,7 @@ export function ExecutiveSummaryTab({
                             type="text"
                             value={thesis.title}
                             onChange={(e) => handleUpdateItem('investmentTheses', thesis.id, 'title', e.target.value)}
-                            className="rounded border px-1.5 py-0.5 text-xs font-bold w-60"
+                            className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-1.5 py-0.5 text-xs font-bold w-60 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                           />
                         ) : (
                           <span className="text-xs font-bold text-slate-900 dark:text-white font-heading">
@@ -1159,18 +1171,25 @@ export function ExecutiveSummaryTab({
                           </span>
                         )}
                       </div>
-                      {thesis.tag && (
-                        <span className="rounded bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700">
-                          {thesis.tag}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {thesis.tag && (
+                          <span className="rounded bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700">
+                            {thesis.tag}
+                          </span>
+                        )}
+                        {isEditing && (
+                          <button onClick={() => handleDeleteItem('investmentTheses', thesis.id)} className="text-rose-400 hover:text-rose-600">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {isEditing ? (
                       <textarea
                         rows={2}
                         value={thesis.content}
                         onChange={(e) => handleUpdateItem('investmentTheses', thesis.id, 'content', e.target.value)}
-                        className="w-full rounded border p-1 text-[11px]"
+                        className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-1 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       />
                     ) : (
                       <p className="text-[11px] text-slate-700 dark:text-gray-300 leading-snug pl-5 whitespace-pre-line print:line-clamp-2">
@@ -1178,17 +1197,27 @@ export function ExecutiveSummaryTab({
                       </p>
                     )}
                   </div>
-                ))}
+                )) : (
+                  <div className="rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 p-2.5 text-[11px]">
+                    <p className="text-amber-700 dark:text-amber-400 font-medium">⚠️ N/A — Chưa có luận điểm đầu tư</p>
+                    <p className="text-amber-600/80 dark:text-amber-500/70 text-[10px] mt-0.5">Cần phân tích Tab D (Chất Lượng Tăng Trưởng) để tự động trích xuất luận điểm thực tế.</p>
+                  </div>
+                )}
               </div>
 
               {/* Chất xúc tác 6-12 tháng */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                {summaryData.catalysts.slice(0, 2).map((cat) => (
+                {summaryData.catalysts.length > 0 ? summaryData.catalysts.slice(0, 2).map((cat) => (
                   <div key={cat.id} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-amber-50/30 dark:bg-amber-950/20 p-2 text-[11px] space-y-0.5">
                     <span className="font-bold text-slate-900 dark:text-gray-200 block">• {cat.title}</span>
                     <span className="text-[10px] text-slate-600 dark:text-gray-400 block">{cat.content}</span>
                   </div>
-                ))}
+                )) : (
+                  <div className="col-span-2 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 p-2 text-[11px]">
+                    <p className="text-amber-700 dark:text-amber-400 font-medium">⚠️ N/A — Chưa có chất xúc tác</p>
+                    <p className="text-amber-600/80 dark:text-amber-500/70 text-[10px] mt-0.5">Cần phân tích Tab H (CatalystTracker) để có dữ liệu thực tế.</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1242,12 +1271,14 @@ export function ExecutiveSummaryTab({
                   rows={2}
                   value={summaryData.forecastSummary}
                   onChange={(e) => setSummaryData({ ...summaryData, forecastSummary: e.target.value })}
-                  className="w-full rounded border p-1 text-[11px]"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-1 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
-              ) : (
+              ) : summaryData.forecastSummary ? (
                 <p className="text-[10.5px] text-slate-600 dark:text-gray-400 leading-snug italic print:line-clamp-2">
                   {summaryData.forecastSummary}
                 </p>
+              ) : (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần phân tích Tab F (Định Giá & Dự Phóng) để có nội dung tóm tắt dự phóng</p>
               )}
             </div>
 
@@ -1260,12 +1291,48 @@ export function ExecutiveSummaryTab({
                 </h3>
               </div>
               <div className="space-y-1">
-                {summaryData.keyRisks.slice(0, 3).map((risk) => (
+                {summaryData.keyRisks.length > 0 ? summaryData.keyRisks.slice(0, 3).map((risk) => (
                   <div key={risk.id} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-rose-50/20 dark:bg-rose-950/15 p-1.5 text-[11px] leading-snug">
-                    <span className="font-bold text-slate-900 dark:text-white">• {risk.title}: </span>
-                    <span className="text-slate-600 dark:text-gray-400 print:line-clamp-2">{risk.content}</span>
+                    {isEditing ? (
+                      <div className="space-y-1">
+                        <input
+                          type="text"
+                          value={risk.title}
+                          onChange={(e) => handleUpdateItem('keyRisks', risk.id, 'title', e.target.value)}
+                          className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-1.5 py-0.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
+                        />
+                        <textarea
+                          rows={2}
+                          value={risk.content}
+                          onChange={(e) => handleUpdateItem('keyRisks', risk.id, 'content', e.target.value)}
+                          className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-1 text-[11px] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
+                        />
+                        <button onClick={() => handleDeleteItem('keyRisks', risk.id)} className="text-rose-400 hover:text-rose-600 text-[10px] flex items-center gap-1">
+                          <Trash2 className="h-3 w-3" /> Xóa
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="font-bold text-slate-900 dark:text-white">• {risk.title}: </span>
+                        <span className="text-slate-600 dark:text-gray-400 print:line-clamp-2">{risk.content}</span>
+                      </>
+                    )}
                   </div>
-                ))}
+                )) : (
+                  <div className="rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 p-2 text-[11px]">
+                    <p className="text-amber-700 dark:text-amber-400 font-medium">⚠️ N/A — Chưa có dữ liệu rủi ro</p>
+                    <p className="text-amber-600/80 dark:text-amber-500/70 text-[10px] mt-0.5">Cần phân tích Tab I (Rủi Ro & Khung Đầu Tư) để có dữ liệu thực tế.</p>
+                  </div>
+                )}
+                {isEditing && (
+                  <button
+                    onClick={() => handleAddItem('keyRisks')}
+                    className="flex items-center space-x-1 text-[10px] font-semibold text-rose-600 hover:text-rose-500 mt-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>Thêm Rủi Ro</span>
+                  </button>
+                )}
               </div>
             </div>
 
