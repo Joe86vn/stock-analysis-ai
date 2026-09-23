@@ -27,9 +27,17 @@ export function ExportModal({ report, isOpen, onClose }: ExportModalProps) {
   const handleDownloadDirectPdf = async () => {
     try {
       setIsExportingPdf(true);
-      const targetId = document.getElementById('valuex-factsheet-content')
-        ? 'valuex-factsheet-content'
-        : 'valuex-report-content';
+      const factsheetEl = document.getElementById('valuex-factsheet-content');
+      const memoEl = document.getElementById('valuex-memo-content');
+      const isVisible = (el: HTMLElement | null) => !!(el && (el.offsetWidth > 0 || el.offsetHeight > 0));
+
+      let targetId = 'valuex-report-content';
+      if (isVisible(factsheetEl)) {
+        targetId = 'valuex-factsheet-content';
+      } else if (isVisible(memoEl)) {
+        targetId = 'valuex-memo-content';
+      }
+
       const filename = `ValueX_Bao_Cao_${report.ticker}_${new Date().toISOString().slice(0, 10)}.pdf`;
       const exported = await exportElementToPdf(targetId, { filename });
       if (exported) {
@@ -249,18 +257,18 @@ ${(() => {
 
           <button
             onClick={handlePrintPdf}
-            className="flex w-full items-center justify-between rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20 p-4 text-left transition hover:bg-emerald-100/70 dark:hover:bg-emerald-950/40 hover:border-emerald-400 dark:hover:border-emerald-500/50 shadow-2xs"
+            className="flex w-full items-center justify-between rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/60 p-4 text-left transition hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-2xs"
           >
             <div className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-800 text-slate-700 dark:text-gray-300">
                 <Printer className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white font-heading">In / Xuất PDF ValueX</h4>
-                <p className="text-[11px] text-slate-500 dark:text-gray-400">Xem trước và in ra định dạng PDF có watermark thương hiệu</p>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white font-heading">In Ra Máy In / Trình In Windows (Ctrl + P)</h4>
+                <p className="text-[11px] text-slate-500 dark:text-gray-400">Mở hộp thoại in mặc định của hệ điều hành để in ra máy in kết nối</p>
               </div>
             </div>
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">In / PDF →</span>
+            <span className="text-xs font-semibold text-slate-600 dark:text-gray-400">Mở Trình In →</span>
           </button>
 
           <button

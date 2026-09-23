@@ -8,6 +8,7 @@ import {
   ExecutiveSummaryItem,
 } from '@/types/analysis';
 import { extractDefaultExecutiveSummary } from '@/lib/summary-extractor';
+import { exportElementToPdf } from '@/lib/pdf-export';
 import { ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
 import { useTheme } from '@/components/ThemeProvider';
 import {
@@ -18,6 +19,8 @@ import {
 import {
   FileBadge,
   Printer,
+  Download,
+  Loader2,
   Edit3,
   Check,
   RotateCcw,
@@ -689,7 +692,24 @@ export function ExecutiveSummaryTab({
     }
   };
 
-  // Xử lý in / xuất PDF
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Xử lý xuất PDF trực tiếp (1-Click, tải file về máy không qua cửa sổ in Windows)
+  const handleDownloadDirectPdf = async () => {
+    try {
+      setIsExportingPdf(true);
+      const targetId = viewMode === 'factsheet' ? 'valuex-factsheet-content' : 'valuex-memo-content';
+      const filename = `ValueX_${report.ticker}_${viewMode === 'factsheet' ? 'Factsheet' : 'Memo'}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      await exportElementToPdf(targetId, { filename });
+    } catch (err) {
+      console.error('Không thể xuất file PDF trực tiếp:', err);
+      window.print();
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  // Xử lý in / xuất PDF qua trình in Windows (Ctrl + P)
   const handlePrint = () => {
     window.print();
   };
@@ -826,13 +846,29 @@ export function ExecutiveSummaryTab({
             )}
           </button>
 
-          {/* Nút In / Xuất PDF */}
+          {/* Nút Tải PDF trực tiếp 1-Click (Không mở cửa sổ in của Windows) */}
+          <button
+            onClick={handleDownloadDirectPdf}
+            disabled={isExportingPdf}
+            className="flex items-center space-x-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 text-xs font-bold shadow-md shadow-emerald-600/20 transition disabled:opacity-60"
+            title="Tải trực tiếp file .pdf về máy (Không mở cửa sổ in Windows)"
+          >
+            {isExportingPdf ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            <span>{isExportingPdf ? 'Đang tạo PDF...' : `Tải PDF ${viewMode === 'factsheet' ? 'Factsheet' : 'Memo'}`}</span>
+          </button>
+
+          {/* Nút In qua máy in Windows */}
           <button
             onClick={handlePrint}
-            className="flex items-center space-x-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-gray-100 px-4 py-2 text-xs font-bold shadow-sm transition"
+            className="flex items-center space-x-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60 px-3 py-2 text-xs font-semibold shadow-2xs transition"
+            title="In ra giấy vật lý hoặc lưu qua trình in của Windows (Ctrl + P)"
           >
             <Printer className="h-3.5 w-3.5" />
-            <span>Xuất PDF / In ({viewMode === 'factsheet' ? 'Factsheet' : 'Memo'})</span>
+            <span>In (Ctrl+P)</span>
           </button>
         </div>
       </div>
@@ -1256,7 +1292,7 @@ export function ExecutiveSummaryTab({
       {/* CHẾ ĐỘ 2: RESEARCH MEMO CHI TIẾT (BÁO CÁO NGHIÊN CỨU TOÀN DIỆN NHIỀU TRANG)  */}
       {/* ========================================================================= */}
       {viewMode === 'memo' && (
-        <div className="research-memo-container bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xs p-6 md:p-10 space-y-10 print:p-0 print:border-none print:shadow-none print:space-y-8">
+        <div id="valuex-memo-content" className="research-memo-container bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xs p-6 md:p-10 space-y-10 print:p-0 print:border-none print:shadow-none print:space-y-8">
 
           {/* HEADER TRANG TRỌNG CỦA RESEARCH MEMO */}
           <div className="border-b-2 border-slate-900 dark:border-gray-700 pb-6 print:pb-4">
