@@ -124,7 +124,7 @@ export async function generateAnalysisReport(
           ticker,
           marketData,
           uploadedFiles,
-          preferredModel: preferredModel || 'gemini-3.7-flash',
+          preferredModel: preferredModel || 'gemini-3.8-flash',
           forceRefresh: Boolean(forceRefresh),
         }),
         signal: controller.signal,
@@ -138,7 +138,7 @@ export async function generateAnalysisReport(
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
-        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo bằng Gemini 3.6 Flash.');
+        throw new Error('Quá thời gian kết nối (3 phút) khi tạo báo cáo phân tích AI.');
       }
       throw err;
     }
@@ -444,9 +444,11 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
 }
       `;
 
+    const baseUrl = process.env.GEMINI_BASE_URL?.trim().replace(/\/+$/, '');
     const rawCandidates = [
       preferredModel,
       process.env.GEMINI_MODEL,
+      'gemini-3.8-flash',
       'gemini-3.7-flash',
       'gemini-3.6-flash',
       'gemini-3.5-flash-lite',
@@ -459,9 +461,18 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
     let lastError: any = null;
     let isQuotaDepleted = false;
 
+    // Cấu hình requestOptions nếu sử dụng CLIProxyAPI (custom baseUrl)
+    const requestOptions: any = {};
+    if (baseUrl) {
+      requestOptions.baseUrl = baseUrl;
+      requestOptions.customHeaders = {
+        Authorization: `Bearer ${apiKey}`,
+      };
+    }
+
     for (const modelName of candidateModels) {
       try {
-        console.log(`[AI Analyzer] Attempting report generation with model: ${modelName}...`);
+        console.log(`[AI Analyzer] Attempting report generation with model: ${modelName} ${baseUrl ? `via CLIProxyAPI (${baseUrl})` : 'via Google AI Studio'}...`);
         const model = genAI.getGenerativeModel({
           model: modelName,
           generationConfig: {
@@ -470,7 +481,7 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
             topP: 0.8,
             maxOutputTokens: 8192,
           },
-        });
+        }, Object.keys(requestOptions).length > 0 ? requestOptions : undefined);
 
         // 45s timeout per model attempt to quickly fallback if Google AI servers encounter high traffic spikes
         const generatePromise = model.generateContent({

@@ -206,20 +206,26 @@ async function fetchNativeGoogleSearchGrounding(
 ): Promise<GoogleAiInsightData | null> {
   const query = `kết quả kinh doanh và triển vọng tăng trưởng ${ticker} tháng ${currentMonth} năm ${currentYear}`;
   const candidateModels = [
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
     'gemini-3.6-flash',
     'gemini-3.5-flash',
-    'gemini-3.7-flash',
   ];
 
   const prompt = `kết quả kinh doanh và triển vọng tăng trưởng ${ticker} ${companyName ? `(${companyName})` : ''} tháng ${currentMonth} năm ${currentYear}. Hãy tổng hợp chi tiết kết quả kinh doanh mới nhất (doanh thu, lợi nhuận, tăng trưởng %, từng mảng ngành hàng), triển vọng tăng trưởng các tháng tới (động lực, mùa cao điểm, sản phẩm mới, cổ tức) và dự báo định giá từ các công ty chứng khoán gần đây.`;
+  const baseUrl = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
 
   for (const model of candidateModels) {
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'x-goog-api-key': apiKey,
+          },
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             tools: [{ google_search: {} }],
@@ -426,19 +432,25 @@ Một đoạn văn súc tích nêu bật doanh thu tháng/quý gần nhất, doa
 Yêu cầu: Viết tự nhiên, súc tích, giữ nguyên các số liệu tỷ đồng, tỷ lệ % và trích dẫn rõ nguồn báo chí/CTCK.`;
 
   const candidateModels = [
-    'gemini-3.5-flash',
-    'gemini-3.6-flash',
+    'gemini-3.8-flash',
     'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
     'gemini-3.1-flash-lite',
   ];
+  const baseUrl = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
 
   for (const modelName of candidateModels) {
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+        `${baseUrl}/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'x-goog-api-key': apiKey,
+          },
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
           }),
