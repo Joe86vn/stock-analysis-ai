@@ -1027,7 +1027,7 @@ export function ReportViewer({
       />
 
       {/* Print-only Header (Appears when saving PDF or printing full tabs A-I) */}
-      <div className={`${activeTab === 'J' ? 'hidden' : 'hidden print:block'} mb-8 pb-4 border-b-2 border-slate-900 text-slate-900`}>
+      <div data-pdf-block="true" className={`${activeTab === 'J' ? 'hidden' : 'hidden print:block'} mb-8 pb-4 border-b-2 border-slate-900 text-slate-900`}>
         <div className="flex items-center justify-between pb-3 border-b border-slate-200">
           <div>
             <div className="text-2xl font-black tracking-tight text-slate-900">
@@ -1239,7 +1239,7 @@ export function ReportViewer({
       {/* Tab Content Display / Edit */}
       <div className="mt-5">
         {/* TAB A: TỔNG QUAN DOANH NGHIỆP */}
-        <div className={`space-y-5 ${activeTab === 'A' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
+        <div data-pdf-block="true" className={`space-y-5 ${activeTab === 'A' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần A: Tổng Quan Doanh Nghiệp">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               A. TỔNG QUAN DOANH NGHIỆP
@@ -1292,7 +1292,7 @@ export function ReportViewer({
         </div>
 
         {/* TAB B: HOẠT ĐỘNG KINH DOANH & CHUỖI GIÁ TRỊ */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'B' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
+        <div data-pdf-block="true" className={`space-y-5 print:pt-6 ${activeTab === 'B' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần B: Hoạt Động Kinh Doanh & Chuỗi Giá Trị">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               B. HOẠT ĐỘNG KINH DOANH &amp; CHUỖI GIÁ TRỊ
@@ -1480,7 +1480,7 @@ export function ReportViewer({
         </div>
 
         {/* TAB C: SỨC KHỎE TÀI CHÍNH (50 ĐIỂM - 6 NHÓM A ĐẾN F) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'C' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
+        <div data-pdf-block="true" className={`space-y-5 print:pt-6 ${activeTab === 'C' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần C: Sức Khỏe Tài Chính">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               C. SỨC KHỎE TÀI CHÍNH • VALUEX FINANCIAL HEALTH (50 ĐIỂM)
@@ -1498,7 +1498,7 @@ export function ReportViewer({
         </div>
 
         {/* TAB D: CHẤT LƯỢNG TĂNG TRƯỞNG & CẦU NỐI CORE (60 ĐIỂM - 7 NHÓM A ĐẾN G) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'D' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
+        <div data-pdf-block="true" className={`space-y-5 print:pt-6 ${activeTab === 'D' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần D: Chất Lượng Tăng Trưởng">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               D. CHẤT LƯỢNG TĂNG TRƯỞNG &amp; CẦU NỐI CORE (60 ĐIỂM)
@@ -1516,7 +1516,7 @@ export function ReportViewer({
         </div>
 
         {/* TAB E: CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT & COMPOUNDER (40 ĐIỂM - 7 NHÓM A ĐẾN G) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'E' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
+        <div data-pdf-block="true" className={`space-y-5 print:pt-6 ${activeTab === 'E' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần E: Chất Lượng Doanh Nghiệp">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               E. CHẤT LƯỢNG DOANH NGHIỆP • ECONOMIC MOAT &amp; COMPOUNDER (40 ĐIỂM)
@@ -1577,7 +1577,7 @@ export function ReportViewer({
         </div>
 
         {/* TAB F: DỰ PHÓNG KẾT QUẢ KINH DOANH 8 QUÝ & CÔNG SUẤT */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'F' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
+        <div data-pdf-block="true" className={`space-y-5 print:pt-6 ${activeTab === 'F' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần F: Dự Phóng KQKD 8 Quý">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               F. DỰ PHÓNG KẾT QUẢ KINH DOANH 8 QUÝ &amp; CÔNG SUẤT
@@ -1615,7 +1615,7 @@ export function ReportViewer({
         </div>
 
         {/* TAB G: CHẤT XÚC TÁC & TIMING ĐẦU TƯ (35 ĐIỂM) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'G' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
+        <div data-pdf-block="true" className={`space-y-5 print:pt-6 ${activeTab === 'G' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần G: Chất Xúc Tác & Timing">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               G. CHẤT XÚC TÁC &amp; TIMING ĐẦU TƯ (35 ĐIỂM)
@@ -1644,7 +1644,7 @@ export function ReportViewer({
         </div>
 
         {/* TAB H: BỘ TÍNH TOÁN ĐỊNH GIÁ & KỊCH BẢN MỤC TIÊU */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'H' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
+        <div data-pdf-block="true" className={`space-y-5 print:pt-6 ${activeTab === 'H' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần H: Định Giá & Kịch Bản">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               H. BỘ TÍNH TOÁN ĐỊNH GIÁ &amp; KỊCH BẢN MỤC TIÊU
@@ -1663,7 +1663,7 @@ export function ReportViewer({
         </div>
 
         {/* TAB I: CƠ HỘI ĐẦU TƯ (PHIẾU TỔNG HỢP & QUYẾT ĐỊNH) */}
-        <div className={`space-y-5 print:pt-6 ${activeTab === 'I' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
+        <div data-pdf-block="true" className={`space-y-5 print:pt-6 ${activeTab === 'I' ? 'block' : activeTab === 'J' ? 'hidden' : 'hidden print:block'}`}>
           <ErrorBoundary fallbackTitle="Không thể hiển thị Phần I: Cơ Hội Đầu Tư">
             <h2 className="hidden print:block text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-2 mb-3">
               I. PHIẾU TỔNG HỢP &amp; QUYẾT ĐỊNH CƠ HỘI ĐẦU TƯ

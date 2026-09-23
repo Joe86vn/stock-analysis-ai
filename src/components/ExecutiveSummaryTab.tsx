@@ -889,7 +889,7 @@ export function ExecutiveSummaryTab({
           {/* TRANG 1: HỒ SƠ DOANH NGHIỆP, CHUỖI GIÁ TRỊ & SỨC KHỎE TÀI CHÍNH */}
           <div className="factsheet-page-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xs p-6 print:p-0 print:border-none print:shadow-none print:space-y-3.5 space-y-5">
             {/* Header Factsheet */}
-            <div className="border-b border-gray-200 dark:border-gray-800 pb-3 print:pb-2 print:border-slate-300">
+            <div data-pdf-block="true" className="border-b border-gray-200 dark:border-gray-800 pb-3 print:pb-2 print:border-slate-300">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center space-x-3">
                   <div className="relative h-9 w-32 shrink-0 print:block">
@@ -957,7 +957,7 @@ export function ExecutiveSummaryTab({
             </div>
 
             {/* Mục 1: Tổng quan DN & Sản phẩm cốt lõi */}
-            <div className="space-y-2">
+            <div data-pdf-block="true" className="space-y-2">
               <div className="flex items-center space-x-2 border-b border-gray-100 dark:border-gray-800 pb-1 print:border-slate-300">
                 <Building2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -991,7 +991,7 @@ export function ExecutiveSummaryTab({
             </div>
 
             {/* Mục 2: Chuỗi giá trị 3 mắt xích */}
-            <div className="space-y-2">
+            <div data-pdf-block="true" className="space-y-2">
               <div className="flex items-center space-x-2 border-b border-gray-100 dark:border-gray-800 pb-1 print:border-slate-300">
                 <Factory className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1062,7 +1062,7 @@ export function ExecutiveSummaryTab({
             </div>
 
             {/* Mục 3: Tình hình tài chính & Lợi thế cạnh tranh */}
-            <div className="space-y-2">
+            <div data-pdf-block="true" className="space-y-2">
               <div className="flex items-center space-x-2 border-b border-gray-100 dark:border-gray-800 pb-1 print:border-slate-300">
                 <Shield className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1120,7 +1120,7 @@ export function ExecutiveSummaryTab({
           {/* TRANG 2: TRIỂN VỌNG, ĐỊNH GIÁ 3 KỊCH BẢN, RỦI RO & KHUYẾN NGHỊ */}
           <div className="factsheet-page-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xs p-6 print:p-0 print:border-none print:shadow-none print:space-y-3.5 space-y-5">
             {/* Header nhỏ cho Trang 2 khi in */}
-            <div className="hidden print:flex items-center justify-between border-b border-slate-300 pb-1.5 mb-1 text-[10px] text-slate-600">
+            <div data-pdf-block="true" className="hidden print:flex items-center justify-between border-b border-slate-300 pb-1.5 mb-1 text-[10px] text-slate-600">
               <span className="font-bold uppercase tracking-wider">
                 ValueX Institutional Factsheet • {report.ticker} ({report.companyName})
               </span>
@@ -1128,7 +1128,7 @@ export function ExecutiveSummaryTab({
             </div>
 
             {/* Mục 4: Triển vọng & Luận điểm đầu tư cốt lõi */}
-            <div className="space-y-2">
+            <div data-pdf-block="true" className="space-y-2">
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-1 print:border-slate-300">
                 <div className="flex items-center space-x-2">
                   <Sparkles className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
@@ -1222,7 +1222,7 @@ export function ExecutiveSummaryTab({
             </div>
 
             {/* Mục 5: Bảng dự phóng KQKD 8 Quý & Định giá mục tiêu */}
-            <div className="space-y-2">
+            <div data-pdf-block="true" className="space-y-2">
               <div className="flex items-center space-x-2 border-b border-gray-100 dark:border-gray-800 pb-1 print:border-slate-300">
                 <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1283,7 +1283,7 @@ export function ExecutiveSummaryTab({
             </div>
 
             {/* Mục 6: Rủi ro trọng yếu */}
-            <div className="space-y-1.5">
+            <div data-pdf-block="true" className="space-y-1.5">
               <div className="flex items-center space-x-2 border-b border-gray-100 dark:border-gray-800 pb-1 print:border-slate-300">
                 <AlertTriangle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1337,7 +1337,7 @@ export function ExecutiveSummaryTab({
             </div>
 
             {/* Mục 7: Lời bình chuyên viên & Disclaimer */}
-            <div className="space-y-2 pt-1 border-t border-gray-200 dark:border-gray-800 print:border-slate-300">
+            <div data-pdf-block="true" className="space-y-2 pt-1 border-t border-gray-200 dark:border-gray-800 print:border-slate-300">
               {summaryData.analystNote && (
                 <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 p-2 text-[11px] text-slate-800 dark:text-gray-200 leading-snug">
                   <strong>Đánh giá tổng kết:</strong> {summaryData.analystNote}
@@ -1362,7 +1362,7 @@ export function ExecutiveSummaryTab({
         <div id="valuex-memo-content" className="research-memo-container bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xs p-6 md:p-10 space-y-10 print:p-0 print:border-none print:shadow-none print:space-y-8">
 
           {/* HEADER TRANG TRỌNG CỦA RESEARCH MEMO */}
-          <div className="border-b-2 border-slate-900 dark:border-gray-700 pb-6 print:pb-4">
+          <div data-pdf-block="true" className="border-b-2 border-slate-900 dark:border-gray-700 pb-6 print:pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center space-x-4">
                 <div className="relative h-11 w-40 shrink-0 print:block">
@@ -1475,7 +1475,7 @@ export function ExecutiveSummaryTab({
           </div>
 
           {/* MỤC I: HỒ SƠ DOANH NGHIỆP, CƠ CẤU SỞ HỮU & BAN ĐIỀU HÀNH */}
-          <div className="memo-section space-y-4">
+          <div data-pdf-block="true" className="memo-section space-y-4">
             <div className="flex items-center space-x-2 border-b-2 border-slate-900 dark:border-gray-700 pb-2">
               <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1533,7 +1533,7 @@ export function ExecutiveSummaryTab({
           </div>
 
           {/* MỤC II: PHÂN TÍCH CHUỖI GIÁ TRỊ & NĂNG LỰC SẢN XUẤT */}
-          <div className="memo-section space-y-4">
+          <div data-pdf-block="true" className="memo-section space-y-4">
             <div className="flex items-center space-x-2 border-b-2 border-slate-900 dark:border-gray-700 pb-2">
               <Factory className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1577,7 +1577,7 @@ export function ExecutiveSummaryTab({
           </div>
 
           {/* MỤC III: ĐÁNH GIÁ SỨC KHỎE TÀI CHÍNH TOÀN DIỆN & CON HÀO KINH TẾ */}
-          <div className="memo-section space-y-4">
+          <div data-pdf-block="true" className="memo-section space-y-4">
             <div className="flex items-center space-x-2 border-b-2 border-slate-900 dark:border-gray-700 pb-2">
               <Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1654,7 +1654,7 @@ export function ExecutiveSummaryTab({
           </div>
 
           {/* MỤC IV: TRIỂN VỌNG KINH DOANH & MA TRẬN CHẤT XÚC TÁC 6-12 THÁNG */}
-          <div className="memo-section space-y-4">
+          <div data-pdf-block="true" className="memo-section space-y-4">
             <div className="flex items-center space-x-2 border-b-2 border-slate-900 dark:border-gray-700 pb-2">
               <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1807,7 +1807,7 @@ export function ExecutiveSummaryTab({
           </div>
 
           {/* MỤC V: DỰ PHÓNG KẾT QUẢ KINH DOANH & BỘ TÍNH TOÁN ĐỊNH GIÁ CHI TIẾT */}
-          <div className="memo-section space-y-4">
+          <div data-pdf-block="true" className="memo-section space-y-4">
             <div className="flex items-center space-x-2 border-b-2 border-slate-900 dark:border-gray-700 pb-2">
               <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1881,7 +1881,7 @@ export function ExecutiveSummaryTab({
           </div>
 
           {/* MỤC VI: KHUNG ĐÁNH GIÁ RỦI RO & BIẾN SỐ VI PHẠM LUẬN ĐIỂM */}
-          <div className="memo-section space-y-4">
+          <div data-pdf-block="true" className="memo-section space-y-4">
             <div className="flex items-center space-x-2 border-b-2 border-slate-900 dark:border-gray-700 pb-2">
               <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
               <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">
@@ -1922,7 +1922,7 @@ export function ExecutiveSummaryTab({
           </div>
 
           {/* MỤC VII: KHUYẾN NGHỊ HÀNH ĐỘNG, CHIẾN LƯỢC ĐI TIỀN & MIỄN TRỪ TRÁCH NHIỆM */}
-          <div className="memo-section space-y-4 pt-2 border-t border-gray-200 dark:border-gray-800">
+          <div data-pdf-block="true" className="memo-section space-y-4 pt-2 border-t border-gray-200 dark:border-gray-800">
             <div className="flex items-center space-x-2 border-b-2 border-slate-900 dark:border-gray-700 pb-2">
               <Award className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 dark:text-white font-heading">

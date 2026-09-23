@@ -134,13 +134,13 @@ h6 {
   .print-avoid-break,
   .factsheet-card,
   tr,
-  .memo-section {
+  .memo-section,
+  [data-pdf-block] {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
 
-  .print-page-break,
-  .factsheet-page-1 {
+  .print-page-break {
     break-after: page !important;
     page-break-after: always !important;
   }
