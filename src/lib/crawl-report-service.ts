@@ -207,6 +207,9 @@ async function fetchNativeGoogleSearchGrounding(
   const query = `kết quả kinh doanh và triển vọng tăng trưởng ${ticker} tháng ${currentMonth} năm ${currentYear}`;
   const candidateModels = [
     'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
     'gemini-3.7-flash',
     'gemini-3.6-flash',
     'gemini-3.5-flash',
@@ -433,6 +436,9 @@ Yêu cầu: Viết tự nhiên, súc tích, giữ nguyên các số liệu tỷ 
 
   const candidateModels = [
     'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
     'gemini-3.7-flash',
     'gemini-3.6-flash',
     'gemini-3.5-flash',
