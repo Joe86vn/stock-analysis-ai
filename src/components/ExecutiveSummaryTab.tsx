@@ -62,21 +62,34 @@ interface ExecutiveSummaryTabProps {
  * - In đậm **...**
  * - Tự động định dạng số liệu tài chính quan trọng: %, tỷ, lần, x, YoY, QoQ
  */
+/**
+ * Hàm phân tích cú pháp markdown và tự động nhận diện, làm nổi bật số liệu tài chính:
+ * - In đậm **...**
+ * - Tự động sửa lỗi lệch dấu sao markdown (ví dụ: *1. Tiêu đề:** -> **1. Tiêu đề:**)
+ * - Tự động định dạng số liệu tài chính quan trọng: %, tỷ, lần, x, YoY, QoQ
+ */
 function renderHighlightedInline(content: string): React.ReactNode {
+  // 1. Tự động sửa các lỗi cú pháp markdown lệch sao thường gặp
+  let normalized = content
+    .replace(/(^|[^\*])\*([^*\n]+)\*\*/g, '$1**$2**')
+    .replace(/(^|[^\*])\*\*([^*\n]+)\*(?!\*)/g, '$1**$2**');
+
   const boldRegex = /\*\*(.*?)\*\*/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let boldMatch: RegExpExecArray | null;
 
   const highlightMetrics = (subStr: string, keyPrefix: string): React.ReactNode[] => {
+    // Làm sạch các dấu sao lẻ vô nghĩa nếu có
+    const cleanSub = subStr.replace(/(?:^\s*\*(?!\*)\s*|\s*\*(?!\*)\s*$)/g, '');
     const metricRegex = /([+-]?\d+[\.,]?\d*%\s*(?:YoY|QoQ)?|[+-]?\d+[\.,]?\d*\s*(?:tỷ|nghìn tỷ|triệu)|[+-]?\d+[\.,]?\d*\s*(?:lần|x))/gi;
     const subParts: React.ReactNode[] = [];
     let subLast = 0;
     let m: RegExpExecArray | null;
 
-    while ((m = metricRegex.exec(subStr)) !== null) {
+    while ((m = metricRegex.exec(cleanSub)) !== null) {
       if (m.index > subLast) {
-        subParts.push(subStr.substring(subLast, m.index));
+        subParts.push(cleanSub.substring(subLast, m.index));
       }
       subParts.push(
         <span
@@ -89,15 +102,15 @@ function renderHighlightedInline(content: string): React.ReactNode {
       subLast = metricRegex.lastIndex;
     }
 
-    if (subLast < subStr.length) {
-      subParts.push(subStr.substring(subLast));
+    if (subLast < cleanSub.length) {
+      subParts.push(cleanSub.substring(subLast));
     }
-    return subParts.length > 0 ? subParts : [subStr];
+    return subParts.length > 0 ? subParts : [cleanSub];
   };
 
-  while ((boldMatch = boldRegex.exec(content)) !== null) {
+  while ((boldMatch = boldRegex.exec(normalized)) !== null) {
     if (boldMatch.index > lastIndex) {
-      parts.push(...highlightMetrics(content.substring(lastIndex, boldMatch.index), `pre-${boldMatch.index}`));
+      parts.push(...highlightMetrics(normalized.substring(lastIndex, boldMatch.index), `pre-${boldMatch.index}`));
     }
     parts.push(
       <strong
@@ -110,11 +123,11 @@ function renderHighlightedInline(content: string): React.ReactNode {
     lastIndex = boldRegex.lastIndex;
   }
 
-  if (lastIndex < content.length) {
-    parts.push(...highlightMetrics(content.substring(lastIndex), `post-${lastIndex}`));
+  if (lastIndex < normalized.length) {
+    parts.push(...highlightMetrics(normalized.substring(lastIndex), `post-${lastIndex}`));
   }
 
-  return parts.length > 0 ? parts : content;
+  return parts.length > 0 ? parts : normalized;
 }
 
 /**
@@ -252,7 +265,7 @@ function InsightPillarCard({
   }
 
   const cleanBlocks = rawBlocks
-    .map((b) => b.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim())
+    .map((b) => b.replace(/^\s*(?:[-–—•]|(?:\*(?!\*)))\s*/, '').trim())
     .filter((b) => b.length > 0);
 
   const firstBlock = cleanBlocks[0] || '';
@@ -348,6 +361,13 @@ function MemoContentRenderer({
       .filter((l) => l.length > 0);
   }
 
+  // Hàm làm sạch bullet point đầu dòng một cách an toàn (KHÔNG xóa nhầm dấu ** in đậm)
+  const stripBulletSafely = (line: string) => {
+    return line
+      .replace(/^\s*(?:[-–—•]|(?:\*(?!\*)))\s*/, '')
+      .trim();
+  };
+
   // 2. Nếu chỉ có 1 khối và không có dấu hiệu danh sách
   const isList =
     rawBlocks.length > 1 ||
@@ -355,13 +375,12 @@ function MemoContentRenderer({
       (b) =>
         b.startsWith('•') ||
         b.startsWith('-') ||
-        b.startsWith('*') ||
-        /^\d+\.\s+/.test(b) ||
-        /^\*\*\d+\./.test(b)
+        (b.startsWith('*') && !b.startsWith('**')) ||
+        /^\d+\.\s+/.test(b)
     );
 
   if (!isList && rawBlocks.length === 1) {
-    const singleClean = rawBlocks[0].replace(/^[-*•]\s*/, '').trim();
+    const singleClean = stripBulletSafely(rawBlocks[0]);
     return (
       <p className={`text-xs text-slate-700 dark:text-gray-300 leading-relaxed ${className}`}>
         {renderHighlightedInline(singleClean)}
@@ -373,7 +392,7 @@ function MemoContentRenderer({
   return (
     <div className={`space-y-2 text-xs text-slate-700 dark:text-gray-300 leading-relaxed ${className}`}>
       {rawBlocks.map((block, idx) => {
-        const cleanBlock = block.replace(/^[-*•]\s*/, '').trim();
+        const cleanBlock = stripBulletSafely(block);
         if (!cleanBlock) return null;
 
         return (

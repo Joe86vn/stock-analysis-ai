@@ -229,16 +229,36 @@ export async function exportElementToPdf(
                 );
             }
 
-            // 6. Vẽ footer & số trang chuyên nghiệp ở lề dưới
+            // 6. Vẽ footer & số trang tiếng Việt chuẩn Unicode bằng Canvas (tránh lỗi font của jsPDF)
             if (showPageNumber) {
-                pdf.setFontSize(8);
-                pdf.setTextColor(140, 140, 140);
-                pdf.text(
-                    `Trang ${i + 1} / ${totalPages} • Nền tảng phân tích định lượng ValueX`,
-                    pageWidth / 2,
-                    pageHeight - 5,
-                    { align: 'center' }
-                );
+                const footerCanvas = document.createElement('canvas');
+                footerCanvas.width = 1600;
+                footerCanvas.height = 80;
+                const fCtx = footerCanvas.getContext('2d');
+                if (fCtx) {
+                    fCtx.font = '500 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+                    fCtx.fillStyle = '#94a3b8'; // Màu slate-400 thanh lịch
+                    fCtx.textAlign = 'center';
+                    fCtx.textBaseline = 'middle';
+                    fCtx.fillText(
+                        `Trang ${i + 1} / ${totalPages} • Nền tảng phân tích định lượng ValueX`,
+                        800,
+                        40
+                    );
+
+                    const footerImgData = footerCanvas.toDataURL('image/png');
+                    const footerHeightMm = (80 / 1600) * pageWidth;
+                    pdf.addImage(
+                        footerImgData,
+                        'PNG',
+                        0,
+                        pageHeight - footerHeightMm - 3,
+                        pageWidth,
+                        footerHeightMm,
+                        undefined,
+                        'FAST'
+                    );
+                }
             }
         }
 
