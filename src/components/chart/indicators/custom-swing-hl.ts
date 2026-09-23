@@ -556,6 +556,8 @@ export function registerSwingHighLowIndicator(): void {
         const zigzagColor = customStyles.zigzagColor || '#eab308';
         const peakColor = customStyles.peakColor || '#ef4444';
         const troughColor = customStyles.troughColor || '#10b981';
+        const showPeak = customStyles.showPeak !== undefined ? Boolean(customStyles.showPeak) : true;
+        const showTrough = customStyles.showTrough !== undefined ? Boolean(customStyles.showTrough) : true;
         const bullishColor = customStyles.bullishBreakColor || '#10b981';
         const bearishColor = customStyles.bearishBreakColor || '#ef4444';
 
@@ -667,14 +669,14 @@ export function registerSwingHighLowIndicator(): void {
           ctx.save();
           ctx.font = 'bold 10px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
-          if (item.confirmedType === 'PEAK') {
+          if (item.confirmedType === 'PEAK' && showPeak) {
             // ĐỈNH: Màu peakColor (mặc định đỏ), hiển thị nhãn HH/LH kèm giá & %
             ctx.fillStyle = peakColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             const text = (structLabel ? `${structLabel} ${priceStr}` : priceStr) + pctStr;
             ctx.fillText(text, x, y - 4);
-          } else if (item.confirmedType === 'TROUGH') {
+          } else if (item.confirmedType === 'TROUGH' && showTrough) {
             // ĐÁY: Màu troughColor (mặc định xanh), hiển thị nhãn HL/LL kèm giá & %
             ctx.fillStyle = troughColor;
             ctx.textAlign = 'center';

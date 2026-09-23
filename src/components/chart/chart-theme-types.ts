@@ -477,8 +477,28 @@ export const DEFAULT_ACTIVE_INDICATORS: ActiveIndicatorsState = {
   revenue: false,
 };
 
+export const DEFAULT_INDICATOR_PARAMS = {
+  swingHlWindow: 9,
+  swingHlShowLine: true,
+  swingHlShowChochBos: true,
+  swingHlConfirmBars: 3,
+  swingHlShowPercent: true,
+  emaShort: 20,
+  emaLong: 200,
+  bollPeriod: 20,
+  bollStdDev: 2,
+  volMaPeriod: 20,
+  rsiPeriod: 14,
+  macdFast: 12,
+  macdSlow: 26,
+  macdSignal: 9,
+  rsVsIndexWindow: 20,
+};
+
 export const LOCAL_STORAGE_ACTIVE_INDICATORS_KEY = 'stock_chart_active_indicators';
 export const LOCAL_STORAGE_INDICATOR_PARAMS_KEY = 'stock_chart_indicator_params';
+export const LOCAL_STORAGE_INDICATOR_PLOTS_KEY = 'stock_chart_indicator_plots';
+export const LOCAL_STORAGE_INDICATOR_FORMAT_SETTINGS_KEY = 'stock_chart_indicator_format_settings';
 
 export function loadSavedActiveIndicators(): ActiveIndicatorsState {
   if (typeof window === 'undefined') return DEFAULT_ACTIVE_INDICATORS;
@@ -521,6 +541,42 @@ export function saveIndicatorParams(params: object): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(LOCAL_STORAGE_INDICATOR_PARAMS_KEY, JSON.stringify(params));
+  } catch {}
+}
+
+export function loadSavedIndicatorPlots<T = any>(): Record<string, T[]> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_INDICATOR_PLOTS_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) || {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveIndicatorPlots(plotsMap: Record<string, any[]>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_STORAGE_INDICATOR_PLOTS_KEY, JSON.stringify(plotsMap));
+  } catch {}
+}
+
+export function loadSavedIndicatorFormatSettings(): Record<string, { showPriceScaleLabel: boolean; showStatusValue: boolean }> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_INDICATOR_FORMAT_SETTINGS_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) || {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveIndicatorFormatSettings(settings: Record<string, { showPriceScaleLabel: boolean; showStatusValue: boolean }>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_STORAGE_INDICATOR_FORMAT_SETTINGS_KEY, JSON.stringify(settings));
   } catch {}
 }
 

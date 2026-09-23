@@ -123,19 +123,40 @@ export function registerRsVsIndexIndicator() {
         key: 'rs',
         title: 'RS: ',
         type: 'line',
-        styles: () => ({ color: '#2563eb', size: 2 }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[0];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#2563eb'),
+            size: l?.size || 2,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
       {
         key: 'rsMax20',
         title: 'Đỉnh RS: ',
         type: 'line',
-        styles: () => ({ color: '#9ca3af', style: 'dashed' as any, size: 1 }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[1];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#9ca3af'),
+            size: l?.size || 1,
+            style: (l?.style || 'dashed') as any,
+          };
+        },
       },
       {
         key: 'breakoutMark',
         title: 'Đột phá: ',
         type: 'circle',
-        styles: () => ({ color: '#f59e0b', radius: 4.5, style: 'fill' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[2];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#f59e0b'),
+            radius: 4.5,
+            style: 'fill' as any,
+          };
+        },
       },
       {
         key: 'breakout1M',

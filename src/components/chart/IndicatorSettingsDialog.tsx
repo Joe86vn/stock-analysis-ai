@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, RotateCcw } from 'lucide-react';
+import { X, ChevronDown, RotateCcw, Info } from 'lucide-react';
 
 export interface IndicatorPlotConfig {
   id: string;
@@ -29,6 +29,9 @@ export interface IndicatorSettingsDialogProps {
   onTogglePriceScaleLabel?: (val: boolean) => void;
   showStatusValue?: boolean;
   onToggleStatusValue?: (val: boolean) => void;
+  defaultPlots?: IndicatorPlotConfig[];
+  defaultParams?: any;
+  onResetDefaults?: () => void;
 }
 
 export function IndicatorSettingsDialog({
@@ -45,8 +48,12 @@ export function IndicatorSettingsDialog({
   onTogglePriceScaleLabel,
   showStatusValue = true,
   onToggleStatusValue,
+  defaultPlots,
+  defaultParams,
+  onResetDefaults,
 }: IndicatorSettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState<'params' | 'format'>(initialTab);
+  const hasParams = ['swingHl', 'ema', 'boll', 'vol', 'rsi', 'macd', 'rsVsIndex'].includes(indicatorId);
+  const [activeTab, setActiveTab] = useState<'params' | 'format'>(!hasParams ? 'format' : initialTab);
   const [plots, setPlots] = useState<IndicatorPlotConfig[]>(initialPlots);
   const [localParams, setLocalParams] = useState<any>(initialParams);
   const [priceScaleLabel, setPriceScaleLabel] = useState(showPriceScaleLabel);
@@ -141,11 +148,19 @@ export function IndicatorSettingsDialog({
   };
 
   const handleResetDefaults = () => {
-    setPlots(initialPlots);
-    setLocalParams(initialParams);
+    if (onResetDefaults) {
+      onResetDefaults();
+      setShowDefaultDropdown(false);
+      return;
+    }
+    const defP = defaultPlots || initialPlots;
+    const defPar = defaultParams || initialParams;
+    setPlots(defP);
+    setLocalParams(defPar);
     setPriceScaleLabel(true);
     setStatusValue(true);
-    onSavePlots(initialPlots, { showPriceScaleLabel: true, showStatusValue: true });
+    onSavePlots(defP, { showPriceScaleLabel: true, showStatusValue: true });
+    if (onSaveParams) onSaveParams(defPar);
     setShowDefaultDropdown(false);
   };
 
@@ -201,6 +216,19 @@ export function IndicatorSettingsDialog({
           {/* ══════════════ TAB 1: CÁC THAM SỐ ══════════════ */}
           {activeTab === 'params' && (
             <div className="space-y-4 text-slate-800 dark:text-[#d1d4dc]">
+              {!hasParams && (
+                <div className="py-8 px-4 text-center space-y-2.5">
+                  <div className="inline-flex p-3 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 mb-1">
+                    <Info className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-800 dark:text-white">
+                    Chỉ báo Dữ liệu Cơ bản (Fundamental)
+                  </p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 max-w-xs mx-auto leading-relaxed">
+                    Chỉ báo này được tính toán tự động từ Báo cáo tài chính (BCTC) niêm yết theo chu kỳ TTM, không sử dụng tham số chu kỳ nến. Bạn có thể tùy chỉnh màu sắc và đường nét vẽ ở tab <strong>Định dạng</strong>.
+                  </p>
+                </div>
+              )}
               {/* SMC Swing HL */}
               {indicatorId === 'swingHl' && (
                 <div className="space-y-3.5">

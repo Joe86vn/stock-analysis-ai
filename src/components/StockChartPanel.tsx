@@ -49,8 +49,13 @@ import {
   ActiveIndicatorsState,
   loadSavedActiveIndicators,
   saveActiveIndicators,
+  DEFAULT_INDICATOR_PARAMS,
   loadSavedIndicatorParams,
   saveIndicatorParams,
+  loadSavedIndicatorPlots,
+  saveIndicatorPlots,
+  loadSavedIndicatorFormatSettings,
+  saveIndicatorFormatSettings,
   getKLineThemeFromCustom,
   hexToRgba,
   DEFAULT_CHART_THEME,
@@ -340,22 +345,7 @@ export function StockChartPanel({
   }, []);
 
   const [indicatorParams, setIndicatorParams] = useState(() =>
-    loadSavedIndicatorParams({
-      swingHlWindow: 9,
-      swingHlShowLine: true,
-      swingHlShowChochBos: true,
-      swingHlConfirmBars: 3,
-      swingHlShowPercent: true,
-      emaShort: 20,
-      emaLong: 200,
-      bollPeriod: 20,
-      bollStdDev: 2,
-      rsiPeriod: 14,
-      macdFast: 12,
-      macdSlow: 26,
-      macdSignal: 9,
-      rsVsIndexWindow: 20,
-    })
+    loadSavedIndicatorParams(DEFAULT_INDICATOR_PARAMS)
   );
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const subPanesRef = useRef<{
@@ -390,9 +380,13 @@ export function StockChartPanel({
     initialTab: 'params',
   });
 
+  const [indicatorPlotsConfig, setIndicatorPlotsConfig] = useState<
+    Record<string, IndicatorPlotConfig[]>
+  >(() => loadSavedIndicatorPlots<IndicatorPlotConfig>());
+
   const [indicatorFormatSettings, setIndicatorFormatSettings] = useState<
     Record<string, { showPriceScaleLabel: boolean; showStatusValue: boolean }>
-  >({});
+  >(() => loadSavedIndicatorFormatSettings());
 
   // ─── Utility Sidebar State ────────────────────────────────────────────────
   const [showSidebar, setShowSidebar] = useState<boolean>(() => {
@@ -718,7 +712,7 @@ export function StockChartPanel({
           chart.createIndicator(
             {
               name: 'VOL',
-              calcParams: [20],
+              calcParams: [indicatorParams.volMaPeriod ?? 20],
               styles: getVolIndicatorStyles(chartTheme.vol, isDark) as any,
             },
             false,
@@ -791,7 +785,7 @@ export function StockChartPanel({
       if (activeIndicators.rsVsIndex) {
         subPanesRef.current.rsVsIndex =
           chart.createIndicator(
-            { name: RS_VS_INDEX_NAME },
+            { name: RS_VS_INDEX_NAME, calcParams: [indicatorParams.rsVsIndexWindow ?? 20] },
             false,
             { height: 110, dragEnabled: true }
           ) ?? undefined;
@@ -950,245 +944,116 @@ export function StockChartPanel({
     saveStatusLineConfig(newConfig);
   };
 
+  const getDefaultPlots = (indicatorId: string): IndicatorPlotConfig[] => {
+    if (indicatorId === 'ema') {
+      return [
+        { id: 'ema1', name: `EMA 1 (${indicatorParams.emaShort})`, visible: true, color: chartTheme.ema.ema1Color, lineWidth: 1.5, lineStyle: 'solid' },
+        { id: 'ema2', name: `EMA 2 (${indicatorParams.emaLong})`, visible: true, color: chartTheme.ema.ema2Color, lineWidth: 1.5, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'boll') {
+      return [
+        { id: 'up', name: 'Dải trên (Upper Band)', visible: true, color: chartTheme.boll.upColor, lineWidth: 1, lineStyle: 'solid' },
+        { id: 'mid', name: 'Đường giữa (SMA 20)', visible: true, color: chartTheme.boll.midColor, lineWidth: 1, lineStyle: 'solid' },
+        { id: 'down', name: 'Dải dưới (Lower Band)', visible: true, color: chartTheme.boll.downColor, lineWidth: 1, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'swingHl') {
+      return [
+        { id: 'zigzag', name: 'Đường sóng Zigzag', visible: indicatorParams.swingHlShowLine, color: chartTheme.smc.zigzagColor, lineWidth: 1.5, lineStyle: 'solid' },
+        { id: 'peak', name: 'Nhãn Đỉnh (HH, LH)', visible: true, color: chartTheme.smc.peakColor, lineWidth: 1, lineStyle: 'solid' },
+        { id: 'trough', name: 'Nhãn Đáy (HL, LL)', visible: true, color: chartTheme.smc.troughColor, lineWidth: 1, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'vol') {
+      return [
+        { id: 'volUp', name: 'Khối lượng tăng', visible: true, color: chartTheme.vol.upColor, lineWidth: 1, lineStyle: 'solid' },
+        { id: 'volDown', name: 'Khối lượng giảm', visible: true, color: chartTheme.vol.downColor, lineWidth: 1, lineStyle: 'solid' },
+        { id: 'volMa', name: `Đường MA ${indicatorParams.volMaPeriod ?? 20} Vol`, visible: true, color: chartTheme.vol.maColor, lineWidth: 1, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'rsi') {
+      return [
+        { id: 'line', name: `Đường RSI (${indicatorParams.rsiPeriod})`, visible: true, color: chartTheme.rsi.lineColor, lineWidth: 1.2, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'macd') {
+      return [
+        { id: 'dif', name: 'Đường MACD (Fast)', visible: true, color: chartTheme.macd.difColor, lineWidth: 1.2, lineStyle: 'solid' },
+        { id: 'dea', name: 'Đường Signal (Slow)', visible: true, color: chartTheme.macd.deaColor, lineWidth: 1.2, lineStyle: 'solid' },
+        { id: 'hist', name: 'Cột Histogram', visible: true, color: chartTheme.macd.histUpColor, lineWidth: 1, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'pe') {
+      return [
+        { id: 'plus2SD', name: 'Đường +2SD (Nét đứt)', visible: true, color: '#6366f1', lineWidth: 1, lineStyle: 'dashed' },
+        { id: 'plus1SD', name: 'Đường +1SD', visible: true, color: '#3b82f6', lineWidth: 1, lineStyle: 'solid' },
+        { id: 'mean', name: 'Đường Trung Bình (Mean)', visible: true, color: '#9ca3af', lineWidth: 1, lineStyle: 'solid' },
+        { id: 'minus1SD', name: 'Đường -1SD', visible: true, color: '#f97316', lineWidth: 1, lineStyle: 'solid' },
+        { id: 'minus2SD', name: 'Đường -2SD (Nét đứt)', visible: true, color: '#ef4444', lineWidth: 1, lineStyle: 'dashed' },
+        { id: 'pe', name: 'Đường P/E - TTM', visible: true, color: '#22c55e', lineWidth: 2, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'pb') {
+      return [
+        { id: 'plus2SD', name: 'Đường +2SD (Nét đứt)', visible: true, color: '#6366f1', lineWidth: 1, lineStyle: 'dashed' },
+        { id: 'plus1SD', name: 'Đường +1SD', visible: true, color: '#3b82f6', lineWidth: 1, lineStyle: 'solid' },
+        { id: 'mean', name: 'Đường Trung Bình (Mean)', visible: true, color: '#9ca3af', lineWidth: 1, lineStyle: 'solid' },
+        { id: 'minus1SD', name: 'Đường -1SD', visible: true, color: '#f97316', lineWidth: 1, lineStyle: 'solid' },
+        { id: 'minus2SD', name: 'Đường -2SD (Nét đứt)', visible: true, color: '#ef4444', lineWidth: 1, lineStyle: 'dashed' },
+        { id: 'pb', name: 'Đường P/B - TTM', visible: true, color: '#22c55e', lineWidth: 2, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'coreEps') {
+      return [
+        { id: 'coreEps', name: 'Đường EPS Cốt Lõi (VND)', visible: true, color: '#a855f7', lineWidth: 2, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'revenue') {
+      return [
+        { id: 'revenue', name: 'Cột Doanh Thu TTM (Tỷ VNĐ)', visible: true, color: '#06b6d4', lineWidth: 1, lineStyle: 'solid' },
+      ];
+    } else if (indicatorId === 'rsVsIndex') {
+      return [
+        { id: 'rs', name: 'Đường RS (Relative Strength)', visible: true, color: '#2563eb', lineWidth: 2, lineStyle: 'solid' },
+        { id: 'rsMax20', name: `Đường Đỉnh RS ${indicatorParams.rsVsIndexWindow ?? 20} Phiên`, visible: true, color: '#9ca3af', lineWidth: 1, lineStyle: 'dashed' },
+        { id: 'breakoutMark', name: 'Chấm đột phá 20 phiên', visible: true, color: '#f59e0b', lineWidth: 1, lineStyle: 'solid' },
+      ];
+    }
+    return [];
+  };
+
+  const getIndicatorTitle = (indicatorId: string): string => {
+    switch (indicatorId) {
+      case 'ema': return 'Đường trung bình EMA';
+      case 'boll': return 'Bollinger Bands (BOLL)';
+      case 'swingHl': return 'Cấu trúc SMC (Đỉnh - Đáy)';
+      case 'vol': return 'Khối lượng (VOL)';
+      case 'rsi': return 'Chỉ số RSI';
+      case 'macd': return 'Chỉ báo MACD';
+      case 'rsVsIndex': return 'Sức mạnh RS so với VN-Index';
+      case 'pe': return 'Chỉ báo P/E - TTM Band Chart';
+      case 'pb': return 'Chỉ báo P/B - TTM Band Chart';
+      case 'coreEps': return 'Chỉ báo EPS Cốt Lõi TTM';
+      case 'revenue': return 'Chỉ báo Doanh Thu TTM';
+      default: return 'Cài đặt chỉ báo';
+    }
+  };
+
   const openIndicatorSettings = (indicatorId: string, initialTab: 'params' | 'format' = 'params') => {
     setShowIndicatorMenu(false);
-    if (indicatorId === 'ema') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'ema',
-        title: 'Đường trung bình EMA',
-        initialTab,
-        plots: [
-          {
-            id: 'ema1',
-            name: `EMA 1 (${indicatorParams.emaShort})`,
-            visible: true,
-            color: chartTheme.ema.ema1Color,
-            lineWidth: 1.5,
-            lineStyle: 'solid',
-          },
-          {
-            id: 'ema2',
-            name: `EMA 2 (${indicatorParams.emaLong})`,
-            visible: true,
-            color: chartTheme.ema.ema2Color,
-            lineWidth: 1.5,
-            lineStyle: 'solid',
-          },
-        ],
-      });
-    } else if (indicatorId === 'boll') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'boll',
-        title: 'Bollinger Bands (BOLL)',
-        initialTab,
-        plots: [
-          {
-            id: 'up',
-            name: 'Dải trên (Upper Band)',
-            visible: true,
-            color: chartTheme.boll.upColor,
-            lineWidth: 1,
-            lineStyle: 'solid',
-          },
-          {
-            id: 'mid',
-            name: 'Đường giữa (SMA 20)',
-            visible: true,
-            color: chartTheme.boll.midColor,
-            lineWidth: 1,
-            lineStyle: 'solid',
-          },
-          {
-            id: 'down',
-            name: 'Dải dưới (Lower Band)',
-            visible: true,
-            color: chartTheme.boll.downColor,
-            lineWidth: 1,
-            lineStyle: 'solid',
-          },
-        ],
-      });
-    } else if (indicatorId === 'swingHl') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'swingHl',
-        title: 'Cấu trúc SMC (Đỉnh - Đáy)',
-        initialTab,
-        plots: [
-          {
-            id: 'zigzag',
-            name: 'Đường sóng Zigzag',
-            visible: indicatorParams.swingHlShowLine,
-            color: chartTheme.smc.zigzagColor,
-            lineWidth: 1.5,
-            lineStyle: 'solid',
-          },
-          {
-            id: 'peak',
-            name: 'Nhãn Đỉnh (HH, LH)',
-            visible: true,
-            color: chartTheme.smc.peakColor,
-            lineWidth: 1,
-            lineStyle: 'solid',
-          },
-          {
-            id: 'trough',
-            name: 'Nhãn Đáy (HL, LL)',
-            visible: true,
-            color: chartTheme.smc.troughColor,
-            lineWidth: 1,
-            lineStyle: 'solid',
-          },
-        ],
-      });
-    } else if (indicatorId === 'vol') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'vol',
-        title: 'Khối lượng (VOL)',
-        initialTab,
-        plots: [
-          {
-            id: 'volUp',
-            name: 'Khối lượng tăng',
-            visible: true,
-            color: chartTheme.vol.upColor,
-            lineWidth: 1,
-            lineStyle: 'solid',
-          },
-          {
-            id: 'volDown',
-            name: 'Khối lượng giảm',
-            visible: true,
-            color: chartTheme.vol.downColor,
-            lineWidth: 1,
-            lineStyle: 'solid',
-          },
-          {
-            id: 'volMa',
-            name: 'Đường MA 20 Vol',
-            visible: true,
-            color: chartTheme.vol.maColor,
-            lineWidth: 1,
-            lineStyle: 'solid',
-          },
-        ],
-      });
-    } else if (indicatorId === 'rsi') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'rsi',
-        title: 'Chỉ số RSI',
-        initialTab,
-        plots: [
-          {
-            id: 'line',
-            name: 'Đường RSI (14)',
-            visible: true,
-            color: chartTheme.rsi.lineColor,
-            lineWidth: 1.2,
-            lineStyle: 'solid',
-          },
-        ],
-      });
-    } else if (indicatorId === 'macd') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'macd',
-        title: 'Chỉ báo MACD',
-        initialTab,
-        plots: [
-          {
-            id: 'dif',
-            name: 'Đường MACD (Fast)',
-            visible: true,
-            color: chartTheme.macd.difColor,
-            lineWidth: 1.2,
-            lineStyle: 'solid',
-          },
-          {
-            id: 'dea',
-            name: 'Đường Signal (Slow)',
-            visible: true,
-            color: chartTheme.macd.deaColor,
-            lineWidth: 1.2,
-            lineStyle: 'solid',
-          },
-          {
-            id: 'hist',
-            name: 'Cột Histogram',
-            visible: true,
-            color: chartTheme.macd.histUpColor,
-            lineWidth: 1,
-            lineStyle: 'solid',
-          },
-        ],
-      });
-    } else if (indicatorId === 'pe') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'pe',
-        title: 'Chỉ báo P/E - TTM Band Chart',
-        initialTab,
-        plots: [
-          { id: 'plus2SD', name: 'Đường +2SD (Nét đứt)', visible: true, color: '#6366f1', lineWidth: 1, lineStyle: 'dashed' },
-          { id: 'plus1SD', name: 'Đường +1SD', visible: true, color: '#3b82f6', lineWidth: 1, lineStyle: 'solid' },
-          { id: 'mean', name: 'Đường Trung Bình (Mean)', visible: true, color: '#9ca3af', lineWidth: 1, lineStyle: 'solid' },
-          { id: 'minus1SD', name: 'Đường -1SD', visible: true, color: '#f97316', lineWidth: 1, lineStyle: 'solid' },
-          { id: 'minus2SD', name: 'Đường -2SD (Nét đứt)', visible: true, color: '#ef4444', lineWidth: 1, lineStyle: 'dashed' },
-          { id: 'pe', name: 'Đường P/E - TTM', visible: true, color: '#22c55e', lineWidth: 2, lineStyle: 'solid' },
-        ],
-      });
-    } else if (indicatorId === 'pb') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'pb',
-        title: 'Chỉ báo P/B - TTM Band Chart',
-        initialTab,
-        plots: [
-          { id: 'plus2SD', name: 'Đường +2SD (Nét đứt)', visible: true, color: '#6366f1', lineWidth: 1, lineStyle: 'dashed' },
-          { id: 'plus1SD', name: 'Đường +1SD', visible: true, color: '#3b82f6', lineWidth: 1, lineStyle: 'solid' },
-          { id: 'mean', name: 'Đường Trung Bình (Mean)', visible: true, color: '#9ca3af', lineWidth: 1, lineStyle: 'solid' },
-          { id: 'minus1SD', name: 'Đường -1SD', visible: true, color: '#f97316', lineWidth: 1, lineStyle: 'solid' },
-          { id: 'minus2SD', name: 'Đường -2SD (Nét đứt)', visible: true, color: '#ef4444', lineWidth: 1, lineStyle: 'dashed' },
-          { id: 'pb', name: 'Đường P/B - TTM', visible: true, color: '#22c55e', lineWidth: 2, lineStyle: 'solid' },
-        ],
-      });
-    } else if (indicatorId === 'coreEps') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'coreEps',
-        title: 'Chỉ báo EPS Cốt Lõi TTM',
-        initialTab,
-        plots: [
-          { id: 'coreEps', name: 'Đường EPS Cốt Lõi (VND)', visible: true, color: '#a855f7', lineWidth: 2, lineStyle: 'solid' },
-        ],
-      });
-    } else if (indicatorId === 'revenue') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'revenue',
-        title: 'Chỉ báo Doanh Thu TTM',
-        initialTab,
-        plots: [
-          { id: 'revenue', name: 'Cột Doanh Thu TTM (Tỷ VNĐ)', visible: true, color: '#06b6d4', lineWidth: 1, lineStyle: 'solid' },
-        ],
-      });
-    } else if (indicatorId === 'rsVsIndex') {
-      setIndicatorDialogState({
-        isOpen: true,
-        indicatorId: 'rsVsIndex',
-        title: 'Sức mạnh RS so với VN-Index',
-        initialTab,
-        plots: [
-          { id: 'rs', name: 'Đường RS (Relative Strength)', visible: true, color: '#2563eb', lineWidth: 2, lineStyle: 'solid' },
-          { id: 'rsMax20', name: 'Đường Đỉnh RS 20 Phiên', visible: true, color: '#9ca3af', lineWidth: 1, lineStyle: 'dashed' },
-          { id: 'breakoutMark', name: 'Chấm đột phá 20 phiên', visible: true, color: '#f59e0b', lineWidth: 1, lineStyle: 'solid' },
-        ],
-      });
-    }
+    const defaults = getDefaultPlots(indicatorId);
+    const saved = indicatorPlotsConfig[indicatorId];
+    const plots = defaults.map((defPlot) => {
+      const s = saved?.find((p) => p.id === defPlot.id);
+      if (!s) return defPlot;
+      return {
+        ...defPlot,
+        visible: s.visible,
+        color: s.color,
+        lineWidth: s.lineWidth,
+        lineStyle: s.lineStyle,
+      };
+    });
+
+    setIndicatorDialogState({
+      isOpen: true,
+      indicatorId,
+      title: getIndicatorTitle(indicatorId),
+      initialTab,
+      plots,
+    });
   };
 
   const handleSaveIndicatorPlots = (
@@ -1199,6 +1064,13 @@ export function StockChartPanel({
     const chart = chartRef.current;
     if (!chart) return;
 
+    // 1. Lưu cấu hình plots vào state & localStorage
+    setIndicatorPlotsConfig((prev) => {
+      const next = { ...prev, [indicatorId]: plots };
+      saveIndicatorPlots(next);
+      return next;
+    });
+
     const showPriceScaleLabel =
       extraConfig?.showPriceScaleLabel ??
       indicatorFormatSettings[indicatorId]?.showPriceScaleLabel ??
@@ -1208,10 +1080,14 @@ export function StockChartPanel({
       indicatorFormatSettings[indicatorId]?.showStatusValue ??
       true;
 
-    setIndicatorFormatSettings((prev) => ({
-      ...prev,
-      [indicatorId]: { showPriceScaleLabel, showStatusValue },
-    }));
+    setIndicatorFormatSettings((prev) => {
+      const next = {
+        ...prev,
+        [indicatorId]: { showPriceScaleLabel, showStatusValue },
+      };
+      saveIndicatorFormatSettings(next);
+      return next;
+    });
 
     const commonStyles = {
       tooltip: {
@@ -1287,6 +1163,8 @@ export function StockChartPanel({
           zigzagColor: zz ? zz.color : chartTheme.smc.zigzagColor,
           peakColor: pk ? pk.color : chartTheme.smc.peakColor,
           troughColor: tr ? tr.color : chartTheme.smc.troughColor,
+          showPeak: pk?.visible ?? true,
+          showTrough: tr?.visible ?? true,
         },
       };
       if (zz && zz.visible !== indicatorParams.swingHlShowLine) {
@@ -1492,6 +1370,7 @@ export function StockChartPanel({
   const handleSaveIndicatorParams = (newParams: any) => {
     setIndicatorParams((prev) => {
       const next = { ...prev, ...newParams };
+      saveIndicatorParams(next);
       const chart = chartRef.current;
       const { indicatorId } = indicatorDialogState;
 
@@ -1546,11 +1425,72 @@ export function StockChartPanel({
     });
   };
 
+  const handleResetIndicatorDefaults = () => {
+    const { indicatorId } = indicatorDialogState;
+    if (!indicatorId) return;
+    const defPlots = getDefaultPlots(indicatorId);
+
+    // Reset plots & format settings
+    setIndicatorPlotsConfig((prev) => {
+      const next = { ...prev, [indicatorId]: defPlots };
+      saveIndicatorPlots(next);
+      return next;
+    });
+
+    setIndicatorFormatSettings((prev) => {
+      const next = {
+        ...prev,
+        [indicatorId]: { showPriceScaleLabel: true, showStatusValue: true },
+      };
+      saveIndicatorFormatSettings(next);
+      return next;
+    });
+
+    // Reset indicator params
+    setIndicatorParams((prev) => {
+      const next = { ...prev };
+      if (indicatorId === 'ema') {
+        next.emaShort = DEFAULT_INDICATOR_PARAMS.emaShort;
+        next.emaLong = DEFAULT_INDICATOR_PARAMS.emaLong;
+      } else if (indicatorId === 'boll') {
+        next.bollPeriod = DEFAULT_INDICATOR_PARAMS.bollPeriod;
+        next.bollStdDev = DEFAULT_INDICATOR_PARAMS.bollStdDev;
+      } else if (indicatorId === 'swingHl') {
+        next.swingHlWindow = DEFAULT_INDICATOR_PARAMS.swingHlWindow;
+        next.swingHlShowLine = DEFAULT_INDICATOR_PARAMS.swingHlShowLine;
+        next.swingHlShowChochBos = DEFAULT_INDICATOR_PARAMS.swingHlShowChochBos;
+        next.swingHlConfirmBars = DEFAULT_INDICATOR_PARAMS.swingHlConfirmBars;
+        next.swingHlShowPercent = DEFAULT_INDICATOR_PARAMS.swingHlShowPercent;
+      } else if (indicatorId === 'vol') {
+        next.volMaPeriod = DEFAULT_INDICATOR_PARAMS.volMaPeriod;
+      } else if (indicatorId === 'rsi') {
+        next.rsiPeriod = DEFAULT_INDICATOR_PARAMS.rsiPeriod;
+      } else if (indicatorId === 'macd') {
+        next.macdFast = DEFAULT_INDICATOR_PARAMS.macdFast;
+        next.macdSlow = DEFAULT_INDICATOR_PARAMS.macdSlow;
+        next.macdSignal = DEFAULT_INDICATOR_PARAMS.macdSignal;
+      } else if (indicatorId === 'rsVsIndex') {
+        next.rsVsIndexWindow = DEFAULT_INDICATOR_PARAMS.rsVsIndexWindow;
+      }
+      saveIndicatorParams(next);
+      return next;
+    });
+
+    handleSaveIndicatorPlots(defPlots, { showPriceScaleLabel: true, showStatusValue: true });
+    handleSaveIndicatorParams(DEFAULT_INDICATOR_PARAMS);
+
+    setIndicatorDialogState((prev) => ({
+      ...prev,
+      plots: defPlots,
+    }));
+  };
+
   // ─── Bật / Tắt & Đổi Tham Số Chỉ Báo ──────────────────────────────────────
 
   const handleToggleSwingHlLine = (show: boolean) => {
     setIndicatorParams((prev) => {
       const next = { ...prev, swingHlShowLine: show };
+      saveIndicatorParams(next);
       const chart = chartRef.current;
       if (chart && activeIndicators.swingHl) {
         chart.overrideIndicator(
@@ -1574,6 +1514,7 @@ export function StockChartPanel({
   const handleToggleChochBos = (show: boolean) => {
     setIndicatorParams((prev) => {
       const next = { ...prev, swingHlShowChochBos: show };
+      saveIndicatorParams(next);
       const chart = chartRef.current;
       if (chart && activeIndicators.swingHl) {
         chart.overrideIndicator(
@@ -1597,6 +1538,7 @@ export function StockChartPanel({
   const handleToggleSwingHlPercent = (show: boolean) => {
     setIndicatorParams((prev) => {
       const next = { ...prev, swingHlShowPercent: show };
+      saveIndicatorParams(next);
       const chart = chartRef.current;
       if (chart && activeIndicators.swingHl) {
         chart.overrideIndicator(
@@ -1711,7 +1653,7 @@ export function StockChartPanel({
               chart.createIndicator(
                 {
                   name: 'VOL',
-                  calcParams: [20],
+                  calcParams: [indicatorParams.volMaPeriod ?? 20],
                   styles: getVolIndicatorStyles(chartTheme.vol, isDark) as any,
                 },
                 false,
@@ -1757,7 +1699,7 @@ export function StockChartPanel({
           if (nextVal) {
             subPanesRef.current.rsVsIndex =
               chart.createIndicator(
-                { name: RS_VS_INDEX_NAME },
+                { name: RS_VS_INDEX_NAME, calcParams: [indicatorParams.rsVsIndexWindow ?? 20] },
                 false,
                 { height: 110, dragEnabled: true }
               ) ?? undefined;
@@ -3001,6 +2943,9 @@ export function StockChartPanel({
         showStatusValue={
           indicatorFormatSettings[indicatorDialogState.indicatorId]?.showStatusValue ?? true
         }
+        defaultPlots={getDefaultPlots(indicatorDialogState.indicatorId)}
+        defaultParams={DEFAULT_INDICATOR_PARAMS}
+        onResetDefaults={handleResetIndicatorDefaults}
       />
     </div>
   );

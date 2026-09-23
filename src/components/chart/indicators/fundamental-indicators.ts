@@ -30,37 +30,79 @@ export function registerFundamentalIndicators() {
         key: 'plus2SD',
         title: '+2SD: ',
         type: 'line',
-        styles: () => ({ color: '#6366f1', style: 'dashed' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[0];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#6366f1'),
+            size: l?.size || 1,
+            style: (l?.style || 'dashed') as any,
+          };
+        },
       },
       {
         key: 'plus1SD',
         title: '+1SD: ',
         type: 'line',
-        styles: () => ({ color: '#3b82f6', style: 'solid' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[1];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#3b82f6'),
+            size: l?.size || 1,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
       {
         key: 'mean',
         title: 'Mean: ',
         type: 'line',
-        styles: () => ({ color: '#9ca3af', style: 'solid' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[2];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#9ca3af'),
+            size: l?.size || 1,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
       {
         key: 'minus1SD',
         title: '-1SD: ',
         type: 'line',
-        styles: () => ({ color: '#f97316', style: 'solid' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[3];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#f97316'),
+            size: l?.size || 1,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
       {
         key: 'minus2SD',
         title: '-2SD: ',
         type: 'line',
-        styles: () => ({ color: '#ef4444', style: 'dashed' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[4];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#ef4444'),
+            size: l?.size || 1,
+            style: (l?.style || 'dashed') as any,
+          };
+        },
       },
       {
         key: 'pe',
         title: 'P/E: ',
         type: 'line',
-        styles: () => ({ color: '#22c55e', style: 'solid' as any, size: 2 }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[5];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#22c55e'),
+            size: l?.size || 2,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
     ],
     precision: 2,
@@ -86,37 +128,79 @@ export function registerFundamentalIndicators() {
         key: 'plus2SD',
         title: '+2SD: ',
         type: 'line',
-        styles: () => ({ color: '#6366f1', style: 'dashed' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[0];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#6366f1'),
+            size: l?.size || 1,
+            style: (l?.style || 'dashed') as any,
+          };
+        },
       },
       {
         key: 'plus1SD',
         title: '+1SD: ',
         type: 'line',
-        styles: () => ({ color: '#3b82f6', style: 'solid' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[1];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#3b82f6'),
+            size: l?.size || 1,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
       {
         key: 'mean',
         title: 'Mean: ',
         type: 'line',
-        styles: () => ({ color: '#9ca3af', style: 'solid' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[2];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#9ca3af'),
+            size: l?.size || 1,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
       {
         key: 'minus1SD',
         title: '-1SD: ',
         type: 'line',
-        styles: () => ({ color: '#f97316', style: 'solid' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[3];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#f97316'),
+            size: l?.size || 1,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
       {
         key: 'minus2SD',
         title: '-2SD: ',
         type: 'line',
-        styles: () => ({ color: '#ef4444', style: 'dashed' as any }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[4];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#ef4444'),
+            size: l?.size || 1,
+            style: (l?.style || 'dashed') as any,
+          };
+        },
       },
       {
         key: 'pb',
         title: 'P/B: ',
         type: 'line',
-        styles: () => ({ color: '#22c55e', style: 'solid' as any, size: 2 }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[5];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#22c55e'),
+            size: l?.size || 2,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
     ],
     precision: 2,
@@ -137,7 +221,14 @@ export function registerFundamentalIndicators() {
         key: 'coreEps',
         title: 'EPS (VND): ',
         type: 'line',
-        styles: () => ({ color: '#a855f7', style: 'solid' as any, size: 2 }),
+        styles: (_data: any, indicator: any) => {
+          const l = indicator?.styles?.lines?.[0];
+          return {
+            color: l?.show === false ? 'transparent' : (l?.color || '#a855f7'),
+            size: l?.size || 2,
+            style: (l?.style || 'solid') as any,
+          };
+        },
       },
     ],
     precision: 0,
@@ -158,7 +249,12 @@ export function registerFundamentalIndicators() {
         key: 'revenue',
         title: 'Doanh thu (Tỷ): ',
         type: 'bar',
-        styles: () => ({ color: '#06b6d4' }),
+        styles: (_data: any, indicator: any) => {
+          const b = indicator?.styles?.bars?.[0];
+          return {
+            color: b?.show === false ? 'transparent' : (b?.color || '#06b6d4'),
+          };
+        },
       },
     ],
     precision: 0,
