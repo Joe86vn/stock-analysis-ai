@@ -12,6 +12,8 @@
     "@aws-sdk/client-s3": "^3.1127.0",
     "@google/generative-ai": "^0.22.0",
     "clsx": "^2.1.1",
+    "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.1",
     "klinecharts": "^9.8.12",
     "lightweight-charts": "^5.2.1",
     "lucide-react": "^0.475.0",

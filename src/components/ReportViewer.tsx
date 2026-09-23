@@ -1011,7 +1011,10 @@ export function ReportViewer({
   };
 
   return (
-    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-xl relative overflow-hidden transition-colors duration-200">
+    <div
+      id="valuex-report-content"
+      className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-xl relative overflow-hidden print:overflow-visible print:p-0 print:border-none print:shadow-none transition-colors duration-200"
+    >
       {/* Background Watermark for Report Screen View */}
       <div
         className="pointer-events-none absolute right-4 top-16 h-64 w-64 opacity-[0.04] dark:opacity-[0.03] select-none print:hidden"
@@ -1125,8 +1128,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('A')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'A'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
-              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+            : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Building2 className="h-4 w-4" />
@@ -1136,8 +1139,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('B')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'B'
-              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
-              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+            : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Factory className="h-4 w-4" />
@@ -1147,8 +1150,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('C')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'C'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/25'
-              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            ? 'bg-purple-600 text-white shadow-md shadow-purple-600/25'
+            : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <LineChart className="h-4 w-4" />
@@ -1158,8 +1161,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('D')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'D'
-              ? 'bg-teal-600 text-white shadow-md shadow-teal-600/25'
-              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            ? 'bg-teal-600 text-white shadow-md shadow-teal-600/25'
+            : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <TrendingUp className="h-4 w-4" />
@@ -1169,8 +1172,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('E')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'E'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
-              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
+            : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Award className="h-4 w-4" />
@@ -1180,8 +1183,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('F')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'F'
-              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
-              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+            : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Layers className="h-4 w-4" />
@@ -1191,8 +1194,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('G')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'G'
-              ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25'
-              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            ? 'bg-amber-600 text-white shadow-md shadow-amber-600/25'
+            : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Sparkles className="h-4 w-4" />
@@ -1202,8 +1205,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('H')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'H'
-              ? 'bg-rose-600 text-white shadow-md shadow-rose-600/25'
-              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            ? 'bg-rose-600 text-white shadow-md shadow-rose-600/25'
+            : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Target className="h-4 w-4" />
@@ -1213,8 +1216,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('I')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'I'
-              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
-              : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
+            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+            : 'bg-gray-100 dark:bg-gray-900 text-slate-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-200'
             }`}
         >
           <Compass className="h-4 w-4" />
@@ -1224,8 +1227,8 @@ export function ReportViewer({
         <button
           onClick={() => setActiveTab('J')}
           className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeTab === 'J'
-              ? 'bg-slate-900 text-white dark:bg-emerald-600 shadow-md shadow-slate-900/25 dark:shadow-emerald-600/25'
-              : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+            ? 'bg-slate-900 text-white dark:bg-emerald-600 shadow-md shadow-slate-900/25 dark:shadow-emerald-600/25'
+            : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
             }`}
         >
           <FileBadge className="h-4 w-4" />
@@ -1704,11 +1707,10 @@ function SectionCard({
 }) {
   return (
     <div
-      className={`rounded-xl border p-4 transition duration-200 ${
-        isEditing
+      className={`rounded-xl border p-4 transition duration-200 ${isEditing
           ? 'border-emerald-500 bg-emerald-50/40 dark:bg-gray-900/90 shadow-md'
           : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/60 shadow-2xs dark:shadow-none'
-      }`}
+        }`}
     >
       <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-2.5 font-heading">
         {title}

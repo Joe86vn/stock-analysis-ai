@@ -41,7 +41,12 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-heading, 'Plus Jakarta Sans', 'Inter', sans-serif);
 }
 
@@ -84,104 +89,80 @@ h1, h2, h3, h4, h5, h6 {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-/* Print Styles for PDF & Hardcopy Reports */
+/* ========================================================================= */
+/* Print Styles for PDF & Hardcopy Reports (Chuẩn hóa trang in A4)           */
+/* ========================================================================= */
 @media print {
-  body {
-    background-color: #ffffff !important;
-    color: #0f172a !important;
-    font-size: 11pt !important;
+
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
-  body *,
-  div,
-  main,
-  section {
-    background-color: transparent !important;
+  html,
+  body {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  * {
     box-shadow: none !important;
     text-shadow: none !important;
   }
 
-  .border,
-  .border-b,
-  .border-t,
-  .border-l,
-  .border-r,
-  .border-gray-800,
-  .border-gray-700,
-  .border-gray-200 {
-    border-color: #cbd5e1 !important;
-  }
-
-  p, span, li, td, th, h1, h2, h3, h4, h5, h6, pre {
-    color: #0f172a !important;
-  }
-
-  .text-gray-200, .text-gray-300, .text-gray-400, .text-gray-500, .text-slate-600 {
-    color: #334155 !important;
-  }
-
-  .text-white {
-    color: #0f172a !important;
-  }
-
-  .text-emerald-400, .text-emerald-500, .text-emerald-600 {
-    color: #059669 !important;
-  }
-
-  .text-rose-400, .text-rose-500, .text-red-400, .text-red-500 {
-    color: #dc2626 !important;
-  }
-
-  .text-amber-400, .text-amber-500, .text-amber-600 {
-    color: #d97706 !important;
-  }
-
-  .text-blue-400, .text-blue-500, .text-blue-600 {
-    color: #2563eb !important;
-  }
-
-  table {
-    border-collapse: collapse !important;
-    width: 100% !important;
-    page-break-inside: auto !important;
-  }
-
-  tr {
-    page-break-inside: avoid !important;
-    page-break-after: auto !important;
-  }
-
-  th {
-    background-color: #f1f5f9 !important;
-    color: #0f172a !important;
-    border: 1px solid #94a3b8 !important;
-    font-weight: 700 !important;
-  }
-
-  td {
-    border: 1px solid #cbd5e1 !important;
-    color: #1e293b !important;
-  }
-
   @page {
     size: A4 portrait;
-    margin: 12mm 15mm;
+    margin: 10mm 12mm;
   }
 
+  .print-avoid-break,
+  .factsheet-card,
+  tr,
+  .memo-section {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-page-break,
   .factsheet-page-1 {
     break-after: page !important;
     page-break-after: always !important;
   }
 
-  .memo-section {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 700 !important;
+  }
+
+  td {
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  .dark {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
   }
 }
-
-

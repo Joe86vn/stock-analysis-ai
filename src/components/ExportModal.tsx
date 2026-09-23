@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { AnalysisReport } from '@/types/analysis';
-import { Download, FileSpreadsheet, Printer, X, CheckCircle2 } from 'lucide-react';
+import { exportElementToPdf } from '@/lib/pdf-export';
+import { Download, FileSpreadsheet, Printer, X, CheckCircle2, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { useTheme } from '@/components/ThemeProvider';
 
@@ -14,12 +15,32 @@ interface ExportModalProps {
 
 export function ExportModal({ report, isOpen, onClose }: ExportModalProps) {
   const [downloaded, setDownloaded] = useState<string | null>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const { theme, mounted } = useTheme();
 
   if (!isOpen) return null;
 
   const handlePrintPdf = () => {
     window.print();
+  };
+
+  const handleDownloadDirectPdf = async () => {
+    try {
+      setIsExportingPdf(true);
+      const targetId = document.getElementById('valuex-factsheet-content')
+        ? 'valuex-factsheet-content'
+        : 'valuex-report-content';
+      const filename = `ValueX_Bao_Cao_${report.ticker}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const exported = await exportElementToPdf(targetId, { filename });
+      if (exported) {
+        setDownloaded('PDF trực tiếp (Chuẩn A4)');
+      }
+    } catch (err) {
+      console.error('Không thể xuất file PDF trực tiếp:', err);
+      alert('Không thể xuất file PDF trực tiếp. Vui lòng thử lại hoặc dùng tùy chọn In.');
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   const handleDownloadMarkdown = () => {
@@ -132,13 +153,13 @@ ${report.sectionF?.quarterlyForecastReasoning || (report.sectionD as any)?.quart
 
 ### 3. Kết Quả Định Giá 3 Kịch Bản
 ${(() => {
-  const val = report.sectionF?.valuation || (report.sectionD as any)?.valuation;
-  if (!val) return '';
-  return `- **Kịch bản Cơ sở (Base Case)**: PE ${val.peBase}x => **${Math.round(val.epsForward * val.peBase).toLocaleString('vi-VN')} VNĐ**
+        const val = report.sectionF?.valuation || (report.sectionD as any)?.valuation;
+        if (!val) return '';
+        return `- **Kịch bản Cơ sở (Base Case)**: PE ${val.peBase}x => **${Math.round(val.epsForward * val.peBase).toLocaleString('vi-VN')} VNĐ**
 - **Kịch bản Tích cực (Bull Case)**: PE ${val.peBull}x => **${Math.round(val.epsForward * val.peBull).toLocaleString('vi-VN')} VNĐ**
 - **Kịch bản Thận trọng (Bear Case)**: PE ${val.peBear}x => **${Math.round(val.epsForward * val.peBear).toLocaleString('vi-VN')} VNĐ**
 - EPS Forward Dự Phóng: **${val.epsForward.toLocaleString('vi-VN')} VNĐ**`;
-})()}
+      })()}
 
 ---
 *Bản quyền phân tích thuộc về ValueX (valuex.vn)*
@@ -198,6 +219,34 @@ ${(() => {
         )}
 
         <div className="mt-6 space-y-3">
+          <button
+            onClick={handleDownloadDirectPdf}
+            disabled={isExportingPdf}
+            className="flex w-full items-center justify-between rounded-xl border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-left transition hover:bg-emerald-100/80 dark:hover:bg-emerald-900/40 shadow-xs disabled:opacity-60"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
+                {isExportingPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
+              </div>
+              <div>
+                <div className="flex items-center space-x-1.5">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white font-heading">
+                    Tải PDF Trực Tiếp (1-Click Khuyến Nghị)
+                  </h4>
+                  <span className="rounded bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-700 dark:text-emerald-300">
+                    Nhanh & Nét
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-gray-400">
+                  {isExportingPdf ? 'Đang kết xuất trang PDF...' : 'Tải file .pdf chuẩn màu sắc & bố cục, không cần qua máy in'}
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              {isExportingPdf ? 'Đang tạo...' : 'Tải PDF ↓'}
+            </span>
+          </button>
+
           <button
             onClick={handlePrintPdf}
             className="flex w-full items-center justify-between rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20 p-4 text-left transition hover:bg-emerald-100/70 dark:hover:bg-emerald-950/40 hover:border-emerald-400 dark:hover:border-emerald-500/50 shadow-2xs"

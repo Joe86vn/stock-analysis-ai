@@ -416,112 +416,112 @@ function Forecast8QSummaryTable({
     getTTM: () => string;
     getYoY?: () => string;
   }> = [
-    // 1. Doanh thu thuần
-    {
-      id: 'revenue',
-      label: '1. Doanh thu thuần',
-      unit: 'tỷ',
-      isBold: true,
-      getValue: (q) => q.revenue.toLocaleString('vi-VN'),
-      getTTM: () => ttmForward.revenue.toLocaleString('vi-VN'),
-      getYoY: () =>
-        ttmForward.revenueGrowthYoY > 0
-          ? `+${ttmForward.revenueGrowthYoY}%`
-          : `${ttmForward.revenueGrowthYoY}%`,
-    },
-    // 2. 3 Biên lợi nhuận
-    {
-      id: 'grossMargin',
-      label: '• Biên Lợi Nhuận Gộp',
-      unit: '%',
-      isIndent: true,
-      getValue: (q) => `${q.grossMargin}%`,
-      getTTM: () => `${ttmForward.grossMargin}%`,
-      getYoY: () => '-',
-    },
-    {
-      id: 'ebitdaMargin',
-      label: '• Biên EBITDA',
-      unit: '%',
-      isIndent: true,
-      getValue: (q) => `${q.ebitdaMargin}%`,
-      getTTM: () => `${ttmForward.ebitdaMargin}%`,
-      getYoY: () => '-',
-    },
-    {
-      id: 'netMargin',
-      label: '• Biên LNST Cốt Lõi',
-      unit: '%',
-      isIndent: true,
-      getValue: (q) => `${q.netMargin}%`,
-      getTTM: () => `${ttmForward.netMargin}%`,
-      getYoY: () => '-',
-    },
-    // 3. LNST cốt lõi
-    {
-      id: 'netProfit',
-      label: '2. LNST Cốt Lõi',
-      unit: 'tỷ',
-      isBold: true,
-      isHighlight: true,
-      getValue: (q) => q.netProfit.toLocaleString('vi-VN'),
-      getTTM: () => ttmForward.netProfit.toLocaleString('vi-VN'),
-      getYoY: () =>
-        ttmForward.netProfitGrowthYoY > 0
-          ? `+${ttmForward.netProfitGrowthYoY}%`
-          : `${ttmForward.netProfitGrowthYoY}%`,
-    },
-    // 4. EPS cốt lõi
-    {
-      id: 'eps',
-      label: '3. EPS Cốt Lõi',
-      unit: 'đ/cp',
-      isBold: true,
-      getValue: (q) => q.eps.toLocaleString('vi-VN'),
-      getTTM: () => ttmForward.eps.toLocaleString('vi-VN'),
-      getYoY: () =>
-        ttmForward.netProfitGrowthYoY > 0
-          ? `+${ttmForward.netProfitGrowthYoY}%`
-          : `${ttmForward.netProfitGrowthYoY}%`,
-    },
-    // 5. 4 Hệ số định giá
-    {
-      id: 'pe',
-      label: '• Hệ số P/E',
-      unit: 'lần',
-      isIndent: true,
-      getValue: (q) => `${q.pe}x`,
-      getTTM: () => `${ttmForward.pe}x`,
-      getYoY: () => '-',
-    },
-    {
-      id: 'pb',
-      label: '• Hệ số P/B',
-      unit: 'lần',
-      isIndent: true,
-      getValue: (q) => `${q.pb}x`,
-      getTTM: () => `${ttmForward.pb}x`,
-      getYoY: () => '-',
-    },
-    {
-      id: 'ps',
-      label: '• Hệ số P/S',
-      unit: 'lần',
-      isIndent: true,
-      getValue: (q) => `${q.ps || 0.5}x`,
-      getTTM: () => `${ttmForward.ps || 0.5}x`,
-      getYoY: () => '-',
-    },
-    {
-      id: 'evEbitda',
-      label: '• Hệ số EV/EBITDA',
-      unit: 'lần',
-      isIndent: true,
-      getValue: (q) => `${q.evEbitda}x`,
-      getTTM: () => `${ttmForward.evEbitda}x`,
-      getYoY: () => '-',
-    },
-  ];
+      // 1. Doanh thu thuần
+      {
+        id: 'revenue',
+        label: '1. Doanh thu thuần',
+        unit: 'tỷ',
+        isBold: true,
+        getValue: (q) => q.revenue.toLocaleString('vi-VN'),
+        getTTM: () => ttmForward.revenue.toLocaleString('vi-VN'),
+        getYoY: () =>
+          ttmForward.revenueGrowthYoY > 0
+            ? `+${ttmForward.revenueGrowthYoY}%`
+            : `${ttmForward.revenueGrowthYoY}%`,
+      },
+      // 2. 3 Biên lợi nhuận
+      {
+        id: 'grossMargin',
+        label: '• Biên Lợi Nhuận Gộp',
+        unit: '%',
+        isIndent: true,
+        getValue: (q) => `${q.grossMargin}%`,
+        getTTM: () => `${ttmForward.grossMargin}%`,
+        getYoY: () => '-',
+      },
+      {
+        id: 'ebitdaMargin',
+        label: '• Biên EBITDA',
+        unit: '%',
+        isIndent: true,
+        getValue: (q) => `${q.ebitdaMargin}%`,
+        getTTM: () => `${ttmForward.ebitdaMargin}%`,
+        getYoY: () => '-',
+      },
+      {
+        id: 'netMargin',
+        label: '• Biên LNST Cốt Lõi',
+        unit: '%',
+        isIndent: true,
+        getValue: (q) => `${q.netMargin}%`,
+        getTTM: () => `${ttmForward.netMargin}%`,
+        getYoY: () => '-',
+      },
+      // 3. LNST cốt lõi
+      {
+        id: 'netProfit',
+        label: '2. LNST Cốt Lõi',
+        unit: 'tỷ',
+        isBold: true,
+        isHighlight: true,
+        getValue: (q) => q.netProfit.toLocaleString('vi-VN'),
+        getTTM: () => ttmForward.netProfit.toLocaleString('vi-VN'),
+        getYoY: () =>
+          ttmForward.netProfitGrowthYoY > 0
+            ? `+${ttmForward.netProfitGrowthYoY}%`
+            : `${ttmForward.netProfitGrowthYoY}%`,
+      },
+      // 4. EPS cốt lõi
+      {
+        id: 'eps',
+        label: '3. EPS Cốt Lõi',
+        unit: 'đ/cp',
+        isBold: true,
+        getValue: (q) => q.eps.toLocaleString('vi-VN'),
+        getTTM: () => ttmForward.eps.toLocaleString('vi-VN'),
+        getYoY: () =>
+          ttmForward.netProfitGrowthYoY > 0
+            ? `+${ttmForward.netProfitGrowthYoY}%`
+            : `${ttmForward.netProfitGrowthYoY}%`,
+      },
+      // 5. 4 Hệ số định giá
+      {
+        id: 'pe',
+        label: '• Hệ số P/E',
+        unit: 'lần',
+        isIndent: true,
+        getValue: (q) => `${q.pe}x`,
+        getTTM: () => `${ttmForward.pe}x`,
+        getYoY: () => '-',
+      },
+      {
+        id: 'pb',
+        label: '• Hệ số P/B',
+        unit: 'lần',
+        isIndent: true,
+        getValue: (q) => `${q.pb}x`,
+        getTTM: () => `${ttmForward.pb}x`,
+        getYoY: () => '-',
+      },
+      {
+        id: 'ps',
+        label: '• Hệ số P/S',
+        unit: 'lần',
+        isIndent: true,
+        getValue: (q) => `${q.ps || 0.5}x`,
+        getTTM: () => `${ttmForward.ps || 0.5}x`,
+        getYoY: () => '-',
+      },
+      {
+        id: 'evEbitda',
+        label: '• Hệ số EV/EBITDA',
+        unit: 'lần',
+        isIndent: true,
+        getValue: (q) => `${q.evEbitda}x`,
+        getTTM: () => `${ttmForward.evEbitda}x`,
+        getYoY: () => '-',
+      },
+    ];
 
   return (
     <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-900 shadow-xs">
@@ -533,11 +533,10 @@ function Forecast8QSummaryTable({
             {quarters.map((q, idx) => (
               <th
                 key={idx}
-                className={`${thPad} text-right whitespace-nowrap ${
-                  idx < 4
+                className={`${thPad} text-right whitespace-nowrap ${idx < 4
                     ? 'bg-slate-100/60 dark:bg-slate-950/25 text-slate-700 dark:text-gray-300'
                     : 'bg-emerald-50/50 dark:bg-emerald-950/25 text-emerald-700 dark:text-emerald-400'
-                }`}
+                  }`}
               >
                 <span>{idx < 4 ? (idx === 3 ? 'Q0' : `Q-${3 - idx}`) : `Q+${idx - 3}(F)`}</span>
                 <span className="block text-[8px] font-normal text-slate-500 dark:text-gray-400">
@@ -567,9 +566,8 @@ function Forecast8QSummaryTable({
             return (
               <tr key={r.id} className={`${rowBg} ${textWeight}`}>
                 <td
-                  className={`${tdPad} font-sans ${
-                    r.isIndent ? 'pl-3.5 text-slate-600 dark:text-gray-400 font-normal' : ''
-                  }`}
+                  className={`${tdPad} font-sans ${r.isIndent ? 'pl-3.5 text-slate-600 dark:text-gray-400 font-normal' : ''
+                    }`}
                 >
                   {r.label}
                 </td>
@@ -577,11 +575,10 @@ function Forecast8QSummaryTable({
                 {quarters.map((q, idx) => (
                   <td
                     key={idx}
-                    className={`${tdPad} text-right tabular-nums ${
-                      idx < 4
+                    className={`${tdPad} text-right tabular-nums ${idx < 4
                         ? 'bg-slate-50/20 dark:bg-slate-950/10'
                         : 'bg-emerald-50/20 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-300 font-medium'
-                    }`}
+                      }`}
                   >
                     {r.getValue(q)}
                   </td>
@@ -592,13 +589,12 @@ function Forecast8QSummaryTable({
                   {r.getTTM()}
                 </td>
                 <td
-                  className={`${tdPad} text-right tabular-nums font-bold ${
-                    r.getYoY && r.getYoY() !== '-'
+                  className={`${tdPad} text-right tabular-nums font-bold ${r.getYoY && r.getYoY() !== '-'
                       ? r.getYoY()!.startsWith('+')
                         ? 'text-emerald-600'
                         : 'text-rose-600'
                       : 'text-slate-400'
-                  }`}
+                    }`}
                 >
                   {r.getYoY ? r.getYoY() : '-'}
                 </td>
@@ -773,22 +769,20 @@ export function ExecutiveSummaryTab({
           <div className="inline-flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1 text-xs">
             <button
               onClick={() => setViewMode('factsheet')}
-              className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 font-semibold transition ${
-                viewMode === 'factsheet'
+              className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 font-semibold transition ${viewMode === 'factsheet'
                   ? 'bg-white dark:bg-gray-700 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <FileBadge className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Factsheet 2 Trang A4</span>
             </button>
             <button
               onClick={() => setViewMode('memo')}
-              className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 font-semibold transition ${
-                viewMode === 'memo'
+              className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 font-semibold transition ${viewMode === 'memo'
                   ? 'bg-white dark:bg-gray-700 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <Layers className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
               <span>Research Memo Chi Tiết</span>
@@ -814,11 +808,10 @@ export function ExecutiveSummaryTab({
                 setIsEditingLocal(true);
               }
             }}
-            className={`flex items-center space-x-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
-              isEditing
+            className={`flex items-center space-x-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition ${isEditing
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 hover:bg-emerald-500'
                 : 'border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60'
-            }`}
+              }`}
           >
             {isEditing ? (
               <>
@@ -855,8 +848,8 @@ export function ExecutiveSummaryTab({
       {/* CHẾ ĐỘ 1: FACTSHEET 2 TRANG A4 CHUẨN (CÔ ĐỌNG, VỪA VẶN TRANG IN)         */}
       {/* ========================================================================= */}
       {viewMode === 'factsheet' && (
-        <div className="factsheet-wrapper space-y-6 print:space-y-0">
-          
+        <div id="valuex-factsheet-content" className="factsheet-wrapper space-y-6 print:space-y-0">
+
           {/* TRANG 1: HỒ SƠ DOANH NGHIỆP, CHUỖI GIÁ TRỊ & SỨC KHỎE TÀI CHÍNH */}
           <div className="factsheet-page-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xs p-6 print:p-0 print:border-none print:shadow-none print:space-y-3.5 space-y-5">
             {/* Header Factsheet */}
@@ -1264,7 +1257,7 @@ export function ExecutiveSummaryTab({
       {/* ========================================================================= */}
       {viewMode === 'memo' && (
         <div className="research-memo-container bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xs p-6 md:p-10 space-y-10 print:p-0 print:border-none print:shadow-none print:space-y-8">
-          
+
           {/* HEADER TRANG TRỌNG CỦA RESEARCH MEMO */}
           <div className="border-b-2 border-slate-900 dark:border-gray-700 pb-6 print:pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
