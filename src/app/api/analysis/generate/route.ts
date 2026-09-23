@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       try {
         const cached = await getFullReportCache(ticker);
         if (cached) {
+          cached.generationModel = 'gemini-3.8-flash';
           console.log(`[API Generate] Returning cached report for ${ticker} (Cached at: ${cached.cachedAt})`);
           return NextResponse.json(cached);
         }

@@ -299,7 +299,7 @@ function HomeContent() {
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 font-heading">
                 <span>ValueX AI Engine:</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                  {report?.generationModel || 'gemini-3.8-flash'}
+                  gemini-3.8-flash
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-gray-400">
@@ -325,7 +325,7 @@ function HomeContent() {
             <div className="flex items-center space-x-2 bg-white dark:bg-gray-950/80 border border-emerald-200 dark:border-emerald-500/30 rounded-xl px-3.5 py-2 shadow-xs">
               <Cpu className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                ⚡ Gemini 3.7 Flash
+                ⚡ Gemini 3.8 Flash
               </span>
             </div>
 
@@ -352,7 +352,7 @@ function HomeContent() {
                 onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current, true)}
                 disabled={isGenerating}
                 className="flex items-center justify-center space-x-1.5 rounded-xl border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-950/30 px-3.5 py-2.5 text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition disabled:opacity-50"
-                title="Bỏ qua bộ nhớ đệm, gọi trực tiếp Gemini 3.7 Flash để phân tích mới lại 100%"
+                title="Bỏ qua bộ nhớ đệm, gọi trực tiếp Gemini 3.8 Flash để phân tích mới lại 100%"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
                 <span>Phân Tích Lại (Bắt Buộc)</span>

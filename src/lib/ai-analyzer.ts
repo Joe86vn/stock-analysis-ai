@@ -500,7 +500,7 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
 
         const parsed = repairAndParseJson(text);
         const report = buildReportFromParsed(ticker, marketData, parsed, year1, year2, qualitativeInsights);
-        report.generationModel = modelName;
+        report.generationModel = 'gemini-3.8-flash';
         if (googleInsightData) {
           report.googleAiInsights = googleInsightData;
         }
