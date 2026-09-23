@@ -63,11 +63,11 @@ export function calculateSwingHighLow(
 ): (SwingResult | null)[] {
   const n = dataList.length;
   const result: (SwingResult | null)[] = new Array(n).fill(null);
-  const minBars = Math.max(9, Math.floor(windowSize));
+  const minBars = Math.max(1, Math.floor(windowSize));
   const minConfirm = Math.max(1, confirmBars);
   if (n < minBars * 2) return result;
 
-  // Bước 1: Quét ứng viên fractal cực bộ (windowSize = 9)
+  // Bước 1: Quét ứng viên fractal cực bộ theo windowSize
   const isPeakCandidate = new Array(n).fill(false);
   const isTroughCandidate = new Array(n).fill(false);
 
@@ -219,8 +219,9 @@ export function calculateSwingHighLow(
         const distToPrevTrough = maxHighIdx - lastConfirmedIndex;
         const distToBreak = i - maxHighIdx;
 
-        // Điểm bounce ở giữa chỉ được xác nhận đỉnh nếu có ít nhất 1 phía đạt minBars VÀ nhịp nảy đạt tối thiểu 4 nến (tránh giật 1-2 nến)
-        if ((distToPrevTrough >= minBars || distToBreak >= minBars) && distToPrevTrough >= 4) {
+        // Điểm bounce ở giữa chỉ được xác nhận đỉnh nếu có ít nhất 1 phía đạt minBars VÀ nhịp nảy đạt tối thiểu minBounce (tránh giật 1 nến khi minBars lớn)
+        const minBounce = Math.min(4, Math.max(1, Math.floor(minBars / 2)));
+        if ((distToPrevTrough >= minBars || distToBreak >= minBars) && distToPrevTrough >= minBounce) {
           result[maxHighIdx] = {
             isPeak: true,
             isTrough: false,
@@ -538,8 +539,8 @@ export function registerSwingHighLowIndicator(): void {
       precision: 0,
       shouldOhlc: true,
       calc: (dataList: KLineData[], indicator: any) => {
-        const windowSize = indicator?.calcParams?.[0] ? Number(indicator.calcParams[0]) : 9;
-        const confirmBars = indicator?.calcParams?.[3] ? Number(indicator.calcParams[3]) : 3;
+        const windowSize = indicator?.calcParams?.[0] !== undefined ? Number(indicator.calcParams[0]) : 9;
+        const confirmBars = indicator?.calcParams?.[3] !== undefined ? Number(indicator.calcParams[3]) : 3;
         return calculateSwingHighLow(dataList, windowSize, confirmBars);
       },
       draw: (params: IndicatorDrawParams<SwingResult | null>) => {

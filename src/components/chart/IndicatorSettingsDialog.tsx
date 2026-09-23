@@ -129,9 +129,21 @@ export function IndicatorSettingsDialog({
     if (onToggleStatusValue) onToggleStatusValue(val);
   };
 
-  // Param update handler
+  // Param update handler (cập nhật realtime trên biểu đồ, revert khi bấm Hủy)
   const handleParamChange = (key: string, val: any) => {
-    setLocalParams((prev: any) => ({ ...prev, [key]: val }));
+    setLocalParams((prev: any) => {
+      const next = { ...prev, [key]: val };
+      if (onSaveParams) {
+        if (typeof val === 'number') {
+          if (!isNaN(val) && val > 0) {
+            onSaveParams(next);
+          }
+        } else {
+          onSaveParams(next);
+        }
+      }
+      return next;
+    });
   };
 
   const handleOk = () => {
@@ -144,6 +156,7 @@ export function IndicatorSettingsDialog({
 
   const handleCancel = () => {
     onSavePlots(initialPlots, { showPriceScaleLabel, showStatusValue });
+    if (onSaveParams) onSaveParams(initialParams);
     onClose();
   };
 
