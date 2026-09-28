@@ -1,0 +1,54 @@
+name: EOD Market OHLC Sync to Cloudflare R2
+
+on:
+  schedule:
+    # 08:35 UTC = 15:35 Giờ Việt Nam (Sau khi sàn đóng cửa 15:00 và khớp lệnh ATC xong)
+    - cron: '35 8 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Chế độ đồng bộ'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - quick
+      custom_tickers:
+        description: 'Danh sách mã tuỳ chọn (phân cách bởi dấu phẩy, ví dụ: HPG,SSI,PHP)'
+        required: false
+        type: string
+
+jobs:
+  sync-ohlc:
+    name: Sync OHLC Candles to R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run EOD OHLC Sync
+        env:
+          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          if [ -n "${{ inputs.custom_tickers }}" ]; then
+            npm run sync:eod -- --tickers="${{ inputs.custom_tickers }}"
+          elif [ "${{ inputs.mode }}" = "quick" ]; then
+            npm run sync:eod -- --quick
+          else
+            npm run sync:eod
+          fi

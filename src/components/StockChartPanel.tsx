@@ -188,6 +188,14 @@ export function StockChartPanel({
   const priceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drawingOverlayIdRef = useRef<string | null>(null);
 
+  // Synchronization refs để chống race-condition & hỗ trợ persistent chart instance
+  const currentTickerRef = useRef<string | null>(ticker);
+  const fetchRequestIdRef = useRef<number>(0);
+  const allBarsRef = useRef<OhlcBar[]>([]);
+  const resolutionRef = useRef<Resolution>('D');
+  const financialsRef = useRef<ParsedVietcapQuarter[]>([]);
+  const vnindexMapRef = useRef<Map<string, VnindexInfo>>(new Map());
+
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const toggleFullScreen = () => {
@@ -344,6 +352,20 @@ export function StockChartPanel({
     });
   }, []);
 
+  // Giữ các Ref đồng bộ với State
+  useEffect(() => {
+    allBarsRef.current = allBars;
+  }, [allBars]);
+  useEffect(() => {
+    resolutionRef.current = resolution;
+  }, [resolution]);
+  useEffect(() => {
+    financialsRef.current = quarterlyFinancials;
+  }, [quarterlyFinancials]);
+  useEffect(() => {
+    vnindexMapRef.current = vnindexMap;
+  }, [vnindexMap]);
+
   const [indicatorParams, setIndicatorParams] = useState(() =>
     loadSavedIndicatorParams(DEFAULT_INDICATOR_PARAMS)
   );
@@ -450,14 +472,71 @@ export function StockChartPanel({
 
   const isOpen = !!ticker;
 
+  // ─── Hàm nạp dữ liệu nến đồng bộ vào Chart (Single Source of Truth) ─────────
+  const syncBarsToChart = useCallback(
+    (
+      bars: OhlcBar[],
+      chart: Chart,
+      res: Resolution,
+      financials: ParsedVietcapQuarter[],
+      vnMap: Map<string, VnindexInfo>
+    ) => {
+      if (!chart || bars.length === 0) return;
+
+      let klineData: (KLineData & { fullDate?: string; vnindexClose?: number })[] = bars.map((b) => {
+        const ts = new Date(b.fullDate + 'T00:00:00Z').getTime();
+        return {
+          timestamp: isNaN(ts) ? Date.now() : ts,
+          open: b.openPrice,
+          high: b.highestPrice,
+          low: b.lowestPrice,
+          close: b.closePrice,
+          volume: b.volume,
+          fullDate: b.fullDate,
+        };
+      });
+
+      if (financials.length > 0) {
+        klineData = enrichKLineWithFundamentals(klineData, financials);
+      }
+
+      if (vnMap.size > 0) {
+        klineData = enrichKLineWithVnindex(klineData, vnMap);
+      }
+
+      chart.applyNewData(klineData);
+
+      if (res === 'M') {
+        const containerW = chartContainerRef.current?.clientWidth || 1200;
+        const calcSpace = Math.max(12, Math.min(22, Math.floor((containerW - 100) / Math.max(klineData.length, 1))));
+        chart.setBarSpace(calcSpace);
+        chart.setOffsetRightDistance(60);
+        chart.scrollToRealTime();
+      } else if (res === 'W') {
+        chart.setBarSpace(10);
+        chart.setOffsetRightDistance(70);
+        chart.scrollToRealTime();
+      } else {
+        chart.setBarSpace(8);
+        chart.setOffsetRightDistance(80);
+      }
+    },
+    []
+  );
+
   // ─── Fetch price history (Option B: Pure Daily Fetch + Client Resampling) ──
 
-  const fetchPhase2Background = useCallback(async (t: string, currentRes: Resolution) => {
+  const fetchPhase2Background = useCallback(async (t: string, currentRes: Resolution, reqId?: number) => {
     try {
       // Tải 2.000 nến Ngày đầy đủ (~8-9 năm lịch sử)
       const res2 = await fetch(`/api/stocks/${t}/price-history?countBack=2000&timeFrame=ONE_DAY`);
       if (!res2.ok) return;
       const json2 = await res2.json();
+
+      // Chặn race condition: Nếu user đã chuyển sang ticker khác hoặc request đã cũ -> Bỏ qua!
+      if (currentTickerRef.current !== t) return;
+      if (reqId !== undefined && fetchRequestIdRef.current !== reqId) return;
+
       const dailyBarsFull: OhlcBar[] = json2.history || [];
 
       if (dailyBarsFull.length > 0) {
@@ -477,10 +556,13 @@ export function StockChartPanel({
           isFullHistory: { D: true, W: true, M: true },
         });
 
-        // Cập nhật nến của chu kỳ đang chọn mượt mà (không giật)
-        const updatedBars = resolutionsFull[currentRes];
-        if (updatedBars && updatedBars.length > 0) {
-          setAllBars(updatedBars);
+        // Kiểm tra lại lần nữa trước khi cập nhật state
+        if (currentTickerRef.current === t && (reqId === undefined || fetchRequestIdRef.current === reqId)) {
+          const updatedBars = resolutionsFull[currentRes];
+          if (updatedBars && updatedBars.length > 0) {
+            setAllBars(updatedBars);
+            allBarsRef.current = updatedBars;
+          }
         }
       }
     } catch (e) {
@@ -488,68 +570,77 @@ export function StockChartPanel({
     }
   }, []);
 
-  const fetchPriceHistory = useCallback(async (t: string, res: Resolution = 'D') => {
-    const cached = getCachedData(t);
+  const fetchPriceHistory = useCallback(
+    async (t: string, res: Resolution = 'D', reqId?: number) => {
+      const currentReqId = reqId ?? fetchRequestIdRef.current;
+      const cached = getCachedData(t);
 
-    // 1. Kiểm tra RAM Cache (Trả về 0ms nếu đã có tối thiểu 10 nến)
-    if (cached && cached.resolutions[res] && cached.resolutions[res]!.length >= 10) {
-      const bars = cached.resolutions[res]!;
-      setAllBars(bars);
-      if (bars.length > 0 && res === 'D') setLiveVolume(bars[bars.length - 1].volume);
-      if (cached.events) setDividendEvents(cached.events);
+      // 1. Kiểm tra RAM Cache (Trả về 0ms nếu đã có tối thiểu 5 nến)
+      if (cached && cached.resolutions[res] && cached.resolutions[res]!.length >= 5) {
+        if (currentTickerRef.current !== t || fetchRequestIdRef.current !== currentReqId) return;
+        const bars = cached.resolutions[res]!;
+        setAllBars(bars);
+        allBarsRef.current = bars;
+        if (bars.length > 0 && res === 'D') setLiveVolume(bars[bars.length - 1].volume);
+        if (cached.events) setDividendEvents(cached.events);
+        setIsLoadingChart(false);
 
-      // Nếu mới nạp Tầng 1 (chưa đủ 2.000 nến Ngày), âm thầm tải Tầng 2 ngầm
-      if (!cached.isFullHistory?.['D']) {
-        fetchPhase2Background(t, res);
-      }
-      return;
-    }
-
-    // 2. Tải Tầng 1 (Phase 1) Siêu Nhanh (260 nến Ngày ~ 1 năm)
-    setIsLoadingChart(true);
-
-    try {
-      const res1 = await fetch(`/api/stocks/${t}/price-history?countBack=260&timeFrame=ONE_DAY`);
-      if (!res1.ok) return;
-      const json1 = await res1.json();
-      const dailyBars1: OhlcBar[] = json1.history || [];
-
-      if (dailyBars1.length >= 5) {
-        // Sinh ngay nến Tuần và Tháng từ nến Ngày Tầng 1
-        const weeklyBars1 = resampleDailyToWeekly(dailyBars1);
-        const monthlyBars1 = resampleDailyToMonthly(dailyBars1);
-
-        const resolutions1: { [key in Resolution]?: OhlcBar[] } = {
-          D: dailyBars1,
-          W: weeklyBars1,
-          M: monthlyBars1,
-        };
-
-        const activeBars = resolutions1[res] || dailyBars1;
-        setAllBars(activeBars);
-        if (res === 'D') setLiveVolume(dailyBars1[dailyBars1.length - 1].volume);
-
-        setCachedData(t, {
-          resolutions: resolutions1,
-          events: Array.isArray(json1.events) ? json1.events : [],
-          isFullHistory: { D: false, W: false, M: false },
-        });
-        if (Array.isArray(json1.events)) setDividendEvents(json1.events);
+        // Nếu mới nạp Tầng 1 (chưa đủ 2.000 nến Ngày), âm thầm tải Tầng 2 ngầm
+        if (!cached.isFullHistory?.['D']) {
+          fetchPhase2Background(t, res, currentReqId);
+        }
+        return;
       }
 
-      // 3. Tải nốt Tầng 2 (Phase 2 - 2.000 nến Ngày trọn vẹn) ngầm ở chế độ background
-      fetchPhase2Background(t, res);
-    } catch (e) {
-      console.error('[StockChartPanel] fetchPriceHistory error:', e);
-    } finally {
-      setIsLoadingChart(false);
-    }
-  }, [fetchPhase2Background]);
+      // 2. Tải Tầng 1 (Phase 1) Siêu Nhanh (260 nến Ngày ~ 1 năm)
+      setIsLoadingChart(true);
 
-  const currentTickerRef = useRef<string | null>(ticker);
-  useEffect(() => {
-    currentTickerRef.current = ticker;
-  }, [ticker]);
+      try {
+        const res1 = await fetch(`/api/stocks/${t}/price-history?countBack=260&timeFrame=ONE_DAY`);
+        if (!res1.ok) return;
+
+        // Chặn race condition
+        if (currentTickerRef.current !== t || fetchRequestIdRef.current !== currentReqId) return;
+
+        const json1 = await res1.json();
+        const dailyBars1: OhlcBar[] = json1.history || [];
+
+        if (dailyBars1.length >= 5) {
+          // Sinh ngay nến Tuần và Tháng từ nến Ngày Tầng 1
+          const weeklyBars1 = resampleDailyToWeekly(dailyBars1);
+          const monthlyBars1 = resampleDailyToMonthly(dailyBars1);
+
+          const resolutions1: { [key in Resolution]?: OhlcBar[] } = {
+            D: dailyBars1,
+            W: weeklyBars1,
+            M: monthlyBars1,
+          };
+
+          const activeBars = resolutions1[res] || dailyBars1;
+          setAllBars(activeBars);
+          allBarsRef.current = activeBars;
+          if (res === 'D') setLiveVolume(dailyBars1[dailyBars1.length - 1].volume);
+
+          setCachedData(t, {
+            resolutions: resolutions1,
+            events: Array.isArray(json1.events) ? json1.events : [],
+            isFullHistory: { D: false, W: false, M: false },
+          });
+          if (Array.isArray(json1.events)) setDividendEvents(json1.events);
+        }
+
+        // 3. Tải nốt Tầng 2 ngầm ở chế độ background
+        fetchPhase2Background(t, res, currentReqId);
+      } catch (e) {
+        console.error('[StockChartPanel] fetchPriceHistory error:', e);
+      } finally {
+        if (currentTickerRef.current === t && fetchRequestIdRef.current === currentReqId) {
+          setIsLoadingChart(false);
+        }
+      }
+    },
+    [fetchPhase2Background]
+  );
 
   // ─── Poll live price ─────────────────────────────────────────────────────
 
@@ -574,23 +665,30 @@ export function StockChartPanel({
   const handleSelectResolution = (newRes: Resolution) => {
     if (newRes === resolution) return;
     setResolution(newRes);
+    resolutionRef.current = newRes;
     const defaultTf = newRes === 'M' ? '3N' : '1N';
     setActiveTimeframe(defaultTf);
-    
+
     // Đổi tab tức thì 0ms từ RAM nếu đã có
     const cached = getCachedData(ticker || '');
     if (cached && cached.resolutions[newRes] && cached.resolutions[newRes]!.length > 0) {
-      setAllBars(cached.resolutions[newRes]!);
+      const bars = cached.resolutions[newRes]!;
+      setAllBars(bars);
+      allBarsRef.current = bars;
+      if (chartRef.current) {
+        syncBarsToChart(bars, chartRef.current, newRes, quarterlyFinancials, vnindexMap);
+      }
     } else if (ticker) {
-      fetchPriceHistory(ticker, newRes);
+      fetchPriceHistory(ticker, newRes, fetchRequestIdRef.current);
     }
   };
 
-  // ─── Khởi tạo khi ticker thay đổi ───────────────────────────────────────
+  // ─── Khởi tạo khi ticker thay đổi (Persistent Canvas - Không hủy Chart) ───
 
   useEffect(() => {
     if (!ticker) {
       setAllBars([]);
+      allBarsRef.current = [];
       setLivePrice(null);
       setPriceChange(null);
       setLiveVolume(null);
@@ -599,8 +697,37 @@ export function StockChartPanel({
       return;
     }
 
+    const myRequestId = ++fetchRequestIdRef.current;
+    currentTickerRef.current = ticker;
+
     setResolution('D');
+    resolutionRef.current = 'D';
     setActiveTimeframe('1N');
+
+    // Dọn dẹp overlays của mã cũ ngay lập tức
+    if (chartRef.current) {
+      if (dividendOverlayIdsRef.current.length > 0) {
+        dividendOverlayIdsRef.current.forEach((id) => {
+          try {
+            chartRef.current?.removeOverlay(id);
+          } catch {}
+        });
+        dividendOverlayIdsRef.current = [];
+      }
+      if (canslimOverlayIdsRef.current.length > 0) {
+        canslimOverlayIdsRef.current.forEach((id) => {
+          try {
+            chartRef.current?.removeOverlay(id);
+          } catch {}
+        });
+        canslimOverlayIdsRef.current = [];
+      }
+    }
+
+    setDividendEvents([]);
+    setQuarterlyFinancials([]);
+    setCrosshairData(null);
+    setActiveTool('cursor');
 
     // Chỉ gán livePrice ban đầu nếu stockData truyền vào khớp với ticker hiện tại
     if (stockData && stockData.ticker === ticker) {
@@ -616,23 +743,51 @@ export function StockChartPanel({
       setInternalStockData(null);
     }
 
-    setCrosshairData(null);
-    setActiveTool('cursor');
+    // ─── KIỂM TRA RAM CACHE ĐỂ CHUYỂN MÃ TỨC THÌ 0MS ───────────────────
+    const cached = getCachedData(ticker);
+    if (cached && cached.resolutions['D'] && cached.resolutions['D']!.length >= 5) {
+      const cachedBars = cached.resolutions['D']!;
+      setAllBars(cachedBars);
+      allBarsRef.current = cachedBars;
+      if (chartRef.current) {
+        syncBarsToChart(cachedBars, chartRef.current, 'D', [], vnindexMapRef.current);
+      }
+      if (cachedBars.length > 0) setLiveVolume(cachedBars[cachedBars.length - 1].volume);
+      if (cached.events) setDividendEvents(cached.events);
+      setIsLoadingChart(false);
 
-    Promise.all([fetchPriceHistory(ticker, 'D'), pollLivePrice(ticker)]);
+      // Nếu chưa có full 2.000 nến, âm thầm tải Phase 2 ngầm
+      if (!cached.isFullHistory?.['D']) {
+        fetchPhase2Background(ticker, 'D', myRequestId);
+      }
+    } else {
+      // Chưa có trong cache: dọn sạch chart để không lưu nến mã cũ
+      setAllBars([]);
+      allBarsRef.current = [];
+      if (chartRef.current) {
+        chartRef.current.applyNewData([]);
+      }
+      setIsLoadingChart(true);
+      fetchPriceHistory(ticker, 'D', myRequestId);
+    }
 
-    fetch(`/api/stocks/${ticker}/events`)
+    pollLivePrice(ticker);
+
+    const targetTicker = ticker;
+    fetch(`/api/stocks/${targetTicker}/events`)
       .then((res) => res.json())
       .then((json) => {
+        if (currentTickerRef.current !== targetTicker) return;
         if (json.success && Array.isArray(json.data)) {
           setDividendEvents(json.data);
         }
       })
       .catch(() => {});
 
-    fetch(`/api/stocks/${ticker}/financials`)
+    fetch(`/api/stocks/${targetTicker}/financials`)
       .then((res) => res.json())
       .then((json) => {
+        if (currentTickerRef.current !== targetTicker) return;
         if (json.quarters && Array.isArray(json.quarters)) {
           setQuarterlyFinancials(json.quarters);
         }
@@ -640,12 +795,12 @@ export function StockChartPanel({
       .catch(() => {});
 
     if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
-    priceIntervalRef.current = setInterval(() => pollLivePrice(ticker), 15000);
+    priceIntervalRef.current = setInterval(() => pollLivePrice(targetTicker), 15000);
 
     return () => {
       if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
     };
-  }, [ticker, stockData, fetchPriceHistory, pollLivePrice]);
+  }, [ticker, stockData, fetchPriceHistory, pollLivePrice, syncBarsToChart, fetchPhase2Background]);
 
   // ─── Tính priceChange fallback ───────────────────────────────────────────
 
@@ -659,10 +814,10 @@ export function StockChartPanel({
     }
   }, [livePrice, allBars, priceChange]);
 
-  // ─── Khởi tạo KLineCharts instance ────────────────────────────────────────
+  // ─── Khởi tạo KLineCharts instance (Chỉ 1 lần duy nhất khi Mount - Persistent Canvas) ──
 
   useEffect(() => {
-    if (!chartContainerRef.current || !ticker) return;
+    if (!chartContainerRef.current) return;
 
     let isDisposed = false;
 
@@ -820,6 +975,17 @@ export function StockChartPanel({
         });
       });
 
+      // Nếu dữ liệu nến đã sẵn sàng (từ RAM cache hoặc fast fetch), nạp ngay vào chart
+      if (allBarsRef.current.length > 0) {
+        syncBarsToChart(
+          allBarsRef.current,
+          chart,
+          resolutionRef.current,
+          financialsRef.current,
+          vnindexMapRef.current
+        );
+      }
+
       // Tự động resize theo container
       const handleResize = () => {
         chart.resize();
@@ -852,7 +1018,7 @@ export function StockChartPanel({
       }
       chartRef.current = null;
     };
-  }, [ticker]);
+  }, []);
 
   // ─── Cập nhật Theme khi đổi Dark / Light hoặc đổi chartTheme ───────────────
 
@@ -1767,45 +1933,8 @@ export function StockChartPanel({
 
   useEffect(() => {
     if (!chartRef.current || allBars.length === 0) return;
-
-    let klineData: (KLineData & { fullDate?: string; vnindexClose?: number })[] = allBars.map((b) => {
-      const ts = new Date(b.fullDate + 'T00:00:00Z').getTime();
-      return {
-        timestamp: isNaN(ts) ? Date.now() : ts,
-        open: b.openPrice,
-        high: b.highestPrice,
-        low: b.lowestPrice,
-        close: b.closePrice,
-        volume: b.volume,
-        fullDate: b.fullDate,
-      };
-    });
-
-    if (quarterlyFinancials.length > 0) {
-      klineData = enrichKLineWithFundamentals(klineData, quarterlyFinancials);
-    }
-
-    if (vnindexMap.size > 0) {
-      klineData = enrichKLineWithVnindex(klineData, vnindexMap);
-    }
-
-    chartRef.current.applyNewData(klineData);
-
-    if (resolution === 'M') {
-      const containerW = chartContainerRef.current?.clientWidth || 1200;
-      const calcSpace = Math.max(12, Math.min(22, Math.floor((containerW - 100) / Math.max(klineData.length, 1))));
-      chartRef.current.setBarSpace(calcSpace);
-      chartRef.current.setOffsetRightDistance(60);
-      chartRef.current.scrollToRealTime();
-    } else if (resolution === 'W') {
-      chartRef.current.setBarSpace(10);
-      chartRef.current.setOffsetRightDistance(70);
-      chartRef.current.scrollToRealTime();
-    } else {
-      chartRef.current.setBarSpace(8);
-      chartRef.current.setOffsetRightDistance(80);
-    }
-  }, [allBars, resolution, vnindexMap, quarterlyFinancials]);
+    syncBarsToChart(allBars, chartRef.current, resolution, quarterlyFinancials, vnindexMap);
+  }, [allBars, resolution, vnindexMap, quarterlyFinancials, syncBarsToChart]);
 
   // ─── Vẽ Marker Sự kiện Cổ tức & Phát hành (D / S) trên nến ────────────────
   useEffect(() => {
@@ -1920,6 +2049,12 @@ export function StockChartPanel({
 
   useEffect(() => {
     if (!livePrice || !chartRef.current || allBars.length < 2) return;
+    if (currentTickerRef.current !== ticker) return;
+
+    // Rào chắn bảo vệ: Chỉ update khi chart thực sự đã nạp đủ nến của ticker hiện tại
+    const currentDataList = chartRef.current.getDataList();
+    if (!currentDataList || currentDataList.length < 2) return;
+
     const lastBar = allBars[allBars.length - 1];
 
     // Kiểm tra an toàn: Nếu livePrice lệch trên 40% so với giá đóng cửa nến cuối của lịch sử,
@@ -1938,7 +2073,7 @@ export function StockChartPanel({
       close: livePrice,
       volume: liveVolume ?? lastBar.volume,
     });
-  }, [livePrice, allBars, liveVolume]);
+  }, [livePrice, allBars, liveVolume, ticker]);
 
   // ─── Xử lý chọn công cụ vẽ KLineCharts ───────────────────────────────────
 

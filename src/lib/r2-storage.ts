@@ -379,3 +379,161 @@ export async function getFullReportCache(
 
   return null;
 }
+
+// ============================================================================
+// 4. LƯU TRỮ VÀ TRUY VẤN NẾN LỊCH SỬ (OHLC PRICE HISTORY CACHE)
+// ============================================================================
+
+export interface PriceHistoryCacheItem {
+  ticker: string;
+  updatedAt: string;
+  isAdjusted: boolean;
+  source: string;
+  count: number;
+  history: {
+    date: string;
+    fullDate: string;
+    openPrice: number;
+    highestPrice: number;
+    lowestPrice: number;
+    closePrice: number;
+    range: [number, number];
+    volume: number;
+  }[];
+  events: any[];
+}
+
+/**
+ * Đường dẫn R2 Object Key cho nến lịch sử
+ * Ví dụ: market-data/ohlc/HPG.json
+ */
+export function getPriceHistoryR2ObjectKey(ticker: string): string {
+  return `market-data/ohlc/${ticker.trim().toUpperCase()}.json`;
+}
+
+/**
+ * Đường dẫn file cache local cho nến lịch sử
+ * Ví dụ: data/ohlc/HPG.json
+ */
+export function getLocalPriceHistoryFilePath(ticker: string): string {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const dir = path.join(process.cwd(), 'data', 'ohlc');
+  return path.join(dir, `${cleanTicker}.json`);
+}
+
+/**
+ * Lưu trữ nến lịch sử lên Cloudflare R2 và Local Disk
+ */
+export async function putPriceHistoryToR2(
+  ticker: string,
+  data: PriceHistoryCacheItem
+): Promise<{ success: boolean; destination: 'r2' | 'local' | 'both'; error?: string }> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const jsonString = JSON.stringify(data);
+
+  // 1. Lưu bản copy Local Disk
+  try {
+    const localPath = getLocalPriceHistoryFilePath(cleanTicker);
+    ensureLocalDirExists(localPath);
+    fs.writeFileSync(localPath, jsonString, 'utf-8');
+  } catch (localErr: any) {
+    console.warn(`[R2 OHLC Storage] Local cache write error for ${cleanTicker}:`, localErr.message);
+  }
+
+  // 2. Upload lên Cloudflare R2 nếu đã cấu hình
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (!s3 || !config.isConfigured) {
+    return {
+      success: true,
+      destination: 'local',
+    };
+  }
+
+  try {
+    const objectKey = getPriceHistoryR2ObjectKey(cleanTicker);
+    const command = new PutObjectCommand({
+      Bucket: config.bucketName,
+      Key: objectKey,
+      Body: jsonString,
+      ContentType: 'application/json; charset=utf-8',
+    });
+
+    await s3.send(command);
+
+    return {
+      success: true,
+      destination: 'both',
+    };
+  } catch (r2Err: any) {
+    console.error(`[R2 OHLC Storage] Failed to upload ${cleanTicker} to R2:`, r2Err);
+    return {
+      success: false,
+      destination: 'local',
+      error: r2Err.message,
+    };
+  }
+}
+
+/**
+ * Lấy nến lịch sử từ Local Disk hoặc Cloudflare R2
+ */
+export async function getPriceHistoryFromR2(
+  ticker: string,
+  maxAgeHours = 18
+): Promise<PriceHistoryCacheItem | null> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const now = Date.now();
+  const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+
+  // 1. Kiểm tra Local Cache trước (0ms)
+  try {
+    const localPath = getLocalPriceHistoryFilePath(cleanTicker);
+    if (fs.existsSync(localPath)) {
+      const stats = fs.statSync(localPath);
+      const isFresh = (now - stats.mtimeMs) < maxAgeMs;
+      if (isFresh) {
+        const fileContent = fs.readFileSync(localPath, 'utf-8');
+        return JSON.parse(fileContent) as PriceHistoryCacheItem;
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[R2 OHLC Storage] Local read error for ${cleanTicker}:`, err.message);
+  }
+
+  // 2. Truy vấn từ Cloudflare R2
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (s3 && config.isConfigured) {
+    try {
+      const objectKey = getPriceHistoryR2ObjectKey(cleanTicker);
+      const command = new GetObjectCommand({
+        Bucket: config.bucketName,
+        Key: objectKey,
+      });
+
+      const response = await s3.send(command);
+      if (response.Body) {
+        const bodyText = await response.Body.transformToString();
+        const parsed = JSON.parse(bodyText) as PriceHistoryCacheItem;
+
+        // Lưu ngược về local cache
+        try {
+          const localPath = getLocalPriceHistoryFilePath(cleanTicker);
+          ensureLocalDirExists(localPath);
+          fs.writeFileSync(localPath, bodyText, 'utf-8');
+        } catch {}
+
+        return parsed;
+      }
+    } catch (r2Err: any) {
+      if (r2Err.name !== 'NoSuchKey') {
+        console.warn(`[R2 OHLC Storage] Error reading ${cleanTicker} from R2:`, r2Err.message);
+      }
+    }
+  }
+
+  return null;
+}

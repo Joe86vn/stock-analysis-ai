@@ -43,3 +43,7 @@ scratch/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local data cache
+data/ohlc/
+
