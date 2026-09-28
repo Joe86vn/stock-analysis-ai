@@ -54,7 +54,7 @@ function ChartViewInner() {
     };
 
     loadStockList();
-  }, [currentTicker]);
+  }, []);
 
   // Cập nhật currentStockData khi currentTicker hoặc allStocks thay đổi
   useEffect(() => {

@@ -680,8 +680,12 @@ export function StockChartPanel({
           if (Array.isArray(json1.events)) setDividendEvents(json1.events);
         }
 
-        // 3. Tải nốt Tầng 2 ngầm ở chế độ background
-        fetchPhase2Background(t, res, currentReqId);
+        // 3. Tải nốt Tầng 2 ngầm ở chế độ background sau 800ms để nhường CPU cho biểu đồ render tức thì
+        setTimeout(() => {
+          if (currentTickerRef.current === t && fetchRequestIdRef.current === currentReqId) {
+            fetchPhase2Background(t, res, currentReqId);
+          }
+        }, 800);
       } catch (e) {
         console.error('[StockChartPanel] fetchPriceHistory error:', e);
       } finally {
@@ -796,19 +800,9 @@ export function StockChartPanel({
     setCrosshairData(null);
     setActiveTool('cursor');
 
-    // Chỉ gán livePrice ban đầu nếu stockData truyền vào khớp với ticker hiện tại
-    if (stockData && stockData.ticker === ticker) {
-      setLivePrice(stockData.currentPrice || null);
-      if (typeof stockData.priceChangePercent === 'number') {
-        setPriceChange({ abs: stockData.priceChange || 0, pct: stockData.priceChangePercent });
-      } else {
-        setPriceChange(null);
-      }
-    } else {
-      setLivePrice(null);
-      setPriceChange(null);
-      setInternalStockData(null);
-    }
+    setLivePrice(null);
+    setPriceChange(null);
+    setInternalStockData(null);
 
     // ─── KIỂM TRA RAM CACHE ĐỂ CHUYỂN MÃ TỨC THÌ 0MS ───────────────────
     const cached = getCachedData(ticker);
@@ -823,9 +817,13 @@ export function StockChartPanel({
       if (cached.events) setDividendEvents(cached.events);
       setIsLoadingChart(false);
 
-      // Nếu chưa có full 2.000 nến, âm thầm tải Phase 2 ngầm
+      // Nếu chưa có full 2.000 nến, âm thầm tải Phase 2 ngầm sau 800ms
       if (!cached.isFullHistory?.['D']) {
-        fetchPhase2Background(ticker, 'D', myRequestId);
+        setTimeout(() => {
+          if (currentTickerRef.current === ticker && fetchRequestIdRef.current === myRequestId) {
+            fetchPhase2Background(ticker, 'D', myRequestId);
+          }
+        }, 800);
       }
     } else {
       // Chưa có trong cache: dọn sạch chart để không lưu nến mã cũ
@@ -860,21 +858,41 @@ export function StockChartPanel({
         }
       })
       .catch(() => {});
+  }, [ticker, fetchPriceHistory, pollLivePrice, syncBarsToChart, fetchPhase2Background]);
 
+  // ─── Đồng bộ thông tin stockData ban đầu mà KHÔNG xóa biểu đồ ─────────────
+  useEffect(() => {
+    if (!ticker) return;
+    if (stockData && stockData.ticker === ticker) {
+      setInternalStockData(stockData);
+      if (livePrice === null && typeof stockData.currentPrice === 'number' && stockData.currentPrice > 0) {
+        setLivePrice(stockData.currentPrice);
+      }
+      if (priceChange === null && typeof stockData.priceChangePercent === 'number') {
+        setPriceChange({ abs: stockData.priceChange || 0, pct: stockData.priceChangePercent });
+      }
+    }
+  }, [stockData, ticker, livePrice, priceChange]);
+
+  // ─── Polling fallback khi WebSocket offline (tách riêng khỏi effect nến) ───
+  useEffect(() => {
+    if (!ticker) return;
     if (!isSocketConnected) {
       if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
-      priceIntervalRef.current = setInterval(() => pollLivePrice(targetTicker), 15000);
+      priceIntervalRef.current = setInterval(() => pollLivePrice(ticker), 15000);
     } else {
       if (priceIntervalRef.current) {
         clearInterval(priceIntervalRef.current);
         priceIntervalRef.current = null;
       }
     }
-
     return () => {
-      if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
+      if (priceIntervalRef.current) {
+        clearInterval(priceIntervalRef.current);
+        priceIntervalRef.current = null;
+      }
     };
-  }, [ticker, stockData, fetchPriceHistory, pollLivePrice, syncBarsToChart, fetchPhase2Background, isSocketConnected]);
+  }, [isSocketConnected, ticker, pollLivePrice]);
 
   // ─── Tính priceChange fallback ───────────────────────────────────────────
 

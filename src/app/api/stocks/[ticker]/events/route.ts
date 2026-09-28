@@ -14,6 +14,8 @@ export async function GET(
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Accept': 'application/json',
+      'Referer': 'https://iq.vietcap.com.vn/',
+      'Origin': 'https://iq.vietcap.com.vn',
     };
 
     // Lấy từ 2018 đến 2 năm sau (để bắt cả sự kiện cổ tức tương lai đã công bố)
@@ -21,6 +23,7 @@ export async function GET(
 
     const res = await fetch(url, {
       headers,
+      signal: AbortSignal.timeout(3500),
       next: { revalidate: 300 }, // Cache 5 phút
     });
 

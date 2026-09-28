@@ -759,15 +759,15 @@ export async function fetchFullVietcapData(ticker: string, options: { maxQuarter
     'Origin': 'https://iq.vietcap.com.vn',
   };
 
-  const baseUrl = `https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/${cleanTicker}`;
-
   try {
+    const baseUrl = `https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/${cleanTicker}`;
+    const timeoutSignal = AbortSignal.timeout(3500);
     const [isRes, bsRes, cfRes, noteRes, statRes] = await Promise.all([
-      fetch(`${baseUrl}/financial-statement?section=INCOME_STATEMENT`, { headers }).catch(() => null),
-      fetch(`${baseUrl}/financial-statement?section=BALANCE_SHEET`, { headers }).catch(() => null),
-      fetch(`${baseUrl}/financial-statement?section=CASH_FLOW`, { headers }).catch(() => null),
-      fetch(`${baseUrl}/financial-statement?section=NOTE`, { headers }).catch(() => null),
-      fetch(`${baseUrl}/statistics-financial`, { headers }).catch(() => null),
+      fetch(`${baseUrl}/financial-statement?section=INCOME_STATEMENT`, { headers, signal: timeoutSignal }).catch(() => null),
+      fetch(`${baseUrl}/financial-statement?section=BALANCE_SHEET`, { headers, signal: timeoutSignal }).catch(() => null),
+      fetch(`${baseUrl}/financial-statement?section=CASH_FLOW`, { headers, signal: timeoutSignal }).catch(() => null),
+      fetch(`${baseUrl}/financial-statement?section=NOTE`, { headers, signal: timeoutSignal }).catch(() => null),
+      fetch(`${baseUrl}/statistics-financial`, { headers, signal: timeoutSignal }).catch(() => null),
     ]);
 
     const isJson = isRes && isRes.ok ? await isRes.json() : null;
@@ -1030,6 +1030,7 @@ export async function fetchVietcapCompanyDetails(ticker: string): Promise<Vietca
   try {
     const res = await fetch(`https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/details?ticker=${cleanTicker}`, {
       headers: COMMON_HEADERS,
+      signal: AbortSignal.timeout(3500),
       next: { revalidate: 300 },
     });
     if (!res.ok) return null;
