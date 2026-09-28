@@ -34,12 +34,24 @@ export async function GET(
             const change = typeof item.ch === 'number' ? item.ch : 0;
             const changePercent = typeof item.r === 'number' ? Math.round(item.r * 10000) / 100 : 0;
             const refPrice = item.c && item.ch !== undefined ? item.c - item.ch : 0;
+            // Best Bid & Best Ask (Offer)
+            const bestBid = Array.isArray(item.bb) && item.bb.length > 0 ? item.bb[0] : null;
+            const bestAsk = Array.isArray(item.bo) && item.bo.length > 0 ? item.bo[0] : null;
+            const bidPrice = bestBid?.p ? (bestBid.p < 1000 ? Math.round(bestBid.p * 1000) : bestBid.p) : undefined;
+            const bidVol = typeof bestBid?.v === 'number' ? bestBid.v : 0;
+            const askPrice = bestAsk?.p ? (bestAsk.p < 1000 ? Math.round(bestAsk.p * 1000) : bestAsk.p) : undefined;
+            const askVol = typeof bestAsk?.v === 'number' ? bestAsk.v : 0;
+
             if (price > 0) {
               return NextResponse.json({
                 price,
                 change,
                 changePercent,
                 refPrice,
+                bidPrice,
+                bidVol,
+                askPrice,
+                askVol,
                 source: 'MAS',
               });
             }

@@ -44,7 +44,7 @@ export function IndicatorSettingsDialog({
   params: initialParams = {},
   onSaveParams,
   initialTab = 'params',
-  showPriceScaleLabel = true,
+  showPriceScaleLabel = false,
   onTogglePriceScaleLabel,
   showStatusValue = true,
   onToggleStatusValue,
@@ -170,9 +170,9 @@ export function IndicatorSettingsDialog({
     const defPar = defaultParams || initialParams;
     setPlots(defP);
     setLocalParams(defPar);
-    setPriceScaleLabel(true);
+    setPriceScaleLabel(false);
     setStatusValue(true);
-    onSavePlots(defP, { showPriceScaleLabel: true, showStatusValue: true });
+    onSavePlots(defP, { showPriceScaleLabel: false, showStatusValue: true });
     if (onSaveParams) onSaveParams(defPar);
     setShowDefaultDropdown(false);
   };

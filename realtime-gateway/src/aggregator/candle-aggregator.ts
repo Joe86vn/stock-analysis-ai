@@ -13,6 +13,10 @@ export interface LiveCandle {
   floor?: number;
   change?: number;
   changePercent?: number;
+  bidPrice?: number;
+  bidVol?: number;
+  askPrice?: number;
+  askVol?: number;
 }
 
 export class CandleAggregator {
@@ -48,6 +52,12 @@ export class CandleAggregator {
     let rawOpen = data.openPrice || rawPrice;
     if (rawOpen > 0 && rawOpen < 1000) rawOpen = Math.round(rawOpen * 1000);
 
+    let rawBid = data.best1Bid || 0;
+    if (rawBid > 0 && rawBid < 1000) rawBid = Math.round(rawBid * 1000);
+
+    let rawAsk = data.best1Offer || 0;
+    if (rawAsk > 0 && rawAsk < 1000) rawAsk = Math.round(rawAsk * 1000);
+
     const now = Date.now();
     const existing = this.activeCandles.get(cleanSymbol);
 
@@ -65,6 +75,10 @@ export class CandleAggregator {
         floor: rawFloor,
         change: data.priceChange,
         changePercent: data.priceChangePercent,
+        bidPrice: rawBid > 0 ? rawBid : undefined,
+        bidVol: data.best1BidVol || 0,
+        askPrice: rawAsk > 0 ? rawAsk : undefined,
+        askVol: data.best1OfferVol || 0,
       };
       this.activeCandles.set(cleanSymbol, newCandle);
       return newCandle;
@@ -85,6 +99,10 @@ export class CandleAggregator {
     if (rawFloor > 0) existing.floor = rawFloor;
     if (data.priceChange !== undefined) existing.change = data.priceChange;
     if (data.priceChangePercent !== undefined) existing.changePercent = data.priceChangePercent;
+    if (rawBid > 0) existing.bidPrice = rawBid;
+    if (data.best1BidVol !== undefined) existing.bidVol = data.best1BidVol;
+    if (rawAsk > 0) existing.askPrice = rawAsk;
+    if (data.best1OfferVol !== undefined) existing.askVol = data.best1OfferVol;
 
     return existing;
   }

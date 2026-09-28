@@ -13,6 +13,10 @@ export interface LiveCandleData {
   floor?: number;
   change?: number;
   changePercent?: number;
+  bidPrice?: number;
+  bidVol?: number;
+  askPrice?: number;
+  askVol?: number;
 }
 
 export interface RealtimeMarketIndex {
@@ -79,6 +83,10 @@ export function useRealtimeStock({ ticker, enableMarket = false }: UseRealtimeSt
             refPrice: data.refPrice,
             change: data.change,
             changePercent: data.changePercent,
+            bidPrice: data.bidPrice ?? prev?.bidPrice,
+            bidVol: data.bidVol ?? prev?.bidVol,
+            askPrice: data.askPrice ?? prev?.askPrice,
+            askVol: data.askVol ?? prev?.askVol,
           };
         });
       }

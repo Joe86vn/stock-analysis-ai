@@ -745,12 +745,13 @@ export function getKLineThemeFromCustom(
           downColor: c.downColor,
           noChangeColor: c.noChangeColor,
           line: {
-            show: false,
+            show: true,
             style: 'dashed' as const,
             dashedValue: [4, 4],
             size: 1,
           },
           text: {
+            show: false,
             color: '#ffffff',
             size: 11,
           },
@@ -764,9 +765,9 @@ export function getKLineThemeFromCustom(
         showParams: true,
       },
       lastValueMark: {
-        show: true,
+        show: false,
         text: {
-          show: true,
+          show: false,
           style: 'fill',
           color: '#ffffff',
           size: 11,

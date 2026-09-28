@@ -29,6 +29,7 @@ import { registerSwingHighLowIndicator } from './chart/indicators/custom-swing-h
 import { registerMeasureOverlay } from './chart/overlays/measure-overlay';
 import { registerDividendMarkerOverlay } from './chart/overlays/dividend-marker-overlay';
 import { registerCanslimMarkerOverlay, CANSLIM_MARKER_OVERLAY_NAME } from './chart/overlays/canslim-marker-overlay';
+import { registerCurrentPriceOverlay, CURRENT_PRICE_OVERLAY_NAME } from './chart/overlays/current-price-overlay';
 import { getAllCanslimEvents, type DayData } from '@/lib/canslim-health-calculator';
 import { registerFundamentalIndicators } from './chart/indicators/fundamental-indicators';
 import { registerRsVsIndexIndicator, RS_VS_INDEX_NAME } from './chart/indicators/rs-vs-index';
@@ -200,6 +201,30 @@ export function StockChartPanel({
   // ─── Realtime WebSocket Gateway Hook (SSI iBoard Stream) ─────────────────
   const { isSocketConnected, liveCandle } = useRealtimeStock({ ticker });
 
+  // ─── Dữ liệu Dư mua & Dư bán gần nhất (Bid / Ask) ────────────────────────
+  const [bidAskData, setBidAskData] = useState<{
+    bidPrice?: number;
+    bidVol?: number;
+    askPrice?: number;
+    askVol?: number;
+  } | null>(null);
+
+  const [showBidAsk, setShowBidAsk] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem('stock_chart_show_bid_ask');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const toggleShowBidAsk = () => {
+    setShowBidAsk((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('stock_chart_show_bid_ask', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   useEffect(() => {
     if (!liveCandle || !ticker || liveCandle.symbol !== ticker) return;
 
@@ -211,6 +236,14 @@ export function StockChartPanel({
     }
     if (typeof liveCandle.changePercent === 'number') {
       setPriceChange({ abs: liveCandle.change || 0, pct: liveCandle.changePercent });
+    }
+    if (liveCandle.bidPrice || liveCandle.askPrice) {
+      setBidAskData({
+        bidPrice: liveCandle.bidPrice,
+        bidVol: liveCandle.bidVol,
+        askPrice: liveCandle.askPrice,
+        askVol: liveCandle.askVol,
+      });
     }
   }, [liveCandle, ticker]);
 
@@ -674,6 +707,14 @@ export function StockChartPanel({
         if (typeof data.changePercent === 'number') {
           setPriceChange({ abs: data.change || 0, pct: data.changePercent });
         }
+        if (data.bidPrice || data.askPrice) {
+          setBidAskData({
+            bidPrice: data.bidPrice,
+            bidVol: data.bidVol,
+            askPrice: data.askPrice,
+            askVol: data.askVol,
+          });
+        }
       }
     } catch {}
   }, []);
@@ -709,6 +750,7 @@ export function StockChartPanel({
       allBarsRef.current = [];
       setLivePrice(null);
       setPriceChange(null);
+      setBidAskData(null);
       setLiveVolume(null);
       setCrosshairData(null);
       if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
@@ -740,10 +782,17 @@ export function StockChartPanel({
         });
         canslimOverlayIdsRef.current = [];
       }
+      if (currentPriceOverlayIdRef.current) {
+        try {
+          chartRef.current?.removeOverlay(currentPriceOverlayIdRef.current);
+        } catch {}
+        currentPriceOverlayIdRef.current = null;
+      }
     }
 
     setDividendEvents([]);
     setQuarterlyFinancials([]);
+    setBidAskData(null);
     setCrosshairData(null);
     setActiveTool('cursor');
 
@@ -862,6 +911,7 @@ export function StockChartPanel({
       registerCanslimMarkerOverlay();
       registerFundamentalIndicators();
       registerRsVsIndexIndicator();
+      registerCurrentPriceOverlay();
 
       const chart = klinecharts.init(chartContainerRef.current, {
         timezone: 'Asia/Ho_Chi_Minh',
@@ -1265,7 +1315,7 @@ export function StockChartPanel({
     const showPriceScaleLabel =
       extraConfig?.showPriceScaleLabel ??
       indicatorFormatSettings[indicatorId]?.showPriceScaleLabel ??
-      true;
+      false;
     const showStatusValue =
       extraConfig?.showStatusValue ??
       indicatorFormatSettings[indicatorId]?.showStatusValue ??
@@ -1631,7 +1681,7 @@ export function StockChartPanel({
     setIndicatorFormatSettings((prev) => {
       const next = {
         ...prev,
-        [indicatorId]: { showPriceScaleLabel: true, showStatusValue: true },
+        [indicatorId]: { showPriceScaleLabel: false, showStatusValue: true },
       };
       saveIndicatorFormatSettings(next);
       return next;
@@ -1667,7 +1717,7 @@ export function StockChartPanel({
       return next;
     });
 
-    handleSaveIndicatorPlots(defPlots, { showPriceScaleLabel: true, showStatusValue: true });
+    handleSaveIndicatorPlots(defPlots, { showPriceScaleLabel: false, showStatusValue: true });
     handleSaveIndicatorParams(DEFAULT_INDICATOR_PARAMS);
 
     setIndicatorDialogState((prev) => ({
@@ -2100,6 +2150,66 @@ export function StockChartPanel({
     });
   }, [livePrice, allBars, liveVolume, ticker]);
 
+  // ─── Quản lý nhãn giá hiện tại và % tăng giảm trên trục giá ──────────────
+  const currentPriceOverlayIdRef = useRef<string | null>(null);
+
+  const updateCurrentPriceBadge = useCallback(
+    (price: number, change?: number, changePercent?: number) => {
+      const chart = chartRef.current;
+      if (!chart || !price || isNaN(price)) return;
+      const dataList = chart.getDataList();
+      if (!dataList || dataList.length === 0) return;
+      const lastBar = dataList[dataList.length - 1];
+
+      const payload = {
+        name: CURRENT_PRICE_OVERLAY_NAME,
+        lock: true,
+        points: [{ timestamp: lastBar.timestamp, value: price }],
+        extendData: {
+          price,
+          change,
+          changePercent,
+        },
+      };
+
+      if (currentPriceOverlayIdRef.current) {
+        try {
+          chart.overrideOverlay({
+            id: currentPriceOverlayIdRef.current,
+            ...payload,
+          });
+          return;
+        } catch {
+          currentPriceOverlayIdRef.current = null;
+        }
+      }
+
+      try {
+        const id = chart.createOverlay(payload, 'candle_pane');
+        if (typeof id === 'string') {
+          currentPriceOverlayIdRef.current = id;
+        }
+      } catch (err) {
+        console.warn('[StockChartPanel] Failed to create current price overlay:', err);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!livePrice) {
+      if (allBars.length > 0) {
+        const lastBar = allBars[allBars.length - 1];
+        const prevBar = allBars.length > 1 ? allBars[allBars.length - 2] : null;
+        const change = prevBar ? lastBar.closePrice - prevBar.closePrice : 0;
+        const pct = prevBar && prevBar.closePrice > 0 ? (change / prevBar.closePrice) * 100 : 0;
+        updateCurrentPriceBadge(lastBar.closePrice, change, pct);
+      }
+      return;
+    }
+    updateCurrentPriceBadge(livePrice, priceChange?.abs, priceChange?.pct);
+  }, [livePrice, priceChange, allBars, updateCurrentPriceBadge]);
+
   // ─── Xử lý chọn công cụ vẽ KLineCharts ───────────────────────────────────
 
   const handleSelectTool = (tool: DrawingToolType) => {
@@ -2161,6 +2271,12 @@ export function StockChartPanel({
   const fmt = (n: number) => (n >= 1000 ? n.toLocaleString('vi-VN') : n.toFixed(0));
   const fmtVol = (v: number) =>
     v >= 1_000_000 ? (v / 1_000_000).toFixed(2) + 'M' : v >= 1_000 ? (v / 1_000).toFixed(1) + 'K' : String(v);
+
+  const formatBoardPrice = (price?: number) => {
+    if (!price || isNaN(price)) return '—';
+    const p = price >= 1000 ? price / 1000 : price;
+    return p.toFixed(2);
+  };
 
   const formatDateStr = (d?: string) => {
     if (!d) return '';
@@ -2987,6 +3103,61 @@ export function StockChartPanel({
           {/* KLineCharts canvas container */}
           <div ref={chartContainerRef} className="absolute inset-0 w-full h-full" />
 
+          {/* Ô Dư mua / Dư bán (Bid / Ask) chuẩn bảng điện ở trên cùng bên phải biểu đồ */}
+          {ticker && (
+            <div className="absolute top-2 right-16 sm:right-20 z-20 pointer-events-auto">
+              {!showBidAsk ? (
+                <button
+                  onClick={toggleShowBidAsk}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-900/85 hover:bg-gray-900 text-gray-200 hover:text-white text-[11px] font-medium border border-gray-700/80 shadow-md backdrop-blur-xs transition cursor-pointer select-none"
+                  title="Mở bảng điện Dư mua / Dư bán (Bid / Ask)"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Bid/Ask</span>
+                </button>
+              ) : (
+                <div className="flex flex-col rounded-sm shadow-xl border border-gray-700/80 bg-gray-950/95 backdrop-blur-sm overflow-hidden select-none font-sans text-xs transition animate-in fade-in zoom-in-95 duration-100">
+                  {/* Thanh điều khiển mini & Tắt mở nhanh */}
+                  <div className="flex items-center justify-between px-1.5 py-0.5 bg-gray-900/90 border-b border-gray-800 text-[10px] text-gray-400">
+                    <span className="font-semibold text-gray-300 tracking-tight">Khớp lệnh 1</span>
+                    <button
+                      onClick={toggleShowBidAsk}
+                      className="p-0.5 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition cursor-pointer"
+                      title="Thu gọn bảng Bid/Ask"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+
+                  {/* 2 cột dạng ô bảng điện: Bid (Đỏ) - Ask (Xanh lá) theo ảnh mẫu */}
+                  <div className="grid grid-cols-2 divide-x divide-white/20 text-center font-mono">
+                    {/* Cột Bid (Dư mua) - Nền đỏ chuẩn bảng điện */}
+                    <div className="bg-[#cc0000] text-white px-2.5 py-1 flex flex-col items-center min-w-[66px]">
+                      <span className="text-[11px] font-bold uppercase tracking-wider font-sans">Bid</span>
+                      <span className="text-xs font-bold mt-0.5 leading-tight">
+                        {bidAskData?.bidPrice ? formatBoardPrice(bidAskData.bidPrice) : '—'}
+                      </span>
+                      <span className="text-[10px] font-semibold opacity-95 leading-tight mt-0.5">
+                        {bidAskData?.bidVol ? bidAskData.bidVol.toLocaleString('vi-VN') : '—'}
+                      </span>
+                    </div>
+
+                    {/* Cột Ask (Dư bán) - Nền xanh lá chuẩn bảng điện */}
+                    <div className="bg-[#009900] text-white px-2.5 py-1 flex flex-col items-center min-w-[66px]">
+                      <span className="text-[11px] font-bold uppercase tracking-wider font-sans">Ask</span>
+                      <span className="text-xs font-bold mt-0.5 leading-tight">
+                        {bidAskData?.askPrice ? formatBoardPrice(bidAskData.askPrice) : '—'}
+                      </span>
+                      <span className="text-[10px] font-semibold opacity-95 leading-tight mt-0.5">
+                        {bidAskData?.askVol ? bidAskData.askVol.toLocaleString('vi-VN') : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Floating Rich Tooltip for Dividend Marker Hover */}
           {hoveredDividend && (() => {
             const item = hoveredDividend.data || {};
@@ -3119,7 +3290,7 @@ export function StockChartPanel({
         onSaveParams={handleSaveIndicatorParams}
         initialTab={indicatorDialogState.initialTab || 'params'}
         showPriceScaleLabel={
-          indicatorFormatSettings[indicatorDialogState.indicatorId]?.showPriceScaleLabel ?? true
+          indicatorFormatSettings[indicatorDialogState.indicatorId]?.showPriceScaleLabel ?? false
         }
         showStatusValue={
           indicatorFormatSettings[indicatorDialogState.indicatorId]?.showStatusValue ?? true
