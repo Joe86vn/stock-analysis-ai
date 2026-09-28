@@ -745,12 +745,12 @@ export function getKLineThemeFromCustom(
         high: { show: false },
         low: { show: false },
         last: {
-          show: true,
+          show: false,
           upColor: c.upColor,
           downColor: c.downColor,
           noChangeColor: c.noChangeColor,
           line: {
-            show: true,
+            show: false,
             style: 'dashed' as const,
             dashedValue: [4, 4],
             size: 1,
@@ -851,6 +851,8 @@ export function getKLineThemeFromCustom(
       text: {
         color: isDark ? '#ffffff' : '#111827',
         size: 12,
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
       },
     },
   };

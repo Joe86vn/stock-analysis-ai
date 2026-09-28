@@ -64,6 +64,7 @@ export const currentPriceOverlayTemplate: OverlayTemplate = {
     overlay,
     coordinates,
     bounding,
+    yAxis,
   }: OverlayCreateFiguresCallbackParams): OverlayFigure[] => {
     if (coordinates.length === 0) return [];
     const coord = coordinates[0];
@@ -95,9 +96,14 @@ export const currentPriceOverlayTemplate: OverlayTemplate = {
     const sign = isUp ? '+' : '';
     const pctStr = `${sign}${changePct.toFixed(2)}%`;
 
-    const badgeHeight = 30;
+    const badgeHeight = 32;
     const yCenter = coord.y;
-    const width = Math.max(bounding?.width || 66, 66);
+    const width = Math.max(bounding?.width || 68, 68);
+
+    // Căn thẳng hàng hoàn hảo với các bước giá trên trục Y (mặc định YAxis ở bên phải, căn lề trái lùi 8px)
+    const isFromZero = yAxis?.isFromZero?.() ?? true;
+    const textAlign = isFromZero ? 'left' : 'right';
+    const textX = isFromZero ? 8 : width - 8;
 
     return [
       // 1. Khối nền trục giá (Viền trắng mờ tinh tế, bo góc 4px thanh thoát)
@@ -118,36 +124,40 @@ export const currentPriceOverlayTemplate: OverlayTemplate = {
         },
         ignoreEvent: true,
       },
-      // 2. Nhãn giá hiện tại (Dòng 1 - Font mono sắc nét, tương phản cao)
+      // 2. Nhãn giá hiện tại (Dòng 1 - Font mono sắc nét, thẳng hàng với trục bước giá)
       {
         type: 'text',
         attrs: {
-          x: width / 2,
-          y: yCenter - 5.5,
+          x: textX,
+          y: yCenter - 6.5,
           text: priceStr,
-          align: 'center',
+          align: textAlign,
           baseline: 'middle',
         },
         styles: {
           color: '#ffffff',
+          backgroundColor: 'transparent',
+          borderColor: 'transparent',
           size: 11,
           weight: 'bold',
           family: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
         },
         ignoreEvent: true,
       },
-      // 3. Nhãn % tăng giảm (Dòng 2 - Font mono cân xứng, dễ đọc)
+      // 3. Nhãn % tăng giảm (Dòng 2 - Font mono cân xứng, thẳng hàng với nhãn giá)
       {
         type: 'text',
         attrs: {
-          x: width / 2,
-          y: yCenter + 6.5,
+          x: textX,
+          y: yCenter + 7,
           text: pctStr,
-          align: 'center',
+          align: textAlign,
           baseline: 'middle',
         },
         styles: {
-          color: 'rgba(255, 255, 255, 0.95)',
+          color: 'rgba(255, 255, 255, 0.92)',
+          backgroundColor: 'transparent',
+          borderColor: 'transparent',
           size: 9.5,
           weight: 'bold',
           family: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
