@@ -643,6 +643,7 @@ export function getVolIndicatorStyles(vol: VolumeThemeColors, isDark: boolean) {
       ),
     ],
     lines: [createIndicatorLine(vol.maColor, 1)],
+    lastValueMark: { show: false, text: { show: false } },
   };
 }
 
@@ -652,6 +653,7 @@ export function getEmaIndicatorStyles(ema: EmaThemeColors) {
       createIndicatorLine(ema.ema1Color, 1.5),
       createIndicatorLine(ema.ema2Color, 1.5),
     ],
+    lastValueMark: { show: false, text: { show: false } },
   };
 }
 
@@ -662,12 +664,14 @@ export function getBollIndicatorStyles(boll: BollThemeColors) {
       createIndicatorLine(boll.midColor, 1),
       createIndicatorLine(boll.downColor, 1),
     ],
+    lastValueMark: { show: false, text: { show: false } },
   };
 }
 
 export function getRsiIndicatorStyles(rsi: RsiThemeColors) {
   return {
     lines: [createIndicatorLine(rsi.lineColor, 1.2)],
+    lastValueMark: { show: false, text: { show: false } },
   };
 }
 
@@ -684,6 +688,7 @@ export function getMacdIndicatorStyles(macd: MacdThemeColors) {
         '#94a3b8'
       ),
     ],
+    lastValueMark: { show: false, text: { show: false } },
   };
 }
 

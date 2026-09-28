@@ -3047,6 +3047,22 @@ export function StockChartPanel({
             <Settings className="h-4 w-4" />
           </button>
 
+          {/* Quick Bid/Ask Toggle Button trên Toolbar */}
+          <button
+            onClick={toggleShowBidAsk}
+            className={`
+              px-2 py-1 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer flex items-center gap-1.5 border
+              ${showBidAsk
+                ? 'bg-emerald-500/10 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 shadow-2xs'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700/80 hover:text-slate-900 dark:hover:text-white'
+              }
+            `}
+            title="Bật / Tắt bảng điện Dư mua - Dư bán (Bid / Ask)"
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${showBidAsk ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+            <span>Bid/Ask</span>
+          </button>
+
           <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
 
           {/* Tiện ích Sidebar Toggle Button */}
@@ -3105,7 +3121,7 @@ export function StockChartPanel({
 
           {/* Ô Dư mua / Dư bán (Bid / Ask) chuẩn bảng điện ở trên cùng bên phải biểu đồ */}
           {ticker && (
-            <div className="absolute top-2 right-16 sm:right-20 z-20 pointer-events-auto">
+            <div className="absolute top-2 right-16 sm:right-20 z-30 pointer-events-auto">
               {!showBidAsk ? (
                 <button
                   onClick={toggleShowBidAsk}

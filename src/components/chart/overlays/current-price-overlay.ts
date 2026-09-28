@@ -91,7 +91,9 @@ export const currentPriceOverlayTemplate: OverlayTemplate = {
         styles: {
           style: 'fill',
           color: bgColor,
-          borderRadius: 2,
+          borderColor: bgColor,
+          borderSize: 0,
+          borderRadius: 3,
         },
         ignoreEvent: true,
       },
