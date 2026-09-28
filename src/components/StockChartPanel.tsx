@@ -36,6 +36,7 @@ import { enrichKLineWithFundamentals } from '@/lib/fundamental-indicator-helper'
 import { getVnindexHistoryMap, enrichKLineWithVnindex, type VnindexInfo } from '@/lib/vnindex-enricher';
 import type { ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '@/lib/resample-ohlc';
+import { useRealtimeStock } from '@/hooks/useRealtimeStock';
 import {
   ChartColorTheme,
   StatusLineConfig,
@@ -195,6 +196,23 @@ export function StockChartPanel({
   const resolutionRef = useRef<Resolution>('D');
   const financialsRef = useRef<ParsedVietcapQuarter[]>([]);
   const vnindexMapRef = useRef<Map<string, VnindexInfo>>(new Map());
+
+  // ─── Realtime WebSocket Gateway Hook (SSI iBoard Stream) ─────────────────
+  const { isSocketConnected, liveCandle } = useRealtimeStock({ ticker });
+
+  useEffect(() => {
+    if (!liveCandle || !ticker || liveCandle.symbol !== ticker) return;
+
+    if (typeof liveCandle.close === 'number' && liveCandle.close > 0) {
+      setLivePrice(liveCandle.close);
+    }
+    if (typeof liveCandle.volume === 'number' && liveCandle.volume > 0) {
+      setLiveVolume(liveCandle.volume);
+    }
+    if (typeof liveCandle.changePercent === 'number') {
+      setPriceChange({ abs: liveCandle.change || 0, pct: liveCandle.changePercent });
+    }
+  }, [liveCandle, ticker]);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -794,13 +812,20 @@ export function StockChartPanel({
       })
       .catch(() => {});
 
-    if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
-    priceIntervalRef.current = setInterval(() => pollLivePrice(targetTicker), 15000);
+    if (!isSocketConnected) {
+      if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
+      priceIntervalRef.current = setInterval(() => pollLivePrice(targetTicker), 15000);
+    } else {
+      if (priceIntervalRef.current) {
+        clearInterval(priceIntervalRef.current);
+        priceIntervalRef.current = null;
+      }
+    }
 
     return () => {
       if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
     };
-  }, [ticker, stockData, fetchPriceHistory, pollLivePrice, syncBarsToChart, fetchPhase2Background]);
+  }, [ticker, stockData, fetchPriceHistory, pollLivePrice, syncBarsToChart, fetchPhase2Background, isSocketConnected]);
 
   // ─── Tính priceChange fallback ───────────────────────────────────────────
 
@@ -2410,8 +2435,29 @@ export function StockChartPanel({
 
       {/* ─── HÀNG 2: Dòng Trạng Thái Phiên & Công Cụ Kỹ Thuật ─── */}
       <div className="flex items-center justify-between px-5 py-1.5 border-b border-gray-200 dark:border-gray-800/80 bg-white dark:bg-gray-950 flex-shrink-0 gap-3 flex-wrap min-h-[36px]">
-        {/* Block 1 (Trái): Ngày, OHLC, Chênh lệch tăng giảm, Vol, GTGD 20N */}
+        {/* Block 1 (Trái): Realtime Badge, Ngày, OHLC, Chênh lệch tăng giảm, Vol, GTGD 20N */}
         <div className="flex items-center space-x-3 sm:space-x-4 text-xs tabular-nums font-mono overflow-x-auto no-scrollbar text-slate-700 dark:text-gray-200 min-w-0">
+          {/* Realtime Status Indicator Badge */}
+          <span
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-tight flex-shrink-0 transition-colors ${
+              isSocketConnected
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+            }`}
+            title={
+              isSocketConnected
+                ? 'Kết nối dữ liệu thời gian thực SSI WebSocket Gateway (Sub-second live ticks)'
+                : 'Đang dùng chế độ HTTP Polling 15s (WebSocket Gateway chưa bật)'
+            }
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                isSocketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+              }`}
+            />
+            <span>{isSocketConnected ? 'LIVE' : '15S'}</span>
+          </span>
+
           {activeOhlc ? (
             <>
               {/* Ngày */}

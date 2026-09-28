@@ -13,7 +13,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const res = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
+      headers: {
+        'Accept': 'application/json',
+        'Referer': 'https://iq.vietcap.com.vn/',
+        'Origin': 'https://iq.vietcap.com.vn',
+      },
       next: { revalidate: 300 },
     });
     if (!res.ok) return NextResponse.json({ error: 'upstream error' }, { status: res.status });

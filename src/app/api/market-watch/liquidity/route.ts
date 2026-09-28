@@ -1,17 +1,23 @@
 import { NextResponse } from 'next/server';
-
-const UPSTREAM = 'https://trading.vietcap.com.vn/api/chart/v3/OHLCChart/gap-liquidity';
+import { fetchVietcapGapChart } from '@/lib/vietcap-field-mapping';
 
 export async function GET() {
   try {
-    const res = await fetch(UPSTREAM, {
-      headers: { 'Accept': 'application/json' },
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return NextResponse.json({ error: 'upstream error' }, { status: res.status });
-    const data = await res.json();
+    const bars = await fetchVietcapGapChart('VNINDEX', { countBack: 60, timeFrame: 'ONE_DAY' });
+    if (!bars || bars.length === 0) {
+      return NextResponse.json({ error: 'No data' }, { status: 404 });
+    }
+
+    const data = bars.map((b) => ({
+      date: b.tradingDate,
+      time: b.tradingDate,
+      totalValue: b.closePrice * b.volume,
+      matchValue: b.closePrice * b.volume,
+      value: b.closePrice * b.volume,
+    }));
+
     return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({ error: 'fetch failed' }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'fetch failed' }, { status: 500 });
   }
 }

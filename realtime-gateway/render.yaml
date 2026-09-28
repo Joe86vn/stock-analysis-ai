@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: valuex-realtime-gateway
+    env: docker
+    dockerfilePath: realtime-gateway/Dockerfile
+    dockerContext: realtime-gateway
+    region: singapore
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SSI_MQTT_ENDPOINT
+        value: wss://price-streaming.ssi.com.vn/mqtt
+      - key: SSI_USERNAME
+        value: mqtt-ssi
+      - key: SSI_PASSWORD
+        value: mqtt-ssi
