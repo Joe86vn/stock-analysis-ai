@@ -1,0 +1,6 @@
+# Vercel Ignore
+realtime-gateway
+scripts
+.agents
+.git
+*.md
