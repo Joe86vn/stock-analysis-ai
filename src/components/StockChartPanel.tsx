@@ -2179,10 +2179,32 @@ export function StockChartPanel({
       if (!dataList || dataList.length === 0) return;
       const lastBar = dataList[dataList.length - 1];
 
+      const pct = typeof changePercent === 'number' ? changePercent : 0;
+      const isCeil = pct >= 6.7;
+      const isFlr = pct <= -6.7;
+      const badgeBg = isCeil
+        ? '#9333ea'
+        : isFlr
+        ? '#0891b2'
+        : pct > 0
+        ? '#059669'
+        : pct < 0
+        ? '#e11d48'
+        : '#d97706';
+
       const payload = {
         name: CURRENT_PRICE_OVERLAY_NAME,
         lock: true,
         points: [{ timestamp: lastBar.timestamp, value: price }],
+        styles: {
+          rect: {
+            style: 'stroke_fill' as any,
+            color: badgeBg,
+            borderColor: 'rgba(255, 255, 255, 0.3)',
+            borderSize: 1,
+            borderRadius: 4,
+          },
+        },
         extendData: {
           price,
           change,
@@ -3150,39 +3172,36 @@ export function StockChartPanel({
                   <span>Bid/Ask</span>
                 </button>
               ) : (
-                <div className="flex flex-col rounded-sm shadow-xl border border-gray-700/80 bg-gray-950/95 backdrop-blur-sm overflow-hidden select-none font-sans text-xs transition animate-in fade-in zoom-in-95 duration-100">
-                  {/* Thanh điều khiển mini & Tắt mở nhanh */}
-                  <div className="flex items-center justify-between px-1.5 py-0.5 bg-gray-900/90 border-b border-gray-800 text-[10px] text-gray-400">
-                    <span className="font-semibold text-gray-300 tracking-tight">Khớp lệnh 1</span>
-                    <button
-                      onClick={toggleShowBidAsk}
-                      className="p-0.5 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition cursor-pointer"
-                      title="Thu gọn bảng Bid/Ask"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                <div className="relative flex rounded-lg shadow-2xl border border-slate-700/80 bg-slate-950/90 backdrop-blur-md overflow-hidden select-none font-sans text-xs transition animate-in fade-in zoom-in-95 duration-100 ring-1 ring-white/10 group/bidask">
+                  {/* Nút đóng mini tinh tế ở góc phải, bỏ chữ Khớp lệnh 1 cho siêu gọn */}
+                  <button
+                    onClick={toggleShowBidAsk}
+                    className="absolute top-1 right-1 z-20 w-4 h-4 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/80 text-white/70 hover:text-white transition cursor-pointer"
+                    title="Thu gọn bảng Bid/Ask"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
 
-                  {/* 2 cột dạng ô bảng điện: Bid (Đỏ) - Ask (Xanh lá) theo ảnh mẫu */}
+                  {/* 2 cột dạng ô bảng điện: Bid (Dư mua) - Ask (Dư bán) đồng bộ bảng giá sidepanel ValueX */}
                   <div className="grid grid-cols-2 divide-x divide-white/20 text-center font-mono">
-                    {/* Cột Bid (Dư mua) - Nền đỏ chuẩn bảng điện */}
-                    <div className="bg-[#cc0000] text-white px-2.5 py-1 flex flex-col items-center min-w-[66px]">
-                      <span className="text-[11px] font-bold uppercase tracking-wider font-sans">Bid</span>
-                      <span className="text-xs font-bold mt-0.5 leading-tight">
+                    {/* Cột Bid (Dư mua) - Màu Rose/Đỏ trầm sang trọng đồng bộ bảng giá */}
+                    <div className="bg-gradient-to-b from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white px-3 py-1.5 flex flex-col items-center min-w-[68px] transition-colors">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-rose-100/90 font-sans">Bid</span>
+                      <span className="text-[12px] font-bold font-mono tracking-tight text-white tabular-nums leading-tight mt-0.5">
                         {bidAskData?.bidPrice ? formatBoardPrice(bidAskData.bidPrice) : '—'}
                       </span>
-                      <span className="text-[10px] font-semibold opacity-95 leading-tight mt-0.5">
+                      <span className="text-[9.5px] font-medium font-mono text-rose-100/85 tabular-nums leading-tight mt-0.5">
                         {bidAskData?.bidVol ? bidAskData.bidVol.toLocaleString('vi-VN') : '—'}
                       </span>
                     </div>
 
-                    {/* Cột Ask (Dư bán) - Nền xanh lá chuẩn bảng điện */}
-                    <div className="bg-[#009900] text-white px-2.5 py-1 flex flex-col items-center min-w-[66px]">
-                      <span className="text-[11px] font-bold uppercase tracking-wider font-sans">Ask</span>
-                      <span className="text-xs font-bold mt-0.5 leading-tight">
+                    {/* Cột Ask (Dư bán) - Màu Emerald/Xanh lá sang trọng đồng bộ bảng giá */}
+                    <div className="bg-gradient-to-b from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-3 py-1.5 flex flex-col items-center min-w-[68px] transition-colors">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-emerald-100/90 font-sans">Ask</span>
+                      <span className="text-[12px] font-bold font-mono tracking-tight text-white tabular-nums leading-tight mt-0.5">
                         {bidAskData?.askPrice ? formatBoardPrice(bidAskData.askPrice) : '—'}
                       </span>
-                      <span className="text-[10px] font-semibold opacity-95 leading-tight mt-0.5">
+                      <span className="text-[9.5px] font-medium font-mono text-emerald-100/85 tabular-nums leading-tight mt-0.5">
                         {bidAskData?.askVol ? bidAskData.askVol.toLocaleString('vi-VN') : '—'}
                       </span>
                     </div>
