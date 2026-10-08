@@ -4,7 +4,8 @@ export type HeatSizeMode = 'equal' | 'value' | 'cap';
 export type HeatTileSize = 'L' | 'M' | 'S' | 'XS';
 
 export interface HeatTileStyle {
-    bgStyle: React.CSSProperties;
+    bgClass: string;
+    bgStyle?: React.CSSProperties;
     textClass: string;
     subTextClass: string;
     priceClass: string;
@@ -38,7 +39,12 @@ export interface IndustryHeatGroup {
 }
 
 /**
- * Tính màu nền & màu chữ heat gradient cho ô cổ phiếu dựa trên % thay đổi giá & biên độ sàn giao dịch
+ * Tính màu nền & màu chữ chuẩn Treemap cho ô cổ phiếu tối ưu cho cả 2 chế độ Dark Mode & Light Mode
+ * - Tím Trần: #9333ea (Light: purple-600, Dark: purple-600)
+ * - Xanh Lơ Sàn: #0891b2 (Light: cyan-600, Dark: cyan-600)
+ * - Vàng Tham Chiếu: #d97706 (Light: amber-600, Dark: amber-700) -> Chữ trắng nổi bật 100%, rõ nét
+ * - Xanh Tăng (3 mức nhiệt: nhẹ, vừa, mạnh) -> Chữ trắng nổi bật
+ * - Đỏ Giảm (3 mức nhiệt: nhẹ, vừa, mạnh) -> Chữ trắng nổi bật
  */
 export function getHeatTileStyle(
     pct: number,
@@ -52,9 +58,10 @@ export function getHeatTileStyle(
     const isFloor = pct <= floorPct && pct < 0;
     const isRef = pct === 0;
 
-    // 1. Tím Trần: #9333ea
+    // 1. Tím Trần
     if (isCeiling) {
         return {
+            bgClass: 'bg-purple-600 hover:bg-purple-500 dark:bg-purple-600 dark:hover:bg-purple-500 shadow-2xs',
             bgStyle: { backgroundColor: '#9333ea' },
             textClass: 'text-white font-black',
             subTextClass: 'text-purple-100 font-extrabold',
@@ -65,9 +72,10 @@ export function getHeatTileStyle(
         };
     }
 
-    // 2. Xanh Lơ Sàn: #0891b2
+    // 2. Xanh Lơ Sàn
     if (isFloor) {
         return {
+            bgClass: 'bg-cyan-600 hover:bg-cyan-500 dark:bg-cyan-600 dark:hover:bg-cyan-500 shadow-2xs',
             bgStyle: { backgroundColor: '#0891b2' },
             textClass: 'text-white font-black',
             subTextClass: 'text-cyan-100 font-extrabold',
@@ -78,45 +86,95 @@ export function getHeatTileStyle(
         };
     }
 
-    // 3. Vàng Tham Chiếu: #d97706
+    // 3. Vàng Tham Chiếu (Vàng hổ phách sắc nét tương phản cao với chữ trắng tinh)
     if (isRef) {
         return {
-            bgStyle: { backgroundColor: 'rgba(217, 119, 6, 0.45)' },
-            textClass: 'text-amber-300 dark:text-amber-200 font-extrabold',
-            subTextClass: 'text-amber-200/90 font-bold',
-            priceClass: 'text-amber-300/80 font-mono',
+            bgClass: 'bg-amber-600 hover:bg-amber-500 dark:bg-amber-700 dark:hover:bg-amber-600 shadow-2xs',
+            bgStyle: { backgroundColor: '#d97706' },
+            textClass: 'text-white font-black',
+            subTextClass: 'text-amber-100 font-extrabold',
+            priceClass: 'text-amber-100/90 font-mono',
             isCeiling: false,
             isFloor: false,
             isRef: true,
         };
     }
 
-    // 4. Xanh Tăng (Bullish Emerald)
+    // 4. Xanh Tăng (Bullish Emerald / Green)
     if (pct > 0) {
-        const ratio = Math.min(Math.max(pct / (ceilingPct || 7), 0.15), 1);
-        const alpha = 0.25 + ratio * 0.7;
+        if (pct >= 3.5) {
+            // Tăng mạnh (>= 3.5%)
+            return {
+                bgClass: 'bg-emerald-700 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500 shadow-2xs',
+                bgStyle: { backgroundColor: '#047857' },
+                textClass: 'text-white font-black',
+                subTextClass: 'text-emerald-100 font-extrabold',
+                priceClass: 'text-emerald-100/90 font-mono',
+                isCeiling: false,
+                isFloor: false,
+                isRef: false,
+            };
+        }
+        if (pct >= 1.2) {
+            // Tăng vừa (1.2% - 3.5%)
+            return {
+                bgClass: 'bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-700 dark:hover:bg-emerald-600 shadow-2xs',
+                bgStyle: { backgroundColor: '#059669' },
+                textClass: 'text-white font-black',
+                subTextClass: 'text-emerald-100 font-extrabold',
+                priceClass: 'text-emerald-100/90 font-mono',
+                isCeiling: false,
+                isFloor: false,
+                isRef: false,
+            };
+        }
+        // Tăng nhẹ (< 1.2%)
         return {
-            bgStyle: { backgroundColor: `rgba(16, 185, 129, ${alpha.toFixed(2)})` },
-            textClass: alpha > 0.5 ? 'text-white font-black' : 'text-emerald-100 dark:text-emerald-200 font-bold',
-            subTextClass: alpha > 0.5 ? 'text-emerald-100 font-extrabold' : 'text-emerald-200 font-bold',
-            priceClass: alpha > 0.5 ? 'text-emerald-100/90 font-mono' : 'text-emerald-200/80 font-mono',
+            bgClass: 'bg-emerald-500 hover:bg-emerald-400 dark:bg-emerald-800 dark:hover:bg-emerald-700 shadow-2xs',
+            bgStyle: { backgroundColor: '#10b981' },
+            textClass: 'text-white font-black',
+            subTextClass: 'text-emerald-100 font-extrabold',
+            priceClass: 'text-emerald-100/90 font-mono',
             isCeiling: false,
             isFloor: false,
             isRef: false,
         };
     }
 
-    // 5. Đỏ Giảm (Bearish Red)
-    const absPct = Math.abs(pct);
-    const maxFloor = Math.abs(floorPct || -7);
-    const ratio = Math.min(Math.max(absPct / maxFloor, 0.15), 1);
-    const alpha = 0.25 + ratio * 0.7;
-
+    // 5. Đỏ Giảm (Bearish Rose / Red)
+    if (pct <= -3.5) {
+        // Giảm mạnh (<= -3.5%)
+        return {
+            bgClass: 'bg-rose-700 hover:bg-rose-600 dark:bg-rose-600 dark:hover:bg-rose-500 shadow-2xs',
+            bgStyle: { backgroundColor: '#be123c' },
+            textClass: 'text-white font-black',
+            subTextClass: 'text-rose-100 font-extrabold',
+            priceClass: 'text-rose-100/90 font-mono',
+            isCeiling: false,
+            isFloor: false,
+            isRef: false,
+        };
+    }
+    if (pct <= -1.2) {
+        // Giảm vừa (-1.2% đến -3.5%)
+        return {
+            bgClass: 'bg-rose-600 hover:bg-rose-500 dark:bg-rose-700 dark:hover:bg-rose-600 shadow-2xs',
+            bgStyle: { backgroundColor: '#e11d48' },
+            textClass: 'text-white font-black',
+            subTextClass: 'text-rose-100 font-extrabold',
+            priceClass: 'text-rose-100/90 font-mono',
+            isCeiling: false,
+            isFloor: false,
+            isRef: false,
+        };
+    }
+    // Giảm nhẹ (> -1.2%)
     return {
-        bgStyle: { backgroundColor: `rgba(239, 68, 68, ${alpha.toFixed(2)})` },
-        textClass: alpha > 0.5 ? 'text-white font-black' : 'text-rose-100 dark:text-rose-200 font-bold',
-        subTextClass: alpha > 0.5 ? 'text-rose-100 font-extrabold' : 'text-rose-200 font-bold',
-        priceClass: alpha > 0.5 ? 'text-rose-100/90 font-mono' : 'text-rose-200/80 font-mono',
+        bgClass: 'bg-rose-500 hover:bg-rose-400 dark:bg-rose-800 dark:hover:bg-rose-700 shadow-2xs',
+        bgStyle: { backgroundColor: '#f43f5e' },
+        textClass: 'text-white font-black',
+        subTextClass: 'text-rose-100 font-extrabold',
+        priceClass: 'text-rose-100/90 font-mono',
         isCeiling: false,
         isFloor: false,
         isRef: false,

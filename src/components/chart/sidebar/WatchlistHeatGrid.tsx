@@ -86,25 +86,24 @@ export const BreadthBar: React.FC<{
  */
 export const HeatLegend: React.FC = () => {
     const steps = [
-        { label: 'Sàn', bg: '#0891b2', text: 'text-cyan-200' },
-        { label: '-5%', bg: 'rgba(239, 68, 68, 0.85)', text: 'text-rose-200' },
-        { label: '-3%', bg: 'rgba(239, 68, 68, 0.60)', text: 'text-rose-200' },
-        { label: '-1%', bg: 'rgba(239, 68, 68, 0.35)', text: 'text-rose-300' },
-        { label: '0%', bg: 'rgba(217, 119, 6, 0.45)', text: 'text-amber-300' },
-        { label: '+1%', bg: 'rgba(16, 185, 129, 0.35)', text: 'text-emerald-300' },
-        { label: '+3%', bg: 'rgba(16, 185, 129, 0.60)', text: 'text-emerald-200' },
-        { label: '+5%', bg: 'rgba(16, 185, 129, 0.85)', text: 'text-emerald-200' },
-        { label: 'Trần', bg: '#9333ea', text: 'text-purple-200' },
+        { label: 'Sàn', bgClass: 'bg-cyan-600 dark:bg-cyan-600' },
+        { label: '-5%', bgClass: 'bg-rose-700 dark:bg-rose-600' },
+        { label: '-3%', bgClass: 'bg-rose-600 dark:bg-rose-700' },
+        { label: '-1%', bgClass: 'bg-rose-500 dark:bg-rose-800' },
+        { label: '0%', bgClass: 'bg-amber-600 dark:bg-amber-700' },
+        { label: '+1%', bgClass: 'bg-emerald-500 dark:bg-emerald-800' },
+        { label: '+3%', bgClass: 'bg-emerald-600 dark:bg-emerald-700' },
+        { label: '+5%', bgClass: 'bg-emerald-700 dark:bg-emerald-600' },
+        { label: 'Trần', bgClass: 'bg-purple-600 dark:bg-purple-600' },
     ];
 
     return (
-        <div className="flex items-center justify-between px-2 py-1 bg-gray-100/80 dark:bg-[#161a23] border-b border-gray-200 dark:border-gray-800/80 text-[9px] font-mono text-gray-500 dark:text-gray-400 select-none">
+        <div className="flex items-center justify-between px-2 py-1 bg-gray-100/90 dark:bg-[#161a23] border-b border-gray-200 dark:border-gray-800/80 text-[9px] font-mono text-gray-500 dark:text-gray-400 select-none">
             <div className="flex items-center space-x-0.5">
                 {steps.map((st, i) => (
                     <div
                         key={i}
-                        style={{ backgroundColor: st.bg }}
-                        className="w-3.5 h-2 rounded-[2px] first:rounded-l last:rounded-r"
+                        className={`w-3.5 h-2 rounded-[2px] first:rounded-l last:rounded-r ${st.bgClass}`}
                         title={st.label}
                     />
                 ))}
@@ -112,11 +111,11 @@ export const HeatLegend: React.FC = () => {
             <div className="flex items-center space-x-1.5 text-[8.5px]">
                 <span className="text-cyan-600 dark:text-cyan-400 font-bold">Sàn</span>
                 <span>•</span>
-                <span className="text-rose-500 font-bold">-7%</span>
+                <span className="text-rose-600 dark:text-rose-400 font-bold">-7%</span>
                 <span>•</span>
-                <span className="text-amber-500 font-bold">0%</span>
+                <span className="text-amber-600 dark:text-amber-400 font-bold">0%</span>
                 <span>•</span>
-                <span className="text-emerald-500 font-bold">+7%</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">+7%</span>
                 <span>•</span>
                 <span className="text-purple-600 dark:text-purple-400 font-bold">Trần</span>
             </div>
@@ -297,27 +296,26 @@ const SingleHeatTile: React.FC<{
                 onMouseEnter={(e) => onHover(stock, e)}
                 onMouseMove={(e) => onHover(stock, e)}
                 onMouseLeave={() => onHover(null)}
-                style={tileStyle.bgStyle}
-                className={`group/heat-tile relative rounded-[2px] flex flex-col justify-between cursor-pointer transition-all duration-75 select-none overflow-hidden ${colSpanClass} ${rowSpanClass} ${isSelected
+                className={`group/heat-tile relative rounded-[3px] flex flex-col justify-between cursor-pointer transition-all duration-75 select-none overflow-hidden ${tileStyle.bgClass} ${colSpanClass} ${rowSpanClass} ${isSelected
                     ? 'ring-2 ring-white dark:ring-blue-400 shadow-md z-10 brightness-110'
-                    : 'hover:brightness-120 hover:scale-[1.02]'
+                    : 'hover:brightness-110 hover:shadow-xs'
                     }`}
             >
                 {/* Size L: 3x4 - Nội dung: Mã CP, % tăng giảm, giá hiện tại */}
                 {size === 'L' && (
                     <div className="flex flex-col justify-between items-center w-full h-full p-1.5 leading-none text-center">
                         <div className="w-full flex items-center justify-center">
-                            <span className={`text-[13px] font-mono tracking-tight font-black ${tileStyle.textClass}`}>
+                            <span className={`text-[13px] font-mono tracking-tight font-black ${tileStyle.textClass} drop-shadow-2xs`}>
                                 {stock.ticker}
                             </span>
                         </div>
                         <div className="my-auto text-center py-1">
-                            <div className={`text-[16px] font-mono tracking-tight font-black leading-none ${tileStyle.subTextClass}`}>
+                            <div className={`text-[16px] font-mono tracking-tight font-black leading-none ${tileStyle.subTextClass} drop-shadow-2xs`}>
                                 {sign}{pct.toFixed(1)}%
                             </div>
                         </div>
-                        <div className="w-full text-center text-[10px] font-mono border-t border-black/10 dark:border-white/10 pt-1 leading-none">
-                            <span className={tileStyle.priceClass}>
+                        <div className="w-full text-center text-[10px] font-mono border-t border-white/20 pt-1 leading-none">
+                            <span className={`${tileStyle.priceClass} drop-shadow-2xs`}>
                                 {fmtPrice(stock.currentPrice)}
                             </span>
                         </div>
@@ -328,17 +326,17 @@ const SingleHeatTile: React.FC<{
                 {size === 'M' && (
                     <div className="flex flex-col justify-between items-center w-full h-full p-1 leading-none text-center">
                         <div className="w-full flex items-center justify-center">
-                            <span className={`text-[11.5px] font-mono font-black ${tileStyle.textClass} truncate`}>
+                            <span className={`text-[11.5px] font-mono font-black ${tileStyle.textClass} truncate drop-shadow-2xs`}>
                                 {stock.ticker}
                             </span>
                         </div>
                         <div className="my-auto text-center py-0.5">
-                            <span className={`text-[13px] font-mono font-black ${tileStyle.subTextClass} whitespace-nowrap`}>
+                            <span className={`text-[13px] font-mono font-black ${tileStyle.subTextClass} whitespace-nowrap drop-shadow-2xs`}>
                                 {sign}{pct.toFixed(1)}%
                             </span>
                         </div>
-                        <div className="w-full text-center text-[9px] font-mono border-t border-black/10 dark:border-white/10 pt-0.5 leading-none">
-                            <span className={tileStyle.priceClass}>
+                        <div className="w-full text-center text-[9px] font-mono border-t border-white/20 pt-0.5 leading-none">
+                            <span className={`${tileStyle.priceClass} drop-shadow-2xs`}>
                                 {fmtPrice(stock.currentPrice)}
                             </span>
                         </div>
@@ -348,10 +346,10 @@ const SingleHeatTile: React.FC<{
                 {/* Size S: 1x2 - Nội dung: Mã CP, % tăng giảm */}
                 {size === 'S' && (
                     <div className="flex flex-col items-center justify-center w-full h-full p-0.5 leading-tight text-center">
-                        <span className={`text-[10px] font-mono font-bold ${tileStyle.textClass} truncate max-w-full`}>
+                        <span className={`text-[10px] font-mono font-bold ${tileStyle.textClass} truncate max-w-full drop-shadow-2xs`}>
                             {stock.ticker}
                         </span>
-                        <span className={`text-[9px] font-mono font-extrabold ${tileStyle.subTextClass} whitespace-nowrap mt-0.5`}>
+                        <span className={`text-[9px] font-mono font-extrabold ${tileStyle.subTextClass} whitespace-nowrap mt-0.5 drop-shadow-2xs`}>
                             {sign}{pct.toFixed(1)}%
                         </span>
                     </div>
@@ -360,7 +358,7 @@ const SingleHeatTile: React.FC<{
                 {/* Size XS: 1x1 - Nội dung: Mã CP */}
                 {size === 'XS' && (
                     <div className="flex items-center justify-center w-full h-full p-0 leading-none text-center">
-                        <span className={`text-[8.5px] font-mono font-extrabold ${tileStyle.textClass} truncate select-none tracking-tight`}>
+                        <span className={`text-[8.5px] font-mono font-extrabold ${tileStyle.textClass} truncate select-none tracking-tight drop-shadow-2xs`}>
                             {stock.ticker}
                         </span>
                     </div>
