@@ -5,14 +5,12 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin', 'vietnamese'],
-  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-heading',
   display: 'swap',
 });
 
 const inter = Inter({
   subsets: ['latin', 'vietnamese'],
-  weight: ['400', '500', '600', '700'],
   variable: '--font-body',
   display: 'swap',
 });
