@@ -238,10 +238,10 @@ const HeatFloatingTooltip: React.FC<{
 };
 
 /**
- * Render một ô cổ phiếu riêng lẻ theo Đề xuất 2: Balanced Treemap (Lưới 6 cột):
- * - Size L: col-span-3 row-span-4 (Leader áp đảo)
+ * Render một ô cổ phiếu riêng lẻ theo cấu hình lưới 6 cột:
+ * - Size L: col-span-3 row-span-4 (Leader)
  * - Size M: col-span-3 row-span-2 (Major)
- * - Size S: col-span-2 row-span-1 (Standard ngang)
+ * - Size S: col-span-1 row-span-2 (Standard dọc)
  * - Size XS: col-span-1 row-span-1 (Minor vi mô)
  */
 const SingleHeatTile: React.FC<{
@@ -367,13 +367,13 @@ const SingleHeatTile: React.FC<{
                     </div>
                 )}
 
-                {/* Size S: 2x1 - Standard (Hàng ngang 2 cột) */}
+                {/* Size S: 1x2 - Standard (Dọc 1 cột x 2 hàng) */}
                 {size === 'S' && (
-                    <div className="flex items-center justify-between w-full h-full px-1.5 py-0.5 leading-none">
-                        <span className={`text-[9.5px] font-mono font-bold ${tileStyle.textClass} truncate`}>
+                    <div className="flex flex-col items-center justify-center w-full h-full p-0.5 leading-tight text-center">
+                        <span className={`text-[9.5px] font-mono font-bold ${tileStyle.textClass} truncate max-w-full`}>
                             {stock.ticker}
                         </span>
-                        <span className={`text-[9px] font-mono font-extrabold ${tileStyle.subTextClass} whitespace-nowrap ml-1`}>
+                        <span className={`text-[8.5px] font-mono font-extrabold ${tileStyle.subTextClass} whitespace-nowrap mt-0.5`}>
                             {sign}{pct.toFixed(1)}%
                         </span>
                     </div>

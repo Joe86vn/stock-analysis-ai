@@ -124,11 +124,11 @@ export function getHeatTileStyle(
 }
 
 /**
- * Đề xuất 2: "Balanced Treemap" (Hệ lưới 6 cột kinh điển)
- * - Size L: 4x3 (chiếm 4/6 cột, 3 hàng = 12 units) - Leader bè ngang
- * - Size M: 2x3 (chiếm 2/6 cột, 3 hàng = 6 units) - Major kẹp bên cạnh L, ghép thành khối 6x3 phẳng lì
- * - Size S: 2x1 (chiếm 2/6 cột, 1 hàng = 2 units) - Standard ngang (3 ô xếp vừa 1 dòng 6 cột)
- * - Size XS: 1x1 (chiếm 1/6 cột, 1 hàng = 1 unit) - Minor vi mô (6 ô xếp vừa 1 dòng 6 cột)
+ * Cấu hình kích thước ô theo yêu cầu (Hệ lưới 6 cột):
+ * - Size L: 3x4 (chiếm 3/6 cột, 4 hàng) - Leader tuyệt đối
+ * - Size M: 3x2 (chiếm 3/6 cột, 2 hàng) - Major
+ * - Size S: 1x2 (chiếm 1/6 cột, 2 hàng) - Standard dọc
+ * - Size XS: 1x1 (chiếm 1/6 cột, 1 hàng) - Minor vi mô
  */
 export function getTileSpan(
     stock: StockForHeat,
@@ -143,10 +143,15 @@ export function getTileSpan(
     }
 
     if (sizeMode === 'equal') {
-        if (n === 2) {
+        if (n <= 2) {
             return { colSpan: 3, rowSpan: 2, size: 'M' };
         }
-        return { colSpan: 2, rowSpan: 1, size: 'S' };
+        return { colSpan: 1, rowSpan: 2, size: 'S' };
+    }
+
+    if (n === 2) {
+        // 2 mã: mỗi mã 3x2 tạo thành hàng 6x2 cân đối
+        return { colSpan: 3, rowSpan: 2, size: 'M' };
     }
 
     // Trọng số tính theo GTGD hoặc Vốn hóa
@@ -171,39 +176,42 @@ export function getTileSpan(
 
     // Nhóm nhỏ dưới 5 mã (< 5 mã)
     if (n < 5) {
-        if (n === 2) {
-            return rank === 0
-                ? { colSpan: 4, rowSpan: 3, size: 'L' }
-                : { colSpan: 2, rowSpan: 3, size: 'M' };
-        }
         if (n === 3) {
-            // Cột 1-4: L (4x3). Cột 5-6: M (2x2) + S (2x1) => vừa vặn cao 3 hàng!
-            if (rank === 0) return { colSpan: 4, rowSpan: 3, size: 'L' };
-            if (rank === 1) return { colSpan: 2, rowSpan: 2, size: 'M' };
-            return { colSpan: 2, rowSpan: 1, size: 'S' };
+            // Cột 1-3: L (3x4). Cột 4-6: 2 mã M (3x2) xếp chồng (2+2=4 hàng)!
+            if (rank === 0) return { colSpan: 3, rowSpan: 4, size: 'L' };
+            return { colSpan: 3, rowSpan: 2, size: 'M' };
         }
-        // n === 4: Top 1 L (4x3), 3 mã còn lại mỗi mã S (2x1) xếp chồng bên cạnh (1+1+1=3)
-        if (rank === 0) return { colSpan: 4, rowSpan: 3, size: 'L' };
-        return { colSpan: 2, rowSpan: 1, size: 'S' };
+        if (n === 4) {
+            // Top 1: L (3x4), Top 2: M (3x2), 2 mã còn lại: mỗi mã S (1x2)
+            if (rank === 0) return { colSpan: 3, rowSpan: 4, size: 'L' };
+            if (rank === 1) return { colSpan: 3, rowSpan: 2, size: 'M' };
+            return { colSpan: 1, rowSpan: 2, size: 'S' };
+        }
+        return { colSpan: 3, rowSpan: 2, size: 'M' };
     }
 
     // Nhóm từ 5 mã trở lên (5-10 mã hoặc > 10 mã)
-    // 1. Leader tuyệt đối: Top 1 luôn là Size L (4x3)
+    // 1. Leader tuyệt đối: Top 1 luôn là Size L (3x4)
     if (rank === 0) {
-        return { colSpan: 4, rowSpan: 3, size: 'L' };
+        return { colSpan: 3, rowSpan: 4, size: 'L' };
     }
 
-    // 2. Major: Top 2 đứng cạnh L ghép thành hàng đầu 6x3 phẳng lì
-    if (rank === 1) {
-        return { colSpan: 2, rowSpan: 3, size: 'M' };
+    // Nếu nhóm rất đông (> 12 mã) và top 2 có GTGD vượt trội (> 1.5 lần mã thứ 3): Top 2 cũng là L (3x4)
+    if (n > 12 && rank === 1 && currentWeight > (sorted[2] || 0) * 1.5) {
+        return { colSpan: 3, rowSpan: 4, size: 'L' };
     }
 
-    // 3. Standard: Top 20% - 65%: Size S (2x1) (3 ô = 1 dòng ngang 6 cột)
-    if (ratio < 0.65) {
-        return { colSpan: 2, rowSpan: 1, size: 'S' };
+    // 2. Major: Top 2 - 3 (hoặc top ~25%): Size M (3x2)
+    if (rank <= 2 || ratio < 0.25) {
+        return { colSpan: 3, rowSpan: 2, size: 'M' };
     }
 
-    // 4. Minor: Cuối cùng (bottom ~35%): Size XS (1x1) (6 ô = 1 dòng ngang 6 cột)
+    // 3. Standard: Tiếp theo 25% - 70%: Size S (1x2)
+    if (ratio < 0.70) {
+        return { colSpan: 1, rowSpan: 2, size: 'S' };
+    }
+
+    // 4. Minor: Cuối cùng (bottom ~30%): Size XS (1x1)
     return { colSpan: 1, rowSpan: 1, size: 'XS' };
 }
 
