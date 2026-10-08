@@ -238,7 +238,7 @@ const HeatFloatingTooltip: React.FC<{
 };
 
 /**
- * Render một ô cổ phiếu riêng lẻ theo Đề xuất 1: Power Law (Lưới 6 cột):
+ * Render một ô cổ phiếu riêng lẻ theo Đề xuất 2: Balanced Treemap (Lưới 6 cột):
  * - Size L: col-span-3 row-span-4 (Leader áp đảo)
  * - Size M: col-span-3 row-span-2 (Major)
  * - Size S: col-span-2 row-span-1 (Standard ngang)
@@ -274,11 +274,13 @@ const SingleHeatTile: React.FC<{
         const colSpanClass =
             colSpan === 6
                 ? 'col-span-6'
-                : colSpan === 3
-                    ? 'col-span-3'
-                    : colSpan === 2
-                        ? 'col-span-2'
-                        : 'col-span-1';
+                : colSpan === 4
+                    ? 'col-span-4'
+                    : colSpan === 3
+                        ? 'col-span-3'
+                        : colSpan === 2
+                            ? 'col-span-2'
+                            : 'col-span-1';
 
         const rowSpanClass =
             rowSpan === 4
@@ -334,7 +336,7 @@ const SingleHeatTile: React.FC<{
                     </div>
                 )}
 
-                {/* Size M: 3x2 - Major */}
+                {/* Size M: 2x3 - Major kẹp song song bên cạnh L */}
                 {size === 'M' && (
                     <div className="flex flex-col justify-between w-full h-full p-1 leading-none">
                         <div className="flex items-center justify-between w-full">
@@ -345,22 +347,21 @@ const SingleHeatTile: React.FC<{
                                 <span className="text-[7.5px] font-mono px-0.5 rounded bg-black/30 text-white/90">
                                     {stock.rsRating}
                                 </span>
-                            ) : (
-                                <span className={`text-[8.5px] font-mono ${tileStyle.priceClass}`}>
-                                    {fmtPrice(stock.currentPrice)}
-                                </span>
-                            )}
+                            ) : null}
                         </div>
-                        <div className="flex items-center justify-between w-full mt-auto">
-                            <span className={`text-[11.5px] font-mono font-black ${tileStyle.subTextClass} whitespace-nowrap`}>
+                        <div className="my-auto text-center py-0.5">
+                            <span className={`text-[12.5px] font-mono font-black ${tileStyle.subTextClass} whitespace-nowrap`}>
                                 {sign}{pct.toFixed(1)}%
                             </span>
-                            <span className="text-white/80 text-[8px] font-mono">
+                        </div>
+                        <div className="flex items-center justify-between w-full text-[8px] font-mono border-t border-black/10 dark:border-white/10 pt-0.5 leading-none">
+                            <span className={tileStyle.priceClass}>
+                                {fmtPrice(stock.currentPrice)}
+                            </span>
+                            <span className="text-white/80 text-[7.5px]">
                                 {stock.sessionValueBillion
                                     ? `${stock.sessionValueBillion.toFixed(0)}T`
-                                    : stock.adtv20Billion
-                                        ? `${stock.adtv20Billion.toFixed(0)}T`
-                                        : ''}
+                                    : ''}
                             </span>
                         </div>
                     </div>
