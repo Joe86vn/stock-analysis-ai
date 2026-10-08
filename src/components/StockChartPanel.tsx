@@ -465,7 +465,12 @@ export function StockChartPanel({
   const [showSidebar, setShowSidebar] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('stock_chart_sidebar_open');
-      return saved !== null ? saved === 'true' : true;
+      if (saved !== null) return saved === 'true';
+      // Mặc định: màn hình desktop/laptop thì mở sẵn, màn hình nhỏ (mobile) thì đóng để không chiếm toàn bộ màn hình
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        return false;
+      }
+      return true;
     } catch {
       return true;
     }
@@ -2590,9 +2595,9 @@ export function StockChartPanel({
       </div>
 
       {/* ─── HÀNG 2: Dòng Trạng Thái Phiên & Công Cụ Kỹ Thuật ─── */}
-      <div className="flex items-center justify-between px-5 py-1.5 border-b border-gray-200 dark:border-gray-800/80 bg-white dark:bg-gray-950 flex-shrink-0 gap-3 flex-wrap min-h-[36px]">
+      <div className="flex items-center justify-between px-2.5 sm:px-5 py-1 sm:py-1.5 border-b border-gray-200 dark:border-gray-800/80 bg-white dark:bg-gray-950 flex-shrink-0 gap-1.5 sm:gap-3 flex-wrap min-h-[36px]">
         {/* Block 1 (Trái): Realtime Badge, Ngày, OHLC, Chênh lệch tăng giảm, Vol, GTGD 20N */}
-        <div className="flex items-center space-x-3 sm:space-x-4 text-xs tabular-nums font-mono overflow-x-auto no-scrollbar text-slate-700 dark:text-gray-200 min-w-0">
+        <div className="flex items-center space-x-2 sm:space-x-4 text-xs tabular-nums font-mono overflow-x-auto no-scrollbar text-slate-700 dark:text-gray-200 min-w-0 max-w-full">
           {/* Realtime Status Indicator Badge */}
           <span
             className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-tight flex-shrink-0 transition-colors ${
@@ -2695,8 +2700,8 @@ export function StockChartPanel({
           )}
         </div>
 
-        {/* Block 2 (Phải): Chu kỳ D W M + Chỉ báo (fx), Cổ tức, Cài đặt ⚙️ */}
-        <div className="flex items-center space-x-2.5 ml-auto flex-shrink-0">
+        {/* Block 2 (Phải): Chu kỳ D W M + Chỉ báo (fx), Cổ tức, Cài đặt ⚙️, Tiện ích */}
+        <div className="flex items-center space-x-1.5 sm:space-x-2.5 ml-auto flex-shrink-0">
           {/* Chu kỳ nến D W M */}
           <div className="flex items-center bg-gray-100 dark:bg-gray-800/90 p-0.5 rounded-lg border border-gray-200 dark:border-gray-700/80 text-xs">
             {(['D', 'W', 'M'] as Resolution[]).map((res) => {
@@ -3087,23 +3092,8 @@ export function StockChartPanel({
             <Settings className="h-4 w-4" />
           </button>
 
-          {/* Quick Bid/Ask Toggle Button trên Toolbar */}
-          <button
-            onClick={toggleShowBidAsk}
-            className={`
-              px-2 py-1 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer flex items-center gap-1.5 border
-              ${showBidAsk
-                ? 'bg-emerald-500/10 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 shadow-2xs'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700/80 hover:text-slate-900 dark:hover:text-white'
-              }
-            `}
-            title="Bật / Tắt bảng điện Dư mua - Dư bán (Bid / Ask)"
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${showBidAsk ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
-            <span>Bid/Ask</span>
-          </button>
-
-          <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
+          {/* Vách ngăn phân cách trước nút Tiện ích */}
+          <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 mx-0.5" />
 
           {/* Tiện ích Sidebar Toggle Button */}
           <button
@@ -3116,6 +3106,7 @@ export function StockChartPanel({
               }
             `}
             title="Thanh tiện ích: Bảng giá mini, Tài chính 4 kỳ, Cổ tức, Tin tức (Phím tắt \)"
+            aria-label="Bật/tắt thanh tiện ích"
           >
             <Layers className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-[#131722] ${showSidebar ? 'bg-blue-500' : 'bg-gray-400 opacity-60'}`} />

@@ -57,7 +57,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
 
   return (
     <aside
-      className="w-[380px] sm:w-[400px] h-full flex flex-col border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-[#131722] flex-shrink-0 z-20 shadow-xl font-sans transition-all duration-200 overflow-hidden"
+      className="absolute inset-y-0 right-0 sm:relative w-full sm:w-[400px] max-w-full h-full flex flex-col border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-[#131722] flex-shrink-0 z-30 sm:z-20 shadow-2xl sm:shadow-xl font-sans transition-all duration-200 overflow-hidden"
       aria-label="Thanh tiện ích biểu đồ"
     >
       {/* ─── Header Tiện Ích & Thanh Chọn Tabs ─── */}
@@ -124,7 +124,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
         {/* Nút Đóng Sidebar */}
         <button
           onClick={onClose}
-          className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-200/80 dark:hover:bg-gray-800 transition cursor-pointer flex-shrink-0 ml-1"
+          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-gray-100 hover:bg-gray-200 dark:bg-gray-800/80 dark:hover:bg-gray-700 border border-gray-200/80 dark:border-gray-700/80 transition cursor-pointer flex-shrink-0 ml-1.5 shadow-2xs"
           title="Thu gọn tiện ích (phím tắt \)"
           aria-label="Đóng tiện ích"
         >

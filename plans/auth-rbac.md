@@ -136,3 +136,32 @@ return (
      - Ít nhất 1 chữ cái in hoa (`A-Z`)
      - Ít nhất 1 chữ số (`0-9`)
      - Ít nhất 1 ký tự đặc biệt (`!@#$%...`)
+
+---
+
+## 6. Hướng dẫn Cấu hình Vercel Production (Deployment & Environment Variables)
+
+Để đảm bảo phiên đăng nhập JWT trên môi trường Serverless/Edge của Vercel hoạt động ổn định và bảo mật tối đa:
+
+### 6.1. Cấu hình biến môi trường trên Vercel Dashboard
+Truy cập **Vercel Project Dashboard** -> **Settings** -> **Environment Variables**, thêm 2 biến sau cho cả 3 môi trường (**Production**, **Preview**, **Development**):
+
+1. **`AUTH_SECRET`**:
+   - Giá trị: Chuỗi ngẫu nhiên 32+ bytes (Ví dụ: `b7e28b8cf9286eb91ef64c5750d53457a4190c13e648834d0b00115e58aa35a4` hoặc sinh qua `openssl rand -base64 33` / `npx auth secret`).
+   - *Tác dụng*: Khóa bí mật mã hóa và xác thực token JWT phiên đăng nhập, ngăn ngừa giả mạo session.
+
+2. **`AUTH_TRUST_HOST`**:
+   - Giá trị: `true`
+   - *Tác dụng*: Cho phép NextAuth tin tưởng domain động của Vercel (bao gồm domain tùy chỉnh và các URL preview `*.vercel.app`), tránh lỗi `UntrustedHost`.
+
+### 6.2. Cấu hình nhanh bằng Vercel CLI (Tùy chọn)
+Nếu đã đăng nhập Vercel CLI:
+```bash
+# Thêm AUTH_SECRET
+vercel env add AUTH_SECRET production preview development
+
+# Thêm AUTH_TRUST_HOST
+vercel env add AUTH_TRUST_HOST production preview development
+```
+*Lưu ý: Sau khi thêm hoặc cập nhật biến môi trường, hãy tiến hành **Redeploy** lại bản build gần nhất trên Vercel để áp dụng thay đổi.*
+
