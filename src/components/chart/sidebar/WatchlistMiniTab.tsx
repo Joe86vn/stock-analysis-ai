@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { LiveQuoteItem } from '@/app/api/stocks/live-quotes/route';
 import { HeatSizeMode } from './watchlist-heat';
-import { WatchlistHeatGrid, BreadthBar, HeatLegend } from './WatchlistHeatGrid';
+import { WatchlistHeatGrid, WatchlistPackedHeatView, BreadthBar, HeatLegend } from './WatchlistHeatGrid';
 
 interface WatchlistMiniTabProps {
   currentTicker: string;
@@ -1272,6 +1272,17 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
               </button>
             )}
           </div>
+        ) : viewMode === 'heatmap' ? (
+          /* ════ CHẾ ĐỘ HEATMAP: Khối ngành gom cụm gọn gàng (Packed Industry Blocks) ════ */
+          <WatchlistPackedHeatView
+            groups={industryGroups}
+            currentTicker={currentTicker}
+            sizeMode={heatSizeMode}
+            isCustomWatchlist={activeWatchlistInfo.isCustom}
+            onSelectTicker={onSelectTicker}
+            onRemoveTicker={handleRemoveTickerFromActiveCustom}
+            fmtPrice={fmtPrice}
+          />
         ) : (
           industryGroups.map((group) => {
             const isCollapsed = collapsedIndustries[group.industry];
@@ -1523,18 +1534,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                       </div>
                     )}
 
-                    {/* ════ CHẾ ĐỘ 4: BẢN ĐỒ NHIỆT ĐA KÍCH THƯỚC (Heatmap) ════ */}
-                    {viewMode === 'heatmap' && (
-                      <WatchlistHeatGrid
-                        stocks={group.stocks}
-                        currentTicker={currentTicker}
-                        sizeMode={heatSizeMode}
-                        isCustomWatchlist={activeWatchlistInfo.isCustom}
-                        onSelectTicker={onSelectTicker}
-                        onRemoveTicker={handleRemoveTickerFromActiveCustom}
-                        fmtPrice={fmtPrice}
-                      />
-                    )}
+
                   </>
                 )}
               </div>

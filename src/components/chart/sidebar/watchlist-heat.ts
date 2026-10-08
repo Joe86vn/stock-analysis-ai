@@ -1,4 +1,7 @@
+import React from 'react';
+
 export type HeatSizeMode = 'equal' | 'value' | 'cap';
+export type HeatTileSize = 'L' | 'M' | 'S' | 'XS' | 'TINY';
 
 export interface HeatTileStyle {
     bgStyle: React.CSSProperties;
@@ -21,6 +24,17 @@ export interface StockForHeat {
     adtv20Billion?: number;
     marketCapBillion?: number;
     rsRating?: number;
+}
+
+export interface IndustryHeatGroup {
+    industry: string;
+    stocks: StockForHeat[];
+    count: number;
+    upCount: number;
+    downCount: number;
+    refCount: number;
+    totalSessionVal: number;
+    avgChange: number;
 }
 
 /**
@@ -79,7 +93,6 @@ export function getHeatTileStyle(
 
     // 4. Xanh Tăng (Bullish Emerald #10B981)
     if (pct > 0) {
-        // Tỷ lệ tăng so với trần (tối thiểu 0.28, tối đa 0.95)
         const ratio = Math.min(Math.max(pct / (ceilingPct || 7), 0.15), 1);
         const alpha = 0.25 + ratio * 0.7; // 0.35 -> 0.95
         return {
@@ -111,14 +124,22 @@ export function getHeatTileStyle(
 }
 
 /**
- * Xác định kích thước ô (L: 2x2, M: 2x1, S: 1x1) dựa trên chế độ heatSizeMode
+ * Xác định kích thước ô theo 5 cấp (L, M, S, XS, TINY) dựa trên GTGD / Vốn hóa
  */
 export function getTileSpan(
     stock: StockForHeat,
     allGroupStocks: StockForHeat[],
     sizeMode: HeatSizeMode
-): { colSpan: number; rowSpan: number; size: 'L' | 'M' | 'S' } {
-    if (sizeMode === 'equal' || allGroupStocks.length <= 2) {
+): { colSpan: number; rowSpan: number; size: HeatTileSize } {
+    if (sizeMode === 'equal') {
+        return { colSpan: 1, rowSpan: 1, size: 'S' };
+    }
+
+    const n = allGroupStocks.length;
+    if (n <= 1) {
+        return { colSpan: 2, rowSpan: 1, size: 'M' };
+    }
+    if (n <= 2) {
         return { colSpan: 1, rowSpan: 1, size: 'S' };
     }
 
@@ -130,31 +151,53 @@ export function getTileSpan(
         return s.marketCapBillion || 0;
     };
 
-    const weights = allGroupStocks.map(getWeight).filter((w) => w > 0);
-    if (weights.length === 0) {
-        return { colSpan: 1, rowSpan: 1, size: 'S' };
-    }
-
     const currentWeight = getWeight(stock);
-    if (currentWeight <= 0) {
-        return { colSpan: 1, rowSpan: 1, size: 'S' };
+    const allWeights = allGroupStocks.map(getWeight).filter((w) => w > 0);
+
+    if (allWeights.length === 0 || currentWeight <= 0) {
+        return { colSpan: 1, rowSpan: 1, size: 'XS' };
     }
 
     // Sắp xếp weights giảm dần
-    const sorted = [...weights].sort((a, b) => b - a);
+    const sorted = [...allWeights].sort((a, b) => b - a);
     const rank = sorted.findIndex((w) => w <= currentWeight);
+    const ratio = rank / sorted.length;
 
-    // Top ~12% đầu tiên: ô L (col-span-2 row-span-2)
-    const lThresholdIndex = Math.max(1, Math.floor(allGroupStocks.length * 0.12));
-    if (rank >= 0 && rank < lThresholdIndex && allGroupStocks.length >= 4) {
+    // Top 15% (ít nhất 1 mã nếu nhóm >= 4 mã): Ô L (2x2)
+    if (rank === 0 && n >= 4) {
+        return { colSpan: 2, rowSpan: 2, size: 'L' };
+    }
+    if (ratio < 0.15 && n >= 6) {
         return { colSpan: 2, rowSpan: 2, size: 'L' };
     }
 
-    // Tiếp theo top 30%: ô M (col-span-2 row-span-1)
-    const mThresholdIndex = Math.max(2, Math.floor(allGroupStocks.length * 0.35));
-    if (rank >= 0 && rank < mThresholdIndex && allGroupStocks.length >= 3) {
+    // Top 15% - 35%: Ô M (2x1)
+    if (ratio < 0.35 && n >= 3) {
         return { colSpan: 2, rowSpan: 1, size: 'M' };
     }
 
-    return { colSpan: 1, rowSpan: 1, size: 'S' };
+    // Tiếp theo 35% - 65%: Ô S (1x1)
+    if (ratio < 0.65) {
+        return { colSpan: 1, rowSpan: 1, size: 'S' };
+    }
+
+    // Tiếp theo 65% - 85%: Ô XS (1x1 nhỏ)
+    if (ratio < 0.85 || n < 8) {
+        return { colSpan: 1, rowSpan: 1, size: 'XS' };
+    }
+
+    // Cuối cùng hoặc thanh khoản nhỏ: Ô TINY (vi mô, chỉ hiện khối màu)
+    return { colSpan: 1, rowSpan: 1, size: 'TINY' };
+}
+
+/**
+ * Xác định phân bổ cột cho khối ngành:
+ * - Ngành có >= 5 mã hoặc GTGD >= 500 Tỷ: chiếm 2 cột (full width)
+ * - Ngành ít mã (< 5 mã): chiếm 1 cột (xếp gọn 2 khối ngành cạnh nhau)
+ */
+export function getIndustryBlockColSpan(stockCount: number, totalSessionVal?: number): number {
+    if (stockCount >= 5 || (totalSessionVal && totalSessionVal >= 500)) {
+        return 2;
+    }
+    return 1;
 }
