@@ -125,7 +125,7 @@ export const HeatLegend: React.FC = () => {
 };
 
 /**
- * Floating Tooltip Card hiển thị đầy đủ thông tin khi hover (đặc biệt cho các ô XS và S)
+ * Floating Tooltip Card hiển thị đầy đủ thông tin khi hover
  */
 interface HoveredInfo {
     stock: StockForHeat;
@@ -238,11 +238,11 @@ const HeatFloatingTooltip: React.FC<{
 };
 
 /**
- * Render một ô cổ phiếu riêng lẻ với 4 cấp độ kích thước:
- * - Size L: 2x2 (col-span-4 row-span-4)
- * - Size M: 2x1 (col-span-4 row-span-2)
- * - Size S: 1x1 (col-span-2 row-span-2)
- * - Size XS: 0.5x0.5 (col-span-1 row-span-1)
+ * Render một ô cổ phiếu riêng lẻ theo Đề xuất 1: Power Law (Lưới 6 cột):
+ * - Size L: col-span-3 row-span-4 (Leader áp đảo)
+ * - Size M: col-span-3 row-span-2 (Major)
+ * - Size S: col-span-2 row-span-1 (Standard ngang)
+ * - Size XS: col-span-1 row-span-1 (Minor vi mô)
  */
 const SingleHeatTile: React.FC<{
     stock: StockForHeat;
@@ -269,16 +269,25 @@ const SingleHeatTile: React.FC<{
         const pct = stock.priceChangePercent ?? 0;
         const sign = pct > 0 ? '+' : '';
         const tileStyle = getHeatTileStyle(pct, stock.exchange);
-        const { size } = getTileSpan(stock, allStocks, sizeMode);
+        const { colSpan, rowSpan, size } = getTileSpan(stock, allStocks, sizeMode);
 
-        const spanClass =
-            size === 'L'
-                ? 'col-span-4 row-span-4 min-h-[68px]'
-                : size === 'M'
-                    ? 'col-span-4 row-span-2 min-h-[34px]'
-                    : size === 'S'
-                        ? 'col-span-2 row-span-2 min-h-[34px]'
-                        : 'col-span-1 row-span-1 min-h-[17px]';
+        const colSpanClass =
+            colSpan === 6
+                ? 'col-span-6'
+                : colSpan === 3
+                    ? 'col-span-3'
+                    : colSpan === 2
+                        ? 'col-span-2'
+                        : 'col-span-1';
+
+        const rowSpanClass =
+            rowSpan === 4
+                ? 'row-span-4 min-h-[92px]'
+                : rowSpan === 3
+                    ? 'row-span-3 min-h-[68px]'
+                    : rowSpan === 2
+                        ? 'row-span-2 min-h-[46px]'
+                        : 'row-span-1 min-h-[23px]';
 
         return (
             <div
@@ -287,34 +296,34 @@ const SingleHeatTile: React.FC<{
                 onMouseMove={(e) => onHover(stock, e)}
                 onMouseLeave={() => onHover(null)}
                 style={tileStyle.bgStyle}
-                className={`group/heat-tile relative rounded-[2px] flex flex-col justify-between cursor-pointer transition-all duration-75 select-none overflow-hidden ${spanClass} ${isSelected
+                className={`group/heat-tile relative rounded-[2px] flex flex-col justify-between cursor-pointer transition-all duration-75 select-none overflow-hidden ${colSpanClass} ${rowSpanClass} ${isSelected
                     ? 'ring-2 ring-white dark:ring-blue-400 shadow-md z-10 brightness-110'
                     : 'hover:brightness-120 hover:scale-[1.02]'
                     }`}
             >
-                {/* Size L: 2x2 */}
+                {/* Size L: 3x4 (hoặc 6x3 nếu ngành có đúng 1 mã) - Leader lớn */}
                 {size === 'L' && (
-                    <div className="flex flex-col justify-between w-full h-full p-1 leading-none">
+                    <div className="flex flex-col justify-between w-full h-full p-1.5 leading-none">
                         <div className="flex items-start justify-between w-full">
-                            <span className={`text-[12px] font-mono tracking-tight font-black ${tileStyle.textClass}`}>
+                            <span className={`text-[13px] font-mono tracking-tight font-black ${tileStyle.textClass}`}>
                                 {stock.ticker}
                             </span>
                             {stock.rsRating ? (
-                                <span className="text-[8px] font-mono px-0.5 py-0.2 rounded bg-black/35 text-white/95">
+                                <span className="text-[8.5px] font-mono px-1 py-0.2 rounded bg-black/40 text-white font-extrabold">
                                     {stock.rsRating}
                                 </span>
                             ) : null}
                         </div>
-                        <div className="my-auto text-center py-0.5">
-                            <div className={`text-[13px] font-mono tracking-tight leading-none ${tileStyle.subTextClass}`}>
+                        <div className="my-auto text-center py-1">
+                            <div className={`text-[16px] font-mono tracking-tight font-black leading-none ${tileStyle.subTextClass}`}>
                                 {sign}{pct.toFixed(1)}%
                             </div>
                         </div>
-                        <div className="flex items-center justify-between w-full text-[8.5px] font-mono border-t border-black/10 dark:border-white/10 pt-0.5 leading-none">
+                        <div className="flex items-center justify-between w-full text-[9px] font-mono border-t border-black/10 dark:border-white/10 pt-1 leading-none">
                             <span className={tileStyle.priceClass}>
                                 {fmtPrice(stock.currentPrice)}
                             </span>
-                            <span className="text-white/80 text-[8px]">
+                            <span className="text-white/80 text-[8.5px]">
                                 {stock.sessionValueBillion
                                     ? `${stock.sessionValueBillion.toFixed(0)}T`
                                     : stock.adtv20Billion
@@ -325,43 +334,51 @@ const SingleHeatTile: React.FC<{
                     </div>
                 )}
 
-                {/* Size M: 2x1 */}
+                {/* Size M: 3x2 - Major */}
                 {size === 'M' && (
-                    <div className="flex items-center justify-between w-full h-full px-1.5 py-0.5 leading-none">
-                        <div className="flex items-center space-x-1 truncate">
+                    <div className="flex flex-col justify-between w-full h-full p-1 leading-none">
+                        <div className="flex items-center justify-between w-full">
                             <span className={`text-[11px] font-mono font-bold ${tileStyle.textClass} truncate`}>
                                 {stock.ticker}
                             </span>
                             {stock.rsRating ? (
-                                <span className="text-[7.5px] font-mono px-0.5 rounded bg-black/30 text-white/90 hidden sm:inline">
+                                <span className="text-[7.5px] font-mono px-0.5 rounded bg-black/30 text-white/90">
                                     {stock.rsRating}
                                 </span>
-                            ) : null}
+                            ) : (
+                                <span className={`text-[8.5px] font-mono ${tileStyle.priceClass}`}>
+                                    {fmtPrice(stock.currentPrice)}
+                                </span>
+                            )}
                         </div>
-                        <div className="flex items-center space-x-1 flex-shrink-0 text-right">
-                            <span className={`text-[10px] font-mono ${tileStyle.subTextClass} whitespace-nowrap`}>
+                        <div className="flex items-center justify-between w-full mt-auto">
+                            <span className={`text-[11.5px] font-mono font-black ${tileStyle.subTextClass} whitespace-nowrap`}>
                                 {sign}{pct.toFixed(1)}%
                             </span>
-                            <span className={`text-[8.5px] font-mono ${tileStyle.priceClass} hidden sm:inline`}>
-                                {fmtPrice(stock.currentPrice)}
+                            <span className="text-white/80 text-[8px] font-mono">
+                                {stock.sessionValueBillion
+                                    ? `${stock.sessionValueBillion.toFixed(0)}T`
+                                    : stock.adtv20Billion
+                                        ? `${stock.adtv20Billion.toFixed(0)}T`
+                                        : ''}
                             </span>
                         </div>
                     </div>
                 )}
 
-                {/* Size S: 1x1 */}
+                {/* Size S: 2x1 - Standard (Hàng ngang 2 cột) */}
                 {size === 'S' && (
-                    <div className="flex flex-col items-center justify-center w-full h-full p-0.5 leading-tight text-center">
-                        <span className={`text-[10px] font-mono font-bold ${tileStyle.textClass} truncate w-full leading-none`}>
+                    <div className="flex items-center justify-between w-full h-full px-1.5 py-0.5 leading-none">
+                        <span className={`text-[9.5px] font-mono font-bold ${tileStyle.textClass} truncate`}>
                             {stock.ticker}
                         </span>
-                        <span className={`text-[8.5px] font-mono ${tileStyle.subTextClass} whitespace-nowrap mt-0.5 leading-none`}>
+                        <span className={`text-[9px] font-mono font-extrabold ${tileStyle.subTextClass} whitespace-nowrap ml-1`}>
                             {sign}{pct.toFixed(1)}%
                         </span>
                     </div>
                 )}
 
-                {/* Size XS: 0.5x0.5 */}
+                {/* Size XS: 1x1 - Minor (Vi mô 1 cột) */}
                 {size === 'XS' && (
                     <div className="flex items-center justify-center w-full h-full p-0 leading-none text-center">
                         <span className={`text-[8px] font-mono font-extrabold ${tileStyle.textClass} truncate select-none tracking-tighter`}>
@@ -395,7 +412,7 @@ export const WatchlistHeatGrid: React.FC<WatchlistHeatGridProps> = ({
     onSelectTicker,
     onRemoveTicker,
     fmtPrice,
-    columnsCount = 8,
+    columnsCount = 6,
 }) => {
     const [hoveredInfo, setHoveredInfo] = useState<HoveredInfo | null>(null);
 
@@ -414,11 +431,11 @@ export const WatchlistHeatGrid: React.FC<WatchlistHeatGridProps> = ({
     const colClass =
         columnsCount === 2
             ? 'grid-cols-2'
-            : columnsCount === 4
-                ? 'grid-cols-4'
-                : columnsCount === 6
-                    ? 'grid-cols-6'
-                    : 'grid-cols-8';
+            : columnsCount === 3
+                ? 'grid-cols-3'
+                : columnsCount === 4
+                    ? 'grid-cols-4'
+                    : 'grid-cols-6';
 
     return (
         <div className="relative">
@@ -447,10 +464,11 @@ export const WatchlistHeatGrid: React.FC<WatchlistHeatGridProps> = ({
 
 /**
  * Khối Heatmap Packed View:
- * Phân bổ cột linh hoạt trong lưới 6 cột:
+ * Phân bổ cột linh hoạt trong lưới 6 cột cho cả outer block lẫn inner tiles:
  * - Trên 10 mã: 1 dòng riêng (col-span-6)
  * - Từ 5 - 10 mã: chia đôi kích thước (col-span-3, 2 ngành / dòng)
  * - Dưới 5 mã: chia 3 (col-span-2, 3 ngành / dòng)
+ * - Mỗi khối ngành bên trong luôn dùng grid-cols-6 grid-flow-dense để xếp khít L(3x4), M(3x2), S(2x1), XS(1x1)
  */
 export const WatchlistPackedHeatView: React.FC<WatchlistPackedHeatViewProps> = ({
     groups,
@@ -489,9 +507,6 @@ export const WatchlistPackedHeatView: React.FC<WatchlistPackedHeatViewProps> = (
                             : colSpan === 3
                                 ? 'col-span-3'
                                 : 'col-span-2';
-
-                    // Số cột con bên trong card: > 10 mã dùng 8 cột, 5-10 mã và < 5 mã dùng 4 cột
-                    const innerColsClass = isFullWidth ? 'grid-cols-8' : 'grid-cols-4';
 
                     return (
                         <div
@@ -533,9 +548,9 @@ export const WatchlistPackedHeatView: React.FC<WatchlistPackedHeatViewProps> = (
                                 </div>
                             </div>
 
-                            {/* Lưới các ô cổ phiếu trong ngành */}
+                            {/* Lưới 6 cột bên trong cho các ô cổ phiếu */}
                             <div
-                                className={`grid ${innerColsClass} grid-flow-dense gap-0.5 p-0.5 bg-slate-50/50 dark:bg-[#0e111a]`}
+                                className="grid grid-cols-6 grid-flow-dense gap-0.5 p-0.5 bg-slate-50/50 dark:bg-[#0e111a]"
                             >
                                 {group.stocks.map((stock) => (
                                     <SingleHeatTile

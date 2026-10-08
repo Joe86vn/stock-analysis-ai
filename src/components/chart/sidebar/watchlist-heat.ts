@@ -124,30 +124,33 @@ export function getHeatTileStyle(
 }
 
 /**
- * Xác định kích thước ô theo 4 nhóm kích cỡ:
- * - Size L: 2x2 (colSpan 4, rowSpan 4)
- * - Size M: 2x1 (colSpan 4, rowSpan 2)
- * - Size S: 1x1 (colSpan 2, rowSpan 2)
- * - Size XS: 0.5x0.5 (colSpan 1, rowSpan 1)
+ * Đề xuất 1: "Power Law" (Hệ lưới 6 cột)
+ * - Size L: 3x4 (chiếm 3/6 cột, 4 hàng) - Leader tuyệt đối
+ * - Size M: 3x2 (chiếm 3/6 cột, 2 hàng) - Major
+ * - Size S: 2x1 (chiếm 2/6 cột, 1 hàng) - Standard
+ * - Size XS: 1x1 (chiếm 1/6 cột, 1 hàng) - Minor
  */
 export function getTileSpan(
     stock: StockForHeat,
     allGroupStocks: StockForHeat[],
     sizeMode: HeatSizeMode
 ): { colSpan: number; rowSpan: number; size: HeatTileSize } {
-    if (sizeMode === 'equal') {
-        if (allGroupStocks.length <= 1) {
-            return { colSpan: 4, rowSpan: 2, size: 'M' };
-        }
-        return { colSpan: 2, rowSpan: 2, size: 'S' };
+    const n = allGroupStocks.length;
+
+    // Chỉ có 1 mã trong ngành: Cho chiếm full 6 cột của card mini
+    if (n <= 1) {
+        return { colSpan: 6, rowSpan: 3, size: 'L' };
     }
 
-    const n = allGroupStocks.length;
-    if (n <= 1) {
-        return { colSpan: 4, rowSpan: 2, size: 'M' };
+    if (sizeMode === 'equal') {
+        if (n <= 2) {
+            return { colSpan: 3, rowSpan: 2, size: 'M' };
+        }
+        return { colSpan: 2, rowSpan: 1, size: 'S' };
     }
+
     if (n === 2) {
-        return { colSpan: 2, rowSpan: 2, size: 'S' };
+        return { colSpan: 3, rowSpan: 2, size: 'M' };
     }
 
     // Trọng số tính theo GTGD hoặc Vốn hóa
@@ -172,43 +175,37 @@ export function getTileSpan(
 
     // Nhóm nhỏ dưới 5 mã (< 5 mã)
     if (n < 5) {
-        if (rank === 0 && currentWeight > (sorted[1] || 0) * 1.3) {
-            return { colSpan: 4, rowSpan: 2, size: 'M' };
-        }
-        return { colSpan: 2, rowSpan: 2, size: 'S' };
-    }
-
-    // Nhóm trung bình 5-10 mã
-    if (n <= 10) {
         if (rank === 0) {
-            return { colSpan: 4, rowSpan: 4, size: 'L' };
+            return { colSpan: 3, rowSpan: 2, size: 'M' };
         }
-        if (ratio < 0.35) {
-            return { colSpan: 4, rowSpan: 2, size: 'M' };
+        if (n === 3) {
+            return { colSpan: 3, rowSpan: 2, size: 'M' };
         }
-        if (ratio < 0.75) {
-            return { colSpan: 2, rowSpan: 2, size: 'S' };
-        }
-        return { colSpan: 1, rowSpan: 1, size: 'XS' };
+        return { colSpan: 3, rowSpan: 2, size: 'M' };
     }
 
-    // Nhóm lớn trên 10 mã (> 10 mã)
-    // Top ~15% (ít nhất 1 mã lớn nhất): Size L 2x2
-    if (rank === 0 || (ratio < 0.15 && rank < 3)) {
-        return { colSpan: 4, rowSpan: 4, size: 'L' };
+    // Nhóm 5-10 mã hoặc > 10 mã (Power Law)
+    // 1. Leader tuyệt đối: Top 1 luôn là Size L (3x4)
+    if (rank === 0) {
+        return { colSpan: 3, rowSpan: 4, size: 'L' };
     }
 
-    // Top 15% - 40%: Size M 2x1
-    if (ratio < 0.40) {
-        return { colSpan: 4, rowSpan: 2, size: 'M' };
+    // Nếu nhóm rất đông (> 12 mã) và top 2 có GTGD vượt trội (> 1.5 lần mã thứ 3): Top 2 cũng là L
+    if (n > 12 && rank === 1 && currentWeight > (sorted[2] || 0) * 1.5) {
+        return { colSpan: 3, rowSpan: 4, size: 'L' };
     }
 
-    // Tiếp theo 40% - 75%: Size S 1x1
-    if (ratio < 0.75) {
-        return { colSpan: 2, rowSpan: 2, size: 'S' };
+    // 2. Major: Top 2 - 3 (hoặc top ~25%): Size M (3x2)
+    if (rank <= 2 || ratio < 0.25) {
+        return { colSpan: 3, rowSpan: 2, size: 'M' };
     }
 
-    // Còn lại: Size XS 0.5x0.5
+    // 3. Standard: Tiếp theo 25% - 70%: Size S (2x1)
+    if (ratio < 0.70) {
+        return { colSpan: 2, rowSpan: 1, size: 'S' };
+    }
+
+    // 4. Minor: Cuối cùng (bottom ~30%): Size XS (1x1)
     return { colSpan: 1, rowSpan: 1, size: 'XS' };
 }
 
