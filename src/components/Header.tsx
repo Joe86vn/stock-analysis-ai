@@ -4,10 +4,17 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Sun, Moon, BarChart3, Trophy, Sparkles, CandlestickChart } from 'lucide-react';
+import { FileText, Sun, Moon, BarChart3, Trophy, Sparkles, CandlestickChart, Lock } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
+import { UserMenu } from '@/components/UserMenu';
+import { useSession } from 'next-auth/react';
+import { UserRole } from '@/types/auth';
+import { hasPermission } from '@/lib/permissions';
 
 export function Header() {
+  const { data: session } = useSession();
+  const userRole = (session?.user?.role as UserRole) || 'member_free';
+  const canAccessAnalysis = hasPermission(userRole, 'analysis_page');
   const { theme, toggleTheme, mounted } = useTheme();
   const pathname = usePathname();
 
@@ -46,23 +53,26 @@ export function Header() {
           <nav className="hidden md:flex items-center space-x-1.5 p-1 rounded-xl bg-gray-100/90 dark:bg-gray-800/80 border border-gray-200/70 dark:border-gray-700/60">
             <Link
               href="/"
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                isAnalysisActive
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${isAnalysisActive
                   ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
-              }`}
+                }`}
             >
               <BarChart3 className="h-3.5 w-3.5" />
               <span>Phân Tích Doanh Nghiệp</span>
+              {!canAccessAnalysis && (
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 ml-0.5">
+                  VIP
+                </span>
+              )}
             </Link>
 
             <Link
               href="/ranking"
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                isRankingActive
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${isRankingActive
                   ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
-              }`}
+                }`}
             >
               <Trophy className="h-3.5 w-3.5 text-amber-500" />
               <span>Bộ Lọc & Xếp Hạng RS</span>
@@ -70,11 +80,10 @@ export function Header() {
 
             <Link
               href="/chart"
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                isChartActive
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${isChartActive
                   ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
                   : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
-              }`}
+                }`}
             >
               <CandlestickChart className="h-3.5 w-3.5 text-indigo-500" />
               <span>Biểu Đồ Kỹ Thuật</span>
@@ -87,33 +96,30 @@ export function Header() {
           <div className="flex md:hidden items-center space-x-1">
             <Link
               href="/"
-              className={`p-2 rounded-lg text-xs font-semibold ${
-                isAnalysisActive
+              className={`p-2 rounded-lg text-xs font-semibold ${isAnalysisActive
                   ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
                   : 'text-gray-600 dark:text-gray-400'
-              }`}
+                }`}
               title="Phân tích"
             >
               <BarChart3 className="h-4 w-4" />
             </Link>
             <Link
               href="/ranking"
-              className={`p-2 rounded-lg text-xs font-semibold ${
-                isRankingActive
+              className={`p-2 rounded-lg text-xs font-semibold ${isRankingActive
                   ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
                   : 'text-gray-600 dark:text-gray-400'
-              }`}
+                }`}
               title="Bảng xếp hạng"
             >
               <Trophy className="h-4 w-4 text-amber-500" />
             </Link>
             <Link
               href="/chart"
-              className={`p-2 rounded-lg text-xs font-semibold ${
-                isChartActive
+              className={`p-2 rounded-lg text-xs font-semibold ${isChartActive
                   ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400'
                   : 'text-gray-600 dark:text-gray-400'
-              }`}
+                }`}
               title="Biểu đồ kỹ thuật"
             >
               <CandlestickChart className="h-4 w-4 text-indigo-500" />
@@ -146,6 +152,9 @@ export function Header() {
             <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Quy trình</span>
           </a>
+
+          {/* User Menu & Role Badge */}
+          <UserMenu />
         </div>
       </div>
     </header>

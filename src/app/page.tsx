@@ -11,6 +11,7 @@ import { ValuationCalculator } from '@/components/ValuationCalculator';
 import { ReportViewer } from '@/components/ReportViewer';
 import { ExportModal } from '@/components/ExportModal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { RoleGate } from '@/components/RoleGate';
 
 import { getStockData, POPULAR_STOCKS } from '@/lib/stock-data';
 import { generateDefaultExpertReport } from '@/lib/default-report';
@@ -201,10 +202,10 @@ function HomeContent() {
       forceRefresh
         ? `Đang yêu cầu ${defaultModel} phân tích mới lại toàn diện cho ${stock.ticker}...`
         : isR2Ready
-        ? `Đang kiểm tra bộ nhớ đệm và tổng hợp báo cáo ValueX cho ${stock.ticker}...`
-        : fileCount > 0
-        ? `Đang phân tích ${fileCount} tài liệu bằng ${defaultModel} cho ${stock.ticker}...`
-        : `Đang kết nối ${defaultModel} phân tích chuyên sâu cho ${stock.ticker}...`
+          ? `Đang kiểm tra bộ nhớ đệm và tổng hợp báo cáo ValueX cho ${stock.ticker}...`
+          : fileCount > 0
+            ? `Đang phân tích ${fileCount} tài liệu bằng ${defaultModel} cho ${stock.ticker}...`
+            : `Đang kết nối ${defaultModel} phân tích chuyên sâu cho ${stock.ticker}...`
     );
     try {
       const response = await fetch('/api/analysis/generate', {
@@ -262,6 +263,7 @@ function HomeContent() {
       <Header />
 
       <main className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 space-y-6">
+        <RoleGate feature="analysis_page" featureName="Phân Tích Doanh Nghiệp">
         {/* Top Control Bar: Stock Selection + Document Upload */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:hidden">
           <div className="lg:col-span-6">
@@ -341,8 +343,8 @@ function HomeContent() {
                 {isGenerating
                   ? 'Đang Xử Lý...'
                   : report?.generationModel
-                  ? '⚡ Xem Lại / Cập Nhật'
-                  : '🚀 Bắt Đầu Phân Tích AI'}
+                    ? '⚡ Xem Lại / Cập Nhật'
+                    : '🚀 Bắt Đầu Phân Tích AI'}
               </span>
             </button>
 
@@ -450,6 +452,7 @@ function HomeContent() {
             </div>
           )}
         </div>
+        </RoleGate>
       </main>
 
       {/* Export Modal */}

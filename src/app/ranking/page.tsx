@@ -30,6 +30,11 @@ import {
   BarChart2
 } from 'lucide-react';
 import { StockChartPanel } from '@/components/StockChartPanel';
+import { useSession } from 'next-auth/react';
+import { canCustomize, hasPermission } from '@/lib/permissions';
+import { UserRole } from '@/types/auth';
+import { UpgradePrompt } from '@/components/UpgradePrompt';
+import { Lock, Crown } from 'lucide-react';
 
 
 type SortField =
@@ -48,6 +53,11 @@ type SortField =
   | 'ticker';
 
 export default function RankingPage() {
+  const { data: session } = useSession();
+  const userRole = ((session?.user as any)?.role as UserRole) || 'member_free';
+  const isVip = canCustomize(userRole);
+  const canExport = hasPermission(userRole, 'ranking_export');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [liveRankings, setLiveRankings] = useState<StockRankingItem[]>([]);
   const [liveMeta, setLiveMeta] = useState<{
     totalMarketScanned?: string;
@@ -344,7 +354,13 @@ export default function RankingPage() {
             </button>
 
             <button
-              onClick={handleExportCSV}
+              onClick={() => {
+                if (!canExport) {
+                  setShowUpgradeModal(true);
+                  return;
+                }
+                handleExportCSV();
+              }}
               disabled={sortedRankings.length === 0}
               className="flex items-center space-x-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-500 transition shadow-sm shadow-emerald-600/20 disabled:opacity-50"
             >
@@ -359,14 +375,39 @@ export default function RankingPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 dark:border-indigo-900/60 pb-3">
               <div className="flex items-center space-x-2">
                 <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white font-heading">
-                  Cấu Hình Tiêu Chí Lọc Tầng 1 (Vietcap Screener Engine)
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white font-heading flex items-center gap-2">
+                  <span>Cấu Hình Tiêu Chí Lọc Tầng 1 (Vietcap Screener Engine)</span>
+                  {!isVip && (
+                    <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700/60">
+                      <Lock className="h-2.5 w-2.5" />
+                      <span>Mặc định</span>
+                    </span>
+                  )}
                 </h3>
               </div>
               <span className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">
                 Quét đồng thời trên toàn bộ 1.600+ mã cổ phiếu HSX, HNX, UPCoM
               </span>
             </div>
+
+            {!isVip && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs">
+                <div className="flex items-center space-x-2">
+                  <Lock className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  <span>
+                    Tài khoản <strong>Member Free</strong> sử dụng bộ lọc và tiêu chí chuẩn mặc định. Nâng cấp <strong>Member VIP</strong> để tự do tùy biến chỉ số và xuất dữ liệu Excel.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="flex items-center justify-center space-x-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex-shrink-0"
+                >
+                  <Crown className="h-3 w-3" />
+                  <span>Nâng cấp VIP</span>
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Sức mạnh giá RS */}
@@ -375,6 +416,7 @@ export default function RankingPage() {
                   Sức Mạnh Giá RS (1 Tháng / Ngành)
                 </label>
                 <select
+                  disabled={!isVip}
                   value={tier1Criteria.rsMin ?? 70}
                   onChange={(e) => setTier1Criteria({ ...tier1Criteria, rsMin: Number(e.target.value) })}
                   className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-2 px-3 text-xs text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
@@ -392,6 +434,7 @@ export default function RankingPage() {
                   Thanh Khoản Bình Quân 20 Ngày (ADTV)
                 </label>
                 <select
+                  disabled={!isVip}
                   value={tier1Criteria.adtvMinBillion ?? 5}
                   onChange={(e) => setTier1Criteria({ ...tier1Criteria, adtvMinBillion: Number(e.target.value) })}
                   className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-2 px-3 text-xs text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
@@ -410,6 +453,7 @@ export default function RankingPage() {
                   Tăng Trưởng LNST Cổ Đông Mẹ (MRQ YoY)
                 </label>
                 <select
+                  disabled={!isVip}
                   value={tier1Criteria.epsGrowthMinYoY ?? 20}
                   onChange={(e) => setTier1Criteria({ ...tier1Criteria, epsGrowthMinYoY: Number(e.target.value) || undefined })}
                   className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-2 px-3 text-xs text-slate-900 dark:text-white focus:border-indigo-500 focus:outline-none"
@@ -1193,6 +1237,20 @@ export default function RankingPage() {
           </>
         )}
       </div>
+        {/* Upgrade VIP Modal for locked features */}
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-lg relative">
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-full bg-white/20 backdrop-blur-md"
+              >
+                ✕
+              </button>
+              <UpgradePrompt featureName="Tùy Biến Bộ Lọc & Xuất Dữ Liệu" />
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Stock Chart Drawer / Modal */}

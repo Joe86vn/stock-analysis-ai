@@ -44,6 +44,8 @@ scratch/
 *.tsbuildinfo
 next-env.d.ts
 
-# Local data cache
+# Local data cache & User database
 data/ohlc/
+data/users.json
+data/users.json.tmp*
 
