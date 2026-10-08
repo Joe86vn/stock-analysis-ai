@@ -25,6 +25,8 @@ declare module 'next-auth' {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     ...authConfig,
+    trustHost: true,
+    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'valuex-auth-secret-production-fallback-key-2026',
     providers: [
         Credentials({
             name: 'Credentials',
