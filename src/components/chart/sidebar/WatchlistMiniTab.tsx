@@ -19,8 +19,11 @@ import {
   List,
   LayoutGrid,
   Grid3X3,
+  Flame,
 } from 'lucide-react';
 import { LiveQuoteItem } from '@/app/api/stocks/live-quotes/route';
+import { HeatSizeMode } from './watchlist-heat';
+import { WatchlistHeatGrid, BreadthBar, HeatLegend } from './WatchlistHeatGrid';
 
 interface WatchlistMiniTabProps {
   currentTicker: string;
@@ -36,7 +39,7 @@ export interface CustomWatchlist {
   updatedAt: number;
 }
 
-type ViewMode = 'table' | 'grid_compact' | 'grid_card';
+type ViewMode = 'table' | 'grid_compact' | 'grid_card' | 'heatmap';
 export type ColorStyle = 'minimal' | 'tint';
 type SortField = 'ticker' | 'rsRating' | 'currentPrice' | 'priceChangePercent' | 'volOrVal' | 'adtv20Billion';
 type SortOrder = 'asc' | 'desc';
@@ -51,6 +54,7 @@ const STORAGE_KEY_CUSTOM_LISTS = 'valuex_custom_watchlists';
 const STORAGE_KEY_ACTIVE_LIST = 'valuex_active_watchlist';
 const STORAGE_KEY_VIEW_MODE = 'valuex_watchlist_view_mode';
 const STORAGE_KEY_COLOR_STYLE = 'valuex_watchlist_color_style';
+const STORAGE_KEY_HEAT_SIZE = 'valuex_watchlist_heat_size';
 
 export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
   currentTicker,
@@ -61,6 +65,8 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>('grid_compact');
   // ─── Kiểu Màu Sắc: Tinh Gọn (Minimalist - Nền trắng/tối, số đổi màu) | Tint Mờ (Soft Glass Tint) ───
   const [colorStyle, setColorStyle] = useState<ColorStyle>('minimal');
+  // ─── Kích Thước Ô Nhiệt: Đều (Equal) | GTGD (Value) | Vốn Hóa (Cap) ───
+  const [heatSizeMode, setHeatSizeMode] = useState<HeatSizeMode>('value');
 
   // ─── Watchlist Presets & Universe State ───────────────────────────────────
   const [presets, setPresets] = useState<{
@@ -89,7 +95,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
           setScreenedRankings(parsed);
         }
       }
-    } catch {}
+    } catch { }
 
     const handleScreenedUpdated = (e: any) => {
       if (e.detail && Array.isArray(e.detail)) {
@@ -169,14 +175,18 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
         setActiveListId(storedActive);
       }
       const storedViewMode = localStorage.getItem(STORAGE_KEY_VIEW_MODE) as ViewMode;
-      if (storedViewMode && ['table', 'grid_compact', 'grid_card'].includes(storedViewMode)) {
+      if (storedViewMode && ['table', 'grid_compact', 'grid_card', 'heatmap'].includes(storedViewMode)) {
         setViewMode(storedViewMode);
+      }
+      const storedHeatSize = localStorage.getItem(STORAGE_KEY_HEAT_SIZE) as HeatSizeMode;
+      if (storedHeatSize && ['equal', 'value', 'cap'].includes(storedHeatSize)) {
+        setHeatSizeMode(storedHeatSize);
       }
       const storedColorStyle = localStorage.getItem(STORAGE_KEY_COLOR_STYLE) as ColorStyle;
       if (storedColorStyle && ['minimal', 'tint'].includes(storedColorStyle)) {
         setColorStyle(storedColorStyle);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // Lưu Chế độ xem
@@ -184,7 +194,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     setViewMode(mode);
     try {
       localStorage.setItem(STORAGE_KEY_VIEW_MODE, mode);
-    } catch {}
+    } catch { }
   };
 
   // Lưu Kiểu màu sắc
@@ -192,7 +202,15 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     setColorStyle(style);
     try {
       localStorage.setItem(STORAGE_KEY_COLOR_STYLE, style);
-    } catch {}
+    } catch { }
+  };
+
+  // Lưu Kích thước ô nhiệt
+  const handleSetHeatSizeMode = (mode: HeatSizeMode) => {
+    setHeatSizeMode(mode);
+    try {
+      localStorage.setItem(STORAGE_KEY_HEAT_SIZE, mode);
+    } catch { }
   };
 
   // Lưu Custom Watchlists vào localStorage khi thay đổi
@@ -200,7 +218,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     setCustomLists(lists);
     try {
       localStorage.setItem(STORAGE_KEY_CUSTOM_LISTS, JSON.stringify(lists));
-    } catch {}
+    } catch { }
   };
 
   const handleSelectWatchlist = (id: string) => {
@@ -208,7 +226,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     setShowWatchlistMenu(false);
     try {
       localStorage.setItem(STORAGE_KEY_ACTIVE_LIST, id);
-    } catch {}
+    } catch { }
   };
 
   // 3. Xác định danh sách cổ phiếu hiện tại dựa vào activeListId
@@ -361,6 +379,20 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     );
   }, [enrichedStocks, searchQuery]);
 
+  // Độ rộng toàn danh mục (Số mã Tăng / Đứng / Giảm)
+  const overallBreadth = useMemo(() => {
+    let up = 0;
+    let down = 0;
+    let ref = 0;
+    for (const s of filteredStocks) {
+      const pct = s.priceChangePercent ?? 0;
+      if (pct > 0) up++;
+      else if (pct < 0) down++;
+      else ref++;
+    }
+    return { up, down, ref };
+  }, [filteredStocks]);
+
   // 6. Nhóm theo ngành (Luôn giữ phân chia theo ngành)
   const industryGroups = useMemo(() => {
     const map = new Map<string, EnrichedStockItem[]>();
@@ -410,10 +442,17 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
           ? stocks.reduce((sum, s) => sum + (s.priceChangePercent || 0), 0) / stocks.length
           : 0;
 
+      const upCount = stocks.filter((s) => (s.priceChangePercent ?? 0) > 0).length;
+      const downCount = stocks.filter((s) => (s.priceChangePercent ?? 0) < 0).length;
+      const refCount = stocks.length - upCount - downCount;
+
       return {
         industry,
         stocks: sortedStocks,
         count: stocks.length,
+        upCount,
+        downCount,
+        refCount,
         totalSessionVal,
         avgChange,
       };
@@ -758,9 +797,8 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
                 <button
                   onClick={() => handleSelectWatchlist('preset:top150_cap')}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
-                    activeListId === 'preset:top150_cap' ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${activeListId === 'preset:top150_cap' ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
+                    }`}
                 >
                   <div className="flex items-center space-x-2">
                     <span>👑</span>
@@ -771,9 +809,8 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
                 <button
                   onClick={() => handleSelectWatchlist('preset:top150_adtv')}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
-                    activeListId === 'preset:top150_adtv' ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${activeListId === 'preset:top150_adtv' ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
+                    }`}
                 >
                   <div className="flex items-center space-x-2">
                     <span>💧</span>
@@ -784,11 +821,10 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
                 <button
                   onClick={() => handleSelectWatchlist('preset:filter_valuex')}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
-                    activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75'
-                      ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40'
-                      : 'text-slate-700 dark:text-gray-200'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${activeListId === 'preset:filter_valuex' || activeListId === 'preset:filter_75'
+                    ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40'
+                    : 'text-slate-700 dark:text-gray-200'
+                    }`}
                 >
                   <div className="flex items-center space-x-2">
                     <span>🎯</span>
@@ -814,9 +850,8 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                       <div
                         key={cl.id}
                         onClick={() => handleSelectWatchlist(`custom:${cl.id}`)}
-                        className={`group flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${
-                          isCur ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
-                        }`}
+                        className={`group flex items-center justify-between px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-950/50 cursor-pointer ${isCur ? 'font-bold text-blue-600 dark:text-blue-400 bg-blue-50/70 dark:bg-blue-950/40' : 'text-slate-700 dark:text-gray-200'
+                          }`}
                       >
                         <div className="flex items-center space-x-2 truncate">
                           <span>⭐</span>
@@ -877,11 +912,10 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                 setShowAddTickerInput((v) => !v);
                 setTimeout(() => addTickerInputRef.current?.focus(), 100);
               }}
-              className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center space-x-1 transition cursor-pointer ${
-                showAddTickerInput
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800'
-              }`}
+              className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center space-x-1 transition cursor-pointer ${showAddTickerInput
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800'
+                }`}
               title="Thêm mã cổ phiếu vào danh mục này"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -943,11 +977,10 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                     key={cand.ticker}
                     disabled={alreadyIn}
                     onClick={() => handleAddTickerToActiveCustom(cand.ticker)}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition cursor-pointer ${
-                      alreadyIn
-                        ? 'opacity-50 bg-gray-50 dark:bg-gray-800/40 cursor-not-allowed'
-                        : 'hover:bg-blue-50 dark:hover:bg-blue-950/60'
-                    }`}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition cursor-pointer ${alreadyIn
+                      ? 'opacity-50 bg-gray-50 dark:bg-gray-800/40 cursor-not-allowed'
+                      : 'hover:bg-blue-50 dark:hover:bg-blue-950/60'
+                      }`}
                   >
                     <div className="flex items-center space-x-2 truncate">
                       <span className="font-extrabold font-mono text-slate-900 dark:text-white">
@@ -999,15 +1032,14 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
         {/* Hàng điều khiển: Chế độ hiển thị 3 nấc + Toggle Màu sắc + Sắp xếp ngành */}
         <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 gap-1.5 flex-wrap">
           <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
-            {/* Bộ chuyển đổi chế độ xem 3 nấc (Option C: Bảng 📋 | Lưới Nhiệt 🔲 | Thẻ 🗂️) */}
+            {/* Bộ chuyển đổi chế độ xem 4 nấc (Bảng 📋 | Lưới 🔲 | Thẻ 🗂️ | Nhiệt 🔥) */}
             <div className="flex items-center p-0.5 rounded-lg bg-gray-200/80 dark:bg-gray-800 border border-gray-300/80 dark:border-gray-700/80 text-[10px]">
               <button
                 onClick={() => handleSetViewMode('table')}
-                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
-                  viewMode === 'table'
-                    ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
+                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${viewMode === 'table'
+                  ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
                 title="Bảng chi tiết (Mã, RS, Giá, % , GTGD, 20N)"
               >
                 <List className="w-3 h-3" />
@@ -1016,12 +1048,11 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
               <button
                 onClick={() => handleSetViewMode('grid_compact')}
-                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
-                  viewMode === 'grid_compact'
-                    ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-                title="Lưới nhiệt siêu gọn (Heatmap toàn ngành)"
+                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${viewMode === 'grid_compact'
+                  ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                title="Lưới nhỏ gọn (Mã + %)"
               >
                 <LayoutGrid className="w-3 h-3" />
                 <span>Lưới</span>
@@ -1029,42 +1060,87 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
               <button
                 onClick={() => handleSetViewMode('grid_card')}
-                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${
-                  viewMode === 'grid_card'
-                    ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-                title="Thẻ chi tiết 4 cột (Mã, %, Giá, RS)"
+                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${viewMode === 'grid_card'
+                  ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                title="Thẻ chi tiết (Mã, %, Giá, RS)"
               >
                 <Grid3X3 className="w-3 h-3" />
                 <span>Thẻ</span>
               </button>
+
+              <button
+                onClick={() => handleSetViewMode('heatmap')}
+                className={`px-1.5 py-0.5 rounded-md flex items-center space-x-1 font-bold transition cursor-pointer ${viewMode === 'heatmap'
+                  ? 'bg-white dark:bg-emerald-600 text-emerald-600 dark:text-white shadow-2xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                title="Bản đồ nhiệt đa kích thước (Heatmap)"
+              >
+                <Flame className="w-3 h-3 text-amber-500" />
+                <span>Nhiệt</span>
+              </button>
             </div>
 
-            {/* Chuyển đổi Kiểu Màu Sắc (Lai giữa Option B và Option C) - Chỉ hiện khi ở Lưới hoặc Thẻ */}
-            {viewMode !== 'table' && (
+            {/* Chuyển đổi Kiểu Màu Sắc - Chỉ hiện khi ở Lưới hoặc Thẻ */}
+            {(viewMode === 'grid_compact' || viewMode === 'grid_card') && (
               <div className="flex items-center p-0.5 rounded-lg bg-gray-200/80 dark:bg-gray-800 border border-gray-300/80 dark:border-gray-700/80 text-[10px] animate-in fade-in duration-150">
                 <button
                   onClick={() => handleSetColorStyle('minimal')}
-                  className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${
-                    colorStyle === 'minimal'
-                      ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  }`}
-                  title="Option C: Nền trung tính sạch sẽ, chỉ chữ số đổi màu theo biên độ giá"
+                  className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${colorStyle === 'minimal'
+                    ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  title="Tinh gọn: Nền trung tính, chữ số đổi màu"
                 >
                   Tinh gọn
                 </button>
                 <button
                   onClick={() => handleSetColorStyle('tint')}
-                  className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${
-                    colorStyle === 'tint'
-                      ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  }`}
-                  title="Option B: Phủ màu pastel mờ dịu nhẹ (Soft Glass Tint)"
+                  className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${colorStyle === 'tint'
+                    ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  title="Tint mờ: Nền phủ màu pastel dịu nhẹ"
                 >
                   Tint mờ
+                </button>
+              </div>
+            )}
+
+            {/* Chuyển đổi Cơ chế Kích thước ô - Chỉ hiện khi ở Heatmap */}
+            {viewMode === 'heatmap' && (
+              <div className="flex items-center p-0.5 rounded-lg bg-gray-200/80 dark:bg-gray-800 border border-gray-300/80 dark:border-gray-700/80 text-[10px] animate-in fade-in duration-150">
+                <button
+                  onClick={() => handleSetHeatSizeMode('value')}
+                  className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${heatSizeMode === 'value'
+                    ? 'bg-white dark:bg-emerald-600 text-emerald-600 dark:text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  title="Kích thước ô theo Giá trị giao dịch (GTGD)"
+                >
+                  GTGD
+                </button>
+                <button
+                  onClick={() => handleSetHeatSizeMode('cap')}
+                  className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${heatSizeMode === 'cap'
+                    ? 'bg-white dark:bg-emerald-600 text-emerald-600 dark:text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  title="Kích thước ô theo Vốn hóa thị trường"
+                >
+                  Vốn hóa
+                </button>
+                <button
+                  onClick={() => handleSetHeatSizeMode('equal')}
+                  className={`px-1.5 py-0.5 rounded-md font-bold transition cursor-pointer ${heatSizeMode === 'equal'
+                    ? 'bg-white dark:bg-emerald-600 text-emerald-600 dark:text-white shadow-2xs'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  title="Kích thước ô đồng đều nhau"
+                >
+                  Đều
                 </button>
               </div>
             )}
@@ -1096,6 +1172,9 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
           )}
         </div>
       </div>
+
+      {/* Thang đo nhiệt độ (Legend) - Chỉ hiển thị khi ở chế độ Heatmap */}
+      {viewMode === 'heatmap' && <HeatLegend />}
 
       {/* ─── Header Cột Dữ Liệu (Chỉ hiển thị khi ở chế độ Table View) ─── */}
       {viewMode === 'table' && (
@@ -1220,14 +1299,20 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                   </div>
 
                   <div className="flex items-center space-x-2 text-[10.5px] font-mono flex-shrink-0">
+                    <BreadthBar
+                      upCount={group.upCount}
+                      refCount={group.refCount}
+                      downCount={group.downCount}
+                      total={group.count}
+                      className="hidden sm:flex"
+                    />
                     <span
-                      className={`font-bold ${
-                        group.avgChange > 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : group.avgChange < 0
+                      className={`font-bold ${group.avgChange > 0
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : group.avgChange < 0
                           ? 'text-rose-600 dark:text-rose-400'
                           : 'text-amber-500 dark:text-amber-400'
-                      }`}
+                        }`}
                     >
                       {group.avgChange > 0 ? '+' : ''}
                       {group.avgChange.toFixed(1)}%
@@ -1252,8 +1337,8 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                           const colorClass = isUp
                             ? 'text-emerald-500 dark:text-emerald-400'
                             : isDown
-                            ? 'text-rose-500 dark:text-rose-400'
-                            : 'text-amber-400';
+                              ? 'text-rose-500 dark:text-rose-400'
+                              : 'text-amber-400';
 
                           const sessionVal = s.sessionValueBillion;
                           const sessionVol = s.sessionVolume;
@@ -1262,11 +1347,10 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                             <div
                               key={s.ticker}
                               onClick={() => onSelectTicker(s.ticker)}
-                              className={`group/row grid grid-cols-12 px-2.5 py-1.5 items-center cursor-pointer transition text-xs font-mono relative ${
-                                isSelected
-                                  ? 'bg-blue-50 dark:bg-blue-950/70 font-bold border-l-2 border-blue-600'
-                                  : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                              }`}
+                              className={`group/row grid grid-cols-12 px-2.5 py-1.5 items-center cursor-pointer transition text-xs font-mono relative ${isSelected
+                                ? 'bg-blue-50 dark:bg-blue-950/70 font-bold border-l-2 border-blue-600'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                }`}
                             >
                               {/* 1. Mã cổ phiếu */}
                               <div className="col-span-3 flex items-center space-x-1 truncate">
@@ -1292,8 +1376,8 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                                       s.rsRating >= 80
                                         ? 'text-amber-500 dark:text-amber-400 font-extrabold'
                                         : s.rsRating >= 70
-                                        ? 'text-blue-500 dark:text-blue-400'
-                                        : 'text-gray-400'
+                                          ? 'text-blue-500 dark:text-blue-400'
+                                          : 'text-gray-400'
                                     }
                                     title={`RS: ${s.rsRating}`}
                                   >
@@ -1319,13 +1403,13 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                               <div className="col-span-2 text-right text-slate-600 dark:text-gray-300 text-[11px]">
                                 {showValueMode === 'val'
                                   ? sessionVal !== undefined
-                                  ? `${sessionVal.toFixed(1)} T`
-                                  : s.adtv20Billion ? `${s.adtv20Billion.toFixed(1)} T` : '-'
+                                    ? `${sessionVal.toFixed(1)} T`
+                                    : s.adtv20Billion ? `${s.adtv20Billion.toFixed(1)} T` : '-'
                                   : sessionVol !== undefined
-                                  ? `${(sessionVol / 1_000_000).toFixed(2)} tr`
-                                  : s.adtv20Billion && s.currentPrice
-                                  ? `${(s.adtv20Billion / (s.currentPrice / 1000)).toFixed(1)} tr`
-                                  : '-'}
+                                    ? `${(sessionVol / 1_000_000).toFixed(2)} tr`
+                                    : s.adtv20Billion && s.currentPrice
+                                      ? `${(s.adtv20Billion / (s.currentPrice / 1000)).toFixed(1)} tr`
+                                      : '-'}
                               </div>
 
                               {/* 6. 20N (Tỷ) */}
@@ -1351,13 +1435,11 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                             <div
                               key={s.ticker}
                               onClick={() => onSelectTicker(s.ticker)}
-                              className={`group/tile relative flex items-center justify-between px-1.5 py-1 rounded-md border text-[10.5px] font-mono cursor-pointer transition-all duration-75 select-none ${
-                                tile.containerClass
-                              } ${
-                                isSelected
+                              className={`group/tile relative flex items-center justify-between px-1.5 py-1 rounded-md border text-[10.5px] font-mono cursor-pointer transition-all duration-75 select-none ${tile.containerClass
+                                } ${isSelected
                                   ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-white dark:ring-offset-[#131722] scale-[1.04] shadow-md z-10'
                                   : 'hover:scale-[1.02]'
-                              }`}
+                                }`}
                               title={`${s.ticker} - ${s.companyName}\nGiá: ${fmtPrice(s.currentPrice)} (${sign}${pct.toFixed(1)}%)\nRS: ${s.rsRating || '-'}\nGTGD: ${s.sessionValueBillion ? s.sessionValueBillion.toFixed(1) + ' Tỷ' : s.adtv20Billion ? s.adtv20Billion.toFixed(1) + ' Tỷ (20N)' : '-'}`}
                             >
                               <span className={`truncate mr-0.5 ${tile.tickerClass}`}>
@@ -1396,13 +1478,11 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                             <div
                               key={s.ticker}
                               onClick={() => onSelectTicker(s.ticker)}
-                              className={`group/card relative p-1 rounded-md border flex flex-col justify-between cursor-pointer transition-all duration-75 select-none ${
-                                tile.containerClass
-                              } ${
-                                isSelected
+                              className={`group/card relative p-1 rounded-md border flex flex-col justify-between cursor-pointer transition-all duration-75 select-none ${tile.containerClass
+                                } ${isSelected
                                   ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-white dark:ring-offset-[#131722] scale-[1.03] shadow-md z-10'
                                   : 'hover:scale-[1.02]'
-                              }`}
+                                }`}
                               title={`${s.ticker} - ${s.companyName}\nGiá: ${fmtPrice(s.currentPrice)} (${sign}${pct.toFixed(1)}%)\nRS: ${s.rsRating || '-'}\nGTGD: ${s.sessionValueBillion ? s.sessionValueBillion.toFixed(1) + ' Tỷ' : s.adtv20Billion ? s.adtv20Billion.toFixed(1) + ' Tỷ (20N)' : '-'}`}
                             >
                               {/* Dòng 1: Mã + % */}
@@ -1442,6 +1522,19 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
                         })}
                       </div>
                     )}
+
+                    {/* ════ CHẾ ĐỘ 4: BẢN ĐỒ NHIỆT ĐA KÍCH THƯỚC (Heatmap) ════ */}
+                    {viewMode === 'heatmap' && (
+                      <WatchlistHeatGrid
+                        stocks={group.stocks}
+                        currentTicker={currentTicker}
+                        sizeMode={heatSizeMode}
+                        isCustomWatchlist={activeWatchlistInfo.isCustom}
+                        onSelectTicker={onSelectTicker}
+                        onRemoveTicker={handleRemoveTickerFromActiveCustom}
+                        fmtPrice={fmtPrice}
+                      />
+                    )}
                   </>
                 )}
               </div>
@@ -1452,7 +1545,13 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
 
       {/* ─── Chân Bảng: Thống kê & Trạng thái ─── */}
       <div className="px-3 py-1.5 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1e222d] flex items-center justify-between text-[11px] text-gray-400 flex-shrink-0">
-        <span>Tổng: <strong className="text-slate-700 dark:text-gray-200 font-mono">{filteredStocks.length}</strong> mã</span>
+        <div className="flex items-center space-x-2">
+          <span>Tổng: <strong className="text-slate-700 dark:text-gray-200 font-mono">{filteredStocks.length}</strong> mã</span>
+          <span className="text-gray-300 dark:text-gray-700">•</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">{overallBreadth.up}↑</span>
+          <span className="text-amber-500 font-bold font-mono">{overallBreadth.ref}─</span>
+          <span className="text-rose-500 dark:text-rose-400 font-bold font-mono">{overallBreadth.down}↓</span>
+        </div>
         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
           ● {Object.keys(liveQuotes).length > 0 ? `Realtime MAS (${Object.keys(liveQuotes).length} mã)` : 'Đang cập nhật giá...'}
         </span>
