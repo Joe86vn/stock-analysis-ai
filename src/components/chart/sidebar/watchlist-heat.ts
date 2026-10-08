@@ -125,10 +125,10 @@ export function getHeatTileStyle(
 
 /**
  * Cấu hình kích thước ô theo yêu cầu (Hệ lưới 6 cột):
- * - Size L: 3x4 (chiếm 3/6 cột, 4 hàng) - Leader tuyệt đối
- * - Size M: 3x2 (chiếm 3/6 cột, 2 hàng) - Major
- * - Size S: 1x2 (chiếm 1/6 cột, 2 hàng) - Standard dọc
- * - Size XS: 1x1 (chiếm 1/6 cột, 1 hàng) - Minor vi mô
+ * - Size L: 3x4 (chiếm 3/6 cột, 4 hàng) - Nội dung: Mã CP, % tăng giảm, giá hiện tại
+ * - Size M: 2x3 (chiếm 2/6 cột, 3 hàng) - Nội dung: Mã CP, % tăng giảm, giá hiện tại
+ * - Size S: 1x2 (chiếm 1/6 cột, 2 hàng) - Nội dung: Mã CP, % tăng giảm
+ * - Size XS: 1x1 (chiếm 1/6 cột, 1 hàng) - Nội dung: Mã CP
  */
 export function getTileSpan(
     stock: StockForHeat,
@@ -143,15 +143,15 @@ export function getTileSpan(
     }
 
     if (sizeMode === 'equal') {
-        if (n <= 2) {
-            return { colSpan: 3, rowSpan: 2, size: 'M' };
+        if (n <= 3) {
+            return { colSpan: 2, rowSpan: 3, size: 'M' };
         }
         return { colSpan: 1, rowSpan: 2, size: 'S' };
     }
 
     if (n === 2) {
-        // 2 mã: mỗi mã 3x2 tạo thành hàng 6x2 cân đối
-        return { colSpan: 3, rowSpan: 2, size: 'M' };
+        // 2 mã: mỗi mã 3x3 để cân đối hàng ngang 6 cột
+        return { colSpan: 3, rowSpan: 3, size: 'M' };
     }
 
     // Trọng số tính theo GTGD hoặc Vốn hóa
@@ -177,17 +177,18 @@ export function getTileSpan(
     // Nhóm nhỏ dưới 5 mã (< 5 mã)
     if (n < 5) {
         if (n === 3) {
-            // Cột 1-3: L (3x4). Cột 4-6: 2 mã M (3x2) xếp chồng (2+2=4 hàng)!
+            // Cột 1-3: L (3x4). Cột 4-5: M (2x3). Cột 6: S (1x2) => 3+2+1 = 6 cột!
             if (rank === 0) return { colSpan: 3, rowSpan: 4, size: 'L' };
-            return { colSpan: 3, rowSpan: 2, size: 'M' };
-        }
-        if (n === 4) {
-            // Top 1: L (3x4), Top 2: M (3x2), 2 mã còn lại: mỗi mã S (1x2)
-            if (rank === 0) return { colSpan: 3, rowSpan: 4, size: 'L' };
-            if (rank === 1) return { colSpan: 3, rowSpan: 2, size: 'M' };
+            if (rank === 1) return { colSpan: 2, rowSpan: 3, size: 'M' };
             return { colSpan: 1, rowSpan: 2, size: 'S' };
         }
-        return { colSpan: 3, rowSpan: 2, size: 'M' };
+        if (n === 4) {
+            // Top 1: L (3x4), Top 2: M (2x3), 2 mã còn lại: S (1x2) => 3+2+1 = 6 cột
+            if (rank === 0) return { colSpan: 3, rowSpan: 4, size: 'L' };
+            if (rank === 1) return { colSpan: 2, rowSpan: 3, size: 'M' };
+            return { colSpan: 1, rowSpan: 2, size: 'S' };
+        }
+        return { colSpan: 2, rowSpan: 3, size: 'M' };
     }
 
     // Nhóm từ 5 mã trở lên (5-10 mã hoặc > 10 mã)
@@ -201,9 +202,9 @@ export function getTileSpan(
         return { colSpan: 3, rowSpan: 4, size: 'L' };
     }
 
-    // 2. Major: Top 2 - 3 (hoặc top ~25%): Size M (3x2)
+    // 2. Major: Top 2 - 3 (hoặc top ~25%): Size M (2x3)
     if (rank <= 2 || ratio < 0.25) {
-        return { colSpan: 3, rowSpan: 2, size: 'M' };
+        return { colSpan: 2, rowSpan: 3, size: 'M' };
     }
 
     // 3. Standard: Tiếp theo 25% - 70%: Size S (1x2)

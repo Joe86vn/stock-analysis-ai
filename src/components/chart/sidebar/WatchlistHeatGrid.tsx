@@ -239,10 +239,10 @@ const HeatFloatingTooltip: React.FC<{
 
 /**
  * Render một ô cổ phiếu riêng lẻ theo cấu hình lưới 6 cột:
- * - Size L: col-span-3 row-span-4 (Leader)
- * - Size M: col-span-3 row-span-2 (Major)
- * - Size S: col-span-1 row-span-2 (Standard dọc)
- * - Size XS: col-span-1 row-span-1 (Minor vi mô)
+ * - Size L: 3x4 (Mã CP, % tăng giảm, giá hiện tại)
+ * - Size M: 2x3 (Mã CP, % tăng giảm, giá hiện tại)
+ * - Size S: 1x2 (Mã CP, % tăng giảm)
+ * - Size XS: 1x1 (Mã CP)
  */
 const SingleHeatTile: React.FC<{
     stock: StockForHeat;
@@ -303,86 +303,64 @@ const SingleHeatTile: React.FC<{
                     : 'hover:brightness-120 hover:scale-[1.02]'
                     }`}
             >
-                {/* Size L: 3x4 (hoặc 6x3 nếu ngành có đúng 1 mã) - Leader lớn */}
+                {/* Size L: 3x4 - Nội dung: Mã CP, % tăng giảm, giá hiện tại */}
                 {size === 'L' && (
-                    <div className="flex flex-col justify-between w-full h-full p-1.5 leading-none">
-                        <div className="flex items-start justify-between w-full">
+                    <div className="flex flex-col justify-between items-center w-full h-full p-1.5 leading-none text-center">
+                        <div className="w-full flex items-center justify-center">
                             <span className={`text-[13px] font-mono tracking-tight font-black ${tileStyle.textClass}`}>
                                 {stock.ticker}
                             </span>
-                            {stock.rsRating ? (
-                                <span className="text-[8.5px] font-mono px-1 py-0.2 rounded bg-black/40 text-white font-extrabold">
-                                    {stock.rsRating}
-                                </span>
-                            ) : null}
                         </div>
                         <div className="my-auto text-center py-1">
                             <div className={`text-[16px] font-mono tracking-tight font-black leading-none ${tileStyle.subTextClass}`}>
                                 {sign}{pct.toFixed(1)}%
                             </div>
                         </div>
-                        <div className="flex items-center justify-between w-full text-[9px] font-mono border-t border-black/10 dark:border-white/10 pt-1 leading-none">
+                        <div className="w-full text-center text-[10px] font-mono border-t border-black/10 dark:border-white/10 pt-1 leading-none">
                             <span className={tileStyle.priceClass}>
                                 {fmtPrice(stock.currentPrice)}
-                            </span>
-                            <span className="text-white/80 text-[8.5px]">
-                                {stock.sessionValueBillion
-                                    ? `${stock.sessionValueBillion.toFixed(0)}T`
-                                    : stock.adtv20Billion
-                                        ? `${stock.adtv20Billion.toFixed(0)}T`
-                                        : ''}
                             </span>
                         </div>
                     </div>
                 )}
 
-                {/* Size M: 2x3 - Major kẹp song song bên cạnh L */}
+                {/* Size M: 2x3 - Nội dung: Mã CP, % tăng giảm, giá hiện tại */}
                 {size === 'M' && (
-                    <div className="flex flex-col justify-between w-full h-full p-1 leading-none">
-                        <div className="flex items-center justify-between w-full">
-                            <span className={`text-[11px] font-mono font-bold ${tileStyle.textClass} truncate`}>
+                    <div className="flex flex-col justify-between items-center w-full h-full p-1 leading-none text-center">
+                        <div className="w-full flex items-center justify-center">
+                            <span className={`text-[11.5px] font-mono font-black ${tileStyle.textClass} truncate`}>
                                 {stock.ticker}
                             </span>
-                            {stock.rsRating ? (
-                                <span className="text-[7.5px] font-mono px-0.5 rounded bg-black/30 text-white/90">
-                                    {stock.rsRating}
-                                </span>
-                            ) : null}
                         </div>
                         <div className="my-auto text-center py-0.5">
-                            <span className={`text-[12.5px] font-mono font-black ${tileStyle.subTextClass} whitespace-nowrap`}>
+                            <span className={`text-[13px] font-mono font-black ${tileStyle.subTextClass} whitespace-nowrap`}>
                                 {sign}{pct.toFixed(1)}%
                             </span>
                         </div>
-                        <div className="flex items-center justify-between w-full text-[8px] font-mono border-t border-black/10 dark:border-white/10 pt-0.5 leading-none">
+                        <div className="w-full text-center text-[9px] font-mono border-t border-black/10 dark:border-white/10 pt-0.5 leading-none">
                             <span className={tileStyle.priceClass}>
                                 {fmtPrice(stock.currentPrice)}
-                            </span>
-                            <span className="text-white/80 text-[7.5px]">
-                                {stock.sessionValueBillion
-                                    ? `${stock.sessionValueBillion.toFixed(0)}T`
-                                    : ''}
                             </span>
                         </div>
                     </div>
                 )}
 
-                {/* Size S: 1x2 - Standard (Dọc 1 cột x 2 hàng) */}
+                {/* Size S: 1x2 - Nội dung: Mã CP, % tăng giảm */}
                 {size === 'S' && (
                     <div className="flex flex-col items-center justify-center w-full h-full p-0.5 leading-tight text-center">
-                        <span className={`text-[9.5px] font-mono font-bold ${tileStyle.textClass} truncate max-w-full`}>
+                        <span className={`text-[10px] font-mono font-bold ${tileStyle.textClass} truncate max-w-full`}>
                             {stock.ticker}
                         </span>
-                        <span className={`text-[8.5px] font-mono font-extrabold ${tileStyle.subTextClass} whitespace-nowrap mt-0.5`}>
+                        <span className={`text-[9px] font-mono font-extrabold ${tileStyle.subTextClass} whitespace-nowrap mt-0.5`}>
                             {sign}{pct.toFixed(1)}%
                         </span>
                     </div>
                 )}
 
-                {/* Size XS: 1x1 - Minor (Vi mô 1 cột) */}
+                {/* Size XS: 1x1 - Nội dung: Mã CP */}
                 {size === 'XS' && (
                     <div className="flex items-center justify-center w-full h-full p-0 leading-none text-center">
-                        <span className={`text-[8px] font-mono font-extrabold ${tileStyle.textClass} truncate select-none tracking-tighter`}>
+                        <span className={`text-[8.5px] font-mono font-extrabold ${tileStyle.textClass} truncate select-none tracking-tight`}>
                             {stock.ticker}
                         </span>
                     </div>
