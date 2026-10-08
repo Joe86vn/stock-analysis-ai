@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     HeatSizeMode,
-    HeatTileSize,
     StockForHeat,
     IndustryHeatGroup,
     getHeatTileStyle,
@@ -126,7 +125,7 @@ export const HeatLegend: React.FC = () => {
 };
 
 /**
- * Floating Tooltip Card hiển thị đầy đủ thông tin khi hover (đặc biệt cho các ô XS và TINY)
+ * Floating Tooltip Card hiển thị đầy đủ thông tin khi hover (đặc biệt cho các ô XS và S)
  */
 interface HoveredInfo {
     stock: StockForHeat;
@@ -181,10 +180,10 @@ const HeatFloatingTooltip: React.FC<{
                 {stock.rsRating ? (
                     <span
                         className={`text-[9.5px] font-mono font-black px-1.5 py-0.5 rounded ${stock.rsRating >= 80
-                                ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40'
-                                : stock.rsRating >= 70
-                                    ? 'bg-blue-500/25 text-blue-300 border border-blue-500/40'
-                                    : 'bg-slate-800 text-slate-400'
+                            ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40'
+                            : stock.rsRating >= 70
+                                ? 'bg-blue-500/25 text-blue-300 border border-blue-500/40'
+                                : 'bg-slate-800 text-slate-400'
                             }`}
                     >
                         RS {Math.round(stock.rsRating)}
@@ -239,7 +238,11 @@ const HeatFloatingTooltip: React.FC<{
 };
 
 /**
- * Render một ô cổ phiếu riêng lẻ với 5 cấp độ kích thước
+ * Render một ô cổ phiếu riêng lẻ với 4 cấp độ kích thước:
+ * - Size L: 2x2 (col-span-4 row-span-4)
+ * - Size M: 2x1 (col-span-4 row-span-2)
+ * - Size S: 1x1 (col-span-2 row-span-2)
+ * - Size XS: 0.5x0.5 (col-span-1 row-span-1)
  */
 const SingleHeatTile: React.FC<{
     stock: StockForHeat;
@@ -270,14 +273,12 @@ const SingleHeatTile: React.FC<{
 
         const spanClass =
             size === 'L'
-                ? 'col-span-2 row-span-2 min-h-[52px]'
+                ? 'col-span-4 row-span-4 min-h-[68px]'
                 : size === 'M'
-                    ? 'col-span-2 row-span-1 min-h-[26px]'
+                    ? 'col-span-4 row-span-2 min-h-[34px]'
                     : size === 'S'
-                        ? 'col-span-1 row-span-1 min-h-[26px]'
-                        : size === 'XS'
-                            ? 'col-span-1 row-span-1 min-h-[20px]'
-                            : 'col-span-1 row-span-1 min-h-[16px] h-4.5';
+                        ? 'col-span-2 row-span-2 min-h-[34px]'
+                        : 'col-span-1 row-span-1 min-h-[17px]';
 
         return (
             <div
@@ -286,26 +287,26 @@ const SingleHeatTile: React.FC<{
                 onMouseMove={(e) => onHover(stock, e)}
                 onMouseLeave={() => onHover(null)}
                 style={tileStyle.bgStyle}
-                className={`group/heat-tile relative rounded-[2px] p-0.5 flex flex-col justify-between cursor-pointer transition-all duration-75 select-none overflow-hidden ${spanClass} ${isSelected
-                        ? 'ring-2 ring-white dark:ring-blue-400 shadow-md z-10 brightness-110'
-                        : 'hover:brightness-120 hover:scale-[1.02]'
+                className={`group/heat-tile relative rounded-[2px] flex flex-col justify-between cursor-pointer transition-all duration-75 select-none overflow-hidden ${spanClass} ${isSelected
+                    ? 'ring-2 ring-white dark:ring-blue-400 shadow-md z-10 brightness-110'
+                    : 'hover:brightness-120 hover:scale-[1.02]'
                     }`}
             >
-                {/* Cỡ L (2x2) */}
+                {/* Size L: 2x2 */}
                 {size === 'L' && (
-                    <>
-                        <div className="flex items-start justify-between w-full leading-none">
-                            <span className={`text-[11px] font-mono tracking-tight ${tileStyle.textClass}`}>
+                    <div className="flex flex-col justify-between w-full h-full p-1 leading-none">
+                        <div className="flex items-start justify-between w-full">
+                            <span className={`text-[12px] font-mono tracking-tight font-black ${tileStyle.textClass}`}>
                                 {stock.ticker}
                             </span>
                             {stock.rsRating ? (
-                                <span className="text-[8px] font-mono px-0.5 py-0.1 rounded bg-black/30 text-white/90">
+                                <span className="text-[8px] font-mono px-0.5 py-0.2 rounded bg-black/35 text-white/95">
                                     {stock.rsRating}
                                 </span>
                             ) : null}
                         </div>
-                        <div className="my-auto text-center">
-                            <div className={`text-[12px] font-mono tracking-tight leading-none ${tileStyle.subTextClass}`}>
+                        <div className="my-auto text-center py-0.5">
+                            <div className={`text-[13px] font-mono tracking-tight leading-none ${tileStyle.subTextClass}`}>
                                 {sign}{pct.toFixed(1)}%
                             </div>
                         </div>
@@ -313,7 +314,7 @@ const SingleHeatTile: React.FC<{
                             <span className={tileStyle.priceClass}>
                                 {fmtPrice(stock.currentPrice)}
                             </span>
-                            <span className="text-white/70 text-[8px]">
+                            <span className="text-white/80 text-[8px]">
                                 {stock.sessionValueBillion
                                     ? `${stock.sessionValueBillion.toFixed(0)}T`
                                     : stock.adtv20Billion
@@ -321,50 +322,50 @@ const SingleHeatTile: React.FC<{
                                         : ''}
                             </span>
                         </div>
-                    </>
+                    </div>
                 )}
 
-                {/* Cỡ M (2x1) */}
+                {/* Size M: 2x1 */}
                 {size === 'M' && (
-                    <div className="flex items-center justify-between w-full h-full px-0.5 leading-none">
-                        <span className={`text-[10px] font-mono ${tileStyle.textClass} truncate`}>
-                            {stock.ticker}
-                        </span>
-                        <span className={`text-[9.5px] font-mono ${tileStyle.subTextClass} whitespace-nowrap`}>
-                            {sign}{pct.toFixed(1)}%
-                        </span>
-                        <span className={`text-[8.5px] font-mono ${tileStyle.priceClass} hidden sm:inline ml-0.5`}>
-                            {fmtPrice(stock.currentPrice)}
-                        </span>
+                    <div className="flex items-center justify-between w-full h-full px-1.5 py-0.5 leading-none">
+                        <div className="flex items-center space-x-1 truncate">
+                            <span className={`text-[11px] font-mono font-bold ${tileStyle.textClass} truncate`}>
+                                {stock.ticker}
+                            </span>
+                            {stock.rsRating ? (
+                                <span className="text-[7.5px] font-mono px-0.5 rounded bg-black/30 text-white/90 hidden sm:inline">
+                                    {stock.rsRating}
+                                </span>
+                            ) : null}
+                        </div>
+                        <div className="flex items-center space-x-1 flex-shrink-0 text-right">
+                            <span className={`text-[10px] font-mono ${tileStyle.subTextClass} whitespace-nowrap`}>
+                                {sign}{pct.toFixed(1)}%
+                            </span>
+                            <span className={`text-[8.5px] font-mono ${tileStyle.priceClass} hidden sm:inline`}>
+                                {fmtPrice(stock.currentPrice)}
+                            </span>
+                        </div>
                     </div>
                 )}
 
-                {/* Cỡ S (1x1) */}
+                {/* Size S: 1x1 */}
                 {size === 'S' && (
-                    <div className="flex flex-col items-center justify-center w-full h-full leading-tight text-center">
-                        <span className={`text-[9.5px] font-mono ${tileStyle.textClass} truncate w-full`}>
+                    <div className="flex flex-col items-center justify-center w-full h-full p-0.5 leading-tight text-center">
+                        <span className={`text-[10px] font-mono font-bold ${tileStyle.textClass} truncate w-full leading-none`}>
                             {stock.ticker}
                         </span>
-                        <span className={`text-[8.5px] font-mono ${tileStyle.subTextClass} whitespace-nowrap`}>
+                        <span className={`text-[8.5px] font-mono ${tileStyle.subTextClass} whitespace-nowrap mt-0.5 leading-none`}>
                             {sign}{pct.toFixed(1)}%
                         </span>
                     </div>
                 )}
 
-                {/* Cỡ XS (1x1 nhỏ: chỉ hiện mã dạng tiny text) */}
+                {/* Size XS: 0.5x0.5 */}
                 {size === 'XS' && (
-                    <div className="flex items-center justify-center w-full h-full leading-none text-center">
-                        <span className={`text-[8.5px] font-mono font-bold ${tileStyle.textClass} truncate`}>
+                    <div className="flex items-center justify-center w-full h-full p-0 leading-none text-center">
+                        <span className={`text-[8px] font-mono font-extrabold ${tileStyle.textClass} truncate select-none tracking-tighter`}>
                             {stock.ticker}
-                        </span>
-                    </div>
-                )}
-
-                {/* Cỡ TINY (Vi mô: ô vuông nhiệt đặc, chi tiết xem qua tooltip nổi) */}
-                {size === 'TINY' && (
-                    <div className="w-full h-full flex items-center justify-center opacity-80 group-hover/heat-tile:opacity-100">
-                        <span className="text-[7px] font-mono text-white/70 leading-none select-none">
-                            •
                         </span>
                     </div>
                 )}
@@ -394,7 +395,7 @@ export const WatchlistHeatGrid: React.FC<WatchlistHeatGridProps> = ({
     onSelectTicker,
     onRemoveTicker,
     fmtPrice,
-    columnsCount = 4,
+    columnsCount = 8,
 }) => {
     const [hoveredInfo, setHoveredInfo] = useState<HoveredInfo | null>(null);
 
@@ -413,11 +414,11 @@ export const WatchlistHeatGrid: React.FC<WatchlistHeatGridProps> = ({
     const colClass =
         columnsCount === 2
             ? 'grid-cols-2'
-            : columnsCount === 3
-                ? 'grid-cols-3'
+            : columnsCount === 4
+                ? 'grid-cols-4'
                 : columnsCount === 6
                     ? 'grid-cols-6'
-                    : 'grid-cols-4';
+                    : 'grid-cols-8';
 
     return (
         <div className="relative">
@@ -445,8 +446,11 @@ export const WatchlistHeatGrid: React.FC<WatchlistHeatGridProps> = ({
 };
 
 /**
- * Khối Heatmap Packed View: Tự động gom cụm các ngành ít mã vào cạnh nhau
- * (2 cột linh hoạt, ngành nhỏ chiếm 1 cột, ngành lớn chiếm 2 cột)
+ * Khối Heatmap Packed View:
+ * Phân bổ cột linh hoạt trong lưới 6 cột:
+ * - Trên 10 mã: 1 dòng riêng (col-span-6)
+ * - Từ 5 - 10 mã: chia đôi kích thước (col-span-3, 2 ngành / dòng)
+ * - Dưới 5 mã: chia 3 (col-span-2, 3 ngành / dòng)
  */
 export const WatchlistPackedHeatView: React.FC<WatchlistPackedHeatViewProps> = ({
     groups,
@@ -473,30 +477,39 @@ export const WatchlistPackedHeatView: React.FC<WatchlistPackedHeatViewProps> = (
 
     return (
         <div className="relative p-1 bg-slate-100/70 dark:bg-[#0c0f16]">
-            {/* Lưới bố cục 2 cột chính cho toàn bộ các ngành */}
-            <div className="grid grid-cols-2 gap-1.5 items-start">
+            {/* Lưới bố cục 6 cột chính cho toàn bộ các ngành */}
+            <div className="grid grid-cols-6 gap-1.5 items-start">
                 {groups.map((group) => {
-                    const colSpan = getIndustryBlockColSpan(group.count, group.totalSessionVal);
-                    const isFullWidth = colSpan === 2;
+                    const colSpan = getIndustryBlockColSpan(group.count);
+                    const isFullWidth = colSpan === 6;
+
+                    const colSpanClass =
+                        colSpan === 6
+                            ? 'col-span-6'
+                            : colSpan === 3
+                                ? 'col-span-3'
+                                : 'col-span-2';
+
+                    // Số cột con bên trong card: > 10 mã dùng 8 cột, 5-10 mã và < 5 mã dùng 4 cột
+                    const innerColsClass = isFullWidth ? 'grid-cols-8' : 'grid-cols-4';
 
                     return (
                         <div
                             key={group.industry}
-                            className={`rounded border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-[#131722]/80 overflow-hidden flex flex-col ${isFullWidth ? 'col-span-2' : 'col-span-1'
-                                }`}
+                            className={`rounded border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-[#131722]/80 overflow-hidden flex flex-col ${colSpanClass}`}
                         >
                             {/* Tiêu đề mini của khối ngành */}
-                            <div className="flex items-center justify-between px-1.5 py-1 bg-slate-100/90 dark:bg-[#181d29] border-b border-slate-200/60 dark:border-slate-800/80 select-none">
+                            <div className="flex items-center justify-between px-1.5 py-0.5 bg-slate-100/90 dark:bg-[#181d29] border-b border-slate-200/60 dark:border-slate-800/80 select-none">
                                 <div className="flex items-center space-x-1 truncate mr-1">
-                                    <span className="font-bold text-[10px] text-slate-800 dark:text-slate-200 truncate">
+                                    <span className="font-bold text-[9.5px] text-slate-800 dark:text-slate-200 truncate">
                                         {group.industry}
                                     </span>
-                                    <span className="text-[8.5px] px-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
+                                    <span className="text-[8px] px-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
                                         {group.count}
                                     </span>
                                 </div>
 
-                                <div className="flex items-center space-x-1.5 flex-shrink-0 text-[9px] font-mono">
+                                <div className="flex items-center space-x-1 flex-shrink-0 text-[8.5px] font-mono">
                                     {isFullWidth && (
                                         <BreadthBar
                                             upCount={group.upCount}
@@ -508,10 +521,10 @@ export const WatchlistPackedHeatView: React.FC<WatchlistPackedHeatViewProps> = (
                                     )}
                                     <span
                                         className={`font-bold ${group.avgChange > 0
-                                                ? 'text-emerald-500'
-                                                : group.avgChange < 0
-                                                    ? 'text-rose-500'
-                                                    : 'text-amber-500'
+                                            ? 'text-emerald-500'
+                                            : group.avgChange < 0
+                                                ? 'text-rose-500'
+                                                : 'text-amber-500'
                                             }`}
                                     >
                                         {group.avgChange > 0 ? '+' : ''}
@@ -522,8 +535,7 @@ export const WatchlistPackedHeatView: React.FC<WatchlistPackedHeatViewProps> = (
 
                             {/* Lưới các ô cổ phiếu trong ngành */}
                             <div
-                                className={`grid ${isFullWidth ? 'grid-cols-4 sm:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3'
-                                    } grid-flow-dense gap-0.5 p-1 bg-slate-50/50 dark:bg-[#0e111a]`}
+                                className={`grid ${innerColsClass} grid-flow-dense gap-0.5 p-0.5 bg-slate-50/50 dark:bg-[#0e111a]`}
                             >
                                 {group.stocks.map((stock) => (
                                     <SingleHeatTile

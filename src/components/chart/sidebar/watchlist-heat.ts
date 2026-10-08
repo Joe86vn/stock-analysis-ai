@@ -1,7 +1,7 @@
 import React from 'react';
 
 export type HeatSizeMode = 'equal' | 'value' | 'cap';
-export type HeatTileSize = 'L' | 'M' | 'S' | 'XS' | 'TINY';
+export type HeatTileSize = 'L' | 'M' | 'S' | 'XS';
 
 export interface HeatTileStyle {
     bgStyle: React.CSSProperties;
@@ -52,10 +52,10 @@ export function getHeatTileStyle(
     const isFloor = pct <= floorPct && pct < 0;
     const isRef = pct === 0;
 
-    // 1. Tím Trần: #A855F7
+    // 1. Tím Trần: #9333ea
     if (isCeiling) {
         return {
-            bgStyle: { backgroundColor: '#9333ea' }, // purple-600
+            bgStyle: { backgroundColor: '#9333ea' },
             textClass: 'text-white font-black',
             subTextClass: 'text-purple-100 font-extrabold',
             priceClass: 'text-purple-200 font-mono',
@@ -65,10 +65,10 @@ export function getHeatTileStyle(
         };
     }
 
-    // 2. Xanh Lơ Sàn: #06B6D4
+    // 2. Xanh Lơ Sàn: #0891b2
     if (isFloor) {
         return {
-            bgStyle: { backgroundColor: '#0891b2' }, // cyan-600
+            bgStyle: { backgroundColor: '#0891b2' },
             textClass: 'text-white font-black',
             subTextClass: 'text-cyan-100 font-extrabold',
             priceClass: 'text-cyan-200 font-mono',
@@ -78,10 +78,10 @@ export function getHeatTileStyle(
         };
     }
 
-    // 3. Vàng Tham Chiếu: #d97706 / #f59e0b
+    // 3. Vàng Tham Chiếu: #d97706
     if (isRef) {
         return {
-            bgStyle: { backgroundColor: 'rgba(217, 119, 6, 0.45)' }, // amber with opacity
+            bgStyle: { backgroundColor: 'rgba(217, 119, 6, 0.45)' },
             textClass: 'text-amber-300 dark:text-amber-200 font-extrabold',
             subTextClass: 'text-amber-200/90 font-bold',
             priceClass: 'text-amber-300/80 font-mono',
@@ -91,10 +91,10 @@ export function getHeatTileStyle(
         };
     }
 
-    // 4. Xanh Tăng (Bullish Emerald #10B981)
+    // 4. Xanh Tăng (Bullish Emerald)
     if (pct > 0) {
         const ratio = Math.min(Math.max(pct / (ceilingPct || 7), 0.15), 1);
-        const alpha = 0.25 + ratio * 0.7; // 0.35 -> 0.95
+        const alpha = 0.25 + ratio * 0.7;
         return {
             bgStyle: { backgroundColor: `rgba(16, 185, 129, ${alpha.toFixed(2)})` },
             textClass: alpha > 0.5 ? 'text-white font-black' : 'text-emerald-100 dark:text-emerald-200 font-bold',
@@ -106,11 +106,11 @@ export function getHeatTileStyle(
         };
     }
 
-    // 5. Đỏ Giảm (Bearish Red #EF4444)
+    // 5. Đỏ Giảm (Bearish Red)
     const absPct = Math.abs(pct);
     const maxFloor = Math.abs(floorPct || -7);
     const ratio = Math.min(Math.max(absPct / maxFloor, 0.15), 1);
-    const alpha = 0.25 + ratio * 0.7; // 0.35 -> 0.95
+    const alpha = 0.25 + ratio * 0.7;
 
     return {
         bgStyle: { backgroundColor: `rgba(239, 68, 68, ${alpha.toFixed(2)})` },
@@ -124,7 +124,11 @@ export function getHeatTileStyle(
 }
 
 /**
- * Xác định kích thước ô theo 5 cấp (L, M, S, XS, TINY) dựa trên GTGD / Vốn hóa
+ * Xác định kích thước ô theo 4 nhóm kích cỡ:
+ * - Size L: 2x2 (colSpan 4, rowSpan 4)
+ * - Size M: 2x1 (colSpan 4, rowSpan 2)
+ * - Size S: 1x1 (colSpan 2, rowSpan 2)
+ * - Size XS: 0.5x0.5 (colSpan 1, rowSpan 1)
  */
 export function getTileSpan(
     stock: StockForHeat,
@@ -132,15 +136,18 @@ export function getTileSpan(
     sizeMode: HeatSizeMode
 ): { colSpan: number; rowSpan: number; size: HeatTileSize } {
     if (sizeMode === 'equal') {
-        return { colSpan: 1, rowSpan: 1, size: 'S' };
+        if (allGroupStocks.length <= 1) {
+            return { colSpan: 4, rowSpan: 2, size: 'M' };
+        }
+        return { colSpan: 2, rowSpan: 2, size: 'S' };
     }
 
     const n = allGroupStocks.length;
     if (n <= 1) {
-        return { colSpan: 2, rowSpan: 1, size: 'M' };
+        return { colSpan: 4, rowSpan: 2, size: 'M' };
     }
-    if (n <= 2) {
-        return { colSpan: 1, rowSpan: 1, size: 'S' };
+    if (n === 2) {
+        return { colSpan: 2, rowSpan: 2, size: 'S' };
     }
 
     // Trọng số tính theo GTGD hoặc Vốn hóa
@@ -163,41 +170,60 @@ export function getTileSpan(
     const rank = sorted.findIndex((w) => w <= currentWeight);
     const ratio = rank / sorted.length;
 
-    // Top 15% (ít nhất 1 mã nếu nhóm >= 4 mã): Ô L (2x2)
-    if (rank === 0 && n >= 4) {
-        return { colSpan: 2, rowSpan: 2, size: 'L' };
-    }
-    if (ratio < 0.15 && n >= 6) {
-        return { colSpan: 2, rowSpan: 2, size: 'L' };
-    }
-
-    // Top 15% - 35%: Ô M (2x1)
-    if (ratio < 0.35 && n >= 3) {
-        return { colSpan: 2, rowSpan: 1, size: 'M' };
+    // Nhóm nhỏ dưới 5 mã (< 5 mã)
+    if (n < 5) {
+        if (rank === 0 && currentWeight > (sorted[1] || 0) * 1.3) {
+            return { colSpan: 4, rowSpan: 2, size: 'M' };
+        }
+        return { colSpan: 2, rowSpan: 2, size: 'S' };
     }
 
-    // Tiếp theo 35% - 65%: Ô S (1x1)
-    if (ratio < 0.65) {
-        return { colSpan: 1, rowSpan: 1, size: 'S' };
-    }
-
-    // Tiếp theo 65% - 85%: Ô XS (1x1 nhỏ)
-    if (ratio < 0.85 || n < 8) {
+    // Nhóm trung bình 5-10 mã
+    if (n <= 10) {
+        if (rank === 0) {
+            return { colSpan: 4, rowSpan: 4, size: 'L' };
+        }
+        if (ratio < 0.35) {
+            return { colSpan: 4, rowSpan: 2, size: 'M' };
+        }
+        if (ratio < 0.75) {
+            return { colSpan: 2, rowSpan: 2, size: 'S' };
+        }
         return { colSpan: 1, rowSpan: 1, size: 'XS' };
     }
 
-    // Cuối cùng hoặc thanh khoản nhỏ: Ô TINY (vi mô, chỉ hiện khối màu)
-    return { colSpan: 1, rowSpan: 1, size: 'TINY' };
+    // Nhóm lớn trên 10 mã (> 10 mã)
+    // Top ~15% (ít nhất 1 mã lớn nhất): Size L 2x2
+    if (rank === 0 || (ratio < 0.15 && rank < 3)) {
+        return { colSpan: 4, rowSpan: 4, size: 'L' };
+    }
+
+    // Top 15% - 40%: Size M 2x1
+    if (ratio < 0.40) {
+        return { colSpan: 4, rowSpan: 2, size: 'M' };
+    }
+
+    // Tiếp theo 40% - 75%: Size S 1x1
+    if (ratio < 0.75) {
+        return { colSpan: 2, rowSpan: 2, size: 'S' };
+    }
+
+    // Còn lại: Size XS 0.5x0.5
+    return { colSpan: 1, rowSpan: 1, size: 'XS' };
 }
 
 /**
- * Xác định phân bổ cột cho khối ngành:
- * - Ngành có >= 5 mã hoặc GTGD >= 500 Tỷ: chiếm 2 cột (full width)
- * - Ngành ít mã (< 5 mã): chiếm 1 cột (xếp gọn 2 khối ngành cạnh nhau)
+ * Xác định phân bổ cột cho khối ngành trong hệ lưới 6 cột:
+ * - Trên 10 mã: 1 dòng riêng (col-span-6 = 100% width)
+ * - Từ 5 - 10 mã: chia đôi kích thước (col-span-3 = 50% width, 2 khối / hàng)
+ * - Dưới 5 mã: chia 3 (col-span-2 = 33.3% width, 3 khối / hàng)
  */
-export function getIndustryBlockColSpan(stockCount: number, totalSessionVal?: number): number {
-    if (stockCount >= 5 || (totalSessionVal && totalSessionVal >= 500)) {
-        return 2;
+export function getIndustryBlockColSpan(stockCount: number): number {
+    if (stockCount > 10) {
+        return 6;
     }
-    return 1;
+    if (stockCount >= 5) {
+        return 3;
+    }
+    return 2;
 }
