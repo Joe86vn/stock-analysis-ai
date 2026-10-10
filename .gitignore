@@ -46,8 +46,9 @@ next-env.d.ts
 
 # Local data cache & User database
 data/ohlc/
-data/users.json
-data/users.json.tmp*
+data/*.json
+data/*.json.tmp*
+data/*.tmp*
 
 .vercel
 .env*

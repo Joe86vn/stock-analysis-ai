@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getSafeUsers, updateUserRole } from '@/lib/users-store';
-import { UserRole } from '@/types/auth';
+import { getAllVipRequests, approveVipRequest, rejectVipRequest } from '@/lib/vip-requests-store';
 
 export async function GET() {
   try {
@@ -10,8 +9,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Chỉ Admin mới có quyền truy cập' }, { status: 403 });
     }
 
-    const users = getSafeUsers();
-    return NextResponse.json({ users });
+    const requests = getAllVipRequests();
+    return NextResponse.json({ requests });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -25,14 +24,21 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { userId, role } = body;
+    const { requestId, action } = body;
 
-    if (!userId || !role) {
-      return NextResponse.json({ error: 'Thiếu userId hoặc role' }, { status: 400 });
+    if (!requestId || !action) {
+      return NextResponse.json({ error: 'Thiếu thông tin requestId hoặc action' }, { status: 400 });
     }
 
-    const success = updateUserRole(userId, role as UserRole);
-    return NextResponse.json({ success });
+    if (action === 'approve') {
+      const ok = await approveVipRequest(requestId);
+      return NextResponse.json({ success: ok });
+    } else if (action === 'reject') {
+      const ok = await rejectVipRequest(requestId);
+      return NextResponse.json({ success: ok });
+    }
+
+    return NextResponse.json({ error: 'Hành động không hợp lệ' }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

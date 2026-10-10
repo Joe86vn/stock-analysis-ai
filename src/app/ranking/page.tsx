@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { ScreenerFilterCriteria } from '@/lib/vietcap-screener-service';
 import {
@@ -1252,6 +1253,8 @@ export default function RankingPage() {
           </div>
         )}
       </main>
+
+      <Footer />
 
       {/* Stock Chart Drawer / Modal */}
       {selectedChartTicker && (

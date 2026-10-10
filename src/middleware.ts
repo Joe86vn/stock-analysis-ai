@@ -19,11 +19,12 @@ export default auth((req) => {
         return NextResponse.next();
     }
 
-    // Trang login & register không yêu cầu đăng nhập
+    // Trang login & register & trang chủ & reports không yêu cầu đăng nhập bắt buộc
     const isAuthPage = pathname === '/login' || pathname === '/register';
+    const isPublicPage = isAuthPage || pathname === '/' || pathname.startsWith('/reports');
 
     if (!isLoggedIn) {
-        if (!isAuthPage) {
+        if (!isPublicPage) {
             const loginUrl = new URL('/login', req.nextUrl.origin);
             loginUrl.searchParams.set('callbackUrl', req.nextUrl.pathname);
             return NextResponse.redirect(loginUrl);

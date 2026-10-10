@@ -1,477 +1,440 @@
-'use client';
-
-import React, { useState, useEffect, useRef, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React from 'react';
+import Link from 'next/link';
 import { Header } from '@/components/Header';
-import { StockSelector } from '@/components/StockSelector';
-import { DocumentUploader } from '@/components/DocumentUploader';
-import { ReferenceDocumentCatalog } from '@/components/ReferenceDocumentCatalog';
-import { MarketDataSummary } from '@/components/MarketDataSummary';
-import { ValuationCalculator } from '@/components/ValuationCalculator';
-import { ReportViewer } from '@/components/ReportViewer';
-import { ExportModal } from '@/components/ExportModal';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { RoleGate } from '@/components/RoleGate';
+import { Footer } from '@/components/Footer';
+import { fetchReports } from '@/lib/reports-service';
+import { CATEGORY_LABELS } from '@/types/reports';
+import {
+  Sparkles,
+  BarChart3,
+  Trophy,
+  CandlestickChart,
+  Lock,
+  ArrowRight,
+  ShieldCheck,
+  TrendingUp,
+  Target,
+  Award,
+  ChevronRight,
+  ExternalLink,
+  Phone,
+  CheckCircle2,
+  BookOpen
+} from 'lucide-react';
 
-import { getStockData, POPULAR_STOCKS } from '@/lib/stock-data';
-import { generateDefaultExpertReport } from '@/lib/default-report';
-import { AnalysisReport, StockMarketData, UploadedFile, ValuationAssumptions } from '@/types/analysis';
+export const metadata = {
+  title: 'ValueX - Đối Tác Đồng Hành Đầu Tư Bền Vững & Tăng Trưởng Vượt Trội',
+  description: 'Nền tảng tư vấn đầu tư chứng khoán và công cụ phân tích doanh nghiệp AI toàn diện. Đồng hành cùng nhà đầu tư kiến tạo tài sản bền vững.',
+};
 
-import { Sparkles, Download, RefreshCw, FileText, CheckCircle2, ChevronDown, ChevronUp, Cpu, AlertTriangle } from 'lucide-react';
-
-function HomeContent() {
-  const searchParams = useSearchParams();
-  const urlTicker = searchParams.get('ticker');
-
-  const [selectedStock, setSelectedStock] = useState<StockMarketData>(() => {
-    if (urlTicker) {
-      const clean = urlTicker.trim().toUpperCase();
-      const existing = POPULAR_STOCKS.find((s) => s.ticker === clean);
-      if (existing) return existing;
-      return {
-        ticker: clean,
-        companyName: `Công ty Cổ phần ${clean}`,
-        industry: 'Doanh nghiệp Niêm yết',
-        currentPrice: 0,
-        pe5YearMin: 0,
-        pe5YearMax: 0,
-        pe5YearAvg: 0,
-        peIndustry: 0,
-        pbIndustry: 0,
-        peCompetitors: [],
-        pbCompetitors: [],
-      };
-    }
-    return getStockData('HPG');
-  });
-
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [report, setReport] = useState<AnalysisReport | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatingMsg, setGeneratingMsg] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
-  const [qualitativeStatus, setQualitativeStatus] = useState<{
-    hasData: boolean;
-    ticker: string;
-    analyzedAt?: string;
-    industryModel?: string;
-    documentSources?: string[];
-    totalProjects?: number;
-    totalBrokerReports?: number;
-  } | null>(null);
-
-  // useRef to always have fresh uploadedFiles in closures
-  const uploadedFilesRef = useRef<UploadedFile[]>(uploadedFiles);
-  uploadedFilesRef.current = uploadedFiles;
-  const reportSectionRef = useRef<HTMLDivElement>(null);
-
-  // Kiểm tra trạng thái dữ liệu định tính R2 khi đổi mã cổ phiếu
-  useEffect(() => {
-    let isCancelled = false;
-    const checkR2 = async () => {
-      try {
-        const res = await fetch(`/api/analysis/qualitative-status?ticker=${selectedStock.ticker}`);
-        if (res.ok && !isCancelled) {
-          const json = await res.json();
-          setQualitativeStatus(json);
-        }
-      } catch {
-        if (!isCancelled) setQualitativeStatus(null);
-      }
-    };
-    checkR2();
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedStock.ticker]);
-
-  const fetchLatestPrice = async (ticker: string): Promise<number | null> => {
-    try {
-      const response = await fetch(`/api/stocks/${ticker}/price`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data && typeof data.price === 'number' && data.price > 0) {
-          return data.price;
-        }
-      }
-    } catch (err) {
-      console.warn(`Failed to fetch latest price for ${ticker}, using local value:`, err);
-    }
-    return null;
-  };
-
-  const fetchVietcapRatios = async (ticker: string) => {
-    try {
-      const response = await fetch(`/api/stocks/${ticker}/financials`);
-      if (response.ok) {
-        const data = await response.json();
-        const quarters = data.quarters || [];
-        const peValues = quarters.map((q: any) => q.pe).filter((pe: any) => typeof pe === 'number' && pe > 0);
-        if (peValues.length > 0) {
-          return {
-            pe5YearMin: Math.round(Math.min(...peValues) * 10) / 10,
-            pe5YearMax: Math.round(Math.max(...peValues) * 10) / 10,
-            pe5YearAvg: Math.round((peValues.reduce((s: number, c: number) => s + c, 0) / peValues.length) * 10) / 10,
-          };
-        }
-      }
-    } catch (err) {
-      console.warn(`Failed to fetch Vietcap ratios for ${ticker}:`, err);
-    }
-    return null;
-  };
-
-  // Handle URL param changes or initial load
-  useEffect(() => {
-    const init = async () => {
-      const targetTicker = (urlTicker || selectedStock.ticker).trim().toUpperCase();
-      let targetStock = POPULAR_STOCKS.find((s) => s.ticker === targetTicker) || {
-        ticker: targetTicker,
-        companyName: `Công ty Cổ phần ${targetTicker}`,
-        industry: 'Doanh nghiệp Niêm yết',
-        currentPrice: 0,
-        pe5YearMin: 0,
-        pe5YearMax: 0,
-        pe5YearAvg: 0,
-        peIndustry: 0,
-        pbIndustry: 0,
-        peCompetitors: [],
-        pbCompetitors: [],
-      };
-
-      let priceUpdatedStock = { ...targetStock };
-      const [latestPrice, ratios] = await Promise.all([
-        fetchLatestPrice(targetTicker),
-        fetchVietcapRatios(targetTicker),
-      ]);
-      if (latestPrice !== null) {
-        priceUpdatedStock.currentPrice = latestPrice;
-      }
-      if (ratios !== null) {
-        priceUpdatedStock.pe5YearMin = ratios.pe5YearMin;
-        priceUpdatedStock.pe5YearMax = ratios.pe5YearMax;
-        priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
-      }
-      setSelectedStock(priceUpdatedStock);
-      setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFiles));
-    };
-    init();
-  }, [urlTicker]);
-
-  const handleSelectStock = async (stock: StockMarketData) => {
-    let priceUpdatedStock = { ...stock };
-    const [latestPrice, ratios] = await Promise.all([
-      fetchLatestPrice(stock.ticker),
-      fetchVietcapRatios(stock.ticker),
-    ]);
-    if (latestPrice !== null) {
-      priceUpdatedStock.currentPrice = latestPrice;
-    }
-    if (ratios !== null) {
-      priceUpdatedStock.pe5YearMin = ratios.pe5YearMin;
-      priceUpdatedStock.pe5YearMax = ratios.pe5YearMax;
-      priceUpdatedStock.pe5YearAvg = ratios.pe5YearAvg;
-    }
-    setSelectedStock(priceUpdatedStock);
-    setReport(generateDefaultExpertReport(priceUpdatedStock.ticker, priceUpdatedStock, uploadedFilesRef.current));
-  };
-
-  const handleAddFiles = (files: UploadedFile[]) => {
-    const updated = [...uploadedFiles, ...files];
-    setUploadedFiles(updated);
-  };
-
-  const handleRemoveFile = (id: string) => {
-    const updated = uploadedFiles.filter((f) => f.id !== id);
-    setUploadedFiles(updated);
-  };
-
-  const handleSelectDocumentsForAnalysis = (files: UploadedFile[]) => {
-    setUploadedFiles(files);
-  };
-
-  const runAnalysis = async (stock: StockMarketData, files: UploadedFile[], forceRefresh: boolean = false) => {
-    const defaultModel = 'gemini-3.8-flash';
-    setIsGenerating(true);
-    setErrorMessage('');
-    const fileCount = files.length;
-    const isR2Ready = qualitativeStatus?.hasData;
-    setGeneratingMsg(
-      forceRefresh
-        ? `Đang yêu cầu ${defaultModel} phân tích mới lại toàn diện cho ${stock.ticker}...`
-        : isR2Ready
-          ? `Đang kiểm tra bộ nhớ đệm và tổng hợp báo cáo ValueX cho ${stock.ticker}...`
-          : fileCount > 0
-            ? `Đang phân tích ${fileCount} tài liệu bằng ${defaultModel} cho ${stock.ticker}...`
-            : `Đang kết nối ${defaultModel} phân tích chuyên sâu cho ${stock.ticker}...`
-    );
-    try {
-      const response = await fetch('/api/analysis/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ticker: stock.ticker,
-          marketData: stock,
-          uploadedFiles: files,
-          preferredModel: defaultModel,
-          forceRefresh,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Lỗi từ máy chủ (${response.status}) khi phân tích AI`);
-      }
-
-      const generated = await response.json();
-      setReport(generated);
-      setErrorMessage('');
-      // Scroll to report section after generation
-      setTimeout(() => {
-        reportSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    } catch (err: any) {
-      console.error('Error generating report:', err);
-      setErrorMessage(err.message || 'Lỗi khi gọi Google AI Studio Gemini.');
-    } finally {
-      setIsGenerating(false);
-      setGeneratingMsg('');
-    }
-  };
-
-  const handleUpdateValuation = (newValuation: ValuationAssumptions) => {
-    if (!report) return;
-    setReport({
-      ...report,
-      sectionF: {
-        ...report.sectionF,
-        valuation: newValuation,
-      },
-    });
-  };
-
-  const handleUpdateReport = (updatedReport: AnalysisReport) => {
-    setReport(updatedReport);
-  };
+export default async function HomePage() {
+  const reports = await fetchReports('all');
+  const latestReports = reports.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19] pb-16 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
       <Header />
 
-      <main className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 space-y-6">
-        <RoleGate feature="analysis_page" featureName="Phân Tích Doanh Nghiệp">
-        {/* Top Control Bar: Stock Selection + Document Upload */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:hidden">
-          <div className="lg:col-span-6">
-            <StockSelector selectedStock={selectedStock} onSelectStock={handleSelectStock} />
-          </div>
-          <div className="lg:col-span-6">
-            <DocumentUploader
-              files={uploadedFiles}
-              onAddFiles={handleAddFiles}
-              onRemoveFile={handleRemoveFile}
-            />
-          </div>
-        </div>
+      <main className="flex-1">
+        {/* ========================================================================= */}
+        {/* 1. HERO SECTION                                                          */}
+        {/* ========================================================================= */}
+        <section className="relative overflow-hidden pt-16 pb-20 md:pt-24 md:pb-28 border-b border-[var(--border-color)]">
+          {/* Subtle Background Glows */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-emerald-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
+          <div className="absolute top-1/3 right-10 w-[300px] h-[300px] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-        {/* Automatic Reference Document Catalog (cafef, vietstock, simplize) */}
-        <div className="print:hidden">
-          <ReferenceDocumentCatalog
-            ticker={selectedStock.ticker}
-            onSelectDocumentsForAnalysis={handleSelectDocumentsForAnalysis}
-          />
-        </div>
-
-        {/* Live Market Indicators Summary */}
-        <div className="print:hidden">
-          <MarketDataSummary marketData={selectedStock} />
-        </div>
-
-        {/* AI Trigger Action Bar */}
-        <div className="flex flex-col lg:flex-row items-center justify-between rounded-2xl border border-emerald-200 dark:border-emerald-500/20 bg-gradient-to-r from-emerald-50 via-white to-gray-50 dark:from-emerald-950/40 dark:via-gray-900 dark:to-[#111827] p-4 shadow-sm dark:shadow-xl gap-4 print:hidden transition-colors duration-200">
-          <div className="flex items-center space-x-3 w-full lg:w-auto">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-              <Sparkles className={`h-5 w-5 ${isGenerating ? 'animate-spin' : 'animate-pulse'}`} />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            {/* Tag Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 mb-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <Sparkles className="w-3.5 h-3.5" />
+              Nền Tảng Tư Vấn & Phân Tích Chứng Khoán Chuyên Nghiệp
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 font-heading">
-                <span>ValueX AI Engine:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                  gemini-3.8-flash
+
+            {/* Main Headline */}
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-[var(--text-heading)] tracking-tight leading-[1.15] max-w-4xl mx-auto">
+              Đồng Hành Đầu Tư,<br className="hidden sm:inline" />
+              <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 bg-clip-text text-transparent">
+                Kiến Tạo Tài Sản Bền Vững
+              </span>
+            </h1>
+
+            {/* Sub-headline */}
+            <p className="mt-5 text-base sm:text-lg text-[var(--text-muted)] max-w-2xl mx-auto leading-relaxed">
+              Tiếp cận kiến thức đúng, ấn phẩm báo cáo chuyên sâu và bộ công cụ định lượng AI từ đội ngũ tư vấn chuyên nghiệp hàng đầu <strong>Bà Rịa - Vũng Tàu</strong>.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
+              <Link
+                href="/reports"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25 transition-all transform hover:-translate-y-0.5"
+              >
+                <BookOpen className="w-4 h-4" />
+                Xem Báo Cáo Phân Tích
+              </Link>
+              <Link
+                href="/analysis"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-[var(--surface)] hover:bg-slate-500/5 text-[var(--text-heading)] border border-[var(--border-color)] hover:border-emerald-500/50 transition-all transform hover:-translate-y-0.5"
+              >
+                <BarChart3 className="w-4 h-4 text-emerald-600" />
+                Công Cụ Phân Tích AI
+              </Link>
+              <Link
+                href="/profile"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-md shadow-amber-500/20 transition-all transform hover:-translate-y-0.5"
+              >
+                <Sparkles className="w-4 h-4" />
+                Đăng Ký Gói VIP
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 2. CÔNG CỤ THỰC CHIẾN (3 CORE WEAPONS)                                   */}
+        {/* ========================================================================= */}
+        <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Công Nghệ & Định Lượng
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-heading)] mt-1.5">
+              Bộ Ba Vũ Khí Phân Tích Thực Chiến
+            </h2>
+            <p className="text-sm text-[var(--text-muted)] mt-2">
+              Sự kết hợp hoàn hảo giữa cơ bản, kỹ thuật và mô hình trí tuệ nhân tạo.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Tool 1: AI Valuation */}
+            <div className="group flex flex-col justify-between bg-[var(--surface)] border border-[var(--border-color)] hover:border-emerald-500/50 rounded-3xl p-8 hover:shadow-xl hover:shadow-emerald-500/5 transition-all">
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-6">
+                  <BarChart3 className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-bold text-[var(--text-heading)] group-hover:text-emerald-600 transition-colors mb-2.5">
+                  Phân Tích Doanh Nghiệp AI
+                </h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
+                  Mô hình chuẩn 4 phần A-B-C-D với dữ liệu tài chính Vietcap IQ API, định giá 3 kịch bản P/E, EPS Forward và 3 Scorecard chất lượng tăng trưởng.
+                </p>
+                <ul className="space-y-2 text-xs text-[var(--text-body)] mb-8">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Phân tích chuỗi giá trị & catalyst
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Tự động tính toán định giá 3 kịch bản
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Xuất báo cáo PDF chuẩn in ấn A4
+                  </li>
+                </ul>
+              </div>
+              <Link
+                href="/analysis"
+                className="inline-flex items-center justify-between font-bold text-xs text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform pt-4 border-t border-[var(--border-color)]"
+              >
+                <span>Vào phân tích ngay</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Tool 2: RS Screener */}
+            <div className="group flex flex-col justify-between bg-[var(--surface)] border border-[var(--border-color)] hover:border-amber-500/50 rounded-3xl p-8 hover:shadow-xl hover:shadow-amber-500/5 transition-all">
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mb-6">
+                  <Trophy className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-bold text-[var(--text-heading)] group-hover:text-amber-600 transition-colors mb-2.5">
+                  Bộ Lọc & Xếp Hạng RS
+                </h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
+                  Chấm điểm sức mạnh giá tương đối (RS Rating) độc quyền theo phương pháp CANSLIM, phân loại dòng tiền theo ngành và phát hiện sớm cổ phiếu bứt phá.
+                </p>
+                <ul className="space-y-2 text-xs text-[var(--text-body)] mb-8">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" /> Xếp hạng sức mạnh RS 100+ cổ phiếu
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" /> Bộ lọc tài chính đa tiêu chí Tier 1
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-500" /> Xem nhanh đồ thị & xuất dữ liệu
+                  </li>
+                </ul>
+              </div>
+              <Link
+                href="/ranking"
+                className="inline-flex items-center justify-between font-bold text-xs text-amber-600 dark:text-amber-400 group-hover:translate-x-1 transition-transform pt-4 border-t border-[var(--border-color)]"
+              >
+                <span>Mở bộ lọc cổ phiếu</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Tool 3: KLineCharts */}
+            <div className="group flex flex-col justify-between bg-[var(--surface)] border border-[var(--border-color)] hover:border-indigo-500/50 rounded-3xl p-8 hover:shadow-xl hover:shadow-indigo-500/5 transition-all">
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center mb-6">
+                  <CandlestickChart className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-bold text-[var(--text-heading)] group-hover:text-indigo-600 transition-colors mb-2.5">
+                  Biểu Đồ Kỹ Thuật Chuyên Sâu
+                </h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
+                  Đồ thị nến Nhật KLineCharts tối ưu tốc độ, nhận diện cấu trúc đỉnh đáy SMC, tín hiệu đảo chiều CHoCH/BOS, bộ 10 công cụ vẽ và sự kiện cổ tức.
+                </p>
+                <ul className="space-y-2 text-xs text-[var(--text-body)] mb-8">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" /> Đa khung thời gian Ngày, Tuần, Tháng
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" /> Đánh dấu sự kiện cổ tức D/S trực quan
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" /> Sidebar Market Watch VN-Index CANSLIM
+                  </li>
+                </ul>
+              </div>
+              <Link
+                href="/chart"
+                className="inline-flex items-center justify-between font-bold text-xs text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform pt-4 border-t border-[var(--border-color)]"
+              >
+                <span>Xem biểu đồ kỹ thuật</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 3. BÁO CÁO MỚI NHẤT (LATEST ADVISORY REPORTS)                             */}
+        {/* ========================================================================= */}
+        <section className="py-16 md:py-24 bg-slate-500/5 border-y border-[var(--border-color)]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Ấn Phẩm Độc Quyền
                 </span>
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-gray-400">
-                {isGenerating ? (
-                  <span className="text-emerald-700 dark:text-emerald-300 font-semibold animate-pulse">{generatingMsg}</span>
-                ) : (
-                  <>
-                    Lập báo cáo 6 phần chuẩn ValueX 150 điểm cho{' '}
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedStock.ticker}</span>
-                    {qualitativeStatus?.hasData && (
-                      <span className="block mt-0.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-                        ✓ Đã có dữ liệu định tính chuyên sâu từ R2 ({qualitativeStatus.analyzedAt} • {qualitativeStatus.totalProjects || 0} dự án • {qualitativeStatus.totalBrokerReports || 0} báo cáo CTCK)
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-heading)] mt-1.5">
+                  Báo Cáo Phân Tích Mới Nhất
+                </h2>
+                <p className="text-sm text-[var(--text-muted)] mt-1">
+                  Đánh giá xu hướng vĩ mô, chiến lược phân bổ tài sản và nghiên cứu cơ hội đầu tư.
+                </p>
+              </div>
+              <Link
+                href="/reports"
+                className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+              >
+                Xem tất cả báo cáo <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {latestReports.map((report) => (
+                <div
+                  key={report.id}
+                  className="group flex flex-col justify-between bg-[var(--surface)] rounded-2xl border border-[var(--border-color)] hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/5 transition-all overflow-hidden"
+                >
+                  <div>
+                    {/* Header Banner */}
+                    <div className="h-32 bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 p-5 flex flex-col justify-between relative">
+                      <div className="flex justify-between items-center z-10">
+                        <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                          {CATEGORY_LABELS[report.category] || report.category}
+                        </span>
+                        {report.is_vip ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950">
+                            <Lock className="w-2.5 h-2.5" /> VIP
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300">
+                            Cơ bản
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-mono font-bold text-white/90 z-10">
+                        {report.cover_label || 'VALUEX REPORT'}
                       </span>
-                    )}
-                  </>
-                )}
+                    </div>
+
+                    <div className="p-6">
+                      <h3 className="text-base font-bold text-[var(--text-heading)] group-hover:text-emerald-600 transition-colors line-clamp-2 leading-snug mb-2">
+                        {report.title}
+                      </h3>
+                      <p className="text-xs text-[var(--text-muted)] line-clamp-3 leading-relaxed">
+                        {report.excerpt}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="px-6 pb-6 pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-xs text-[var(--text-muted)]">
+                    <span>{new Date(report.created_at).toLocaleDateString('vi-VN')}</span>
+                    <Link
+                      href={`/reports/${report.slug}`}
+                      className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+                    >
+                      Đọc tiếp →
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 4. HIỆU SUẤT DANH MỤC THỰC CHIẾN (TRACK RECORD)                          */}
+        {/* ========================================================================= */}
+        <section id="portfolio-performance" className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Chứng Minh Năng Lực
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-heading)] mt-1.5">
+              Hiệu Suất Danh Mục Khuyến Nghị
+            </h2>
+            <p className="text-sm text-[var(--text-muted)] mt-2">
+              Số liệu kiểm toán thực tế mức sinh lời danh mục khuyến nghị của ValueX vượt trội so với chỉ số VN-Index.
+            </p>
+          </div>
+
+          <div className="max-w-4xl mx-auto bg-[var(--surface)] border border-[var(--border-color)] rounded-3xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-500/5 border-b border-[var(--border-color)] text-xs text-[var(--text-muted)] uppercase">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold">Năm</th>
+                    <th className="px-6 py-4 font-semibold text-emerald-600 dark:text-emerald-400">Danh Mục ValueX</th>
+                    <th className="px-6 py-4 font-semibold">Chỉ Số VN-Index</th>
+                    <th className="px-6 py-4 font-semibold text-right">Mức Sinh Lời Vượt Trội</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-color)]">
+                  <tr className="hover:bg-slate-500/5 transition-colors">
+                    <td className="px-6 py-4 font-bold text-[var(--text-heading)]">2024</td>
+                    <td className="px-6 py-4 font-bold text-emerald-600 dark:text-emerald-400">+28.5%</td>
+                    <td className="px-6 py-4 font-medium text-[var(--text-muted)]">+10.2%</td>
+                    <td className="px-6 py-4 font-extrabold text-emerald-600 dark:text-emerald-400 text-right">+18.3%</td>
+                  </tr>
+                  <tr className="hover:bg-slate-500/5 transition-colors">
+                    <td className="px-6 py-4 font-bold text-[var(--text-heading)]">2025</td>
+                    <td className="px-6 py-4 font-bold text-emerald-600 dark:text-emerald-400">+34.2%</td>
+                    <td className="px-6 py-4 font-medium text-[var(--text-muted)]">+12.5%</td>
+                    <td className="px-6 py-4 font-extrabold text-emerald-600 dark:text-emerald-400 text-right">+21.7%</td>
+                  </tr>
+                  <tr className="hover:bg-slate-500/5 transition-colors">
+                    <td className="px-6 py-4 font-bold text-[var(--text-heading)]">2026 (YTD)</td>
+                    <td className="px-6 py-4 font-bold text-emerald-600 dark:text-emerald-400">+18.7%</td>
+                    <td className="px-6 py-4 font-medium text-[var(--text-muted)]">+5.1%</td>
+                    <td className="px-6 py-4 font-extrabold text-emerald-600 dark:text-emerald-400 text-right">+13.6%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 bg-emerald-500/5 border-t border-[var(--border-color)] text-center text-xs text-[var(--text-muted)]">
+              Kỷ luật cắt lỗ nghiêm ngặt $\le 7\%$ và nắm giữ siêu cổ phiếu tăng trưởng giúp bảo vệ thành quả và nhân đôi tài sản.
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 5. VỀ CHÚNG TÔI (ABOUT US & CORE VALUES)                                 */}
+        {/* ========================================================================= */}
+        <section id="about-us" className="py-16 md:py-24 bg-slate-500/5 border-t border-[var(--border-color)]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-14">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                Giá Trị Cốt Lõi
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-heading)] mt-1.5">
+                Chúng Tôi Là ValueX
+              </h2>
+              <p className="text-sm text-[var(--text-muted)] mt-2">
+                Đội ngũ môi giới và chuyên viên phân tích tài chính tận tâm vì sự an toàn và tăng trưởng tài sản của quý khách hàng.
               </p>
             </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
-            {/* Model Badge */}
-            <div className="flex items-center space-x-2 bg-white dark:bg-gray-950/80 border border-emerald-200 dark:border-emerald-500/30 rounded-xl px-3.5 py-2 shadow-xs">
-              <Cpu className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                ⚡ Gemini 3.8 Flash
-              </span>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Tầm nhìn */}
+              <div className="bg-[var(--surface)] border border-[var(--border-color)] rounded-3xl p-8 shadow-sm">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-lg mb-4">
+                  👁️
+                </div>
+                <h3 className="text-lg font-bold text-[var(--text-heading)] mb-2">Tầm Nhìn</h3>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  Trở thành đội ngũ tư vấn đầu tư uy tín, chuyên nghiệp hàng đầu <strong>Bà Rịa - Vũng Tàu</strong> và vươn tầm toàn quốc. Kiến tạo cộng đồng nhà đầu tư thông thái và vững vàng tài chính.
+                </p>
+              </div>
 
-            {/* Nút Phân tích chính (Tự động ưu tiên Cache nếu có) */}
-            <button
-              onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current, false)}
-              disabled={isGenerating}
-              className="flex items-center justify-center space-x-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-xs font-extrabold text-white shadow-md shadow-emerald-600/25 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-              title="Phân tích cổ phiếu (Tự động tải từ Cache nếu đã phân tích trong 7 ngày để tiết kiệm token)"
-            >
-              <Sparkles className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>
-                {isGenerating
-                  ? 'Đang Xử Lý...'
-                  : report?.generationModel
-                    ? '⚡ Xem Lại / Cập Nhật'
-                    : '🚀 Bắt Đầu Phân Tích AI'}
-              </span>
-            </button>
+              {/* Sứ mệnh */}
+              <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-3xl p-8 shadow-lg shadow-emerald-600/20">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center font-bold text-lg mb-4">
+                  🎯
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">Sứ Mệnh</h3>
+                <p className="text-xs text-white/90 leading-relaxed">
+                  Giúp nhà đầu tư tiếp cận kiến thức đúng, thông tin đáng tin cậy và cơ hội đầu tư tiềm năng; đồng hành cùng khách hàng trong quản trị rủi ro và xây dựng tài sản bền vững theo năm tháng.
+                </p>
+              </div>
 
-            {/* Nút Ép Phân tích lại từ đầu (Bỏ qua Cache) */}
-            {report && (
-              <button
-                onClick={() => runAnalysis(selectedStock, uploadedFilesRef.current, true)}
-                disabled={isGenerating}
-                className="flex items-center justify-center space-x-1.5 rounded-xl border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-950/30 px-3.5 py-2.5 text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition disabled:opacity-50"
-                title="Bỏ qua bộ nhớ đệm, gọi trực tiếp Gemini 3.8 Flash để phân tích mới lại 100%"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span>Phân Tích Lại (Bắt Buộc)</span>
-              </button>
-            )}
-
-            {report && (
-              <button
-                onClick={() => setIsExportOpen(true)}
-                className="flex items-center justify-center space-x-1.5 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition"
-              >
-                <Download className="h-4 w-4" />
-                <span>Xuất PDF/Word</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Error Banner */}
-        {errorMessage && (
-          <div className="rounded-2xl border border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-950/30 p-4 shadow-sm dark:shadow-xl text-rose-800 dark:text-rose-200 space-y-3 print:hidden">
-            <div className="flex items-start space-x-3">
-              <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
-                  Lỗi Kết Nối Google AI Studio
-                </h4>
-                <p className="text-xs text-slate-700 dark:text-gray-300 mt-1">{errorMessage}</p>
+              {/* Giá trị cốt lõi */}
+              <div className="bg-[var(--surface)] border border-[var(--border-color)] rounded-3xl p-8 shadow-sm">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold text-lg mb-4">
+                  💎
+                </div>
+                <h3 className="text-lg font-bold text-[var(--text-heading)] mb-2">Giá Trị Cốt Lõi</h3>
+                <ul className="space-y-1.5 text-xs text-[var(--text-body)]">
+                  <li><strong>• Chính trực:</strong> Đặt đạo đức nghề nghiệp lên hàng đầu.</li>
+                  <li><strong>• Chuyên môn:</strong> Năng lực phân tích sắc bén, sâu rộng.</li>
+                  <li><strong>• Kỷ luật:</strong> Tuân thủ phương pháp và kiểm soát rủi ro.</li>
+                  <li><strong>• Đồng hành:</strong> Song hành cùng khách hàng trên mọi chặng đường.</li>
+                </ul>
               </div>
             </div>
           </div>
-        )}
+        </section>
 
-        {/* Analyzing Progress Banner */}
-        {isGenerating && (
-          <div className="flex items-center space-x-3 rounded-2xl border border-emerald-300 dark:border-sky-500/30 bg-emerald-50 dark:bg-sky-950/60 px-5 py-3 shadow-sm print:hidden">
-            <RefreshCw className="h-4 w-4 animate-spin text-emerald-600 dark:text-sky-400 shrink-0" />
-            <p className="text-xs font-medium text-emerald-800 dark:text-sky-300">{generatingMsg}</p>
-            <span className="ml-auto text-[10px] text-emerald-600 dark:text-sky-500 animate-pulse">AI đang xử lý...</span>
+        {/* ========================================================================= */}
+        {/* 6. CALL TO ACTION - KẾT NỐI BROKER                                       */}
+        {/* ========================================================================= */}
+        <section className="py-16 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 border border-emerald-500/30 p-8 sm:p-12 text-center text-white relative overflow-hidden shadow-2xl">
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:20px_20px]" />
+            <div className="relative z-10 max-w-2xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                Sẵn Sàng Bứt Phá Lợi Nhuận Cùng ValueX?
+              </h2>
+              <p className="mt-3 text-sm text-slate-300 leading-relaxed">
+                Đăng ký tài khoản VIP ngay hôm nay để nhận báo cáo khuyến nghị điểm mua/bán chi tiết, mở khóa toàn bộ công cụ AI Valuation và được chuyên viên tư vấn trực tiếp 1-1.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <Link
+                  href="/profile"
+                  className="px-6 py-3 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/30 transition-all"
+                >
+                  Yêu Cầu Nâng Cấp VIP Ngay
+                </Link>
+                <a
+                  href="https://zalo.me/0901234567"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 rounded-xl font-bold text-sm bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all flex items-center gap-2"
+                >
+                  <Phone className="w-4 h-4 text-emerald-400" />
+                  Hotline / Zalo: 090 123 4567
+                </a>
+              </div>
+            </div>
           </div>
-        )}
-
-        {/* 6-Section Report Viewer (A, B, C, D, E, F) */}
-        <div ref={reportSectionRef}>
-          {report && (
-            <ErrorBoundary fallbackTitle="Không thể hiển thị Báo cáo Phân tích">
-              <ReportViewer
-                key={report.ticker}
-                report={report}
-                onUpdateReport={handleUpdateReport}
-                onRegenerate={() => runAnalysis(selectedStock, uploadedFilesRef.current)}
-                isGenerating={isGenerating}
-              />
-            </ErrorBoundary>
-          )}
-        </div>
-
-        {/* Template Guide Collapsible Section */}
-        <div id="analysis-guide" className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] p-5 shadow-sm dark:shadow-xl print:hidden transition-colors duration-200">
-          <button
-            onClick={() => setShowGuide(!showGuide)}
-            className="flex w-full items-center justify-between text-left"
-          >
-            <div className="flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-emerald-600 dark:text-sky-400" />
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white font-heading">
-                Tham Chiếu Quy Trình Phân Tích Chuẩn (`analysis-guide.md`)
-              </h3>
-            </div>
-            {showGuide ? (
-              <ChevronUp className="h-5 w-5 text-gray-400" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-gray-400" />
-            )}
-          </button>
-
-          {showGuide && (
-            <div className="mt-4 border-t border-gray-200 dark:border-gray-800 pt-4 text-xs text-slate-600 dark:text-gray-300 space-y-3 leading-relaxed">
-              <div>
-                <h4 className="font-bold text-blue-600 dark:text-sky-400">A. Tổng Quan</h4>
-                <p>1. Doanh nghiệp | 2. Cơ cấu cổ đông & Ban lãnh đạo | 3. Cơ cấu doanh nghiệp (Công ty liên kết)</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-emerald-600 dark:text-emerald-400">B. Hoạt Động Kinh Doanh</h4>
-                <p>1. Chuỗi giá trị (Đầu vào, Quy trình sản xuất, Đầu ra sản phẩm cốt lõi)</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-purple-600 dark:text-purple-400">C. Tình Hình Tài Chính</h4>
-                <p>1. Doanh thu 3 năm | 2. Biên lợi nhuận (Gross/Net margin, ROE) | 3. Sức khỏe tài chính (Nợ vay/VCSH)</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-amber-600 dark:text-amber-400">D. Triển Vọng Kinh Doanh & Định Giá</h4>
-                <p>1. Tăng trưởng (Sản lượng x Giá bán, Chi phí) | 2. Ước lượng 4 quý | 3. Định giá 3 kịch bản (PE Trung bình, PE Max, PE Min)</p>
-              </div>
-            </div>
-          )}
-        </div>
-        </RoleGate>
+        </section>
       </main>
 
-      {/* Export Modal */}
-      {report && (
-        <ExportModal
-          report={report}
-          isOpen={isExportOpen}
-          onClose={() => setIsExportOpen(false)}
-        />
-      )}
+      <Footer />
     </div>
   );
 }
-
-export default function Home() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19]" />}>
-      <HomeContent />
-    </Suspense>
-  );
-}
-

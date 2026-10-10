@@ -18,7 +18,8 @@ export function Header() {
   const { theme, toggleTheme, mounted } = useTheme();
   const pathname = usePathname();
 
-  const isAnalysisActive = pathname === '/' || pathname === '';
+  const isHomeActive = pathname === '/' || pathname === '';
+  const isAnalysisActive = pathname === '/analysis' || pathname?.startsWith('/analysis');
   const isRankingActive = pathname === '/ranking';
   const isChartActive = pathname === '/chart' || pathname?.startsWith('/chart');
 
@@ -52,7 +53,7 @@ export function Header() {
           {/* Navigation Tabs */}
           <nav className="hidden md:flex items-center space-x-1.5 p-1 rounded-xl bg-gray-100/90 dark:bg-gray-800/80 border border-gray-200/70 dark:border-gray-700/60">
             <Link
-              href="/"
+              href="/analysis"
               className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${isAnalysisActive
                   ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
@@ -88,6 +89,17 @@ export function Header() {
               <CandlestickChart className="h-3.5 w-3.5 text-indigo-500" />
               <span>Biểu Đồ Kỹ Thuật</span>
             </Link>
+
+            <Link
+              href="/reports"
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${pathname?.startsWith('/reports')
+                  ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
+                }`}
+            >
+              <FileText className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Ấn Phẩm Báo Cáo</span>
+            </Link>
           </nav>
         </div>
 
@@ -95,7 +107,7 @@ export function Header() {
           {/* Mobile nav pills */}
           <div className="flex md:hidden items-center space-x-1">
             <Link
-              href="/"
+              href="/analysis"
               className={`p-2 rounded-lg text-xs font-semibold ${isAnalysisActive
                   ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
                   : 'text-gray-600 dark:text-gray-400'
@@ -123,6 +135,16 @@ export function Header() {
               title="Biểu đồ kỹ thuật"
             >
               <CandlestickChart className="h-4 w-4 text-indigo-500" />
+            </Link>
+            <Link
+              href="/reports"
+              className={`p-2 rounded-lg text-xs font-semibold ${pathname?.startsWith('/reports')
+                  ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
+                  : 'text-gray-600 dark:text-gray-400'
+                }`}
+              title="Ấn phẩm báo cáo"
+            >
+              <FileText className="h-4 w-4 text-emerald-500" />
             </Link>
           </div>
 

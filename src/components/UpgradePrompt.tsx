@@ -62,16 +62,14 @@ export function UpgradePrompt({
                 >
                     Quay lại Biểu đồ (Gói Free)
                 </Link>
-                <a
-                    href="https://t.me/valuex_support"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                <Link
+                    href="/profile"
                     className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-semibold flex items-center justify-center space-x-2 shadow-lg shadow-amber-500/20 transition"
                 >
                     <Sparkles className="w-4 h-4" />
-                    <span>Liên hệ nâng cấp gói VIP</span>
+                    <span>Yêu cầu nâng cấp gói VIP</span>
                     <ArrowRight className="w-4 h-4" />
-                </a>
+                </Link>
             </div>
         </div>
     );

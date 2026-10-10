@@ -83,11 +83,20 @@ export function UserMenu() {
                     </div>
 
                     <div className="py-1">
+                        <Link
+                            href="/profile"
+                            onClick={() => setIsOpen(false)}
+                            className="flex items-center space-x-2 px-3.5 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 font-medium transition"
+                        >
+                            <User className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Hồ Sơ & Nâng Cấp VIP</span>
+                        </Link>
+
                         {isAdmin && (
                             <Link
                                 href="/admin"
                                 onClick={() => setIsOpen(false)}
-                                className="flex items-center space-x-2 px-3.5 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 font-medium transition"
+                                className="flex items-center space-x-2 px-3.5 py-2 text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 font-medium transition"
                             >
                                 <ShieldAlert className="w-3.5 h-3.5" />
                                 <span>Trang Quản Trị (Admin)</span>
