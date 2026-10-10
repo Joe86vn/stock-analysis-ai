@@ -17,41 +17,72 @@ export interface VipRequest {
 const DATA_DIR = path.join(process.cwd(), 'data');
 const FILE_PATH = path.join(DATA_DIR, 'vip-requests.json');
 
+const INITIAL_VIP_REQUESTS: VipRequest[] = [
+  {
+    id: 'req-sample-1',
+    userId: 'usr_free_001',
+    userEmail: 'demo@valuex.vn',
+    userName: 'Thành Viên Trải Nghiệm',
+    phoneContact: '0908889999',
+    note: 'Đã mở tài khoản VPS với ID người giới thiệu.',
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  },
+];
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __VIP_REQUESTS_STORE__: VipRequest[] | undefined;
+}
+
 function ensureStoreExists(): VipRequest[] {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (globalThis.__VIP_REQUESTS_STORE__ && Array.isArray(globalThis.__VIP_REQUESTS_STORE__)) {
+    return globalThis.__VIP_REQUESTS_STORE__;
   }
-  if (!fs.existsSync(FILE_PATH)) {
-    const sample: VipRequest[] = [
-      {
-        id: 'req-sample-1',
-        userId: '3',
-        userEmail: 'free@valuex.vn',
-        userName: 'Free Member',
-        phoneContact: '0908889999',
-        note: 'Đã mở tài khoản VPS với ID người giới thiệu.',
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      },
-    ];
-    fs.writeFileSync(FILE_PATH, JSON.stringify(sample, null, 2), 'utf-8');
-    return sample;
-  }
+
   try {
-    const raw = fs.readFileSync(FILE_PATH, 'utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return [];
+    if (fs.existsSync(FILE_PATH)) {
+      const raw = fs.readFileSync(FILE_PATH, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        globalThis.__VIP_REQUESTS_STORE__ = parsed;
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[vip-requests-store] Cannot read from file:', err);
   }
+
+  // Fallback to initial sample
+  globalThis.__VIP_REQUESTS_STORE__ = [...INITIAL_VIP_REQUESTS];
+
+  // Attempt to write to disk if environment allows (ignore EROFS on Vercel)
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(FILE_PATH, JSON.stringify(INITIAL_VIP_REQUESTS, null, 2), 'utf-8');
+  } catch {
+    // Read-only filesystem on Vercel/serverless — safe to ignore
+  }
+
+  return globalThis.__VIP_REQUESTS_STORE__;
 }
 
 function saveRequests(list: VipRequest[]) {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  globalThis.__VIP_REQUESTS_STORE__ = list;
+
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const tempPath = path.join(DATA_DIR, `vip-requests.json.tmp.${Date.now()}`);
+    fs.writeFileSync(tempPath, JSON.stringify(list, null, 2), 'utf-8');
+    fs.renameSync(tempPath, FILE_PATH);
+  } catch {
+    // Read-only filesystem on Vercel/serverless — in-memory cache is already updated
+    console.warn('[vip-requests-store] File save skipped (read-only filesystem or IO error)');
   }
-  const tempPath = path.join(DATA_DIR, `vip-requests.json.tmp.${Date.now()}`);
-  fs.writeFileSync(tempPath, JSON.stringify(list, null, 2), 'utf-8');
-  fs.renameSync(tempPath, FILE_PATH);
 }
 
 export async function createVipRequest(

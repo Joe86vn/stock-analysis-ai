@@ -5,43 +5,53 @@ import { AppUser, SafeUser, UserRole } from '@/types/auth';
 
 const USERS_FILE_PATH = path.join(process.cwd(), 'data', 'users.json');
 
-// Mật khẩu mặc định khởi tạo:
-// admin@valuex.vn -> valuex@Admin2025
-// vip@valuex.vn   -> valuex@VIP2025
-// demo@valuex.vn  -> demo@Free2025
+let cachedDefaultUsers: AppUser[] | null = null;
+
 function getDefaultUsers(): AppUser[] {
-    return [
-        {
-            id: 'usr_admin_001',
-            email: 'admin@valuex.vn',
-            name: 'ValueX Administrator',
-            role: 'admin',
-            passwordHash: bcrypt.hashSync('valuex@Admin2025', 10),
-            createdAt: new Date().toISOString(),
-        },
-        {
-            id: 'usr_vip_001',
-            email: 'vip@valuex.vn',
-            name: 'Nhà Đầu Tư VIP',
-            role: 'member_vip',
-            passwordHash: bcrypt.hashSync('valuex@VIP2025', 10),
-            createdAt: new Date().toISOString(),
-        },
-        {
-            id: 'usr_free_001',
-            email: 'demo@valuex.vn',
-            name: 'Thành Viên Trải Nghiệm',
-            role: 'member_free',
-            passwordHash: bcrypt.hashSync('demo@Free2025', 10),
-            createdAt: new Date().toISOString(),
-        },
-    ];
+    if (!cachedDefaultUsers) {
+        cachedDefaultUsers = [
+            {
+                id: 'usr_admin_001',
+                email: 'admin@valuex.vn',
+                name: 'ValueX Administrator',
+                role: 'admin',
+                passwordHash: bcrypt.hashSync('valuex@Admin2025', 10),
+                createdAt: new Date().toISOString(),
+            },
+            {
+                id: 'usr_vip_001',
+                email: 'vip@valuex.vn',
+                name: 'Nhà Đầu Tư VIP',
+                role: 'member_vip',
+                passwordHash: bcrypt.hashSync('valuex@VIP2025', 10),
+                createdAt: new Date().toISOString(),
+            },
+            {
+                id: 'usr_free_001',
+                email: 'demo@valuex.vn',
+                name: 'Thành Viên Trải Nghiệm',
+                role: 'member_free',
+                passwordHash: bcrypt.hashSync('demo@Free2025', 10),
+                createdAt: new Date().toISOString(),
+            },
+        ];
+    }
+    return cachedDefaultUsers;
+}
+
+declare global {
+    // eslint-disable-next-line no-var
+    var __USERS_STORE__: AppUser[] | undefined;
 }
 
 function ensureDataDir() {
-    const dir = path.dirname(USERS_FILE_PATH);
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+    try {
+        const dir = path.dirname(USERS_FILE_PATH);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+    } catch {
+        // Ignore read-only filesystem error
     }
 }
 
@@ -51,6 +61,7 @@ function ensureDataDir() {
  * lỗi file JSON bị hỏng (corrupted) khi có nhiều request đồng thời hoặc mất điện.
  */
 function saveUsers(users: AppUser[]): boolean {
+    globalThis.__USERS_STORE__ = users;
     try {
         ensureDataDir();
         const tempPath = `${USERS_FILE_PATH}.${Date.now()}.${Math.random().toString(36).substring(2, 8)}.tmp`;
@@ -58,32 +69,41 @@ function saveUsers(users: AppUser[]): boolean {
         fs.renameSync(tempPath, USERS_FILE_PATH);
         return true;
     } catch (err) {
-        console.error('[users-store] Failed to save users atomically:', err);
-        return false;
+        console.warn('[users-store] File save skipped (read-only filesystem or IO error):', err);
+        return true; // Return true as in-memory cache is updated
     }
 }
 
 export function getAllUsers(): AppUser[] {
+    if (globalThis.__USERS_STORE__ && Array.isArray(globalThis.__USERS_STORE__)) {
+        return globalThis.__USERS_STORE__;
+    }
+
+    try {
+        if (fs.existsSync(USERS_FILE_PATH)) {
+            const raw = fs.readFileSync(USERS_FILE_PATH, 'utf-8');
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                globalThis.__USERS_STORE__ = parsed;
+                return parsed;
+            }
+        }
+    } catch (err) {
+        console.warn('[users-store] Failed to read users file:', err);
+    }
+
+    const defaults = [...getDefaultUsers()];
+    globalThis.__USERS_STORE__ = defaults;
+
+    // Best-effort write to disk
     try {
         ensureDataDir();
-        if (!fs.existsSync(USERS_FILE_PATH)) {
-            const defaults = getDefaultUsers();
-            saveUsers(defaults);
-            return defaults;
-        }
-        const raw = fs.readFileSync(USERS_FILE_PATH, 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-        }
-        // Nếu file rỗng hoặc lỗi cấu trúc, khôi phục defaults
-        const defaults = getDefaultUsers();
-        saveUsers(defaults);
-        return defaults;
-    } catch (err) {
-        console.error('[users-store] Failed to read users file:', err);
-        return getDefaultUsers();
+        fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(defaults, null, 2), 'utf-8');
+    } catch {
+        // Read-only filesystem on Vercel — safe to ignore
     }
+
+    return globalThis.__USERS_STORE__;
 }
 
 export function findUserByEmail(email: string): AppUser | null {

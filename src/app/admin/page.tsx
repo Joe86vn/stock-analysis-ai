@@ -10,11 +10,23 @@ export const metadata = {
 };
 
 export default async function AdminDashboardPage() {
-  const [reports, vipRequests, users] = await Promise.all([
-    fetchReports('all'),
-    Promise.resolve(getAllVipRequests()),
-    Promise.resolve(getSafeUsers()),
-  ]);
+  let reports: any[] = [];
+  let vipRequests: any[] = [];
+  let users: any[] = [];
+
+  try {
+    const results = await Promise.allSettled([
+      fetchReports('all'),
+      Promise.resolve(getAllVipRequests()),
+      Promise.resolve(getSafeUsers()),
+    ]);
+
+    reports = results[0].status === 'fulfilled' ? results[0].value : [];
+    vipRequests = results[1].status === 'fulfilled' ? results[1].value : [];
+    users = results[2].status === 'fulfilled' ? results[2].value : [];
+  } catch (err) {
+    console.error('[AdminDashboardPage] Error loading dashboard data:', err);
+  }
 
   const pendingRequests = vipRequests.filter((r) => r.status === 'pending');
   const vipUsers = users.filter((u) => u.role === 'member_vip');

@@ -148,23 +148,45 @@ import path from 'path';
 
 const POSTS_FILE_PATH = path.join(process.cwd(), 'data', 'posts.json');
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __POSTS_STORE__: ReportItem[] | undefined;
+}
+
 function getLocalPosts(): ReportItem[] {
-  try {
-    if (!fs.existsSync(POSTS_FILE_PATH)) {
-      const dir = path.dirname(POSTS_FILE_PATH);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(POSTS_FILE_PATH, JSON.stringify(INITIAL_REPORTS, null, 2), 'utf-8');
-      return INITIAL_REPORTS;
-    }
-    const raw = fs.readFileSync(POSTS_FILE_PATH, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_REPORTS;
-  } catch {
-    return INITIAL_REPORTS;
+  if (globalThis.__POSTS_STORE__ && Array.isArray(globalThis.__POSTS_STORE__)) {
+    return globalThis.__POSTS_STORE__;
   }
+
+  try {
+    if (fs.existsSync(POSTS_FILE_PATH)) {
+      const raw = fs.readFileSync(POSTS_FILE_PATH, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        globalThis.__POSTS_STORE__ = parsed;
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[reports-service] Cannot read local posts file:', err);
+  }
+
+  globalThis.__POSTS_STORE__ = [...INITIAL_REPORTS];
+
+  // Best effort write
+  try {
+    const dir = path.dirname(POSTS_FILE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(POSTS_FILE_PATH, JSON.stringify(INITIAL_REPORTS, null, 2), 'utf-8');
+  } catch {
+    // Read-only filesystem on Vercel/serverless — safe to ignore
+  }
+
+  return globalThis.__POSTS_STORE__;
 }
 
 function saveLocalPosts(posts: ReportItem[]) {
+  globalThis.__POSTS_STORE__ = posts;
   try {
     const dir = path.dirname(POSTS_FILE_PATH);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -172,7 +194,7 @@ function saveLocalPosts(posts: ReportItem[]) {
     fs.writeFileSync(tempPath, JSON.stringify(posts, null, 2), 'utf-8');
     fs.renameSync(tempPath, POSTS_FILE_PATH);
   } catch (err) {
-    console.error('Failed to save local posts:', err);
+    console.warn('[reports-service] File save skipped (read-only filesystem or IO error):', err);
   }
 }
 
