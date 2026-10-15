@@ -40,8 +40,8 @@ async function main() {
   let continuationToken: string | undefined = undefined;
   const ohlcKeys: string[] = [];
 
-  do {
-    const listRes = await s3.send(
+  while (true) {
+    const listRes: any = await s3.send(
       new ListObjectsV2Command({
         Bucket: config.bucketName,
         Prefix: 'market-data/ohlc/',
@@ -49,7 +49,7 @@ async function main() {
       })
     );
 
-    if (listRes.Contents) {
+    if (listRes.Contents && Array.isArray(listRes.Contents)) {
       for (const obj of listRes.Contents) {
         if (obj.Key && obj.Key.endsWith('.json')) {
           ohlcKeys.push(obj.Key);
@@ -57,8 +57,12 @@ async function main() {
       }
     }
 
-    continuationToken = listRes.NextContinuationToken;
-  } while (continuationToken);
+    if (listRes.IsTruncated && listRes.NextContinuationToken) {
+      continuationToken = listRes.NextContinuationToken;
+    } else {
+      break;
+    }
+  }
 
   console.log(`📦 Tìm thấy ${ohlcKeys.length} file nến trên Cloudflare R2.\n`);
 
