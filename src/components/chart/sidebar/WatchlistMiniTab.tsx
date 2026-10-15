@@ -22,6 +22,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { LiveQuoteItem } from '@/app/api/stocks/live-quotes/route';
+import { LiveCandleData } from '@/hooks/useRealtimeStock';
 import { HeatSizeMode } from './watchlist-heat';
 import { WatchlistHeatGrid, WatchlistPackedHeatView, BreadthBar, HeatLegend } from './WatchlistHeatGrid';
 
@@ -29,6 +30,7 @@ interface WatchlistMiniTabProps {
   currentTicker: string;
   allStocks?: StockRankingItem[];
   onSelectTicker: (ticker: string) => void;
+  liveCandle?: LiveCandleData | null;
 }
 
 export interface CustomWatchlist {
@@ -60,6 +62,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
   currentTicker,
   allStocks = [],
   onSelectTicker,
+  liveCandle,
 }) => {
   // ─── Chế Độ Hiển Thị: Bảng (Table) | Lưới Nhiệt (Grid Compact) | Thẻ (Grid Card) ───
   const [viewMode, setViewMode] = useState<ViewMode>('grid_compact');
@@ -310,7 +313,31 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     };
   }, [activeListId, activeStocks.length, customLists]);
 
-  // 4. Polling lấy bảng giá live cho toàn bộ danh sách mã active
+  // 4. Đồng bộ trực tiếp từ WebSocket (0ms) khi có tick mới của mã đang xem
+  useEffect(() => {
+    if (!liveCandle || !liveCandle.symbol || liveCandle.close <= 0) return;
+    const sym = liveCandle.symbol.toUpperCase().trim();
+    setLiveQuotes((prev) => {
+      const existing = prev[sym];
+      return {
+        ...prev,
+        [sym]: {
+          symbol: sym,
+          price: liveCandle.close,
+          change: liveCandle.change ?? existing?.change ?? 0,
+          changePercent: liveCandle.changePercent ?? existing?.changePercent ?? 0,
+          sessionVolume: liveCandle.volume > 0 ? liveCandle.volume : (existing?.sessionVolume ?? 0),
+          sessionValueBillion: existing?.sessionValueBillion ?? 0,
+          refPrice: liveCandle.refPrice ?? existing?.refPrice ?? liveCandle.close,
+          open: liveCandle.open ?? existing?.open ?? liveCandle.close,
+          high: liveCandle.high ?? existing?.high ?? liveCandle.close,
+          low: liveCandle.low ?? existing?.low ?? liveCandle.close,
+        },
+      };
+    });
+  }, [liveCandle]);
+
+  // 5. Polling lấy bảng giá live cho toàn bộ danh sách mã active (chu kỳ 5 giây)
   const symbolList = useMemo(() => {
     return activeStocks.map((s) => s.ticker).filter(Boolean);
   }, [activeStocks]);
@@ -333,7 +360,7 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     };
 
     fetchQuotes();
-    pollIntervalRef.current = setInterval(fetchQuotes, 15000);
+    pollIntervalRef.current = setInterval(fetchQuotes, 5000);
 
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);

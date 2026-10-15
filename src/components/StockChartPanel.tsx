@@ -3359,6 +3359,7 @@ export function StockChartPanel({
           onSelectTicker={(newTicker) => {
             if (onSelectTicker) onSelectTicker(newTicker);
           }}
+          liveCandle={liveCandle}
         />
       </div>
 

@@ -10,6 +10,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { StockRankingItem } from '@/lib/filter-rs-data';
+import { LiveCandleData } from '@/hooks/useRealtimeStock';
 import { WatchlistMiniTab } from './WatchlistMiniTab';
 import { FinancialMetricsTab } from './FinancialMetricsTab';
 import { CompanyInfoTab } from './CompanyInfoTab';
@@ -23,6 +24,7 @@ interface ChartUtilitySidebarProps {
   currentTicker: string;
   allStocks?: StockRankingItem[];
   onSelectTicker: (ticker: string) => void;
+  liveCandle?: LiveCandleData | null;
 }
 
 export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
@@ -31,6 +33,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
   currentTicker,
   allStocks = [],
   onSelectTicker,
+  liveCandle,
 }) => {
   const [activeTab, setActiveTab] = useState<SidebarTabType>('watchlist');
 
@@ -139,6 +142,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
             currentTicker={currentTicker}
             allStocks={allStocks}
             onSelectTicker={onSelectTicker}
+            liveCandle={liveCandle}
           />
         )}
 
