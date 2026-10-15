@@ -205,29 +205,28 @@ async function fetchNativeGoogleSearchGrounding(
   apiKey: string
 ): Promise<GoogleAiInsightData | null> {
   const query = `kết quả kinh doanh và triển vọng tăng trưởng ${ticker} tháng ${currentMonth} năm ${currentYear}`;
+  // Chỉ sử dụng các model thế hệ mới có hỗ trợ native Google Search Grounding trên Google API
   const candidateModels = [
     'gemini-3.8-flash',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
     'gemini-3.7-flash',
-    'gemini-3.6-flash',
     'gemini-3.5-flash',
+    'gemini-flash-latest',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash-lite',
   ];
 
   const prompt = `kết quả kinh doanh và triển vọng tăng trưởng ${ticker} ${companyName ? `(${companyName})` : ''} tháng ${currentMonth} năm ${currentYear}. Hãy tổng hợp chi tiết kết quả kinh doanh mới nhất (doanh thu, lợi nhuận, tăng trưởng %, từng mảng ngành hàng), triển vọng tăng trưởng các tháng tới (động lực, mùa cao điểm, sản phẩm mới, cổ tức) và dự báo định giá từ các công ty chứng khoán gần đây.`;
-  const baseUrl = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+  // BẮT BUỘC gọi trực tiếp Google Generative Language API vì Google Search Grounding là tính năng native của Google
+  const googleBaseUrl = 'https://generativelanguage.googleapis.com';
 
   for (const model of candidateModels) {
     try {
       const res = await fetch(
-        `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        `${googleBaseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'x-goog-api-key': apiKey,
           },
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -436,26 +435,28 @@ Yêu cầu: Viết tự nhiên, súc tích, giữ nguyên các số liệu tỷ 
 
   const candidateModels = [
     'gemini-3.8-flash',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
     'gemini-3.7-flash',
-    'gemini-3.6-flash',
     'gemini-3.5-flash',
+    'gemini-flash-latest',
     'gemini-3.1-flash-lite',
+    'gemini-2.5-flash-lite',
   ];
-  const baseUrl = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+  
+  // Nếu có Grounding Key chính thức của Google, ưu tiên gọi thẳng Google Endpoint để tránh Render proxy timeout
+  const directKey = process.env.GEMINI_GROUNDING_API_KEY || (apiKey?.startsWith('AIza') || apiKey?.startsWith('AQ') ? apiKey : undefined);
+  const activeBaseUrl = directKey
+    ? 'https://generativelanguage.googleapis.com'
+    : (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+  const activeApiKey = directKey || apiKey;
 
   for (const modelName of candidateModels) {
     try {
       const res = await fetch(
-        `${baseUrl}/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+        `${activeBaseUrl}/v1beta/models/${modelName}:generateContent?key=${activeApiKey}`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'x-goog-api-key': apiKey,
           },
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
