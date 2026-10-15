@@ -46,6 +46,33 @@ function HomeContent() {
     return getStockData('HPG');
   });
 
+  // Tự động đồng bộ mã cổ phiếu khi query param ?ticker= thay đổi từ URL
+  useEffect(() => {
+    if (urlTicker) {
+      const clean = urlTicker.trim().toUpperCase();
+      if (clean && clean !== selectedStock.ticker) {
+        const existing = POPULAR_STOCKS.find((s) => s.ticker === clean);
+        if (existing) {
+          setSelectedStock(existing);
+        } else {
+          setSelectedStock({
+            ticker: clean,
+            companyName: `Công ty Cổ phần ${clean}`,
+            industry: 'Doanh nghiệp Niêm yết',
+            currentPrice: 0,
+            pe5YearMin: 0,
+            pe5YearMax: 0,
+            pe5YearAvg: 0,
+            peIndustry: 0,
+            pbIndustry: 0,
+            peCompetitors: [],
+            pbCompetitors: [],
+          });
+        }
+      }
+    }
+  }, [urlTicker, selectedStock.ticker]);
+
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);

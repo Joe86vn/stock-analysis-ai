@@ -709,7 +709,7 @@ export default function RankingPage() {
 
                     <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
                       <Link
-                        href={`/?ticker=${champ.ticker}`}
+                        href={`/analysis?ticker=${champ.ticker}`}
                         className="flex items-center justify-center space-x-1.5 w-full py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 text-xs font-semibold transition"
                       >
                         <span>Phân tích chi tiết</span>
@@ -1192,7 +1192,7 @@ export default function RankingPage() {
                         {/* Action / Jump Button */}
                         <td className="py-3 px-3 text-center">
                           <Link
-                            href={`/?ticker=${item.ticker}`}
+                            href={`/analysis?ticker=${item.ticker}`}
                             onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800 transition"
                           >
