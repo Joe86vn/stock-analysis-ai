@@ -39,12 +39,22 @@ interface UseRealtimeStockOptions {
   enableMarket?: boolean;
 }
 
-// Cấu hình URL WebSocket Gateway: Ưu tiên biến môi trường NEXT_PUBLIC_WS_GATEWAY_URL, mặc định ws://localhost:8080
-const WS_GATEWAY_URL =
-  process.env.NEXT_PUBLIC_WS_GATEWAY_URL ||
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'ws://localhost:8080'
-    : 'wss://realtime-gateway.onrender.com');
+// Cấu hình URL WebSocket Gateway: Ưu tiên biến môi trường NEXT_PUBLIC_WS_GATEWAY_URL, tự động theo domain hiện tại (/ws)
+function getWsGatewayUrl(): string {
+  if (process.env.NEXT_PUBLIC_WS_GATEWAY_URL) {
+    return process.env.NEXT_PUBLIC_WS_GATEWAY_URL;
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'ws://localhost:8080';
+    }
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}/ws`;
+  }
+  return 'wss://valuex.duckdns.org/ws';
+}
+
+const WS_GATEWAY_URL = getWsGatewayUrl();
 
 export function useRealtimeStock({ ticker, enableMarket = false }: UseRealtimeStockOptions) {
   const [isSocketConnected, setIsSocketConnected] = useState(false);

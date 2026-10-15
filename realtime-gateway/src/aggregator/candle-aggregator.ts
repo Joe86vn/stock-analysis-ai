@@ -110,4 +110,8 @@ export class CandleAggregator {
   public getCandle(symbol: string): LiveCandle | undefined {
     return this.activeCandles.get(symbol.toUpperCase().trim());
   }
+
+  public setCandle(candle: LiveCandle): void {
+    this.activeCandles.set(candle.symbol.toUpperCase().trim(), candle);
+  }
 }

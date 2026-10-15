@@ -245,6 +245,71 @@ export function StockChartPanel({
         askVol: liveCandle.askVol,
       });
     }
+
+    // ─── Cập nhật cây nến đang chạy lên KLineCharts theo thời gian thực (0ms) ───
+    if (chartRef.current && resolutionRef.current === 'D') {
+      const bars = allBarsRef.current;
+      if (bars && bars.length > 0) {
+        const lastBar = bars[bars.length - 1];
+        const todayDateStr = new Date().toISOString().slice(0, 10);
+        const lastBarDateStr = lastBar.fullDate ? lastBar.fullDate.slice(0, 10) : '';
+
+        const close = liveCandle.close;
+        const vol = liveCandle.volume > 0 ? liveCandle.volume : lastBar.volume;
+
+        if (lastBarDateStr === todayDateStr) {
+          // Nến cuối cùng trong danh sách là nến ngày hôm nay -> cập nhật in-place
+          const open = lastBar.openPrice || liveCandle.open || close;
+          const high = Math.max(lastBar.highestPrice, liveCandle.high || close, close);
+          const low = Math.min(lastBar.lowestPrice, liveCandle.low || close, close);
+          const ts = new Date(lastBar.fullDate + 'T00:00:00Z').getTime();
+
+          chartRef.current.updateData({
+            timestamp: isNaN(ts) ? Date.now() : ts,
+            open,
+            high,
+            low,
+            close,
+            volume: vol,
+          });
+
+          lastBar.closePrice = close;
+          lastBar.highestPrice = high;
+          lastBar.lowestPrice = low;
+          lastBar.volume = vol;
+        } else {
+          // Nến cuối cùng là hôm qua -> Ghép cây nến hôm nay vào cuối danh sách
+          const open = liveCandle.open || close;
+          const high = Math.max(open, liveCandle.high || close, close);
+          const low = Math.min(open, liveCandle.low || close, close);
+          const todayTs = new Date(todayDateStr + 'T00:00:00Z').getTime();
+
+          const now = new Date();
+          const day = String(now.getDate()).padStart(2, '0');
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+
+          const newBar: OhlcBar = {
+            date: `${day}/${month}`,
+            fullDate: todayDateStr,
+            openPrice: open,
+            highestPrice: high,
+            lowestPrice: low,
+            closePrice: close,
+            volume: vol,
+          };
+
+          bars.push(newBar);
+          chartRef.current.updateData({
+            timestamp: todayTs,
+            open,
+            high,
+            low,
+            close,
+            volume: vol,
+          });
+        }
+      }
+    }
   }, [liveCandle, ticker]);
 
   const [isFullscreen, setIsFullscreen] = useState(false);

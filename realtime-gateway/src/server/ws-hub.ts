@@ -27,6 +27,65 @@ export class WsHub {
     this.setupServer();
     this.setupSsiListeners();
     this.startHeartbeat();
+    this.startActiveTickersPolling();
+  }
+
+  private startActiveTickersPolling(): void {
+    setInterval(() => {
+      if (this.tickerSubscribers.size === 0) return;
+      const activeTickers = Array.from(this.tickerSubscribers.keys());
+      for (const t of activeTickers) {
+        this.fetchAndBroadcastSnapshot(t);
+      }
+    }, 3000);
+  }
+
+  private async fetchAndBroadcastSnapshot(ticker: string, targetWs?: WebSocket): Promise<void> {
+    try {
+      const res = await fetch(`https://masboard.masvn.com/api/v1/market/symbolLatest?symbolList=${ticker}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          'Referer': 'https://masboard.masvn.com/',
+          'Accept': 'application/json',
+        },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) return;
+      const item = data[0];
+      const price = item.c || item.odC || item.a || 0;
+      if (price <= 0) return;
+
+      const bestBid = Array.isArray(item.bb) && item.bb.length > 0 ? item.bb[0] : null;
+      const bestAsk = Array.isArray(item.bo) && item.bo.length > 0 ? item.bo[0] : null;
+
+      const candle: LiveCandle = {
+        symbol: ticker,
+        open: item.o || price,
+        high: item.h || price,
+        low: item.l || price,
+        close: price,
+        volume: item.vo || 0,
+        timestamp: Date.now(),
+        refPrice: item.c && item.ch !== undefined ? item.c - item.ch : undefined,
+        change: item.ch,
+        changePercent: typeof item.r === 'number' ? Math.round(item.r * 10000) / 100 : 0,
+        bidPrice: bestBid?.p,
+        bidVol: bestBid?.v,
+        askPrice: bestAsk?.p,
+        askVol: bestAsk?.v,
+      };
+
+      this.candleAggregator.setCandle(candle);
+
+      if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+        this.sendJson(targetWs, { type: 'candle', data: candle });
+      } else {
+        this.broadcastCandle(ticker, candle);
+      }
+    } catch (e: any) {
+      console.warn(`[WS Hub] fetchAndBroadcastSnapshot error for ${ticker}:`, e.message);
+    }
   }
 
   private setupServer(): void {
@@ -106,6 +165,9 @@ export class WsHub {
       if (cached) {
         this.sendJson(ws, { type: 'candle', data: cached });
       }
+
+      // Kích hoạt ngay snapshot mới nhất
+      this.fetchAndBroadcastSnapshot(ticker, ws);
       return;
     }
 
