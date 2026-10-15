@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { LiveQuoteItem } from '@/app/api/stocks/live-quotes/route';
 import { LiveCandleData } from '@/hooks/useRealtimeStock';
+import { useRealtimeWatchlist } from '@/hooks/useRealtimeWatchlist';
 import { HeatSizeMode } from './watchlist-heat';
 import { WatchlistHeatGrid, WatchlistPackedHeatView, BreadthBar, HeatLegend } from './WatchlistHeatGrid';
 
@@ -337,11 +338,24 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
     });
   }, [liveCandle]);
 
-  // 5. Polling lấy bảng giá live cho toàn bộ danh sách mã active (chu kỳ 5 giây)
+  // 5. Danh sách mã cổ phiếu trong Watchlist động hiện tại
   const symbolList = useMemo(() => {
     return activeStocks.map((s) => s.ticker).filter(Boolean);
   }, [activeStocks]);
 
+  // 6. WebSocket Gateway Stream Realtime cho toàn bộ danh mục động (Top Vốn hóa, Top Thanh khoản, ValueX, Custom)
+  const { quotes: wsQuotes, isConnected: isWsWatchlistConnected } = useRealtimeWatchlist({
+    symbols: symbolList,
+    enabled: true,
+  });
+
+  // Cập nhật liveQuotes ngay lập tức khi WebSocket Gateway đẩy dữ liệu về
+  useEffect(() => {
+    if (!wsQuotes || Object.keys(wsQuotes).length === 0) return;
+    setLiveQuotes((prev) => ({ ...prev, ...wsQuotes }));
+  }, [wsQuotes]);
+
+  // 7. Polling dự phòng: Nếu WebSocket mất kết nối, tự động kích hoạt polling 5 giây; nếu socket đang chạy thì polling 30 giây
   useEffect(() => {
     if (symbolList.length === 0) return;
 
@@ -359,13 +373,17 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
       }
     };
 
+    // Khi mới mở hoặc đổi danh mục, gọi ngay 1 lần để có dữ liệu tức thì
     fetchQuotes();
-    pollIntervalRef.current = setInterval(fetchQuotes, 5000);
+
+    // Chu kỳ: 30s nếu có WebSocket stream hỗ trợ, 5s nếu WebSocket mất kết nối
+    const intervalMs = isWsWatchlistConnected ? 30000 : 5000;
+    pollIntervalRef.current = setInterval(fetchQuotes, intervalMs);
 
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [symbolList]);
+  }, [symbolList, isWsWatchlistConnected]);
 
   // 5. Ghép dữ liệu realtime vào activeStocks
   const enrichedStocks = useMemo((): EnrichedStockItem[] => {
@@ -961,6 +979,29 @@ export const WatchlistMiniTab: React.FC<WatchlistMiniTabProps> = ({
           >
             <Copy className="w-3.5 h-3.5" />
           </button>
+
+          {/* Badge trạng thái Live Stream từ WebSocket Gateway */}
+          <div
+            className={`flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${
+              isWsWatchlistConnected
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/80 shadow-2xs'
+                : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/80'
+            }`}
+            title={
+              isWsWatchlistConnected
+                ? 'WebSocket Gateway kết nối: Bảng giá nhảy realtime 0ms'
+                : 'Đang kết nối lại WebSocket (Chế độ Polling dự phòng)'
+            }
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isWsWatchlistConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+              }`}
+            />
+            <span className="text-[9px] font-mono tracking-wider font-extrabold">
+              {isWsWatchlistConnected ? 'LIVE' : 'POLL'}
+            </span>
+          </div>
         </div>
       </div>
 
