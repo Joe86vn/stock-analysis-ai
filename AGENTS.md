@@ -14,6 +14,7 @@ Web app phân tích cổ phiếu tự động (ValueX) — Next.js 15 + React 19
 4. Sau khi sửa code: chạy `npx tsc --noEmit`; nếu liên quan build thì chạy `npm run build`.
 5. Không bịa dữ liệu API — kiểm chứng bằng request thực tế (curl).
 6. API Vietcap yêu cầu header `Referer`/`Origin` đúng domain (`iq.vietcap.com.vn` hoặc `ai.vietcap.com.vn`) — thiếu header sẽ bị 403.
+7. **Đồng bộ VPS bắt buộc**: Mỗi khi push code lên GitHub (`origin/main`), BẮT BUỘC phải SSH đồng bộ lên Oracle Cloud VPS (`valuex.duckdns.org` qua MCP `oracle-vps:remote-ssh` tại `/home/ubuntu/valuex`): thực hiện `git pull`, `npm run build`, `pm2 reload valuex` và chạy đồng bộ dữ liệu tương ứng nếu có.
 
 ## Team Hermes (7 profile)
 - **coordinator** (claude-sonnet-4-6) — Team lead: nhận yêu cầu từ user, phân rã task, điều phối, tổng hợp & báo cáo.
