@@ -196,21 +196,24 @@ export class WsHub {
     }
   }
 
+  private broadcastCandle(ticker: string, candle: LiveCandle): void {
+    const subscribers = this.tickerSubscribers.get(ticker.toUpperCase().trim());
+    if (subscribers && subscribers.size > 0) {
+      const msg = JSON.stringify({ type: 'candle', data: candle });
+      for (const clientWs of subscribers) {
+        if (clientWs.readyState === WebSocket.OPEN) {
+          clientWs.send(msg);
+        }
+      }
+    }
+  }
+
   private setupSsiListeners(): void {
     // Khi có cập nhật cổ phiếu từ SSI
     this.ssiClient.onStockData((symbol, data) => {
       const candle = this.candleAggregator.processStockUpdate(symbol, data);
       if (!candle) return;
-
-      const subscribers = this.tickerSubscribers.get(candle.symbol);
-      if (subscribers && subscribers.size > 0) {
-        const msg = JSON.stringify({ type: 'candle', data: candle });
-        for (const clientWs of subscribers) {
-          if (clientWs.readyState === WebSocket.OPEN) {
-            clientWs.send(msg);
-          }
-        }
-      }
+      this.broadcastCandle(candle.symbol, candle);
     });
 
     // Khi có cập nhật chỉ số thị trường từ SSI
