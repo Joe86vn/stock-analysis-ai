@@ -29,7 +29,7 @@ async function main() {
     const screenerData = await executeVietcapScreener();
     const valid = screenerData.filter((s) => s.ticker && s.ticker.length === 3);
     valid.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0)).slice(0, 150).forEach((s) => tickerSet.add(s.ticker));
-    valid.sort((a, b) => (b.averageMatchValue20Days || 0) - (a.averageMatchValue20Days || 0)).slice(0, 150).forEach((s) => tickerSet.add(s.ticker));
+    valid.sort((a, b) => (b.adtv20Days || 0) - (a.adtv20Days || 0)).slice(0, 150).forEach((s) => tickerSet.add(s.ticker));
   } catch {}
 
   // Lấy thêm các file đã có trên local nếu chạy ở local

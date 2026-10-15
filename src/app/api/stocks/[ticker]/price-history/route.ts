@@ -119,9 +119,9 @@ export async function GET(
   const todayStr = new Date().toISOString().slice(0, 10);
 
   try {
-    // 0. Kiểm tra kho nến Cloudflare R2 (Áp dụng cho nến Ngày ONE_DAY)
+    // 0. Kiểm tra kho nến Cloudflare R2 / SSD Local (Áp dụng cho nến Ngày ONE_DAY)
     if (timeFrame === 'ONE_DAY') {
-      const r2Data = await getPriceHistoryFromR2(cleanTicker, 18);
+      const r2Data = await getPriceHistoryFromR2(cleanTicker, 720); // 30 ngày (nến lịch sử ổn định)
       if (r2Data && Array.isArray(r2Data.history) && r2Data.history.length >= 10) {
         // Kiểm tra chủ động: Mã này có sự kiện GDKHQ phát sinh mà cache chưa cập nhật không?
         const todayExrightSet = await getTodayExrightTickers(todayStr);
@@ -148,9 +148,16 @@ export async function GET(
 
     // 1. Lấy song song dữ liệu nến Nhật và sự kiện doanh nghiệp (cổ tức / chia tách) từ Vietcap
     const vietcapCountBack = timeFrame === 'ONE_DAY' ? Math.max(countBack, 2000) : countBack;
+    
+    // Timeout an toàn 1.5s cho events để không bao giờ nghẽn luồng nến
+    const safeFetchEvents = Promise.race([
+      fetchVietcapEvents(cleanTicker, { fromDate: '20160101', toDate: '20261231' }),
+      new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 1500)),
+    ]).catch(() => []);
+
     const [gapBars, rawEvents] = await Promise.all([
       fetchVietcapGapChart(cleanTicker, { countBack: vietcapCountBack, timeFrame }),
-      fetchVietcapEvents(cleanTicker, { fromDate: '20160101', toDate: '20261231' }).catch(() => []),
+      safeFetchEvents,
     ]);
 
     const events = (rawEvents || [])

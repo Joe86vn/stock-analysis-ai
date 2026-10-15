@@ -22,8 +22,10 @@ async function main() {
   console.log('================================================================');
 
   const args = process.argv.slice(2);
+  const isMorningCheck = args.includes('--morning-check');
+  const isWatchlist = args.includes('--watchlist');
   const isQuick = args.includes('--quick');
-  const isFullForce = args.includes('--full');
+  const isFullForce = args.includes('--full') || isMorningCheck;
   const tickersArg = args.find((a) => a.startsWith('--tickers='));
   const customTickers = tickersArg
     ? tickersArg.replace(/^--tickers=/, '').replace(/["']/g, '').split(/[,\s]+/).map((t) => t.trim().toUpperCase()).filter(Boolean)
@@ -33,7 +35,7 @@ async function main() {
   const todayCompact = todayStr.replace(/-/g, ''); // YYYYMMDD
 
   // 1. Kiểm tra sự kiện quyền hôm nay (Cổ tức, Phát hành thêm) trên toàn thị trường
-  console.log(`\n📅 1. Kiểm tra sự kiện Giao dịch không hưởng quyền ngày ${todayStr}...`);
+  console.log(`\n📅 1. [${isMorningCheck ? '8h15 SÁNG - KIỂM TRA LỊCH CỔ TỨC' : 'EOD'}] Kiểm tra sự kiện GDKHQ ngày ${todayStr}...`);
   const corporateActionTickers = new Set<string>();
 
   try {
@@ -41,7 +43,7 @@ async function main() {
       `https://iq.vietcap.com.vn/api/iq-insight-service/v2/events?fromDate=${todayCompact}&toDate=${todayCompact}&eventCodes=DIV,ISS&page=0&size=100`,
       {
         headers: {
-          'User-Agent': 'Mozilla/5.0',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'application/json',
           'Origin': 'https://iq.vietcap.com.vn',
           'Referer': 'https://iq.vietcap.com.vn/',
@@ -64,20 +66,58 @@ async function main() {
   }
 
   if (corporateActionTickers.size > 0) {
-    console.log(`📌 Phát hiện ${corporateActionTickers.size} mã có sự kiện quyền hôm nay (sẽ tải lại full lịch sử):`, Array.from(corporateActionTickers).join(', '));
+    console.log(`📌 Phát hiện ${corporateActionTickers.size} mã có sự kiện quyền hôm nay (sẽ tải lại full lịch sử nến điều chỉnh):`, Array.from(corporateActionTickers).join(', '));
   } else {
     console.log('✅ Hôm nay không có mã nào chia quyền phát sinh điều chỉnh giá.');
+  }
+
+  // Nếu là chế độ morning-check: nếu không có mã nào chia cổ tức thì kết thúc luôn!
+  if (isMorningCheck) {
+    if (corporateActionTickers.size === 0) {
+      console.log('🎉 [8h15 Sáng] Toàn bộ dữ liệu nến đã đồng nhất. Không có mã nào cần điều chỉnh giá hôm nay.');
+      console.log('================================================================');
+      return;
+    }
   }
 
   // 2. Lấy danh sách mã cổ phiếu cần xử lý
   let targetTickers: string[] = [];
 
-  if (customTickers && customTickers.length > 0) {
+  if (isMorningCheck) {
+    targetTickers = Array.from(corporateActionTickers);
+    console.log(`\n🎯 [Morning Check] Bắt đầu tải lại nến điều chỉnh cho ${targetTickers.length} mã:`, targetTickers.join(', '));
+  } else if (customTickers && customTickers.length > 0) {
     targetTickers = customTickers;
     console.log(`\n🎯 Danh sách xử lý chỉ định (${targetTickers.length} mã):`, targetTickers.join(', '));
   } else if (isQuick) {
     targetTickers = FILTER_75_TICKERS;
     console.log(`\n⚡ Chế độ Quick: Đồng bộ ${targetTickers.length} mã trọng tâm.`);
+  } else if (isWatchlist || !args.includes('--all')) {
+    // Mặc định hoặc có cờ --watchlist: Gom toàn bộ danh mục Top Cap + Top ADTV + Filter 75 + VNINDEX
+    console.log('\n🔍 Đang tổng hợp toàn bộ các mã trong Watchlists (Top Cap + Top ADTV + Filter 75)...');
+    const tickerSet = new Set<string>();
+    try {
+      const screenerStocks = await executeVietcapScreener({});
+      const valid = screenerStocks.filter((s) => s.ticker && s.ticker.length === 3);
+
+      // Top 150 Vốn hóa
+      const topCap = [...valid].sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0)).slice(0, 150);
+      topCap.forEach((s) => tickerSet.add(s.ticker));
+
+      // Top 150 ADTV 20 phiên
+      const topAdtv = [...valid].sort((a, b) => (b.adtv20Days || 0) - (a.adtv20Days || 0)).slice(0, 150);
+      topAdtv.forEach((s) => tickerSet.add(s.ticker));
+
+      // Filter 75
+      FILTER_75_TICKERS.forEach((t) => tickerSet.add(t));
+      tickerSet.add('VNINDEX');
+
+      targetTickers = Array.from(tickerSet);
+      console.log(`📊 Đã tổng hợp thành công ${targetTickers.length} mã trong toàn bộ danh mục ứng dụng.`);
+    } catch (err: any) {
+      console.warn('⚠️ Lỗi lấy từ Screener, fallback danh mục 75 mã:', err.message);
+      targetTickers = FILTER_75_TICKERS;
+    }
   } else {
     console.log('\n🔍 Đang lấy danh sách toàn thị trường từ Vietcap Screener...');
     const screenerStocks = await executeVietcapScreener({});
