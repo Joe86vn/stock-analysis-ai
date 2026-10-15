@@ -673,3 +673,253 @@ export async function getFinancialsFromStorage(
 
   return null;
 }
+
+// ============================================================================
+// 6. LƯU TRỮ VÀ CACHE BẢNG XẾP HẠNG & ĐIỂM CƠ BẢN (RANKINGS & FUNDAMENTAL SCORES)
+// ============================================================================
+
+/**
+ * Đường dẫn R2 Object Key cho Bảng Xếp Hạng Thị Trường (Rankings)
+ * Ví dụ: market-rankings/latest.json
+ */
+export function getRankingsR2ObjectKey(name: string = 'latest'): string {
+  return `market-rankings/${name}.json`;
+}
+
+/**
+ * Đường dẫn file cache local cho Bảng Xếp Hạng Thị Trường trên SSD NVMe
+ * Ví dụ: data/rankings/latest.json
+ */
+export function getLocalRankingsFilePath(name: string = 'latest'): string {
+  const dir = path.join(process.cwd(), 'data', 'rankings');
+  return path.join(dir, `${name}.json`);
+}
+
+/**
+ * Lưu trữ Bảng Xếp Hạng vào SSD NVMe và Cloudflare R2
+ */
+export async function putRankingsToStorage(
+  rankings: any[],
+  name: string = 'latest'
+): Promise<{ success: boolean; destination: 'r2' | 'local' | 'both'; error?: string }> {
+  const jsonString = JSON.stringify(rankings);
+
+  // 1. Lưu bản copy Local Disk (SSD NVMe)
+  try {
+    const localPath = getLocalRankingsFilePath(name);
+    ensureLocalDirExists(localPath);
+    fs.writeFileSync(localPath, jsonString, 'utf-8');
+  } catch (localErr: any) {
+    console.warn(`[Rankings Storage] Local cache write error for ${name}:`, localErr.message);
+  }
+
+  // 2. Upload lên Cloudflare R2 nếu đã cấu hình
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (!s3 || !config.isConfigured) {
+    return {
+      success: true,
+      destination: 'local',
+    };
+  }
+
+  try {
+    const objectKey = getRankingsR2ObjectKey(name);
+    const command = new PutObjectCommand({
+      Bucket: config.bucketName,
+      Key: objectKey,
+      Body: jsonString,
+      ContentType: 'application/json; charset=utf-8',
+    });
+
+    await s3.send(command);
+
+    return {
+      success: true,
+      destination: 'both',
+    };
+  } catch (r2Err: any) {
+    console.error(`[Rankings Storage] Failed to upload ${name} to R2:`, r2Err);
+    return {
+      success: false,
+      destination: 'local',
+      error: r2Err.message,
+    };
+  }
+}
+
+/**
+ * Đọc Bảng Xếp Hạng từ Local Disk SSD hoặc Cloudflare R2
+ * Mặc định TTL 24 giờ
+ */
+export async function getRankingsFromStorage(
+  name: string = 'latest',
+  maxAgeHours = 24
+): Promise<any[] | null> {
+  const now = Date.now();
+  const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+
+  // 1. Kiểm tra Local Cache trước (< 1ms trên SSD)
+  try {
+    const localPath = getLocalRankingsFilePath(name);
+    if (fs.existsSync(localPath)) {
+      const stats = fs.statSync(localPath);
+      const isFresh = (now - stats.mtimeMs) < maxAgeMs;
+      if (isFresh) {
+        const fileContent = fs.readFileSync(localPath, 'utf-8');
+        return JSON.parse(fileContent);
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[Rankings Storage] Local read error for ${name}:`, err.message);
+  }
+
+  // 2. Truy vấn từ Cloudflare R2
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (s3 && config.isConfigured) {
+    try {
+      const objectKey = getRankingsR2ObjectKey(name);
+      const command = new GetObjectCommand({
+        Bucket: config.bucketName,
+        Key: objectKey,
+      });
+
+      const response = await s3.send(command);
+      if (response.Body) {
+        const bodyText = await response.Body.transformToString();
+        const parsed = JSON.parse(bodyText);
+
+        // Lưu ngược về local cache
+        try {
+          const localPath = getLocalRankingsFilePath(name);
+          ensureLocalDirExists(localPath);
+          fs.writeFileSync(localPath, bodyText, 'utf-8');
+        } catch {}
+
+        return parsed;
+      }
+    } catch (r2Err: any) {
+      if (r2Err.name !== 'NoSuchKey') {
+        console.warn(`[Rankings Storage] Error reading ${name} from R2:`, r2Err.message);
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Đường dẫn R2 Object Key cho Điểm Cơ Bản (Fundamental Scores Map)
+ */
+export function getFundamentalScoresR2ObjectKey(): string {
+  return `market-rankings/fundamental-scores.json`;
+}
+
+/**
+ * Đường dẫn local cho Điểm Cơ Bản (Fundamental Scores Map)
+ */
+export function getLocalFundamentalScoresFilePath(): string {
+  const dir = path.join(process.cwd(), 'data', 'rankings');
+  return path.join(dir, 'fundamental-scores.json');
+}
+
+/**
+ * Lưu trữ Bản đồ Điểm Cơ Bản (150đ) vào SSD NVMe & R2
+ */
+export async function putFundamentalScoresToStorage(
+  scoresMap: Record<string, any>
+): Promise<{ success: boolean; destination: 'r2' | 'local' | 'both'; error?: string }> {
+  const jsonString = JSON.stringify(scoresMap);
+
+  try {
+    const localPath = getLocalFundamentalScoresFilePath();
+    ensureLocalDirExists(localPath);
+    fs.writeFileSync(localPath, jsonString, 'utf-8');
+  } catch (localErr: any) {
+    console.warn(`[Fundamental Scores Storage] Local write error:`, localErr.message);
+  }
+
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (!s3 || !config.isConfigured) {
+    return { success: true, destination: 'local' };
+  }
+
+  try {
+    const objectKey = getFundamentalScoresR2ObjectKey();
+    const command = new PutObjectCommand({
+      Bucket: config.bucketName,
+      Key: objectKey,
+      Body: jsonString,
+      ContentType: 'application/json; charset=utf-8',
+    });
+
+    await s3.send(command);
+    return { success: true, destination: 'both' };
+  } catch (r2Err: any) {
+    console.error(`[Fundamental Scores Storage] Failed upload to R2:`, r2Err);
+    return { success: false, destination: 'local', error: r2Err.message };
+  }
+}
+
+/**
+ * Lấy Bản đồ Điểm Cơ Bản từ SSD hoặc R2 (TTL mặc định 720 giờ = 30 ngày)
+ */
+export async function getFundamentalScoresFromStorage(
+  maxAgeHours = 720
+): Promise<Record<string, any> | null> {
+  const now = Date.now();
+  const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+
+  try {
+    const localPath = getLocalFundamentalScoresFilePath();
+    if (fs.existsSync(localPath)) {
+      const stats = fs.statSync(localPath);
+      const isFresh = (now - stats.mtimeMs) < maxAgeMs;
+      if (isFresh) {
+        const fileContent = fs.readFileSync(localPath, 'utf-8');
+        return JSON.parse(fileContent);
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[Fundamental Scores Storage] Local read error:`, err.message);
+  }
+
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (s3 && config.isConfigured) {
+    try {
+      const objectKey = getFundamentalScoresR2ObjectKey();
+      const command = new GetObjectCommand({
+        Bucket: config.bucketName,
+        Key: objectKey,
+      });
+
+      const response = await s3.send(command);
+      if (response.Body) {
+        const bodyText = await response.Body.transformToString();
+        const parsed = JSON.parse(bodyText);
+
+        try {
+          const localPath = getLocalFundamentalScoresFilePath();
+          ensureLocalDirExists(localPath);
+          fs.writeFileSync(localPath, bodyText, 'utf-8');
+        } catch {}
+
+        return parsed;
+      }
+    } catch (r2Err: any) {
+      if (r2Err.name !== 'NoSuchKey') {
+        console.warn(`[Fundamental Scores Storage] Error reading from R2:`, r2Err.message);
+      }
+    }
+  }
+
+  return null;
+}
+

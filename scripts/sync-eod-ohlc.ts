@@ -71,10 +71,14 @@ async function main() {
     console.log('✅ Hôm nay không có mã nào chia quyền phát sinh điều chỉnh giá.');
   }
 
-  // Nếu là chế độ morning-check: nếu không có mã nào chia cổ tức thì kết thúc luôn!
+  // 1.2. Kiểm tra công bố Báo Cáo Tài Chính (BCTC) mới trong ngày (Đồng bộ vào 08:15 và 15:15)
+  const { syncNewFinancialReports } = await import('../src/lib/financial-manifest');
+  const financialResult = await syncNewFinancialReports(todayCompact);
+
+  // Nếu là chế độ morning-check: nếu không có mã nào chia cổ tức VÀ không có BCTC mới thì kết thúc luôn!
   if (isMorningCheck) {
-    if (corporateActionTickers.size === 0) {
-      console.log('🎉 [8h15 Sáng] Toàn bộ dữ liệu nến đã đồng nhất. Không có mã nào cần điều chỉnh giá hôm nay.');
+    if (corporateActionTickers.size === 0 && financialResult.updatedCount === 0) {
+      console.log('🎉 [8h15 Sáng] Toàn bộ dữ liệu nến và BCTC đã đồng nhất. Không có mã nào cần cập nhật hôm nay.');
       console.log('================================================================');
       return;
     }

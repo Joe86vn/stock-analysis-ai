@@ -46,6 +46,8 @@ next-env.d.ts
 
 # Local data cache & User database
 data/ohlc/
+data/financials/
+data/rankings/
 data/*.json
 data/*.json.tmp*
 data/*.tmp*

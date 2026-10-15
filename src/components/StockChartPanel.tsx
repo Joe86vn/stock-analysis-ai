@@ -3360,6 +3360,7 @@ export function StockChartPanel({
             if (onSelectTicker) onSelectTicker(newTicker);
           }}
           liveCandle={liveCandle}
+          quarterlyFinancials={quarterlyFinancials}
         />
       </div>
 

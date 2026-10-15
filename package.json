@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
-    "sync:eod": "npx tsx scripts/sync-eod-ohlc.ts"
+    "sync:eod": "npx tsx scripts/sync-eod-ohlc.ts",
+    "sync:rankings": "npx tsx scripts/precalculate-rankings.ts",
+    "sync:financials": "npx tsx scripts/sync-financials.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

@@ -15,6 +15,7 @@ import { ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
 
 interface FinancialMetricsTabProps {
   ticker: string;
+  initialData?: ParsedVietcapQuarter[];
 }
 
 type PeriodType = 'quarter' | 'year';
@@ -364,15 +365,25 @@ const FINANCIAL_SECTIONS: MetricSection[] = [
   },
 ];
 
-export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker }) => {
+export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker, initialData }) => {
   const [periodType, setPeriodType] = useState<PeriodType>('quarter');
-  const [quartersData, setQuartersData] = useState<ParsedVietcapQuarter[]>([]);
+  const [quartersData, setQuartersData] = useState<ParsedVietcapQuarter[]>(() => {
+    if (initialData && initialData.length > 0) {
+      return [...initialData].sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.quarter - b.quarter;
+      });
+    }
+    return [];
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
   // Vị trí cửa sổ 4 kỳ: windowEndIndex là chỉ số của kỳ mới nhất trong cửa sổ 4 kỳ
-  const [windowEndIndex, setWindowEndIndex] = useState<number>(0);
+  const [windowEndIndex, setWindowEndIndex] = useState<number>(() => {
+    return initialData && initialData.length > 0 ? initialData.length - 1 : 0;
+  });
 
   // Chỉ tiêu đang được chọn để vẽ Mini Trendline Chart
   const [selectedMetricId, setSelectedMetricId] = useState<string>('revenue');
@@ -413,8 +424,21 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
   };
 
   useEffect(() => {
+    // Nếu đã có dữ liệu nạp sẵn từ parent component (StockChartPanel), dùng ngay lập tức 0ms!
+    if (initialData && initialData.length > 0) {
+      const qList = [...initialData].sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.quarter - b.quarter;
+      });
+      setQuartersData(qList);
+      setWindowEndIndex(qList.length - 1);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     fetchFinancials(false);
-  }, [ticker, retryCount]);
+  }, [ticker, initialData, retryCount]);
 
   // Nhóm theo Năm nếu người dùng chọn "Theo năm"
   const aggregatedData = useMemo(() => {

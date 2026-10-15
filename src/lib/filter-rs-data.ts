@@ -8,6 +8,12 @@ import { VietcapScreenerMatchedStock } from './vietcap-screener-service';
 import { calculateFinancialHealthScore, FinancialHealthScorecardResult } from './financial-health-calculator';
 import { calculateGrowthQualityScore, GrowthQualityScorecardResult } from './growth-quality-calculator';
 import { calculateBusinessQualityScore, BusinessQualityScorecardResult } from './business-quality-calculator';
+import {
+  getRankingsFromStorage,
+  putRankingsToStorage,
+  getFundamentalScoresFromStorage,
+  putFundamentalScoresToStorage,
+} from './r2-storage';
 
 // Danh sách 75 mã cổ phiếu mục tiêu lấy từ filter-rs.md
 export const FILTER_75_TICKERS: string[] = [
@@ -89,47 +95,127 @@ export interface StockRankingItem {
   updatedAt: string;
 }
 
-// In-memory cache for stock items (15 minutes TTL)
+/**
+ * CẢI TIẾN 2: Bóc tách cấu trúc Điểm Cơ Bản (Fundamental Score) theo BCTC Quý
+ * Điểm số này cố định theo từng Quý (3 tháng) và được tái sử dụng để tính siêu tốc.
+ */
+export interface StockFundamentalScore {
+  ticker: string;
+  latestQuarter: string;
+  totalScore: number;
+  maxScore: 150;
+  totalPercentage: number;
+  rankGrade: 'A+' | 'A' | 'B+' | 'B' | 'C' | 'D';
+  rankTitle: string;
+  financialHealthScore: number;
+  growthQualityScore: number;
+  businessQualityScore: number;
+  financialHealthGrade: string;
+  growthQualityGrade: string;
+  businessQualityGrade: string;
+  coreEpsGrowthYoY: number;
+  coreNetProfitGrowthYoY: number;
+  headlineNetProfitGrowthYoY: number;
+  q0RevenueGrowthYoY: number;
+  roic: number;
+  roe: number;
+  grossMargin: number;
+  netMargin: number;
+  netDebtToEbitda: number;
+  cfoBillion: number;
+  calculatedAt: string;
+}
+
+// ============================================================================
+// CẢI TIẾN 4: PERSISTENT IN-MEMORY CACHE (TẬN DỤNG 24GB RAM VPS ORACLE)
+// ============================================================================
+
+// 1. RAM Cache cho Điểm Cơ Bản (Fundamental Scores Map)
+const globalFundamentalScores = new Map<string, StockFundamentalScore>();
+let isFundamentalScoresLoaded = false;
+
+// 2. RAM Cache cho Bảng Xếp Hạng Hoàn Chỉnh (Precomputed Rankings)
+let globalPrecomputedRankings: StockRankingItem[] | null = null;
+let globalPrecomputedTimestamp = 0;
+const PRECOMPUTED_RAM_TTL_MS = 60 * 60 * 1000; // 1 giờ trong RAM trước khi re-check SSD
+
+// In-memory cache cho từng item cổ phiếu (15 minutes TTL)
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const stockItemCache = new Map<string, { timestamp: number; item: StockRankingItem }>();
 
 /**
- * Tính toán điểm số & chỉ số cho 1 mã cổ phiếu
+ * Nạp Bản đồ Điểm Cơ Bản từ SSD NVMe / R2 vào RAM VPS
  */
-export async function calculateStockRankingItem(
-  ticker: string,
-  matchedMeta?: VietcapScreenerMatchedStock
-): Promise<StockRankingItem | null> {
-  const cleanTicker = ticker.trim().toUpperCase();
-  const now = Date.now();
+export async function ensureFundamentalScoresLoaded(): Promise<Map<string, StockFundamentalScore>> {
+  if (isFundamentalScoresLoaded && globalFundamentalScores.size > 0) {
+    return globalFundamentalScores;
+  }
+  try {
+    const fromStorage = await getFundamentalScoresFromStorage();
+    if (fromStorage && typeof fromStorage === 'object') {
+      for (const [t, score] of Object.entries(fromStorage)) {
+        if (score && (score as StockFundamentalScore).ticker) {
+          globalFundamentalScores.set(t.toUpperCase(), score as StockFundamentalScore);
+        }
+      }
+      isFundamentalScoresLoaded = true;
+    }
+  } catch (err) {
+    console.warn('[Ranking] Could not load fundamental scores from storage:', err);
+  }
+  return globalFundamentalScores;
+}
 
-  // Kiểm tra cache cho từng mã
-  const cached = stockItemCache.get(cleanTicker);
-  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-    return { ...cached.item };
+/**
+ * Lấy Bảng Xếp Hạng Đã Tính Sẵn (Precomputed Rankings) từ RAM VPS hoặc SSD NVMe (< 1ms)
+ */
+export async function getPrecomputedRankings(maxAgeHours = 24): Promise<StockRankingItem[] | null> {
+  const now = Date.now();
+  // 1. Kiểm tra RAM cache trước (0ms)
+  if (globalPrecomputedRankings && globalPrecomputedRankings.length > 0 && (now - globalPrecomputedTimestamp < PRECOMPUTED_RAM_TTL_MS)) {
+    return globalPrecomputedRankings;
   }
 
+  // 2. Đọc từ SSD NVMe (< 1ms) / R2
   try {
-    const [details, quarters] = await Promise.all([
-      matchedMeta ? Promise.resolve(null) : fetchVietcapCompanyDetails(cleanTicker),
-      fetchFullVietcapData(cleanTicker, { maxQuarters: 12 }),
-    ]);
+    const list = await getRankingsFromStorage('latest', maxAgeHours);
+    if (list && Array.isArray(list) && list.length > 0) {
+      globalPrecomputedRankings = list as StockRankingItem[];
+      globalPrecomputedTimestamp = now;
+      return globalPrecomputedRankings;
+    }
+  } catch (err) {
+    console.warn('[Rankings] Error loading precomputed rankings:', err);
+  }
+
+  return null;
+}
+
+/**
+ * Lưu trữ Bảng Xếp Hạng Đã Tính Sẵn vào cả RAM VPS, SSD NVMe và Cloudflare R2
+ */
+export async function savePrecomputedRankings(rankings: StockRankingItem[]): Promise<void> {
+  globalPrecomputedRankings = rankings;
+  globalPrecomputedTimestamp = Date.now();
+  await putRankingsToStorage(rankings, 'latest');
+}
+
+/**
+ * CẢI TIẾN 2: Tính toán & Bóc tách Điểm Cơ Bản 3 Trụ Cột ValueX (150đ) theo BCTC Quý
+ */
+export async function calculateStockFundamentalScore(
+  ticker: string,
+  providedQuarters?: ParsedVietcapQuarter[]
+): Promise<StockFundamentalScore | null> {
+  const cleanTicker = ticker.trim().toUpperCase();
+
+  try {
+    const quarters = providedQuarters && providedQuarters.length > 0
+      ? providedQuarters
+      : await fetchFullVietcapData(cleanTicker, { maxQuarters: 12 });
 
     if (!quarters || quarters.length === 0) {
       return null;
-    }
-
-    // Xác định RS Rating của cổ phiếu
-    let rsRating = 75;
-    if (matchedMeta && typeof matchedMeta.rs1Month === 'number' && matchedMeta.rs1Month > 0) {
-      rsRating = matchedMeta.rs1Month;
-    } else if (FILTER_75_RS_MAP[cleanTicker]) {
-      rsRating = FILTER_75_RS_MAP[cleanTicker];
-    } else {
-      const liveRs = await fetchVietcapStockRs(cleanTicker, details?.icbCodeLv2);
-      if (liveRs !== null && liveRs > 0) {
-        rsRating = liveRs;
-      }
     }
 
     // 1. Chấm điểm 3 trụ cột ValueX
@@ -172,6 +258,90 @@ export async function calculateStockRankingItem(
     const ltmProf = ltmQuarters.reduce((s, c) => s + (c.netProfit || 0), 0);
     const netMargin = ltmRev > 0 ? Math.round((ltmProf / ltmRev) * 1000) / 10 : (latest.netMargin || 0);
 
+    const score: StockFundamentalScore = {
+      ticker: cleanTicker,
+      latestQuarter: latestQuarterLabel,
+      totalScore,
+      maxScore: 150,
+      totalPercentage,
+      rankGrade,
+      rankTitle,
+      financialHealthScore,
+      growthQualityScore,
+      businessQualityScore,
+      financialHealthGrade: healthResult.rankGrade,
+      growthQualityGrade: growthResult.rankGrade,
+      businessQualityGrade: businessResult.rankGrade,
+      coreEpsGrowthYoY: Math.round((growthResult.metrics?.epsCoreGrowthYoY || growthResult.coreBridge?.coreNetProfitGrowthYoY || 0) * 10) / 10,
+      coreNetProfitGrowthYoY: Math.round((growthResult.metrics?.q0CoreProfitGrowthYoY || growthResult.coreBridge?.coreNetProfitGrowthYoY || 0) * 10) / 10,
+      headlineNetProfitGrowthYoY: Math.round((growthResult.metrics?.q0NetProfitGrowthYoY || growthResult.coreBridge?.headlineNetProfitGrowthYoY || 0) * 10) / 10,
+      q0RevenueGrowthYoY: Math.round((growthResult.metrics?.q0RevenueGrowthYoY || 0) * 10) / 10,
+      roic: Math.round((healthResult.metrics?.roic || latest.roic || 0) * 10) / 10,
+      roe: Math.round((healthResult.metrics?.roe || latest.roe || 0) * 10) / 10,
+      grossMargin: Math.round((healthResult.metrics?.grossMargin || latest.grossMargin || 0) * 10) / 10,
+      netMargin,
+      netDebtToEbitda: Math.round((healthResult.metrics?.netDebtToEbitda || 0) * 100) / 100,
+      cfoBillion: Math.round((healthResult.metrics?.fcfBillion || 0) * 10) / 10,
+      calculatedAt: new Date().toISOString(),
+    };
+
+    // Cập nhật RAM Cache
+    globalFundamentalScores.set(cleanTicker, score);
+    return score;
+  } catch (err) {
+    console.error(`[Fundamental] Error calculating ${cleanTicker}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Tính toán điểm số & chỉ số cho 1 mã cổ phiếu (Kết hợp Điểm Cơ Bản + Giá/RS Phiên)
+ */
+export async function calculateStockRankingItem(
+  ticker: string,
+  matchedMeta?: VietcapScreenerMatchedStock,
+  forceRefresh = false
+): Promise<StockRankingItem | null> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const now = Date.now();
+
+  // Kiểm tra cache item ngắn hạn
+  if (!forceRefresh) {
+    const cached = stockItemCache.get(cleanTicker);
+    if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+      return { ...cached.item };
+    }
+  }
+
+  try {
+    // Đảm bảo RAM Cache điểm cơ bản đã nạp
+    await ensureFundamentalScoresLoaded();
+
+    // 1. Lấy Điểm Cơ Bản: Kiểm tra trong RAM trước (< 0.1ms)
+    let fundamental = !forceRefresh ? globalFundamentalScores.get(cleanTicker) : null;
+    if (!fundamental) {
+      fundamental = await calculateStockFundamentalScore(cleanTicker);
+      if (!fundamental) {
+        return null;
+      }
+    }
+
+    // 2. Lấy Thông tin Doanh nghiệp & Giá/Khối lượng phiên
+    const details = matchedMeta ? null : await fetchVietcapCompanyDetails(cleanTicker);
+
+    // Xác định RS Rating của cổ phiếu
+    let rsRating = 75;
+    if (matchedMeta && typeof matchedMeta.rs1Month === 'number' && matchedMeta.rs1Month > 0) {
+      rsRating = matchedMeta.rs1Month;
+    } else if (FILTER_75_RS_MAP[cleanTicker]) {
+      rsRating = FILTER_75_RS_MAP[cleanTicker];
+    } else {
+      const liveRs = await fetchVietcapStockRs(cleanTicker, details?.icbCodeLv2);
+      if (liveRs !== null && liveRs > 0) {
+        rsRating = liveRs;
+      }
+    }
+
     const price = matchedMeta ? matchedMeta.marketPrice : (details?.currentPrice || 0);
     const refPrice = matchedMeta?.refPrice || 0;
     const priceChangePercent = matchedMeta && typeof matchedMeta.dailyPriceChangePercent === 'number'
@@ -201,33 +371,33 @@ export async function calculateStockRankingItem(
       freeFloatPercentage: details?.freeFloatPercentage || 0,
       rsRating,
       
-      totalScore,
+      totalScore: fundamental.totalScore,
       maxScore: 150,
-      totalPercentage,
-      rankGrade,
-      rankTitle,
+      totalPercentage: fundamental.totalPercentage,
+      rankGrade: fundamental.rankGrade,
+      rankTitle: fundamental.rankTitle,
       
-      financialHealthScore,
-      growthQualityScore,
-      businessQualityScore,
+      financialHealthScore: fundamental.financialHealthScore,
+      growthQualityScore: fundamental.growthQualityScore,
+      businessQualityScore: fundamental.businessQualityScore,
       
-      financialHealthGrade: healthResult.rankGrade,
-      growthQualityGrade: growthResult.rankGrade,
-      businessQualityGrade: businessResult.rankGrade,
+      financialHealthGrade: fundamental.financialHealthGrade,
+      growthQualityGrade: fundamental.growthQualityGrade,
+      businessQualityGrade: fundamental.businessQualityGrade,
       
-      coreEpsGrowthYoY: Math.round((growthResult.metrics?.epsCoreGrowthYoY || growthResult.coreBridge?.coreNetProfitGrowthYoY || 0) * 10) / 10,
-      coreNetProfitGrowthYoY: Math.round((growthResult.metrics?.q0CoreProfitGrowthYoY || growthResult.coreBridge?.coreNetProfitGrowthYoY || 0) * 10) / 10,
-      headlineNetProfitGrowthYoY: Math.round((growthResult.metrics?.q0NetProfitGrowthYoY || growthResult.coreBridge?.headlineNetProfitGrowthYoY || 0) * 10) / 10,
-      q0RevenueGrowthYoY: Math.round((growthResult.metrics?.q0RevenueGrowthYoY || 0) * 10) / 10,
+      coreEpsGrowthYoY: fundamental.coreEpsGrowthYoY,
+      coreNetProfitGrowthYoY: fundamental.coreNetProfitGrowthYoY,
+      headlineNetProfitGrowthYoY: fundamental.headlineNetProfitGrowthYoY,
+      q0RevenueGrowthYoY: fundamental.q0RevenueGrowthYoY,
       
-      roic: Math.round((healthResult.metrics?.roic || latest.roic || 0) * 10) / 10,
-      roe: Math.round((healthResult.metrics?.roe || latest.roe || 0) * 10) / 10,
-      grossMargin: Math.round((healthResult.metrics?.grossMargin || latest.grossMargin || 0) * 10) / 10,
-      netMargin,
-      netDebtToEbitda: Math.round((healthResult.metrics?.netDebtToEbitda || 0) * 100) / 100,
-      cfoBillion: Math.round((healthResult.metrics?.fcfBillion || 0) * 10) / 10,
+      roic: fundamental.roic,
+      roe: fundamental.roe,
+      grossMargin: fundamental.grossMargin,
+      netMargin: fundamental.netMargin,
+      netDebtToEbitda: fundamental.netDebtToEbitda,
+      cfoBillion: fundamental.cfoBillion,
       
-      latestQuarter: latestQuarterLabel,
+      latestQuarter: fundamental.latestQuarter,
       updatedAt: new Date().toISOString(),
     };
 
@@ -277,16 +447,23 @@ export async function scoreDynamicStockList(
 }
 
 /**
- * Lấy danh sách xếp hạng toàn bộ 75 mã cổ phiếu chuẩn Q2/2026
+ * Lấy danh sách xếp hạng toàn bộ cổ phiếu thị trường (Ưu tiên đọc từ RAM/SSD Precomputed < 1ms)
  */
 export async function getFullStockRankingList(forceRefresh = false): Promise<StockRankingItem[]> {
-  const now = Date.now();
+  // 1. Kiểm tra Precomputed Rankings từ RAM/SSD (< 1ms) nếu không yêu cầu ép buộc làm mới
+  if (!forceRefresh) {
+    const precomputed = await getPrecomputedRankings(24);
+    if (precomputed && precomputed.length > 0) {
+      return precomputed;
+    }
+  }
+
   const results: StockRankingItem[] = [];
-  const batchSize = 6;
+  const batchSize = 8;
 
   for (let i = 0; i < FILTER_75_TICKERS.length; i += batchSize) {
     const batch = FILTER_75_TICKERS.slice(i, i + batchSize);
-    const batchPromises = batch.map((ticker) => calculateStockRankingItem(ticker));
+    const batchPromises = batch.map((ticker) => calculateStockRankingItem(ticker, undefined, forceRefresh));
     const batchResults = await Promise.all(batchPromises);
 
     for (const item of batchResults) {
@@ -304,5 +481,9 @@ export async function getFullStockRankingList(forceRefresh = false): Promise<Sto
     item.stt = index + 1;
   });
 
+  // Lưu lại vào RAM & SSD NVMe cho các lần gọi sau
+  await savePrecomputedRankings(results);
+
   return results;
 }
+

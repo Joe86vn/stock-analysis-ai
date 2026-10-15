@@ -1067,7 +1067,7 @@ export async function fetchVietcapCompanyDetails(ticker: string): Promise<Vietca
   try {
     const res = await fetch(`https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/details?ticker=${cleanTicker}`, {
       headers: COMMON_HEADERS,
-      signal: AbortSignal.timeout(3500),
+      signal: AbortSignal.timeout(6000),
       next: { revalidate: 300 },
     });
     if (!res.ok) return null;
@@ -1110,8 +1110,8 @@ export async function fetchVietcapCompanyDetails(ticker: string): Promise<Vietca
       rating: d.rating,
       targetPrice: d.targetPrice,
     };
-  } catch (error) {
-    console.error(`[Vietcap API] fetchCompanyDetails failed for ${cleanTicker}:`, error);
+  } catch (error: any) {
+    console.warn(`[Vietcap API] fetchCompanyDetails failed for ${cleanTicker}:`, error?.message || error);
     return null;
   }
 }

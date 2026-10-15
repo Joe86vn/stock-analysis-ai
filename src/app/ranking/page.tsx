@@ -61,6 +61,8 @@ export default function RankingPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [liveRankings, setLiveRankings] = useState<StockRankingItem[]>([]);
   const [liveMeta, setLiveMeta] = useState<{
+    source?: string;
+    isPrecomputed?: boolean;
     totalMarketScanned?: string;
     matchedCount?: number;
     scoredCount?: number;
@@ -119,24 +121,25 @@ export default function RankingPage() {
     setCurrentPage(1);
   }, [searchTerm, exchangeFilter, scoreTierFilter, coreEpsFilter, coreProfitFilter, liquidityFilter, rsFilter, pageSize]);
 
-  // Thực thi Quét 2 Tầng Toàn Thị Trường (1.600+ mã)
-  const handleRunLiveMarketScreening = async () => {
+  // Thực thi Quét Toàn Thị Trường (Ưu tiên nạp từ RAM VPS < 5ms, hỗ trợ Force Live Scan)
+  const handleRunLiveMarketScreening = async (force = false) => {
     setIsScanningLive(true);
-    setLiveScanProgress('Đang gửi điều kiện lọc tới Vietcap Screener Engine (1.600+ mã)...');
+    setLiveScanProgress(force ? 'Đang ép buộc quét trực tiếp Vietcap Screener API (1.600+ mã)...' : 'Đang tải nhanh bảng xếp hạng từ bộ nhớ VPS...');
 
     try {
-      setLiveScanProgress('Tầng 1: Đang lọc các cổ phiếu đạt chuẩn RS, ADTV & LNST trên 3 sàn...');
+      if (force) {
+        setLiveScanProgress('Tầng 1: Đang lọc các cổ phiếu đạt chuẩn RS, ADTV & LNST trên 3 sàn...');
+      }
       const res = await fetch('/api/screening/live', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tier1Criteria),
+        body: JSON.stringify({ ...tier1Criteria, forceRefresh: force }),
       });
 
       if (!res.ok) {
         throw new Error(`Quét thất bại (${res.status})`);
       }
 
-      setLiveScanProgress('Tầng 2: Đang bóc tách LNST cốt lõi & chấm điểm 3 trụ cột ValueX (150đ)...');
       const json = await res.json();
 
       if (json.success && Array.isArray(json.data)) {
@@ -159,7 +162,7 @@ export default function RankingPage() {
   };
 
   useEffect(() => {
-    handleRunLiveMarketScreening();
+    handleRunLiveMarketScreening(false);
   }, []);
 
   // Danh sách hiển thị trực tiếp từ kết quả quét toàn thị trường
@@ -346,12 +349,12 @@ export default function RankingPage() {
 
           <div className="flex items-center space-x-2 self-start md:self-auto">
             <button
-              onClick={handleRunLiveMarketScreening}
+              onClick={() => handleRunLiveMarketScreening(false)}
               disabled={isScanningLive}
               className="flex items-center space-x-1.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 px-3.5 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition shadow-xs disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isScanningLive ? 'animate-spin' : ''}`} />
-              <span>{isScanningLive ? 'Đang quét...' : 'Quét lại thị trường'}</span>
+              <span>{isScanningLive ? 'Đang quét...' : 'Tải lại danh sách'}</span>
             </button>
 
             <button
@@ -469,7 +472,7 @@ export default function RankingPage() {
               {/* Nút Kích Hoạt Quét */}
               <div className="flex items-end">
                 <button
-                  onClick={handleRunLiveMarketScreening}
+                  onClick={() => handleRunLiveMarketScreening(true)}
                   disabled={isScanningLive}
                   className="flex items-center justify-center space-x-2 w-full py-2 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition disabled:opacity-50"
                 >
@@ -491,23 +494,45 @@ export default function RankingPage() {
 
             {/* Live Scan Meta Summary */}
             {liveMeta && !isScanningLive && (
-              <div className="flex flex-wrap items-center gap-3 text-xs bg-white/80 dark:bg-gray-800/80 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/60">
-                <div className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Đã quét {liveMeta.totalMarketScanned}</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-white/80 dark:bg-gray-800/80 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/60 shadow-xs">
+                <div className="flex flex-wrap items-center gap-3">
+                  {liveMeta.isPrecomputed ? (
+                    <div className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800/60">
+                      <Zap className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500" />
+                      <span>Phục vụ tức thì từ RAM VPS ({liveMeta.totalDurationMs}ms)</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Đã quét {liveMeta.totalMarketScanned}</span>
+                    </div>
+                  )}
+                  <span className="text-gray-400">•</span>
+                  <div>
+                    Khớp tiêu chí: <strong className="text-indigo-600 dark:text-indigo-400">{liveMeta.matchedCount} mã</strong>
+                  </div>
+                  <span className="text-gray-400">•</span>
+                  <div>
+                    Đã chấm điểm ValueX: <strong className="text-emerald-600 dark:text-emerald-400">{liveMeta.scoredCount} mã</strong>
+                  </div>
+                  {!liveMeta.isPrecomputed && (
+                    <>
+                      <span className="text-gray-400">•</span>
+                      <div className="text-gray-500 dark:text-gray-400">
+                        Tổng thời gian: {Math.round((liveMeta.totalDurationMs || 0) / 100) / 10}s
+                      </div>
+                    </>
+                  )}
                 </div>
-                <span className="text-gray-400">•</span>
-                <div>
-                  Khớp điều kiện Tầng 1: <strong className="text-indigo-600 dark:text-indigo-400">{liveMeta.matchedCount} mã</strong> ({liveMeta.tier1DurationMs}ms)
-                </div>
-                <span className="text-gray-400">•</span>
-                <div>
-                  Chấm điểm chuyên sâu Tầng 2: <strong className="text-emerald-600 dark:text-emerald-400">{liveMeta.scoredCount} mã</strong> ({liveMeta.tier2DurationMs}ms)
-                </div>
-                <span className="text-gray-400">•</span>
-                <div className="text-gray-500 dark:text-gray-400">
-                  Tổng thời gian: {Math.round((liveMeta.totalDurationMs || 0) / 100) / 10}s
-                </div>
+
+                <button
+                  onClick={() => handleRunLiveMarketScreening(true)}
+                  className="inline-flex items-center space-x-1 text-[11px] font-medium text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer bg-gray-50 dark:bg-gray-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 px-2.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-800"
+                  title="Buộc quét trực tiếp Vietcap Screener API thay vì dùng cache RAM VPS"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  <span>Quét lại trực tiếp (Force Live)</span>
+                </button>
               </div>
             )}
           </div>

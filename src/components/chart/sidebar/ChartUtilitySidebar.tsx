@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { LiveCandleData } from '@/hooks/useRealtimeStock';
+import { ParsedVietcapQuarter } from '@/lib/vietcap-field-mapping';
 import { WatchlistMiniTab } from './WatchlistMiniTab';
 import { FinancialMetricsTab } from './FinancialMetricsTab';
 import { CompanyInfoTab } from './CompanyInfoTab';
@@ -25,6 +26,7 @@ interface ChartUtilitySidebarProps {
   allStocks?: StockRankingItem[];
   onSelectTicker: (ticker: string) => void;
   liveCandle?: LiveCandleData | null;
+  quarterlyFinancials?: ParsedVietcapQuarter[];
 }
 
 export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
@@ -34,6 +36,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
   allStocks = [],
   onSelectTicker,
   liveCandle,
+  quarterlyFinancials,
 }) => {
   const [activeTab, setActiveTab] = useState<SidebarTabType>('watchlist');
 
@@ -147,7 +150,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
         )}
 
         {activeTab === 'financials' && (
-          <FinancialMetricsTab ticker={currentTicker} />
+          <FinancialMetricsTab ticker={currentTicker} initialData={quarterlyFinancials} />
         )}
 
         {activeTab === 'company' && (
