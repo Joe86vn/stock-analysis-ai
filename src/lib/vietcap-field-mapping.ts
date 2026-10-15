@@ -9,6 +9,7 @@
  * 4. Notes to Financial Statements (/api/iq-insight-service/v1/company/{ticker}/financial-statement?section=NOTE)
  * 5. Statistics Financial & Valuation Ratios (/api/iq-insight-service/v1/company/{ticker}/statistics-financial)
  */
+import { getFinancialsFromStorage, putFinancialsToStorage } from '@/lib/r2-storage';
 
 export interface VietcapFieldMeta {
   code: string;
@@ -750,8 +751,27 @@ export interface FullVietcapFinancialDataset {
  * Hàm gọi API tổng hợp từ 5 endpoint chuyên biệt của Vietcap IQ cho 1 mã chứng khoán (VD: HPG, FPT)
  * Lấy toàn bộ lịch sử từ 2018 đến nay.
  */
-export async function fetchFullVietcapData(ticker: string, options: { maxQuarters?: number } = {}): Promise<ParsedVietcapQuarter[]> {
+export async function fetchFullVietcapData(
+  ticker: string,
+  options: { maxQuarters?: number; forceRefresh?: boolean } = {}
+): Promise<ParsedVietcapQuarter[]> {
   const cleanTicker = ticker.trim().toUpperCase();
+
+  // 1. Kiểm tra cache lưu trữ (Local Disk SSD / R2) nếu không ép buộc làm mới (forceRefresh)
+  if (!options.forceRefresh) {
+    try {
+      const cached = await getFinancialsFromStorage(cleanTicker, 168); // 7 ngày TTL
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        if (options.maxQuarters && options.maxQuarters > 0 && cached.length > options.maxQuarters) {
+          return cached.slice(-options.maxQuarters);
+        }
+        return cached;
+      }
+    } catch (cacheErr) {
+      console.warn(`[Financials Storage] Cache read failed for ${cleanTicker}:`, cacheErr);
+    }
+  }
+
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'application/json',
@@ -844,6 +864,13 @@ export async function fetchFullVietcapData(ticker: string, options: { maxQuarter
       }
     });
 
+    // 2. Lưu vào cache lưu trữ Local Disk SSD & Cloudflare R2
+    if (parsedQuarters.length > 0) {
+      putFinancialsToStorage(cleanTicker, parsedQuarters).catch((err: any) =>
+        console.warn(`[Financials Storage] Cache write error for ${cleanTicker}:`, err)
+      );
+    }
+
     if (options.maxQuarters && options.maxQuarters > 0 && parsedQuarters.length > options.maxQuarters) {
       return parsedQuarters.slice(-options.maxQuarters);
     }
@@ -851,6 +878,16 @@ export async function fetchFullVietcapData(ticker: string, options: { maxQuarter
     return parsedQuarters;
   } catch (error) {
     console.error(`[Vietcap API] Failed to fetch data for ${cleanTicker}:`, error);
+
+    // 3. Fallback đọc bản cache cũ nếu có lỗi mạng từ Vietcap
+    try {
+      const stale = await getFinancialsFromStorage(cleanTicker, 999999);
+      if (stale && Array.isArray(stale) && stale.length > 0) {
+        console.log(`[Financials Storage] Served stale cache for ${cleanTicker} after Vietcap error.`);
+        return options.maxQuarters ? stale.slice(-options.maxQuarters) : stale;
+      }
+    } catch {}
+
     return [];
   }
 }

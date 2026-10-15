@@ -378,20 +378,19 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
   const [selectedMetricId, setSelectedMetricId] = useState<string>('revenue');
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
-  // Fetch dữ liệu tài chính — retryCount được dùng để kích hoạt retry
-  useEffect(() => {
+  // Fetch dữ liệu tài chính — hỗ trợ forceRefresh để xóa cache và cập nhật mới từ Vietcap
+  const fetchFinancials = (force = false) => {
     if (!ticker) return;
-    let isCancelled = false;
     setIsLoading(true);
     setError(null);
 
-    fetch(`/api/stocks/${ticker}/financials`)
+    const url = `/api/stocks/${ticker}/financials${force ? '?refresh=true' : ''}`;
+    fetch(url)
       .then((res) => {
         if (!res.ok) throw new Error(`Lỗi ${res.status}: Không thể tải dữ liệu tài chính`);
         return res.json();
       })
       .then((json) => {
-        if (isCancelled) return;
         const qList: ParsedVietcapQuarter[] = json.quarters || [];
         if (qList.length > 0) {
           qList.sort((a, b) => {
@@ -407,15 +406,14 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
         setIsLoading(false);
       })
       .catch((err) => {
-        if (isCancelled) return;
         console.warn('[FinancialMetricsTab] fetch error:', err);
         setError(err.message || 'Lỗi kết nối đến nguồn dữ liệu Vietcap IQ');
         setIsLoading(false);
       });
+  };
 
-    return () => {
-      isCancelled = true;
-    };
+  useEffect(() => {
+    fetchFinancials(false);
   }, [ticker, retryCount]);
 
   // Nhóm theo Năm nếu người dùng chọn "Theo năm"
@@ -604,13 +602,23 @@ export const FinancialMetricsTab: React.FC<FinancialMetricsTabProps> = ({ ticker
           </div>
         </div>
 
-        <span className="text-[10.5px] text-gray-400 font-mono">
-          {error ? (
-            <span className="text-rose-500 font-bold">Lỗi dữ liệu</span>
-          ) : (
-            `${aggregatedData.length} kỳ lịch sử`
-          )}
-        </span>
+        <div className="flex items-center space-x-2">
+          <span className="text-[10.5px] text-gray-400 font-mono">
+            {error ? (
+              <span className="text-rose-500 font-bold">Lỗi dữ liệu</span>
+            ) : (
+              `${aggregatedData.length} kỳ`
+            )}
+          </span>
+          <button
+            onClick={() => fetchFinancials(true)}
+            disabled={isLoading}
+            className="p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-gray-200 dark:hover:bg-gray-800 transition cursor-pointer"
+            title="Làm mới dữ liệu từ Vietcap IQ (Bỏ qua Cache)"
+          >
+            <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin text-blue-500' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* ─── Biểu đồ Xu hướng Mini (Mini Trendline / Area Chart) ─── */}

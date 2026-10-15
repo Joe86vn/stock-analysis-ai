@@ -14,9 +14,10 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const maxQuartersParam = searchParams.get('maxQuarters') || searchParams.get('size');
     const maxQuarters = maxQuartersParam ? parseInt(maxQuartersParam, 10) : undefined;
+    const forceRefresh = searchParams.get('refresh') === 'true' || searchParams.get('force') === 'true';
 
     const cleanTicker = ticker.trim().toUpperCase();
-    const quarters = await fetchFullVietcapData(cleanTicker, { maxQuarters });
+    const quarters = await fetchFullVietcapData(cleanTicker, { maxQuarters, forceRefresh });
 
     return NextResponse.json({
       ticker: cleanTicker,

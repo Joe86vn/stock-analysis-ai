@@ -537,3 +537,139 @@ export async function getPriceHistoryFromR2(
 
   return null;
 }
+
+/**
+ * Đường dẫn R2 Object Key cho Báo cáo tài chính chuẩn hóa
+ * Ví dụ: financial-data/vietcap/HPG.json
+ */
+export function getFinancialsR2ObjectKey(ticker: string): string {
+  return `financial-data/vietcap/${ticker.trim().toUpperCase()}.json`;
+}
+
+/**
+ * Đường dẫn file cache local cho Báo cáo tài chính
+ * Ví dụ: data/financials/HPG.json
+ */
+export function getLocalFinancialsFilePath(ticker: string): string {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const dir = path.join(process.cwd(), 'data', 'financials');
+  return path.join(dir, `${cleanTicker}.json`);
+}
+
+/**
+ * Lưu trữ dữ liệu tài chính vào Local Disk (SSD NVMe) và Cloudflare R2
+ */
+export async function putFinancialsToStorage(
+  ticker: string,
+  quarters: any[]
+): Promise<{ success: boolean; destination: 'r2' | 'local' | 'both'; error?: string }> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const jsonString = JSON.stringify(quarters);
+
+  // 1. Lưu bản copy Local Disk (SSD NVMe)
+  try {
+    const localPath = getLocalFinancialsFilePath(cleanTicker);
+    ensureLocalDirExists(localPath);
+    fs.writeFileSync(localPath, jsonString, 'utf-8');
+  } catch (localErr: any) {
+    console.warn(`[Financials Storage] Local cache write error for ${cleanTicker}:`, localErr.message);
+  }
+
+  // 2. Upload lên Cloudflare R2 nếu đã cấu hình
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (!s3 || !config.isConfigured) {
+    return {
+      success: true,
+      destination: 'local',
+    };
+  }
+
+  try {
+    const objectKey = getFinancialsR2ObjectKey(cleanTicker);
+    const command = new PutObjectCommand({
+      Bucket: config.bucketName,
+      Key: objectKey,
+      Body: jsonString,
+      ContentType: 'application/json; charset=utf-8',
+    });
+
+    await s3.send(command);
+
+    return {
+      success: true,
+      destination: 'both',
+    };
+  } catch (r2Err: any) {
+    console.error(`[Financials Storage] Failed to upload ${cleanTicker} to R2:`, r2Err);
+    return {
+      success: false,
+      destination: 'local',
+      error: r2Err.message,
+    };
+  }
+}
+
+/**
+ * Lấy dữ liệu tài chính từ Local Disk hoặc Cloudflare R2
+ * Mặc định TTL 168 giờ = 7 ngày (vì BCTC chỉ ra theo Quý)
+ */
+export async function getFinancialsFromStorage(
+  ticker: string,
+  maxAgeHours = 168
+): Promise<any[] | null> {
+  const cleanTicker = ticker.trim().toUpperCase();
+  const now = Date.now();
+  const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+
+  // 1. Kiểm tra Local Cache trước (< 1ms trên SSD)
+  try {
+    const localPath = getLocalFinancialsFilePath(cleanTicker);
+    if (fs.existsSync(localPath)) {
+      const stats = fs.statSync(localPath);
+      const isFresh = (now - stats.mtimeMs) < maxAgeMs;
+      if (isFresh) {
+        const fileContent = fs.readFileSync(localPath, 'utf-8');
+        return JSON.parse(fileContent);
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[Financials Storage] Local read error for ${cleanTicker}:`, err.message);
+  }
+
+  // 2. Truy vấn từ Cloudflare R2
+  const s3 = getS3Client();
+  const config = getR2Config();
+
+  if (s3 && config.isConfigured) {
+    try {
+      const objectKey = getFinancialsR2ObjectKey(cleanTicker);
+      const command = new GetObjectCommand({
+        Bucket: config.bucketName,
+        Key: objectKey,
+      });
+
+      const response = await s3.send(command);
+      if (response.Body) {
+        const bodyText = await response.Body.transformToString();
+        const parsed = JSON.parse(bodyText);
+
+        // Lưu ngược về local cache để các lần sau đọc 0ms
+        try {
+          const localPath = getLocalFinancialsFilePath(cleanTicker);
+          ensureLocalDirExists(localPath);
+          fs.writeFileSync(localPath, bodyText, 'utf-8');
+        } catch {}
+
+        return parsed;
+      }
+    } catch (r2Err: any) {
+      if (r2Err.name !== 'NoSuchKey') {
+        console.warn(`[Financials Storage] Error reading ${cleanTicker} from R2:`, r2Err.message);
+      }
+    }
+  }
+
+  return null;
+}
