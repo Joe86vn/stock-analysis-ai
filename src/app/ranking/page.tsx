@@ -59,7 +59,18 @@ export default function RankingPage() {
   const isVip = canCustomize(userRole);
   const canExport = hasPermission(userRole, 'ranking_export');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [liveRankings, setLiveRankings] = useState<StockRankingItem[]>([]);
+  const [liveRankings, setLiveRankings] = useState<StockRankingItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('valuex_latest_screened_stocks');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [liveMeta, setLiveMeta] = useState<{
     source?: string;
     isPrecomputed?: boolean;
@@ -69,9 +80,28 @@ export default function RankingPage() {
     tier1DurationMs?: number;
     tier2DurationMs?: number;
     totalDurationMs?: number;
-  } | null>(null);
+  } | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedMeta = localStorage.getItem('valuex_latest_screened_meta');
+        if (savedMeta) return JSON.parse(savedMeta);
+      } catch {}
+    }
+    return null;
+  });
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('valuex_latest_screened_stocks');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return false;
+        }
+      } catch {}
+    }
+    return true;
+  });
   const [isScanningLive, setIsScanningLive] = useState(false);
   const [liveScanProgress, setLiveScanProgress] = useState<string>('');
 
@@ -148,6 +178,9 @@ export default function RankingPage() {
         try {
           localStorage.setItem('valuex_latest_screened_stocks', JSON.stringify(json.data));
           localStorage.setItem('valuex_latest_screened_time', Date.now().toString());
+          if (json.meta) {
+            localStorage.setItem('valuex_latest_screened_meta', JSON.stringify(json.meta));
+          }
           window.dispatchEvent(new CustomEvent('valuex-screened-updated', { detail: json.data }));
         } catch {}
       }
@@ -796,10 +829,10 @@ export default function RankingPage() {
             <div className="p-12 text-center">
               <RefreshCw className="h-8 w-8 mx-auto text-emerald-500 animate-spin mb-3" />
               <p className="text-sm font-semibold text-slate-800 dark:text-gray-200">
-                Đang tải & bóc tách dữ liệu tài chính chuyên sâu...
+                Đang đồng bộ dữ liệu bảng xếp hạng từ máy chủ VPS...
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Tự động tính toán điểm Sức khỏe tài chính, Chất lượng tăng trưởng và Chất lượng doanh nghiệp
+                Tự động nạp bộ chỉ số định giá và 3 trụ cột cơ bản 150 điểm đã tính sẵn
               </p>
             </div>
           ) : sortedRankings.length === 0 ? (
