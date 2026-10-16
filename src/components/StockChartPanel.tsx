@@ -298,7 +298,10 @@ export function StockChartPanel({
             volume: vol,
           };
 
-          bars.push(newBar);
+          const newBars = [...bars, newBar];
+          allBarsRef.current = newBars;
+          setAllBars(newBars);
+
           chartRef.current.updateData({
             timestamp: todayTs,
             open,
@@ -679,8 +682,22 @@ export function StockChartPanel({
 
         // Kiểm tra lại lần nữa trước khi cập nhật state
         if (currentTickerRef.current === t && (reqId === undefined || fetchRequestIdRef.current === reqId)) {
-          const updatedBars = resolutionsFull[currentRes];
+          let updatedBars = resolutionsFull[currentRes];
           if (updatedBars && updatedBars.length > 0) {
+            // Bảo toàn cây nến hôm nay nếu nến lịch sử Phase 2 chỉ dừng lại ở phiên hôm qua
+            const todayDateStr = new Date().toISOString().slice(0, 10);
+            const currentLastBar = allBarsRef.current[allBarsRef.current.length - 1];
+            const updatedLastBar = updatedBars[updatedBars.length - 1];
+            if (
+              currentRes === 'D' &&
+              currentLastBar &&
+              currentLastBar.fullDate?.slice(0, 10) === todayDateStr &&
+              updatedLastBar &&
+              updatedLastBar.fullDate?.slice(0, 10) !== todayDateStr
+            ) {
+              updatedBars = [...updatedBars, currentLastBar];
+              resolutionsFull['D'] = updatedBars;
+            }
             setAllBars(updatedBars);
             allBarsRef.current = updatedBars;
           }
@@ -737,7 +754,21 @@ export function StockChartPanel({
             M: monthlyBars1,
           };
 
-          const activeBars = resolutions1[res] || dailyBars1;
+          let activeBars = resolutions1[res] || dailyBars1;
+          const todayDateStr = new Date().toISOString().slice(0, 10);
+          const currentLastBar = allBarsRef.current[allBarsRef.current.length - 1];
+          const activeLastBar = activeBars[activeBars.length - 1];
+          if (
+            res === 'D' &&
+            currentLastBar &&
+            currentLastBar.fullDate?.slice(0, 10) === todayDateStr &&
+            activeLastBar &&
+            activeLastBar.fullDate?.slice(0, 10) !== todayDateStr
+          ) {
+            activeBars = [...activeBars, currentLastBar];
+            resolutions1['D'] = activeBars;
+          }
+
           setAllBars(activeBars);
           allBarsRef.current = activeBars;
           if (res === 'D') setLiveVolume(dailyBars1[dailyBars1.length - 1].volume);
@@ -2207,36 +2238,6 @@ export function StockChartPanel({
       canslimOverlayIdsRef.current = [];
     }
   }, [ticker, allBars, resolution]);
-
-  // ─── Cập nhật nến cuối với livePrice ──────────────────────────────────────
-
-  useEffect(() => {
-    if (!livePrice || !chartRef.current || allBars.length < 2) return;
-    if (currentTickerRef.current !== ticker) return;
-
-    // Rào chắn bảo vệ: Chỉ update khi chart thực sự đã nạp đủ nến của ticker hiện tại
-    const currentDataList = chartRef.current.getDataList();
-    if (!currentDataList || currentDataList.length < 2) return;
-
-    const lastBar = allBars[allBars.length - 1];
-
-    // Kiểm tra an toàn: Nếu livePrice lệch trên 40% so với giá đóng cửa nến cuối của lịch sử,
-    // đây là hiện tượng nốt giá cũ của mã khác hoặc sai số đòn bẩy -> Bỏ qua để tránh đột biến nến.
-    if (lastBar.closePrice > 0) {
-      const deviation = Math.abs(livePrice - lastBar.closePrice) / lastBar.closePrice;
-      if (deviation > 0.4) return;
-    }
-
-    const ts = new Date(lastBar.fullDate + 'T00:00:00Z').getTime();
-    chartRef.current.updateData({
-      timestamp: isNaN(ts) ? Date.now() : ts,
-      open: lastBar.openPrice,
-      high: Math.max(lastBar.highestPrice, livePrice),
-      low: Math.min(lastBar.lowestPrice, livePrice),
-      close: livePrice,
-      volume: liveVolume ?? lastBar.volume,
-    });
-  }, [livePrice, allBars, liveVolume, ticker]);
 
   // ─── Quản lý nhãn giá hiện tại và % tăng giảm trên trục giá ──────────────
   const currentPriceOverlayIdRef = useRef<string | null>(null);
