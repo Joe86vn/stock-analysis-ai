@@ -60,7 +60,12 @@ const formatDateLabel = (dStr: string) => {
   return clean;
 };
 
-export const ValuationChart: React.FC = () => {
+export interface ValuationChartProps {
+  isDashboard?: boolean;
+  height?: number;
+}
+
+export const ValuationChart: React.FC<ValuationChartProps> = ({ isDashboard = false, height = 135 }) => {
   const [valType, setValType] = useState<ValType>('pe');
   const [peData, setPeData] = useState<ChartPoint[]>([]);
   const [pbData, setPbData] = useState<ChartPoint[]>([]);
@@ -188,11 +193,11 @@ export const ValuationChart: React.FC = () => {
         </div>
       )}
 
-      {loading && <div className="h-[140px] flex items-center justify-center text-xs text-slate-900 dark:text-white">Đang tải biểu đồ định giá...</div>}
-      {error && !loading && <div className="h-[140px] flex items-center justify-center text-xs text-slate-900 dark:text-white">Không có dữ liệu định giá</div>}
+      {loading && <div className={`flex items-center justify-center text-xs text-slate-900 dark:text-white ${isDashboard ? 'h-[120px]' : 'h-[140px]'}`}>Đang tải biểu đồ định giá...</div>}
+      {error && !loading && <div className={`flex items-center justify-center text-xs text-slate-900 dark:text-white ${isDashboard ? 'h-[120px]' : 'h-[140px]'}`}>Không có dữ liệu định giá</div>}
       {!loading && !error && activeData.length > 0 && stats !== null && (
-        <div className="relative w-full bg-white dark:bg-slate-900/50 rounded-lg p-2 border border-gray-200 dark:border-gray-800 shadow-xs">
-          <ResponsiveContainer width="100%" height={135}>
+        <div className={`relative w-full ${isDashboard ? 'flex-1 min-h-[110px] bg-transparent border-none p-0' : 'bg-white dark:bg-slate-900/50 rounded-lg p-2 border border-gray-200 dark:border-gray-800 shadow-xs'}`}>
+          <ResponsiveContainer width="100%" height={height}>
             <LineChart data={activeData} margin={{ top: 8, right: 0, left: 0, bottom: 4 }}>
               <XAxis
                 dataKey="date"

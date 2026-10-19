@@ -26,7 +26,12 @@ const fetchInfluence = async (sort: 'DESC' | 'ASC'): Promise<InfluenceItem[]> =>
   }
 };
 
-export const MarketInfluenceTable: React.FC = () => {
+export interface MarketInfluenceTableProps {
+  isDashboard?: boolean;
+  maxItems?: number;
+}
+
+export const MarketInfluenceTable: React.FC<MarketInfluenceTableProps> = ({ isDashboard = false, maxItems = 10 }) => {
   const [topUp, setTopUp] = useState<InfluenceItem[]>([]);
   const [topDown, setTopDown] = useState<InfluenceItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +50,8 @@ export const MarketInfluenceTable: React.FC = () => {
           setError(true);
           return;
         }
-        setTopUp(up.slice(0, 10));
-        setTopDown(down.slice(0, 10));
+        setTopUp(up.slice(0, maxItems));
+        setTopDown(down.slice(0, maxItems));
       } catch {
         setError(true);
       } finally {
@@ -54,7 +59,7 @@ export const MarketInfluenceTable: React.FC = () => {
       }
     };
     load();
-  }, []);
+  }, [maxItems]);
 
   const maxVal = useMemo(() => {
     const allVals = [
@@ -68,15 +73,15 @@ export const MarketInfluenceTable: React.FC = () => {
   if (error) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Không có dữ liệu ảnh hưởng</div>;
 
   return (
-    <div className="w-full font-sans select-none text-[10px]">
+    <div className={`w-full font-sans select-none text-[10px] ${isDashboard ? 'h-full flex flex-col overflow-hidden' : ''}`}>
       {/* Header titles (Vietcap style) */}
-      <div className="grid grid-cols-2 gap-3 mb-2 font-bold tracking-tight text-[11px]">
+      <div className="grid grid-cols-2 gap-3 mb-1.5 font-bold tracking-tight text-[10.5px] shrink-0">
         <div className="text-center text-slate-900 dark:text-white">Đóng góp tăng</div>
         <div className="text-center text-slate-900 dark:text-white">Đóng góp giảm</div>
       </div>
 
       {/* 2-Column Vietcap Horizontal Bar Chart Grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className={`grid grid-cols-2 gap-3 ${isDashboard ? 'flex-1 min-h-0 overflow-y-auto pr-0.5' : ''}`}>
         {/* Left Column: Top Đóng Góp Tăng */}
         <div className="flex flex-col gap-1.5">
           {topUp.map((item) => {

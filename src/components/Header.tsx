@@ -4,7 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Sun, Moon, BarChart3, Trophy, Sparkles, CandlestickChart, Lock } from 'lucide-react';
+import { FileText, Sun, Moon, BarChart3, Trophy, Sparkles, CandlestickChart, Lock, Activity } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import { UserMenu } from '@/components/UserMenu';
 import { useSession } from 'next-auth/react';
@@ -22,6 +22,7 @@ export function Header() {
   const isAnalysisActive = pathname === '/analysis' || pathname?.startsWith('/analysis');
   const isRankingActive = pathname === '/ranking';
   const isChartActive = pathname === '/chart' || pathname?.startsWith('/chart');
+  const isMarketActive = pathname === '/market' || pathname?.startsWith('/market');
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200/80 dark:border-gray-800/80 bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md transition-colors duration-200 print:hidden shadow-xs">
@@ -91,6 +92,17 @@ export function Header() {
             </Link>
 
             <Link
+              href="/market"
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${isMarketActive
+                  ? 'bg-white dark:bg-gray-900 text-sky-600 dark:text-sky-400 shadow-xs'
+                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
+                }`}
+            >
+              <Activity className="h-3.5 w-3.5 text-sky-500" />
+              <span>Market Watch</span>
+            </Link>
+
+            <Link
               href="/reports"
               className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${pathname?.startsWith('/reports')
                   ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
@@ -135,6 +147,16 @@ export function Header() {
               title="Biểu đồ kỹ thuật"
             >
               <CandlestickChart className="h-4 w-4 text-indigo-500" />
+            </Link>
+            <Link
+              href="/market"
+              className={`p-2 rounded-lg text-xs font-semibold ${isMarketActive
+                  ? 'bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400'
+                  : 'text-gray-600 dark:text-gray-400'
+                }`}
+              title="Market Watch"
+            >
+              <Activity className="h-4 w-4 text-sky-500" />
             </Link>
             <Link
               href="/reports"

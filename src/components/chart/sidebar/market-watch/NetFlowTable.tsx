@@ -23,7 +23,7 @@ const formatBillion = (v: number) => {
 };
 
 const getTicker = (item: FlowItem): string =>
-  item.s ?? item.StockCode ?? item.stockCode ?? item.ticker ?? '—';
+  item.s ?? item.StockCode ?? item.stockCode ?? item.ticker ?? '-';
 
 const getNetVal = (item: FlowItem, isBuy: boolean): number => {
   if (item.frBva !== undefined && item.frSva !== undefined) {
@@ -33,7 +33,12 @@ const getNetVal = (item: FlowItem, isBuy: boolean): number => {
   return Math.abs(val);
 };
 
-export const NetFlowTable: React.FC = () => {
+export interface NetFlowTableProps {
+  isDashboard?: boolean;
+  maxItems?: number;
+}
+
+export const NetFlowTable: React.FC<NetFlowTableProps> = ({ isDashboard = false, maxItems = 10 }) => {
   const [foreignBuy, setForeignBuy] = useState<FlowItem[]>([]);
   const [foreignSell, setForeignSell] = useState<FlowItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,8 +62,8 @@ export const NetFlowTable: React.FC = () => {
         const normalize = (j: unknown): FlowItem[] =>
           Array.isArray(j) ? j : Array.isArray((j as { data?: unknown })?.data) ? (j as { data: FlowItem[] }).data : [];
 
-        const buyItems = normalize(buyJson).slice(0, 10);
-        const sellItems = normalize(sellJson).slice(0, 10);
+        const buyItems = normalize(buyJson).slice(0, maxItems);
+        const sellItems = normalize(sellJson).slice(0, maxItems);
 
         if (buyItems.length === 0 && sellItems.length === 0) {
           setError(true);
@@ -74,7 +79,7 @@ export const NetFlowTable: React.FC = () => {
       }
     };
     load();
-  }, []);
+  }, [maxItems]);
 
   const maxVal = useMemo(() => {
     const buyVals = foreignBuy.map((x) => getNetVal(x, true));
@@ -87,12 +92,14 @@ export const NetFlowTable: React.FC = () => {
   if (error) return <div className="text-xs text-gray-400 py-4 text-center font-sans">Không có dữ liệu nước ngoài</div>;
 
   return (
-    <div className="w-full font-sans select-none text-[10px]">
+    <div className={`w-full font-sans select-none text-[10px] ${isDashboard ? 'h-full flex flex-col overflow-hidden' : ''}`}>
       {/* Title & Header titles (Vietcap style) */}
-      <div className="mb-2">
-        <div className="text-[11px] font-bold text-slate-900 dark:text-white mb-1">
-          Top cổ phiếu giao dịch (tỷ VNĐ)
-        </div>
+      <div className="mb-1.5 shrink-0">
+        {!isDashboard && (
+          <div className="text-[11px] font-bold text-slate-900 dark:text-white mb-1">
+            Top cổ phiếu giao dịch (tỷ VNĐ)
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3 font-bold tracking-tight text-[10.5px]">
           <div className="text-center text-slate-900 dark:text-white">Mua ròng</div>
           <div className="text-center text-slate-900 dark:text-white">Bán ròng</div>
@@ -100,7 +107,7 @@ export const NetFlowTable: React.FC = () => {
       </div>
 
       {/* 2-Column Vietcap Horizontal Bar Chart Grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className={`grid grid-cols-2 gap-3 ${isDashboard ? 'flex-1 min-h-0 overflow-y-auto pr-0.5' : ''}`}>
         {/* Left Column: Mua Ròng Nước Ngoài */}
         <div className="flex flex-col gap-1.5">
           {foreignBuy.map((item, i) => {

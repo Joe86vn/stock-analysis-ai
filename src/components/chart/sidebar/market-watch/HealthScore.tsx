@@ -24,8 +24,12 @@ interface HistoryPoint {
 
 type MarketStatus = 'confirmed_uptrend' | 'uptrend_under_pressure' | 'correction' | 'unknown';
 
+export interface HealthScoreProps {
+  isDashboard?: boolean;
+}
+
 interface HealthResult {
-  score: number; // 0 – 10
+  score: number; // 0 - 10
   status: MarketStatus;
   distributionDays: number;
   vnindexVsMa20: number | null; // percent diff
@@ -98,7 +102,7 @@ const STATUS_CONFIG: Record<MarketStatus, {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const HealthScore: React.FC = () => {
+export const HealthScore: React.FC<HealthScoreProps> = ({ isDashboard = false }) => {
   const [result, setResult] = useState<(HealthResult & {
     ftdFailureProb?: number | null;
     postFtdDistribDay?: number | null;
@@ -193,12 +197,12 @@ export const HealthScore: React.FC = () => {
   const IconComp = cfg.icon;
   const ma20Str = result.vnindexVsMa20 !== null
     ? `${result.vnindexVsMa20 > 0 ? '+' : ''}${result.vnindexVsMa20.toFixed(1)}%`
-    : '—';
+    : '-';
 
   return (
-    <div className={`w-full rounded-xl border p-3 ${cfg.bgColor} ${cfg.borderColor} font-sans select-none shadow-2xs`}>
+    <div className={`w-full ${isDashboard ? 'h-full flex flex-col justify-between p-2.5 rounded-lg' : 'rounded-xl p-3'} border ${cfg.bgColor} ${cfg.borderColor} font-sans select-none shadow-2xs overflow-hidden`}>
       {/* Top Header & Score Badge */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5 shrink-0">
         <div className="flex items-center gap-1.5">
           <IconComp className={`w-4 h-4 shrink-0 ${cfg.color}`} />
           <span className={`text-xs font-bold ${cfg.color}`}>{cfg.label}</span>
@@ -206,7 +210,7 @@ export const HealthScore: React.FC = () => {
 
         {/* 10-Point Score Badge */}
         <div className="flex items-center gap-1">
-          <span className="text-[10px] text-gray-600 dark:text-gray-400 font-medium">Điểm sức khỏe:</span>
+          <span className="text-[10px] text-gray-600 dark:text-gray-400 font-medium">Điểm:</span>
           <span className={`text-sm font-black px-2.5 py-0.5 rounded-full ${
             result.score >= 7
               ? 'bg-emerald-600 text-white dark:bg-emerald-500'
@@ -220,7 +224,7 @@ export const HealthScore: React.FC = () => {
       </div>
 
       {/* Metrics & Deductions Grid */}
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-2.5 text-[11px] bg-white/90 dark:bg-black/40 p-2.5 rounded-lg border border-gray-200/80 dark:border-gray-800/60 shadow-2xs">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1 mb-1.5 text-[10.5px] bg-white/90 dark:bg-black/40 p-2 rounded-lg border border-gray-200/80 dark:border-gray-800/60 shadow-2xs shrink-0">
         <div className="flex justify-between items-center">
           <span className="text-gray-600 dark:text-gray-400 text-[10px] font-medium">Phiên phân phối</span>
           <span className={`font-bold text-[10px] ${result.distributionDays > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
@@ -231,14 +235,14 @@ export const HealthScore: React.FC = () => {
         <div className="flex justify-between items-center">
           <span className="text-gray-600 dark:text-gray-400 text-[10px] font-medium">Xu hướng MA20</span>
           <span className={`font-bold text-[10px] ${result.isBelowMa20 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-            {result.isBelowMa20 ? `Dưới MA20 (-1đ)` : `Trên MA20 (${ma20Str})`}
+            {result.isBelowMa20 ? 'Dưới MA20 (-1đ)' : `Trên MA20 (${ma20Str})`}
           </span>
         </div>
 
         {result.ftdDetected && (
-          <div className="col-span-2 flex flex-col gap-0.5 text-[10px] text-emerald-700 dark:text-emerald-400 font-bold border-t border-gray-200/80 dark:border-gray-800/40 pt-1.5 mt-0.5">
+          <div className="col-span-2 flex flex-col gap-0.5 text-[10px] text-emerald-700 dark:text-emerald-400 font-bold border-t border-gray-200/80 dark:border-gray-800/40 pt-1 mt-0.5">
             <div className="flex items-center gap-1">
-              <span>✓ Phát hiện FTD bùng nổ theo đà (Phiên 4–10)</span>
+              <span>✓ Phát hiện FTD bùng nổ theo đà (Phiên 4-10)</span>
             </div>
             {result.ftdFailureProb && (
               <div className="text-red-600 dark:text-red-400 font-bold text-[9.5px] flex items-center gap-1">
@@ -250,15 +254,15 @@ export const HealthScore: React.FC = () => {
       </div>
 
       {/* Exposure Recommendation */}
-      <div className="flex items-center justify-between mb-1.5 px-0.5">
+      <div className="flex items-center justify-between mb-1 px-0.5 shrink-0">
         <span className="text-[10px] text-gray-600 dark:text-gray-400 font-medium">Tỷ trọng Exposure đề xuất</span>
         <span className={`text-xs font-black ${cfg.color}`}>
-          {result.exposureLow}–{result.exposureHigh}%
+          {result.exposureLow} - {result.exposureHigh}%
         </span>
       </div>
 
       {/* Exposure Progress Bar */}
-      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700/80 rounded-full mb-2.5 overflow-hidden">
+      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700/80 rounded-full mb-1.5 overflow-hidden shrink-0">
         <div
           className={`h-full rounded-full transition-all duration-500 ${
             result.score >= 7 ? 'bg-emerald-500' : result.score >= 5 ? 'bg-amber-500' : 'bg-red-500'
@@ -268,14 +272,16 @@ export const HealthScore: React.FC = () => {
       </div>
 
       {/* Strategy Recommendation */}
-      <p className="text-[10px] text-slate-800 dark:text-gray-200 leading-relaxed font-semibold">
-        {result.strategy}
-      </p>
-      {result.note && (
-        <p className="text-[9.5px] text-slate-500 dark:text-gray-400 leading-relaxed mt-1 italic font-medium">
-          {result.note}
+      <div className="min-h-0 overflow-y-auto">
+        <p className="text-[10px] text-slate-800 dark:text-gray-200 leading-snug font-semibold">
+          {result.strategy}
         </p>
-      )}
+        {result.note && (
+          <p className="text-[9.5px] text-slate-500 dark:text-gray-400 leading-snug mt-0.5 italic font-medium">
+            {result.note}
+          </p>
+        )}
+      </div>
     </div>
   );
 };

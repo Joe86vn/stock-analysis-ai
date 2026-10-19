@@ -74,7 +74,12 @@ const fetchBreadthCond = async (cond: string): Promise<{ date: string; value: nu
   }
 };
 
-export const BreadthChart: React.FC = () => {
+export interface BreadthChartProps {
+  isDashboard?: boolean;
+  height?: number;
+}
+
+export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false, height = 135 }) => {
   const [data, setData] = useState<CombinedPoint[]>([]);
   const [visible, setVisible] = useState({ ema20: true, ema50: true, ema200: true });
   const [loading, setLoading] = useState(true);
@@ -193,11 +198,11 @@ export const BreadthChart: React.FC = () => {
         </div>
       </div>
 
-      {loading && <div className="h-[140px] flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">Đang tải 3 đường độ rộng...</div>}
-      {error && !loading && <div className="h-[140px] flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">Không có dữ liệu độ rộng</div>}
+      {loading && <div className={`flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white ${isDashboard ? 'h-[120px]' : 'h-[140px]'}`}>Đang tải 3 đường độ rộng...</div>}
+      {error && !loading && <div className={`flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white ${isDashboard ? 'h-[120px]' : 'h-[140px]'}`}>Không có dữ liệu độ rộng</div>}
       {!loading && !error && data.length > 0 && (
-        <div className="relative w-full bg-white dark:bg-slate-900/50 rounded-lg p-2 border border-gray-200 dark:border-gray-800 shadow-xs">
-          <ResponsiveContainer width="100%" height={135}>
+        <div className={`relative w-full ${isDashboard ? 'flex-1 min-h-[110px] bg-transparent border-none p-0' : 'bg-white dark:bg-slate-900/50 rounded-lg p-2 border border-gray-200 dark:border-gray-800 shadow-xs'}`}>
+          <ResponsiveContainer width="100%" height={height}>
             <LineChart data={data} margin={{ top: 8, right: 0, left: 0, bottom: 4 }}>
               <XAxis
                 dataKey="date"

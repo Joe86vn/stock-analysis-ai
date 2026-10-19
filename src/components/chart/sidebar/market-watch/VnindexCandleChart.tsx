@@ -63,7 +63,11 @@ const calcMA = (arr: number[], period: number): number[] => {
   });
 };
 
-export const VnindexCandleChart: React.FC = () => {
+export interface VnindexCandleChartProps {
+  isDashboard?: boolean;
+}
+
+export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashboard = false }) => {
   const [candles, setCandles] = useState<CandleDataPoint[]>([]);
   const [activeCount, setActiveCount] = useState<number>(0);
   const [hasFtd, setHasFtd] = useState<boolean>(false);
@@ -227,8 +231,8 @@ export const VnindexCandleChart: React.FC = () => {
           }
         });
 
-        // Take last 45 sessions for optimal chart view in sidebar
-        const displayCandles = points.slice(-45);
+        // Take last sessions (75 for dashboard, 45 for sidebar)
+        const displayCandles = points.slice(isDashboard ? -75 : -45);
         setCandles(displayCandles);
         setActiveCount(activeCounter);
         setHasFtd(displayCandles.some((c) => c.isFTD));
@@ -240,7 +244,7 @@ export const VnindexCandleChart: React.FC = () => {
     };
 
     load();
-  }, []);
+  }, [isDashboard]);
 
   const activeIndex = useMemo(() => {
     if (candles.length === 0) return -1;
@@ -264,11 +268,11 @@ export const VnindexCandleChart: React.FC = () => {
     : 0;
 
   if (loading) {
-    return <div className="h-[185px] flex items-center justify-center text-xs text-gray-400">Đang tải nến VNINDEX...</div>;
+    return <div className={`${isDashboard ? 'h-full min-h-[220px]' : 'h-[185px]'} flex items-center justify-center text-xs text-gray-400`}>Đang tải nến VNINDEX...</div>;
   }
 
   if (error || candles.length === 0) {
-    return <div className="h-[185px] flex items-center justify-center text-xs text-gray-400">Không có dữ liệu nến VNINDEX</div>;
+    return <div className={`${isDashboard ? 'h-full min-h-[220px]' : 'h-[185px]'} flex items-center justify-center text-xs text-gray-400`}>Không có dữ liệu nến VNINDEX</div>;
   }
 
   // Calculate SVG bounds
@@ -278,10 +282,10 @@ export const VnindexCandleChart: React.FC = () => {
   const priceRange = Math.max(maxHigh - minLow, 1);
 
   // SVG Dimension Specs
-  const svgWidth = 360;
-  const svgHeight = 185;
-  const candleAreaHeight = 125;
-  const volumeAreaHeight = 45;
+  const svgWidth = isDashboard ? 860 : 360;
+  const svgHeight = isDashboard ? 360 : 185;
+  const candleAreaHeight = isDashboard ? 240 : 125;
+  const volumeAreaHeight = isDashboard ? 85 : 45;
   const candleWidth = Math.max((svgWidth - 10) / candles.length - 2, 3);
 
   const getPriceY = (price: number) => {
@@ -316,12 +320,12 @@ export const VnindexCandleChart: React.FC = () => {
   const ma20VolPath = ma20VolPts.length > 1 ? `M ${ma20VolPts.join(' L ')}` : '';
 
   return (
-    <div className="w-full font-sans select-none">
+    <div className="w-full h-full flex flex-col font-sans select-none">
       {/* Top Stats Bar */}
-      <div className="flex items-center justify-between mb-1 px-0.5">
+      <div className="flex items-center justify-between mb-1 px-0.5 shrink-0">
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-bold text-gray-800 dark:text-gray-100">
-            {activeCandle ? activeCandle.close.toFixed(2) : '—'}
+            {activeCandle ? activeCandle.close.toFixed(2) : '-'}
           </span>
           {activeCandle && (
             <span
@@ -343,7 +347,7 @@ export const VnindexCandleChart: React.FC = () => {
           {hasFtd && (
             <span
               className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5"
-              title="Phát hiện phiên Bùng nổ theo đà FTD (Phiên 4–10)"
+              title="Phát hiện phiên Bùng nổ theo đà FTD (Phiên 4-10)"
             >
               <Zap className="w-2.5 h-2.5 fill-emerald-400" />
               FTD
@@ -366,7 +370,7 @@ export const VnindexCandleChart: React.FC = () => {
       </div>
 
       {/* Date & Hover Details Header */}
-      <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 mb-1 px-0.5">
+      <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 mb-1 px-0.5 shrink-0">
         <span>{activeCandle ? activeCandle.date : ''}</span>
         {activeCandle && (
           <div className="flex gap-1.5 text-[9px] font-mono">
@@ -382,7 +386,7 @@ export const VnindexCandleChart: React.FC = () => {
       </div>
 
       {/* SVG Candle + Volume Chart */}
-      <div className="relative w-full h-[185px] bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
+      <div className={`relative w-full ${isDashboard ? 'flex-1 min-h-[160px]' : 'h-[185px]'} bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden`}>
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="w-full h-full overflow-visible"

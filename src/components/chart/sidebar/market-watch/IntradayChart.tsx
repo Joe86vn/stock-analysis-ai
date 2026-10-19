@@ -15,7 +15,11 @@ const formatTime = (ts: number) => {
   return `${h}:${m}`;
 };
 
-export const IntradayChart: React.FC = () => {
+export interface IntradayChartProps {
+  isDashboard?: boolean;
+}
+
+export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = false }) => {
   const [points, setPoints] = useState<MinutePoint[]>([]);
   const [refPrice, setRefPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -316,20 +320,20 @@ export const IntradayChart: React.FC = () => {
 
       {/* Chart container */}
       {loading && (
-        <div className="h-[110px] flex items-center justify-center text-xs text-gray-400">
+        <div className={`${isDashboard ? 'h-full min-h-[90px]' : 'h-[110px]'} flex items-center justify-center text-xs text-gray-400`}>
           Đang tải dữ liệu Intraday...
         </div>
       )}
 
       {error && !loading && (
-        <div className="h-[110px] flex items-center justify-center text-xs text-gray-400">
+        <div className={`${isDashboard ? 'h-full min-h-[90px]' : 'h-[110px]'} flex items-center justify-center text-xs text-gray-400`}>
           Không có dữ liệu Intraday
         </div>
       )}
 
       {!loading && !error && points.length > 0 && (
         <>
-          <div className="relative w-full h-[110px] bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden">
+          <div className={`relative w-full ${isDashboard ? 'flex-1 min-h-[90px]' : 'h-[110px]'} bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden`}>
             <svg
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
               className="w-full h-full overflow-visible"
