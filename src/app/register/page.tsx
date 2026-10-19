@@ -60,7 +60,7 @@ export default function RegisterPage() {
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50/50 dark:bg-[#0B0F19]">
-            <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl">
+            <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white dark:bg-gray-900 border border-gray-200/90 dark:border-gray-800/90 rounded-2xl shadow-sm">
                 <div className="text-center mb-6">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 mb-3 border border-blue-500/20">
                         <UserPlus className="w-6 h-6" />

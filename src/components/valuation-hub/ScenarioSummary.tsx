@@ -521,7 +521,7 @@ export const ScenarioSummary: React.FC<ScenarioSummaryProps> = ({
               ? '✅ Độ đồng thuận cao (≤ 10%)'
               : dispersion <= 20
               ? '🟡 Phân tán vừa phải (10% - 20%)'
-              : '⚠️ Phân tán cao (> 20%) — nên kiểm tra lại các giả định chéo'}
+              : '⚠️ Phân tán cao (> 20%): Nên kiểm tra lại các giả định chéo'}
           </div>
         </div>
 

@@ -241,7 +241,7 @@ export function extractDefaultExecutiveSummary(
   } else {
     const bullets = extractBulletPoints(report.sectionB?.valueChainOutput || report.sectionA?.historyAndOverview, 4);
     // Không dùng mockup — nếu không có dữ liệu thực thì trả về N/A
-    mainProducts = bullets.length > 0 ? bullets : ['N/A — Cần cập nhật từ Tab B (Chuỗi Giá Trị)'];
+    mainProducts = bullets.length > 0 ? bullets : ['N/A: Cần cập nhật từ Tab B (Chuỗi Giá Trị)'];
   }
 
   // 2. Chuỗi giá trị — Không dùng fallback mockup, trả về rỗng nếu Tab B chưa có dữ liệu

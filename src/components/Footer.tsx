@@ -43,8 +43,14 @@ export function Footer() {
             <p className="text-xs leading-relaxed text-[var(--text-muted)]">
               Trở thành đội ngũ tư vấn đầu tư chứng khoán uy tín, chuyên nghiệp hàng đầu <strong>Bà Rịa - Vũng Tàu</strong>. Giúp nhà đầu tư tiếp cận kiến thức chuẩn xác, thông tin đáng tin cậy và cơ hội đầu tư vượt trội.
             </p>
-            <div className="text-xs font-medium text-slate-700 dark:text-gray-300">
-              Giá trị cốt lõi: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Chính trực • Chuyên môn • Kỷ luật • Đồng hành</span>
+            <div className="pt-1">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 block mb-1.5">Giá trị cốt lõi:</span>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Chính trực</span>
+                <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Chuyên môn</span>
+                <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Kỷ luật</span>
+                <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Đồng hành</span>
+              </div>
             </div>
           </div>
 
@@ -54,6 +60,11 @@ export function Footer() {
               Hệ Sinh Thái ValueX
             </h4>
             <ul className="space-y-2 text-xs">
+              <li>
+                <Link href="/market" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-1.5">
+                  <ArrowRight className="w-3 h-3 text-emerald-500" /> Market Watch VN-Index (Mới)
+                </Link>
+              </li>
               <li>
                 <Link href="/reports" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-1.5">
                   <ArrowRight className="w-3 h-3 text-emerald-500" /> Ấn phẩm báo cáo phân tích

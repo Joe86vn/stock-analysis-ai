@@ -70,7 +70,7 @@ export const DataBridgeBanner: React.FC<DataBridgeBannerProps> = ({
         <div className="bg-slate-50 dark:bg-slate-950/50 rounded-lg p-2.5 border border-slate-200/80 dark:border-slate-800/60">
           <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">EPS Forward</div>
           <div className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono mt-0.5">
-            {epsForward > 0 ? `${Math.round(epsForward).toLocaleString('vi-VN')} đ` : '—'}
+            {epsForward > 0 ? `${Math.round(epsForward).toLocaleString('vi-VN')} đ` : '-'}
           </div>
           <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Cốt lõi 4 quý tới</div>
         </div>
@@ -79,7 +79,7 @@ export const DataBridgeBanner: React.FC<DataBridgeBannerProps> = ({
         <div className="bg-slate-50 dark:bg-slate-950/50 rounded-lg p-2.5 border border-slate-200/80 dark:border-slate-800/60">
           <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">EBITDA Forward</div>
           <div className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono mt-0.5">
-            {ebitdaForward > 0 ? `${Math.round(ebitdaForward).toLocaleString('vi-VN')} Tỷ` : '—'}
+            {ebitdaForward > 0 ? `${Math.round(ebitdaForward).toLocaleString('vi-VN')} Tỷ` : '-'}
           </div>
           <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Phục vụ EV/EBITDA</div>
         </div>
@@ -88,7 +88,7 @@ export const DataBridgeBanner: React.FC<DataBridgeBannerProps> = ({
         <div className="bg-slate-50 dark:bg-slate-950/50 rounded-lg p-2.5 border border-slate-200/80 dark:border-slate-800/60">
           <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">LNST Forward</div>
           <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
-            {netProfitForward > 0 ? `${Math.round(netProfitForward).toLocaleString('vi-VN')} Tỷ` : '—'}
+            {netProfitForward > 0 ? `${Math.round(netProfitForward).toLocaleString('vi-VN')} Tỷ` : '-'}
           </div>
           <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">LNST cổ đông mẹ</div>
         </div>
@@ -97,7 +97,7 @@ export const DataBridgeBanner: React.FC<DataBridgeBannerProps> = ({
         <div className="bg-slate-50 dark:bg-slate-950/50 rounded-lg p-2.5 border border-slate-200/80 dark:border-slate-800/60">
           <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">BVPS Dự Phóng</div>
           <div className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono mt-0.5">
-            {bvpsForward > 0 ? `${Math.round(bvpsForward).toLocaleString('vi-VN')} đ` : '—'}
+            {bvpsForward > 0 ? `${Math.round(bvpsForward).toLocaleString('vi-VN')} đ` : '-'}
           </div>
           <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
             {typeof payoutRatio === 'number' && payoutRatio > 0
@@ -119,7 +119,7 @@ export const DataBridgeBanner: React.FC<DataBridgeBannerProps> = ({
         <div className="bg-slate-50 dark:bg-slate-950/50 rounded-lg p-2.5 border border-slate-200/80 dark:border-slate-800/60">
           <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Số Cổ Phiếu</div>
           <div className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono mt-0.5">
-            {sharesOutstanding > 0 ? `${Math.round(sharesOutstanding).toLocaleString('vi-VN')} Tr` : '—'}
+            {sharesOutstanding > 0 ? `${Math.round(sharesOutstanding).toLocaleString('vi-VN')} Tr` : '-'}
           </div>
           <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Khối lượng lưu hành</div>
         </div>

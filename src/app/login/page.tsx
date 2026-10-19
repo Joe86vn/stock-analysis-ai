@@ -4,7 +4,7 @@ import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { ShieldCheck, Mail, Lock, AlertCircle, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, AlertCircle, ArrowRight, Loader2, Sparkles, Crown, User } from 'lucide-react';
 
 function LoginFormContent() {
     const router = useRouter();
@@ -48,7 +48,7 @@ function LoginFormContent() {
     };
 
     return (
-        <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl">
+        <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white dark:bg-gray-900 border border-gray-200/90 dark:border-gray-800/90 rounded-2xl shadow-sm">
             <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 mb-3 border border-emerald-500/20">
                     <ShieldCheck className="w-6 h-6" />
@@ -142,26 +142,35 @@ function LoginFormContent() {
                     <button
                         type="button"
                         onClick={() => handleQuickLogin('admin@valuex.vn', 'valuex@Admin2025')}
-                        className="text-left p-1.5 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 flex justify-between items-center transition"
+                        className="text-left p-2 rounded-lg bg-gray-100/60 dark:bg-gray-800/60 hover:bg-emerald-500/10 dark:hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/30 flex justify-between items-center transition"
                     >
-                        <span>👑 <b>Admin:</b> admin@valuex.vn</span>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400">Nạp mật khẩu</span>
+                        <span className="flex items-center gap-1.5 font-sans">
+                            <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <b>Admin:</b> <span className="font-mono text-slate-700 dark:text-slate-300">admin@valuex.vn</span>
+                        </span>
+                        <span className="text-[10px] font-sans font-medium text-emerald-600 dark:text-emerald-400">Nạp mật khẩu</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => handleQuickLogin('vip@valuex.vn', 'valuex@VIP2025')}
-                        className="text-left p-1.5 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 flex justify-between items-center transition"
+                        className="text-left p-2 rounded-lg bg-gray-100/60 dark:bg-gray-800/60 hover:bg-amber-500/10 dark:hover:bg-amber-500/10 border border-transparent hover:border-amber-500/30 flex justify-between items-center transition"
                     >
-                        <span>💎 <b>VIP:</b> vip@valuex.vn</span>
-                        <span className="text-[10px] text-amber-600 dark:text-amber-400">Nạp mật khẩu</span>
+                        <span className="flex items-center gap-1.5 font-sans">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <b>VIP Pro:</b> <span className="font-mono text-slate-700 dark:text-slate-300">vip@valuex.vn</span>
+                        </span>
+                        <span className="text-[10px] font-sans font-medium text-amber-600 dark:text-amber-400">Nạp mật khẩu</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => handleQuickLogin('demo@valuex.vn', 'demo@Free2025')}
-                        className="text-left p-1.5 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 flex justify-between items-center transition"
+                        className="text-left p-2 rounded-lg bg-gray-100/60 dark:bg-gray-800/60 hover:bg-blue-500/10 dark:hover:bg-blue-500/10 border border-transparent hover:border-blue-500/30 flex justify-between items-center transition"
                     >
-                        <span>👤 <b>Free:</b> demo@valuex.vn</span>
-                        <span className="text-[10px] text-blue-600 dark:text-blue-400">Nạp mật khẩu</span>
+                        <span className="flex items-center gap-1.5 font-sans">
+                            <User className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            <b>Free:</b> <span className="font-mono text-slate-700 dark:text-slate-300">demo@valuex.vn</span>
+                        </span>
+                        <span className="text-[10px] font-sans font-medium text-blue-600 dark:text-blue-400">Nạp mật khẩu</span>
                     </button>
                 </div>
             </div>

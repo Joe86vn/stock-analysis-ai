@@ -572,7 +572,7 @@ export function ChartSettingsModal({
                         className="px-3 py-1 rounded-lg border border-gray-300 dark:border-[#434651] bg-white dark:bg-[#1e222d] text-xs font-mono"
                       >
                         <option value="dashed">---- (Nét đứt)</option>
-                        <option value="solid">—— (Nét liền)</option>
+                        <option value="solid">── (Nét liền)</option>
                       </select>
                     </div>
                   </div>

@@ -1437,7 +1437,7 @@ export const QuarterlyForecastBridge: React.FC<QuarterlyForecastBridgeProps> = (
                   const cfoRatio = q.cfoToNetProfit ?? 0;
                   return (
                     <td key={i} className={`py-1.5 px-3 text-right tabular-nums bg-slate-50/20 dark:bg-slate-950/10 ${cfoRatio < 0 ? 'text-rose-600 dark:text-rose-400 font-medium' : ''}`}>
-                      {q.cfoToNetProfit !== undefined ? `${q.cfoToNetProfit}%` : '—'}
+                      {q.cfoToNetProfit !== undefined ? `${q.cfoToNetProfit}%` : '-'}
                     </td>
                   );
                 })}

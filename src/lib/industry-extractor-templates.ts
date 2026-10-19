@@ -372,13 +372,13 @@ Mô hình hoạt động (industryModel): "${profile.industryModel}"
 
 Khi bóc tách "sectionB_IndustrySpecificValueChain", BẮT BUỘC tập trung vào các đặc thù sau của ngành:
 
-1. [inputOrFundingEngine] — Đầu vào & Nguồn lực:
+1. [inputOrFundingEngine]: Đầu vào & Nguồn lực:
 ${profile.inputOrFundingEngine}
 
-2. [operationOrProductionCapacity] — Năng lực Vận hành & Công suất:
+2. [operationOrProductionCapacity]: Năng lực Vận hành & Công suất:
 ${profile.operationOrProductionCapacity}
 
-3. [outputOrRevenueStreams] — Đầu ra & Cơ cấu Doanh thu:
+3. [outputOrRevenueStreams]: Đầu ra & Cơ cấu Doanh thu:
 ${profile.outputOrRevenueStreams}
 
 LƯU Ý ĐẶC THÙ:

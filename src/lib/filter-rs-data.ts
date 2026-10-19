@@ -235,19 +235,19 @@ export async function calculateStockFundamentalScore(
     let rankTitle = 'Rủi ro cao';
     if (totalScore >= 125) {
       rankGrade = 'A+';
-      rankTitle = 'Siêu Cổ Phiếu Xuất Sắc — Dẫn đầu toàn diện';
+      rankTitle = 'Siêu Cổ Phiếu Xuất Sắc: Dẫn đầu toàn diện';
     } else if (totalScore >= 110) {
       rankGrade = 'A';
-      rankTitle = 'Chất lượng Vượt trội — Ưu tiên hàng đầu';
+      rankTitle = 'Chất lượng Vượt trội: Ưu tiên hàng đầu';
     } else if (totalScore >= 95) {
       rankGrade = 'B+';
-      rankTitle = 'Tốt — Tăng trưởng & Sức khỏe ổn định';
+      rankTitle = 'Tốt: Tăng trưởng & Sức khỏe ổn định';
     } else if (totalScore >= 80) {
       rankGrade = 'B';
-      rankTitle = 'Khá — Cần theo dõi thêm động lực';
+      rankTitle = 'Khá: Cần theo dõi thêm động lực';
     } else if (totalScore >= 65) {
       rankGrade = 'C';
-      rankTitle = 'Trung bình — Biên an toàn thấp';
+      rankTitle = 'Trung bình: Biên an toàn thấp';
     }
 
     const latest = quarters[quarters.length - 1] || ({} as ParsedVietcapQuarter);

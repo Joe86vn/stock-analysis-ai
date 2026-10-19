@@ -523,7 +523,7 @@ export function IndicatorSettingsDialog({
                         className="px-2 py-1 rounded border border-gray-300 dark:border-[#434651] bg-white dark:bg-[#1e222d] text-xs font-mono"
                         title="Kiểu nét vẽ"
                       >
-                        <option value="solid">——</option>
+                        <option value="solid">──</option>
                         <option value="dashed">----</option>
                       </select>
                     </div>

@@ -181,7 +181,7 @@ export const HistoricalValuationChart: React.FC<HistoricalValuationChartProps> =
           </span>
           <div className="flex items-baseline justify-center gap-1 mt-0.5">
             <span className="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono">
-              {currentVal !== null ? `${currentVal}x` : '—'}
+              {currentVal !== null ? `${currentVal}x` : '-'}
             </span>
             {deviationFromMedian && (
               <span
@@ -206,7 +206,7 @@ export const HistoricalValuationChart: React.FC<HistoricalValuationChartProps> =
             Trung vị 5 năm (μ)
           </span>
           <span className="text-sm font-bold text-amber-600 dark:text-amber-400 font-mono mt-0.5 block">
-            {medianVal !== null ? `${medianVal}x` : '—'}
+            {medianVal !== null ? `${medianVal}x` : '-'}
           </span>
         </div>
 
@@ -217,8 +217,8 @@ export const HistoricalValuationChart: React.FC<HistoricalValuationChartProps> =
           </span>
           <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono mt-0.5 block">
             {minus1Val !== null && plus1Val !== null
-              ? `${minus1Val}x – ${plus1Val}x`
-              : '—'}
+              ? `${minus1Val}x - ${plus1Val}x`
+              : '-'}
           </span>
         </div>
       </div>

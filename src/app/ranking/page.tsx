@@ -702,7 +702,7 @@ export default function RankingPage() {
                       <div className="mt-1 flex items-center justify-between text-xs">
                         <span className="text-gray-500 dark:text-gray-400">Giá & GTGD 20N:</span>
                         <span className="font-semibold text-slate-700 dark:text-gray-300">
-                          {champ.currentPrice > 0 ? champ.currentPrice.toLocaleString('vi-VN') + ' đ' : '—'} • {champ.adtv20Billion} Tỷ
+                          {champ.currentPrice > 0 ? champ.currentPrice.toLocaleString('vi-VN') + ' đ' : '-'} • {champ.adtv20Billion} Tỷ
                         </span>
                       </div>
                     </div>
@@ -1043,7 +1043,7 @@ export default function RankingPage() {
                                 : `Kỳ cũ: ${item.latestQuarter || 'Chưa rõ'} (Chưa công bố BCTC mới)`
                             }
                           >
-                            {item.latestQuarter || '—'}
+                            {item.latestQuarter || '-'}
                           </span>
                         </td>
 
@@ -1080,7 +1080,7 @@ export default function RankingPage() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-gray-400">—</span>
+                            <span className="text-gray-400">-</span>
                           )}
                         </td>
 
@@ -1186,7 +1186,7 @@ export default function RankingPage() {
 
                         {/* ROE */}
                         <td className="py-3 px-3 text-right font-medium text-slate-700 dark:text-gray-300">
-                          {item.roe > 0 ? `${item.roe}%` : '—'}
+                          {item.roe > 0 ? `${item.roe}%` : '-'}
                         </td>
 
                         {/* Action / Jump Button */}

@@ -253,7 +253,7 @@ export const CompanyInfoTab: React.FC<CompanyInfoTabProps> = ({ ticker }) => {
             {isFallbackToMarket && !isLoading && (
               <div className="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-[10.5px] flex items-center space-x-2 flex-shrink-0">
                 <Globe className="w-3.5 h-3.5 flex-shrink-0" />
-                <span><span className="font-bold">{ticker}</span> chưa có tin riêng — đang hiển thị tin thị trường chung</span>
+                <span><span className="font-bold">{ticker}</span> chưa có tin riêng: Đang hiển thị tin thị trường chung</span>
               </div>
             )}
 

@@ -995,7 +995,7 @@ export function ExecutiveSummaryTab({
                   {summaryData.overviewSummary}
                 </p>
               ) : (
-                <p className="text-xs text-amber-600 dark:text-amber-400 italic">⚠️ Chưa có dữ liệu tổng quan — Cần phân tích Tab A (Hồ Sơ Doanh Nghiệp)</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 italic">⚠️ Chưa có dữ liệu tổng quan: Cần phân tích Tab A (Hồ Sơ Doanh Nghiệp)</p>
               )}
               <div className="flex flex-wrap gap-1.5 pt-0.5">
                 {summaryData.mainProducts.slice(0, 4).map((p, idx) => (
@@ -1034,7 +1034,7 @@ export function ExecutiveSummaryTab({
                       {summaryData.valueChainInput}
                     </p>
                   ) : (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần cập nhật từ Tab B</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A: Cần cập nhật từ Tab B</p>
                   )}
                 </div>
 
@@ -1054,7 +1054,7 @@ export function ExecutiveSummaryTab({
                       {summaryData.valueChainProduction}
                     </p>
                   ) : (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần cập nhật từ Tab B</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A: Cần cập nhật từ Tab B</p>
                   )}
                 </div>
 
@@ -1074,7 +1074,7 @@ export function ExecutiveSummaryTab({
                       {summaryData.valueChainOutput}
                     </p>
                   ) : (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần cập nhật từ Tab B</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A: Cần cập nhật từ Tab B</p>
                   )}
                 </div>
               </div>
@@ -1108,7 +1108,7 @@ export function ExecutiveSummaryTab({
                       {summaryData.financialHealthSummary}
                     </p>
                   ) : (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần phân tích Tab C (Đánh Giá Tài Chính)</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A: Cần phân tích Tab C (Đánh Giá Tài Chính)</p>
                   )}
                 </div>
 
@@ -1129,7 +1129,7 @@ export function ExecutiveSummaryTab({
                       {summaryData.competitiveMoatSummary}
                     </p>
                   ) : (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần phân tích Tab E (Năng Lực Cạnh Tranh)</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A: Cần phân tích Tab E (Năng Lực Cạnh Tranh)</p>
                   )}
                 </div>
               </div>
@@ -1218,7 +1218,7 @@ export function ExecutiveSummaryTab({
                   </div>
                 )) : (
                   <div className="rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 p-2.5 text-[11px]">
-                    <p className="text-amber-700 dark:text-amber-400 font-medium">⚠️ N/A — Chưa có luận điểm đầu tư</p>
+                    <p className="text-amber-700 dark:text-amber-400 font-medium">⚠️ N/A: Chưa có luận điểm đầu tư</p>
                     <p className="text-amber-600/80 dark:text-amber-500/70 text-[10px] mt-0.5">Cần phân tích Tab D (Chất Lượng Tăng Trưởng) để tự động trích xuất luận điểm thực tế.</p>
                   </div>
                 )}
@@ -1233,7 +1233,7 @@ export function ExecutiveSummaryTab({
                   </div>
                 )) : (
                   <div className="col-span-2 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 p-2 text-[11px]">
-                    <p className="text-amber-700 dark:text-amber-400 font-medium">⚠️ N/A — Chưa có chất xúc tác</p>
+                    <p className="text-amber-700 dark:text-amber-400 font-medium">⚠️ N/A: Chưa có chất xúc tác</p>
                     <p className="text-amber-600/80 dark:text-amber-500/70 text-[10px] mt-0.5">Cần phân tích Tab H (CatalystTracker) để có dữ liệu thực tế.</p>
                   </div>
                 )}
@@ -1297,7 +1297,7 @@ export function ExecutiveSummaryTab({
                   {summaryData.forecastSummary}
                 </p>
               ) : (
-                <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A — Cần phân tích Tab F (Định Giá & Dự Phóng) để có nội dung tóm tắt dự phóng</p>
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">⚠️ N/A: Cần phân tích Tab F (Định Giá & Dự Phóng) để có nội dung tóm tắt dự phóng</p>
               )}
             </div>
 
@@ -1339,7 +1339,7 @@ export function ExecutiveSummaryTab({
                   </div>
                 )) : (
                   <div className="rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 p-2 text-[11px]">
-                    <p className="text-amber-700 dark:text-amber-400 font-medium">⚠️ N/A — Chưa có dữ liệu rủi ro</p>
+                    <p className="text-amber-700 dark:text-amber-400 font-medium">⚠️ N/A: Chưa có dữ liệu rủi ro</p>
                     <p className="text-amber-600/80 dark:text-amber-500/70 text-[10px] mt-0.5">Cần phân tích Tab I (Rủi Ro & Khung Đầu Tư) để có dữ liệu thực tế.</p>
                   </div>
                 )}
@@ -1424,7 +1424,7 @@ export function ExecutiveSummaryTab({
                     BÁO CÁO CHI TIẾT DOANH NGHIỆP • {summaryData.coreBusiness}
                   </div>
                   <h1 className="text-3xl font-black text-slate-900 dark:text-white font-heading tracking-tight">
-                    {report.ticker} — {report.companyName}
+                    {report.ticker}: {report.companyName}
                   </h1>
                 </div>
 

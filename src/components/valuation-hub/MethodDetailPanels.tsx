@@ -109,7 +109,7 @@ export const MethodDetailPanels: React.FC<MethodDetailPanelsProps> = ({
                 <div className="text-right">
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 mr-1.5 font-medium">Giá Base:</span>
                   <span className="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono">
-                    {m.fairValueBase ? `${m.fairValueBase.toLocaleString('vi-VN')} đ` : '—'}
+                    {m.fairValueBase ? `${m.fairValueBase.toLocaleString('vi-VN')} đ` : '-'}
                   </span>
                 </div>
                 {isExpanded ? (
@@ -158,7 +158,7 @@ export const MethodDetailPanels: React.FC<MethodDetailPanelsProps> = ({
                       <div className="pt-2 border-t border-rose-200/60 dark:border-slate-800/60">
                         <div className="text-[11px] text-slate-500 dark:text-slate-400">Giá trị hợp lý:</div>
                         <div className="text-base font-bold text-rose-600 dark:text-red-400 font-mono mt-0.5">
-                          {m.fairValueBear ? `${m.fairValueBear.toLocaleString('vi-VN')} đ` : '—'}
+                          {m.fairValueBear ? `${m.fairValueBear.toLocaleString('vi-VN')} đ` : '-'}
                         </div>
                       </div>
                     </div>
@@ -230,7 +230,7 @@ export const MethodDetailPanels: React.FC<MethodDetailPanelsProps> = ({
                       <div className="pt-2 border-t border-emerald-200/60 dark:border-slate-800/60">
                         <div className="text-[11px] text-slate-500 dark:text-slate-400">Giá trị hợp lý:</div>
                         <div className="text-base font-bold text-emerald-700 dark:text-emerald-400 font-mono mt-0.5">
-                          {m.fairValueBull ? `${m.fairValueBull.toLocaleString('vi-VN')} đ` : '—'}
+                          {m.fairValueBull ? `${m.fairValueBull.toLocaleString('vi-VN')} đ` : '-'}
                         </div>
                       </div>
                     </div>
@@ -268,7 +268,7 @@ export const MethodDetailPanels: React.FC<MethodDetailPanelsProps> = ({
                       <div className="pt-1.5 border-t border-rose-200/60 dark:border-slate-800/60">
                         <div className="text-[11px] text-slate-500 dark:text-slate-400">Giá trị hợp lý:</div>
                         <div className="text-base font-bold text-rose-600 dark:text-red-400 font-mono mt-0.5">
-                          {m.fairValueBear ? `${m.fairValueBear.toLocaleString('vi-VN')} đ` : '—'}
+                          {m.fairValueBear ? `${m.fairValueBear.toLocaleString('vi-VN')} đ` : '-'}
                         </div>
                       </div>
 
@@ -318,7 +318,7 @@ export const MethodDetailPanels: React.FC<MethodDetailPanelsProps> = ({
                       <div className="pt-1.5 border-t border-sky-200/60 dark:border-slate-800/60">
                         <div className="text-[11px] text-slate-500 dark:text-slate-400">Giá trị hợp lý:</div>
                         <div className="text-base font-bold text-sky-700 dark:text-slate-100 font-mono mt-0.5">
-                          {m.fairValueBase ? `${m.fairValueBase.toLocaleString('vi-VN')} đ` : '—'}
+                          {m.fairValueBase ? `${m.fairValueBase.toLocaleString('vi-VN')} đ` : '-'}
                         </div>
                       </div>
 
@@ -379,7 +379,7 @@ export const MethodDetailPanels: React.FC<MethodDetailPanelsProps> = ({
                       <div className="pt-1.5 border-t border-emerald-200/60 dark:border-slate-800/60">
                         <div className="text-[11px] text-slate-500 dark:text-slate-400">Giá trị hợp lý:</div>
                         <div className="text-base font-bold text-emerald-700 dark:text-emerald-400 font-mono mt-0.5">
-                          {m.fairValueBull ? `${m.fairValueBull.toLocaleString('vi-VN')} đ` : '—'}
+                          {m.fairValueBull ? `${m.fairValueBull.toLocaleString('vi-VN')} đ` : '-'}
                         </div>
                       </div>
 
@@ -641,7 +641,7 @@ function MethodFormulaBanner({
         <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/30 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800/50 space-y-1">
           <div className="text-slate-800 dark:text-slate-300 font-bold">Công thức: Giá mục tiêu = BVPS Dự Phóng × P/B Mục Tiêu</div>
           <div className="text-slate-600 dark:text-slate-400">
-            BVPS Dự Phóng: <span className="text-slate-900 dark:text-slate-200 font-mono font-bold">{inputs.bvpsForward.toLocaleString('vi-VN')} đ</span> | P/B trung vị lịch sử: <span className="text-slate-900 dark:text-slate-200 font-mono font-medium">{historicalStats.pbMedian ? `${historicalStats.pbMedian}x` : '—'}</span>
+            BVPS Dự Phóng: <span className="text-slate-900 dark:text-slate-200 font-mono font-bold">{inputs.bvpsForward.toLocaleString('vi-VN')} đ</span> | P/B trung vị lịch sử: <span className="text-slate-900 dark:text-slate-200 font-mono font-medium">{historicalStats.pbMedian ? `${historicalStats.pbMedian}x` : '-'}</span>
           </div>
         </div>
       );

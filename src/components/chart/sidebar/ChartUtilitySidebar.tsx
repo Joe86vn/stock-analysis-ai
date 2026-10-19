@@ -120,7 +120,7 @@ export const ChartUtilitySidebar: React.FC<ChartUtilitySidebarProps> = ({
                 ? 'bg-white dark:bg-[#131722] text-violet-600 dark:text-violet-400 shadow-2xs border border-gray-200/80 dark:border-gray-700/80'
                 : 'text-gray-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
             }`}
-            title="Market Watch — Sức khỏe & dòng tiền thị trường"
+            title="Market Watch: Sức khỏe & dòng tiền thị trường"
           >
             <TrendingUp className="w-3.5 h-3.5 text-violet-500" />
             <span>Market</span>

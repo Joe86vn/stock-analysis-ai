@@ -2384,7 +2384,7 @@ export function StockChartPanel({
     v >= 1_000_000 ? (v / 1_000_000).toFixed(2) + 'M' : v >= 1_000 ? (v / 1_000).toFixed(1) + 'K' : String(v);
 
   const formatBoardPrice = (price?: number) => {
-    if (!price || isNaN(price)) return '—';
+    if (!price || isNaN(price)) return '-';
     const p = price >= 1000 ? price / 1000 : price;
     return p.toFixed(2);
   };
@@ -3245,10 +3245,10 @@ export function StockChartPanel({
                     <div className="bg-gradient-to-b from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white px-3 py-1.5 flex flex-col items-center min-w-[68px] transition-colors">
                       <span className="text-[9.5px] font-bold uppercase tracking-wider text-rose-100/90 font-sans">Bid</span>
                       <span className="text-[12px] font-bold font-mono tracking-tight text-white tabular-nums leading-tight mt-0.5">
-                        {bidAskData?.bidPrice ? formatBoardPrice(bidAskData.bidPrice) : '—'}
+                        {bidAskData?.bidPrice ? formatBoardPrice(bidAskData.bidPrice) : '-'}
                       </span>
                       <span className="text-[9.5px] font-medium font-mono text-rose-100/85 tabular-nums leading-tight mt-0.5">
-                        {bidAskData?.bidVol ? bidAskData.bidVol.toLocaleString('vi-VN') : '—'}
+                        {bidAskData?.bidVol ? bidAskData.bidVol.toLocaleString('vi-VN') : '-'}
                       </span>
                     </div>
 
@@ -3256,10 +3256,10 @@ export function StockChartPanel({
                     <div className="bg-gradient-to-b from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-3 py-1.5 flex flex-col items-center min-w-[68px] transition-colors">
                       <span className="text-[9.5px] font-bold uppercase tracking-wider text-emerald-100/90 font-sans">Ask</span>
                       <span className="text-[12px] font-bold font-mono tracking-tight text-white tabular-nums leading-tight mt-0.5">
-                        {bidAskData?.askPrice ? formatBoardPrice(bidAskData.askPrice) : '—'}
+                        {bidAskData?.askPrice ? formatBoardPrice(bidAskData.askPrice) : '-'}
                       </span>
                       <span className="text-[9.5px] font-medium font-mono text-emerald-100/85 tabular-nums leading-tight mt-0.5">
-                        {bidAskData?.askVol ? bidAskData.askVol.toLocaleString('vi-VN') : '—'}
+                        {bidAskData?.askVol ? bidAskData.askVol.toLocaleString('vi-VN') : '-'}
                       </span>
                     </div>
                   </div>
@@ -3314,7 +3314,7 @@ export function StockChartPanel({
                     <div className="flex justify-between items-center text-gray-300">
                       <span className="text-gray-400">Ngày GDKHQ:</span>
                       <span className="font-mono font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/50">
-                        {exDate ? formatDateStr(exDate) : '—'}
+                        {exDate ? formatDateStr(exDate) : '-'}
                       </span>
                     </div>
 

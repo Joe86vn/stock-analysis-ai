@@ -148,7 +148,7 @@ export default function AdminUsersPage() {
                         {req.phoneContact}
                       </td>
                       <td className="px-5 py-4 text-xs text-[var(--text-body)] max-w-xs truncate">
-                        {req.note || '—'}
+                        {req.note || '-'}
                       </td>
                       <td className="px-5 py-4 text-xs text-[var(--text-muted)]">
                         {new Date(req.createdAt).toLocaleDateString('vi-VN')}

@@ -234,7 +234,7 @@ export const MethodSelector: React.FC<MethodSelectorProps> = ({
         {!isWeightValid && (
           <div className="text-[11px] text-amber-600 dark:text-amber-400/90 flex items-center gap-1.5 pt-1">
             <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-            <span>Tổng trọng số chưa bằng 100% — kết quả tổng hợp sẽ tự động chuẩn hóa.</span>
+            <span>Tổng trọng số chưa bằng 100%: Kết quả tổng hợp sẽ tự động chuẩn hóa.</span>
           </div>
         )}
       </div>
@@ -261,15 +261,15 @@ export const MethodSelector: React.FC<MethodSelectorProps> = ({
               <tr>
                 <td className="py-1.5 text-slate-800 dark:text-slate-300 font-sans font-medium">P/E</td>
                 <td className="py-1.5 text-right font-semibold">
-                  {historicalStats.peMedian ? `${historicalStats.peMedian}x` : '—'}
+                  {historicalStats.peMedian ? `${historicalStats.peMedian}x` : '-'}
                 </td>
                 <td className="py-1.5 text-right text-slate-500 dark:text-slate-400 text-[11px]">
                   {historicalStats.peMinus1Sigma && historicalStats.pePlus1Sigma
-                    ? `${historicalStats.peMinus1Sigma}x – ${historicalStats.pePlus1Sigma}x`
-                    : '—'}
+                    ? `${historicalStats.peMinus1Sigma}x - ${historicalStats.pePlus1Sigma}x`
+                    : '-'}
                 </td>
                 <td className="py-1.5 text-right text-emerald-600 dark:text-emerald-400 font-semibold">
-                  {peerMedians?.pe ? `${peerMedians.pe}x` : '—'}
+                  {peerMedians?.pe ? `${peerMedians.pe}x` : '-'}
                 </td>
               </tr>
 
@@ -277,15 +277,15 @@ export const MethodSelector: React.FC<MethodSelectorProps> = ({
               <tr>
                 <td className="py-1.5 text-slate-800 dark:text-slate-300 font-sans font-medium">P/B</td>
                 <td className="py-1.5 text-right font-semibold">
-                  {historicalStats.pbMedian ? `${historicalStats.pbMedian}x` : '—'}
+                  {historicalStats.pbMedian ? `${historicalStats.pbMedian}x` : '-'}
                 </td>
                 <td className="py-1.5 text-right text-slate-500 dark:text-slate-400 text-[11px]">
                   {historicalStats.pbMinus1Sigma && historicalStats.pbPlus1Sigma
-                    ? `${historicalStats.pbMinus1Sigma}x – ${historicalStats.pbPlus1Sigma}x`
-                    : '—'}
+                    ? `${historicalStats.pbMinus1Sigma}x - ${historicalStats.pbPlus1Sigma}x`
+                    : '-'}
                 </td>
                 <td className="py-1.5 text-right text-emerald-600 dark:text-emerald-400 font-semibold">
-                  {peerMedians?.pb ? `${peerMedians.pb}x` : '—'}
+                  {peerMedians?.pb ? `${peerMedians.pb}x` : '-'}
                 </td>
               </tr>
 
@@ -296,10 +296,10 @@ export const MethodSelector: React.FC<MethodSelectorProps> = ({
                   {peerMedians?.evEbitda ? `${peerMedians.evEbitda}x` : '8.5x'}
                 </td>
                 <td className="py-1.5 text-right text-slate-500 dark:text-slate-400 text-[11px]">
-                  6.5x – 10.5x
+                  6.5x - 10.5x
                 </td>
                 <td className="py-1.5 text-right text-emerald-600 dark:text-emerald-400 font-semibold">
-                  {peerMedians?.evEbitda ? `${peerMedians.evEbitda}x` : '—'}
+                  {peerMedians?.evEbitda ? `${peerMedians.evEbitda}x` : '-'}
                 </td>
               </tr>
             </tbody>
@@ -311,7 +311,7 @@ export const MethodSelector: React.FC<MethodSelectorProps> = ({
           <span>Nguồn: Vietcap IQ ({historicalStats.validQuarters || 0} quý lịch sử)</span>
           {historicalStats.validQuarters < 8 && historicalStats.validQuarters > 0 && (
             <span className="text-amber-600 dark:text-amber-400 font-medium">
-              Ít hơn 8 quý — độ lệch chuẩn kém tin cậy
+              Ít hơn 8 quý: Độ lệch chuẩn kém tin cậy
             </span>
           )}
         </div>
@@ -333,10 +333,10 @@ export const MethodSelector: React.FC<MethodSelectorProps> = ({
               >
                 <div className="font-bold text-slate-900 dark:text-slate-200 text-xs">{p.ticker}</div>
                 <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  P/E: <span className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{p.pe ? `${p.pe}x` : '—'}</span>
+                  P/E: <span className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{p.pe ? `${p.pe}x` : '-'}</span>
                 </div>
                 <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                  P/B: <span className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{p.pb ? `${p.pb}x` : '—'}</span>
+                  P/B: <span className="text-slate-800 dark:text-slate-200 font-mono font-semibold">{p.pb ? `${p.pb}x` : '-'}</span>
                 </div>
               </div>
             ))}

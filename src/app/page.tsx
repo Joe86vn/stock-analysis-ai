@@ -19,7 +19,9 @@ import {
   ExternalLink,
   Phone,
   CheckCircle2,
-  BookOpen
+  BookOpen,
+  Eye,
+  Gem
 } from 'lucide-react';
 
 export const metadata = {
@@ -65,27 +67,32 @@ export default async function HomePage() {
             </p>
 
             {/* Action Buttons */}
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
-              <Link
-                href="/reports"
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25 transition-all transform hover:-translate-y-0.5"
-              >
-                <BookOpen className="w-4 h-4" />
-                Xem Báo Cáo Phân Tích
-              </Link>
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
               <Link
                 href="/analysis"
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-[var(--surface)] hover:bg-slate-500/5 text-[var(--text-heading)] border border-[var(--border-color)] hover:border-emerald-500/50 transition-all transform hover:-translate-y-0.5"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25 transition-all transform hover:-translate-y-0.5"
               >
-                <BarChart3 className="w-4 h-4 text-emerald-600" />
-                Công Cụ Phân Tích AI
+                <BarChart3 className="w-4 h-4 text-emerald-200" />
+                Khám Phá Công Cụ AI
               </Link>
               <Link
-                href="/profile"
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-md shadow-amber-500/20 transition-all transform hover:-translate-y-0.5"
+                href="/reports"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-[var(--surface)] hover:bg-slate-500/5 text-[var(--text-heading)] border border-[var(--border-color)] hover:border-emerald-500/50 transition-all transform hover:-translate-y-0.5"
               >
-                <Sparkles className="w-4 h-4" />
-                Đăng Ký Gói VIP
+                <BookOpen className="w-4 h-4 text-emerald-600" />
+                Xem Báo Cáo Phân Tích
+              </Link>
+            </div>
+
+            {/* Subtle VIP helper */}
+            <div className="mt-4">
+              <Link
+                href="/profile"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Dành cho Nhà đầu tư & Chuyên viên: <strong>Mở khóa Gói VIP tư vấn 1:1</strong></span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
@@ -337,7 +344,7 @@ export default async function HomePage() {
               </table>
             </div>
             <div className="p-4 bg-emerald-500/5 border-t border-[var(--border-color)] text-center text-xs text-[var(--text-muted)]">
-              Kỷ luật cắt lỗ nghiêm ngặt $\le 7\%$ và nắm giữ siêu cổ phiếu tăng trưởng giúp bảo vệ thành quả và nhân đôi tài sản.
+              Kỷ luật cắt lỗ nghiêm ngặt ≤ 7% và nắm giữ siêu cổ phiếu tăng trưởng giúp bảo vệ thành quả và nhân đôi tài sản.
             </div>
           </div>
         </section>
@@ -362,8 +369,8 @@ export default async function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Tầm nhìn */}
               <div className="bg-[var(--surface)] border border-[var(--border-color)] rounded-3xl p-8 shadow-sm">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-lg mb-4">
-                  👁️
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-4">
+                  <Eye className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--text-heading)] mb-2">Tầm Nhìn</h3>
                 <p className="text-xs text-[var(--text-muted)] leading-relaxed">
@@ -373,8 +380,8 @@ export default async function HomePage() {
 
               {/* Sứ mệnh */}
               <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-3xl p-8 shadow-lg shadow-emerald-600/20">
-                <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center font-bold text-lg mb-4">
-                  🎯
+                <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center mb-4">
+                  <Target className="w-5 h-5 text-white" />
                 </div>
                 <h3 className="text-lg font-bold text-white mb-2">Sứ Mệnh</h3>
                 <p className="text-xs text-white/90 leading-relaxed">
@@ -384,15 +391,27 @@ export default async function HomePage() {
 
               {/* Giá trị cốt lõi */}
               <div className="bg-[var(--surface)] border border-[var(--border-color)] rounded-3xl p-8 shadow-sm">
-                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold text-lg mb-4">
-                  💎
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center mb-4">
+                  <Gem className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--text-heading)] mb-2">Giá Trị Cốt Lõi</h3>
-                <ul className="space-y-1.5 text-xs text-[var(--text-body)]">
-                  <li><strong>• Chính trực:</strong> Đặt đạo đức nghề nghiệp lên hàng đầu.</li>
-                  <li><strong>• Chuyên môn:</strong> Năng lực phân tích sắc bén, sâu rộng.</li>
-                  <li><strong>• Kỷ luật:</strong> Tuân thủ phương pháp và kiểm soát rủi ro.</li>
-                  <li><strong>• Đồng hành:</strong> Song hành cùng khách hàng trên mọi chặng đường.</li>
+                <ul className="space-y-2 text-xs text-[var(--text-body)]">
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
+                    <span><strong>Chính trực:</strong> Đặt đạo đức nghề nghiệp lên hàng đầu.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
+                    <span><strong>Chuyên môn:</strong> Năng lực phân tích sắc bén, sâu rộng.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
+                    <span><strong>Kỷ luật:</strong> Tuân thủ phương pháp và kiểm soát rủi ro.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
+                    <span><strong>Đồng hành:</strong> Song hành cùng khách hàng trên mọi chặng đường.</span>
+                  </li>
                 </ul>
               </div>
             </div>

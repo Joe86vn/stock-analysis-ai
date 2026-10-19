@@ -693,27 +693,27 @@ export function calculateFinancialHealthScore(
 
   if (totalScore >= 45.0) {
     rankGrade = 'A+';
-    rankTitle = 'Xuất sắc — Vững như bàn thạch';
+    rankTitle = 'Xuất sắc: Vững như bàn thạch';
     rankDescription = 'Cấu trúc vốn cực kỳ an toàn, tiền mặt ròng dồi dào, sinh lời ROIC vượt trội và dòng tiền tự do FCF dồi dào tài trợ tăng trưởng.';
   } else if (totalScore >= 40.0) {
     rankGrade = 'A';
-    rankTitle = 'Tốt — Lành mạnh & Rủi ro thấp';
+    rankTitle = 'Tốt: Lành mạnh & Rủi ro thấp';
     rankDescription = 'Sức khỏe tài chính rất lành mạnh, đòn bẩy an toàn, quản trị vốn lưu động tối ưu và chất lượng lợi nhuận cao.';
   } else if (totalScore >= 35.0) {
     rankGrade = 'B+';
-    rankTitle = 'Khá tốt — Vận hành ổn định';
+    rankTitle = 'Khá tốt: Vận hành ổn định';
     rankDescription = 'Đáp ứng tốt mọi nghĩa vụ nợ, hoạt động kinh doanh ổn định, cần theo dõi kiểm soát vốn lưu động hoặc kế hoạch CAPEX lớn.';
   } else if (totalScore >= 30.0) {
     rankGrade = 'B';
-    rankTitle = 'Trung bình khá — Đòn bẩy vừa phải';
+    rankTitle = 'Trung bình khá: Đòn bẩy vừa phải';
     rankDescription = 'Đòn bẩy ở mức chấp nhận được, có một số điểm cần theo dõi về dòng tiền hoặc chi phí lãi vay.';
   } else if (totalScore >= 22.5) {
     rankGrade = 'C';
-    rankTitle = 'Yếu — Cần kiểm tra sâu';
+    rankTitle = 'Yếu: Cần kiểm tra sâu';
     rankDescription = 'Áp lực nợ vay gia tăng hoặc dòng tiền hụt hơi, cần thẩm định kỹ lịch đáo hạn nợ và chi phí tài chính.';
   } else {
     rankGrade = 'D';
-    rankTitle = 'Rủi ro cao — Cảnh báo cấu trúc vốn';
+    rankTitle = 'Rủi ro cao: Cảnh báo cấu trúc vốn';
     rankDescription = 'Mất cân đối thanh khoản hoặc đòn bẩy nợ ở mức nguy hiểm, tiềm ẩn rủi ro khả năng hoạt động liên tục.';
   }
 

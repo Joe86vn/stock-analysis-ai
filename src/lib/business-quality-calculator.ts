@@ -418,19 +418,19 @@ export function calculateBusinessQualityScore(
 
   if (totalScore >= 36.0) {
     rankGrade = 'A+';
-    rankTitle = 'Xuất sắc toàn diện — Compounder Đẳng Cấp';
+    rankTitle = 'Xuất sắc toàn diện: Compounder Đẳng Cấp';
     rankDescription = 'Doanh nghiệp xuất sắc toàn diện, hào kinh tế (Moat) cực dày, phân bổ vốn mẫu mực và duy trì ROIC vượt trội qua trọn chu kỳ.';
   } else if (totalScore >= 32.0) {
     rankGrade = 'A';
-    rankTitle = 'Tốt — Doanh nghiệp chất lượng cao';
+    rankTitle = 'Tốt: Doanh nghiệp chất lượng cao';
     rankDescription = 'Doanh nghiệp chất lượng cao, thương hiệu mạnh, vị thế đầu ngành, quản trị tốt và sinh lời cao.';
   } else if (totalScore >= 28.0) {
     rankGrade = 'B+';
-    rankTitle = 'Khá tốt — Lợi thế cạnh tranh tốt';
+    rankTitle = 'Khá tốt: Lợi thế cạnh tranh tốt';
     rankDescription = 'Doanh nghiệp tốt, có lợi thế cạnh tranh nhưng còn một vài điểm cần theo dõi về phân bổ vốn hoặc mở rộng thị phần.';
   } else if (totalScore >= 24.0) {
     rankGrade = 'B';
-    rankTitle = 'Trung bình khá — Chuẩn mực ngành';
+    rankTitle = 'Trung bình khá: Chuẩn mực ngành';
     rankDescription = 'Ở mức trung bình khá của ngành, ít lợi thế độc quyền nhưng vận hành tương đối ổn định.';
   } else if (totalScore >= 20.0) {
     rankGrade = 'C';

@@ -444,7 +444,7 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
                       ? 'font-bold text-rose-600 dark:text-rose-400'
                       : 'text-slate-400 dark:text-gray-500'
                   }`}>
-                    {row.yoyPct || '—'}
+                    {row.yoyPct || '-'}
                   </td>
                   <td className="py-2 px-3 text-[11px] text-slate-500 dark:text-gray-400">
                     {row.sourceNote}
@@ -464,7 +464,7 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
               {/* PHÂN ĐOẠN 2: 9 KHOẢN MỤC ĐIỀU CHỈNH SAU THUẾ */}
               <tr className="bg-rose-50/50 dark:bg-rose-950/20 font-bold text-[11px] text-rose-800 dark:text-rose-300">
                 <td colSpan={6} className="py-2 px-3 tracking-wide uppercase">
-                  II. ĐIỀU CHỈNH SAU THUẾ KHỎI LNST BÁO CÁO – NHẬP (+) ĐỂ LOẠI LÃI, NHẬP (-) ĐỂ CỘNG LẠI LỖ BẤT THƯỜNG
+                  II. ĐIỀU CHỈNH SAU THUẾ KHỎI LNST BÁO CÁO: NHẬP (+) ĐỂ LOẠI LÃI, NHẬP (-) ĐỂ CỘNG LẠI LỖ BẤT THƯỜNG
                 </td>
               </tr>
               {scorecard.coreBridge.rows.filter(r => r.block === 'adjustment').map((row, idx) => (
@@ -479,7 +479,7 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
                     {row.q0SamePeriod}
                   </td>
                   <td className="py-2 px-3 text-right font-mono text-slate-400 dark:text-gray-500">
-                    {row.yoyPct || '—'}
+                    {row.yoyPct || '-'}
                   </td>
                   <td className="py-2 px-3 text-[11px] text-slate-500 dark:text-gray-400">
                     {row.sourceNote}
@@ -522,7 +522,7 @@ export const GrowthQualityScorecard: React.FC<GrowthQualityScorecardProps> = ({
                       ? 'font-bold text-emerald-600 dark:text-emerald-400'
                       : 'text-slate-400 dark:text-gray-500'
                   }`}>
-                    {row.yoyPct || '—'}
+                    {row.yoyPct || '-'}
                   </td>
                   <td className="py-2.5 px-3 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
                     {row.sourceNote}
