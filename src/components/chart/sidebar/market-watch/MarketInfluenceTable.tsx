@@ -75,13 +75,13 @@ export const MarketInfluenceTable: React.FC<MarketInfluenceTableProps> = ({ isDa
   return (
     <div className={`w-full font-sans select-none text-[10px] ${isDashboard ? 'h-full flex flex-col overflow-hidden' : ''}`}>
       {/* Header titles (Vietcap style) */}
-      <div className="grid grid-cols-2 gap-3 mb-1.5 font-bold tracking-tight text-[10.5px] shrink-0 border-b border-slate-100 dark:border-slate-800/60 pb-1">
+      <div className="grid grid-cols-2 gap-3 mb-1.5 font-bold tracking-tight text-[10.5px] shrink-0 border-b border-slate-100 dark:border-slate-800/60 pb-1 pr-3.5">
         <div className="text-center text-emerald-600 dark:text-emerald-400">Đóng góp tăng</div>
         <div className="text-center text-rose-600 dark:text-rose-400">Đóng góp giảm</div>
       </div>
 
       {/* 2-Column Vietcap Horizontal Bar Chart Grid */}
-      <div className={`grid grid-cols-2 gap-3 ${isDashboard ? 'flex-1 min-h-0 overflow-y-auto pr-0.5' : ''}`}>
+      <div className={`grid grid-cols-2 gap-3 ${isDashboard ? 'flex-1 min-h-0 overflow-y-auto pr-3.5' : 'pr-3'}`}>
         {/* Left Column: Top Đóng Góp Tăng */}
         <div className="flex flex-col gap-1.5">
           {topUp.map((item) => {
@@ -92,7 +92,7 @@ export const MarketInfluenceTable: React.FC<MarketInfluenceTableProps> = ({ isDa
               <div key={item.StockCode} className="flex items-center gap-1.5 h-5 group">
                 {/* Number on left + Green Bar growing to right */}
                 <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
-                  <span className="text-[9.5px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <span className="text-[9.5px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 w-10 text-right">
                     {inf > 0 ? `+${inf.toFixed(2)}` : inf.toFixed(2)}
                   </span>
                   <div className="flex-1 flex items-center justify-end h-2 bg-slate-100 dark:bg-slate-800/60 rounded-full min-w-0 overflow-hidden">
@@ -119,7 +119,7 @@ export const MarketInfluenceTable: React.FC<MarketInfluenceTableProps> = ({ isDa
             const barWidthPct = Math.min((Math.abs(inf) / maxVal) * 100, 100);
 
             return (
-              <div key={item.StockCode} className="flex items-center gap-1.5 h-5 group">
+              <div key={item.StockCode} className="flex items-center gap-1.5 h-5 group pr-1">
                 {/* Ticker on left */}
                 <span className="font-bold text-slate-800 dark:text-slate-200 w-7 shrink-0 text-right text-[10px] font-mono">
                   {item.StockCode}
@@ -133,7 +133,7 @@ export const MarketInfluenceTable: React.FC<MarketInfluenceTableProps> = ({ isDa
                       style={{ width: `${Math.max(barWidthPct, 3)}%` }}
                     />
                   </div>
-                  <span className="text-[9.5px] font-mono font-semibold text-rose-600 dark:text-rose-400 shrink-0">
+                  <span className="text-[9.5px] font-mono font-semibold text-rose-600 dark:text-rose-400 shrink-0 w-10 text-right">
                     {inf.toFixed(2)}
                   </span>
                 </div>

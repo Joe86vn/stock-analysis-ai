@@ -15,6 +15,20 @@ const formatTime = (ts: number) => {
   return `${h}:${m}`;
 };
 
+// 30-minute intervals along the 270-minute compressed timeline
+const TIME_TICKS_30M = [
+  { label: '09:00', tradingMins: 0, align: 'left' as const, isBreak: false },
+  { label: '09:30', tradingMins: 30, align: 'center' as const, isBreak: false },
+  { label: '10:00', tradingMins: 60, align: 'center' as const, isBreak: false },
+  { label: '10:30', tradingMins: 90, align: 'center' as const, isBreak: false },
+  { label: '11:00', tradingMins: 120, align: 'center' as const, isBreak: false },
+  { label: '11:30', tradingMins: 150, align: 'center' as const, isBreak: true },
+  { label: '13:30', tradingMins: 180, align: 'center' as const, isBreak: false },
+  { label: '14:00', tradingMins: 210, align: 'center' as const, isBreak: false },
+  { label: '14:30', tradingMins: 240, align: 'center' as const, isBreak: false },
+  { label: '15:00', tradingMins: 270, align: 'right' as const, isBreak: false },
+];
+
 export interface IntradayChartProps {
   isDashboard?: boolean;
 }
@@ -381,6 +395,26 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
                 </linearGradient>
               </defs>
 
+              {/* Vertical 30-Minute Gridlines */}
+              {TIME_TICKS_30M.map((tick, i) => {
+                const ratio = tick.tradingMins / 270;
+                const x = padding + ratio * (svgWidth - padding * 2);
+                const isBreak = tick.isBreak;
+                return (
+                  <line
+                    key={`vgrid-${i}`}
+                    x1={x}
+                    y1={0}
+                    x2={x}
+                    y2={svgHeight}
+                    stroke="currentColor"
+                    className={isBreak ? 'text-slate-400/40 dark:text-slate-500/50' : 'text-slate-300/30 dark:text-slate-800/60'}
+                    strokeDasharray={isBreak ? '3 3' : '2 3'}
+                    strokeWidth={isBreak ? '1' : '0.6'}
+                  />
+                );
+              })}
+
               {/* Reference Price Dotted Line */}
               <line
                 x1="0"
@@ -456,11 +490,40 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
             </svg>
           </div>
 
-          {/* Bottom Time Axis (09:00 -> 11:30 | 13:00 -> 15:00) aligned with compressed session */}
-          <div className="relative w-full h-4 text-[9px] text-gray-400 font-sans font-medium mt-1 border-t border-gray-100 dark:border-gray-800/60 pt-0.5 select-none">
-            <span className="absolute left-0 font-mono">09:00</span>
-            <span className="absolute left-[55.56%] -translate-x-1/2 font-mono text-[8px] text-slate-500 dark:text-slate-400">11:30 | 13:00</span>
-            <span className="absolute right-0 font-mono">15:00</span>
+          {/* Bottom Time Axis (Chia đều từng mốc 30 phút) */}
+          <div className="relative w-full h-4 text-gray-400 font-sans font-medium mt-1 border-t border-gray-100 dark:border-gray-800/60 pt-0.5 select-none shrink-0 text-[7.5px] sm:text-[8px] md:text-[8.5px]">
+            {TIME_TICKS_30M.map((tick) => {
+              const pct = (tick.tradingMins / 270) * 100;
+              if (tick.align === 'left') {
+                return (
+                  <span key={tick.label} className="absolute left-0 font-mono">
+                    {tick.label}
+                  </span>
+                );
+              }
+              if (tick.align === 'right') {
+                return (
+                  <span key={tick.label} className="absolute right-0 font-mono">
+                    {tick.label}
+                  </span>
+                );
+              }
+              return (
+                <span
+                  key={tick.label}
+                  style={{ left: `${pct}%` }}
+                  className={`absolute -translate-x-1/2 font-mono whitespace-nowrap ${
+                    tick.isBreak
+                      ? 'text-slate-700 dark:text-slate-300 font-semibold'
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                  title={tick.isBreak ? 'Nghỉ trưa 11:30 - 13:00' : undefined}
+                >
+                  {tick.label}
+                  {tick.isBreak && <span className="hidden sm:inline text-[7px] text-slate-400 dark:text-slate-500">|13h</span>}
+                </span>
+              );
+            })}
           </div>
         </>
       )}

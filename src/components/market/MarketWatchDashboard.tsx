@@ -568,7 +568,7 @@ export const MarketWatchDashboard: React.FC = () => {
               badge="LIVE"
               badgeColor="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
             />
-            <div className="flex-1 min-h-0 w-full overflow-y-auto">
+            <div className="flex-1 min-h-0 w-full">
               <MarketInfluenceTable isDashboard={true} maxItems={10} />
             </div>
           </div>
