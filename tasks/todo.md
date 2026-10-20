@@ -72,5 +72,10 @@
 - [x] Task 6.4: Thêm tính năng click sắp xếp theo giá trị Doanh Thu Thuần trên header bảng (`revenueCurrent`).
 - [x] Task 6.5: Typecheck `tsc --noEmit` đạt 100%, commit GitHub và build deploy thành công lên Oracle Cloud VPS (`valuex.duckdns.org`).
 
-
-
+## Phase 7: Hoàn Thiện Trải Nghiệm Bộ Lọc & Tối Ưu Bảng KQKD
+- [x] Task 7.1: Khắc phục triệt để lỗi ấn phím ESC bị hiển thị `null` ở các ô lọc (gán `handleInputKeyDown` với `preventDefault()` & `stopPropagation()`, làm sạch DOM value và reset trang về 1).
+- [x] Task 7.2: Tối ưu kích thước các ô lọc bằng Grid 8 cột (`grid-cols-2 sm:grid-cols-4 lg:grid-cols-8`) rộng đều nhau, lấp đầy toàn bộ chiều ngang thanh công cụ.
+- [x] Task 7.3: Xóa bỏ cột "Thao tác" và tái cấu trúc tỉ lệ phần trăm các cột còn lại (`w-[...]`) để bảng vừa vặn màn hình, không bị cuộn ngang (horizontal scroll).
+- [x] Task 7.4: Gán liên kết trực tiếp trên Mã CP tới trang Phân tích AI & Biểu đồ kỹ thuật.
+- [x] Task 7.5: Bổ sung thanh phân trang (Pagination) chuyên nghiệp với mặc định **50 mã / trang**, hỗ trợ điều hướng trang đầu, trang trước, số trang, trang tiếp và trang cuối.
+- [x] Checkpoint: Kiểm thử `npx tsc --noEmit` và `npm run build` thành công, đã deploy và reload PM2 lên Oracle VPS `valuex.duckdns.org`.
