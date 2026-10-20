@@ -44,3 +44,15 @@
 - [x] Task 4.3: Thiết lập Cronjob 8h & 17h trên VPS Oracle + Push git & Reload PM2
 - [x] Final Checkpoint: Typecheck `npx tsc --noEmit` & `npm run build` thành công 100%
 
+## Phase 5: Bộ Lọc Chuyên Sâu Đa Tiêu Chí (PAT Tuyệt Đối, ADTV 20P, RS Rating)
+- [x] Task 5.1: Mở rộng Model & Data Types (`EarningsRecord`, `EarningsFilterParams`) hỗ trợ `rsRating`, `adtv20Billion`, `minPatAbsolute`, `minAdtv20`, `minRs`.
+- [x] Task 5.2: Xây dựng Module `src/lib/earnings-market-enricher.ts` kết nối Screener IQ Vietcap lấy RS & ADTV 20 phiên theo thời gian thực (in-memory cache 15p).
+- [x] Task 5.3: Nâng cấp API `/api/earnings/latest` hỗ trợ dynamic enrichment và truy vấn kết hợp đa tiêu chí.
+- [x] Task 5.4: Nâng cấp Giao diện `src/components/earnings/LatestEarningsTable.tsx` với thanh "Lọc chuyên sâu":
+  - LNST kỳ này: > 5 tỷ, > 10 tỷ, > 20 tỷ, > 50 tỷ, > 100 tỷ
+  - Thanh khoản 20 phiên: > 1 tỷ, > 3 tỷ, > 5 tỷ, > 10 tỷ, > 20 tỷ
+  - Sức mạnh giá RS: > 60, > 70, > 80
+  - Bổ sung 2 cột hiển thị trực quan `RS` (Badge màu) và `GTGD 20P` (tỷ VNĐ) kèm tính năng click tiêu đề sắp xếp.
+- [x] Task 5.5: Biên dịch chuẩn xác `tsc --noEmit`, push GitHub và đồng bộ build + reload PM2 trên Oracle VPS (`valuex.duckdns.org`).
+
+
