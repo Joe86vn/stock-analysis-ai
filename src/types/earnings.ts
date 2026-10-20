@@ -96,6 +96,11 @@ export interface EarningsRecord {
   sourceUrl: string;
   extractedAt: string;
   note?: string;
+
+  // Chỉ số thị trường & Kỹ thuật (tích hợp từ Screener)
+  rsRating?: number | null; // Sức mạnh giá tương đối RS (0 - 99)
+  adtv20Billion?: number | null; // Giá trị giao dịch bình quân 20 phiên (Tỷ VNĐ)
+  currentPrice?: number | null; // Thị giá hiện tại (VNĐ)
 }
 
 /**
@@ -106,9 +111,12 @@ export interface EarningsFilterParams {
   year?: number;
   minRevenueYoY?: number;
   minPatYoY?: number;
+  minPatAbsolute?: number; // LNST tối thiểu kỳ này (VNĐ, ví dụ 10 tỷ = 10_000_000_000)
+  minAdtv20?: number; // GTGD bình quân 20 phiên tối thiểu (Tỷ VNĐ, ví dụ 5)
+  minRs?: number; // Sức mạnh giá RS Rating tối thiểu (ví dụ 70)
   exchange?: ExchangeType;
   search?: string;
-  sortBy?: 'publishedAt' | 'patYoYPercent' | 'revenueYoYPercent' | 'ticker';
+  sortBy?: 'publishedAt' | 'patYoYPercent' | 'revenueYoYPercent' | 'ticker' | 'patCurrent' | 'adtv20Billion' | 'rsRating';
   sortOrder?: 'asc' | 'desc';
 }
 

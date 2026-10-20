@@ -177,9 +177,24 @@ export function queryEarningsRecords(filter: EarningsFilterParams = {}): {
     list = list.filter((r) => r.revenueYoYPercent !== null && r.revenueYoYPercent >= filter.minRevenueYoY!);
   }
 
-  // Lọc tăng trưởng LNST tối thiểu
+  // Lọc tăng trưởng LNST tối thiểu (%)
   if (typeof filter.minPatYoY === 'number') {
     list = list.filter((r) => r.patYoYPercent !== null && r.patYoYPercent >= filter.minPatYoY!);
+  }
+
+  // Lọc LNST tối thiểu tuyệt đối (VNĐ)
+  if (typeof filter.minPatAbsolute === 'number') {
+    list = list.filter((r) => r.patCurrent >= filter.minPatAbsolute!);
+  }
+
+  // Lọc thanh khoản GTGD 20 phiên tối thiểu (Tỷ VNĐ)
+  if (typeof filter.minAdtv20 === 'number') {
+    list = list.filter((r) => (r.adtv20Billion ?? 0) >= filter.minAdtv20!);
+  }
+
+  // Lọc sức mạnh giá RS tối thiểu (0-99)
+  if (typeof filter.minRs === 'number') {
+    list = list.filter((r) => (r.rsRating ?? 0) >= filter.minRs!);
   }
 
   // Tìm kiếm theo mã hoặc tên công ty
