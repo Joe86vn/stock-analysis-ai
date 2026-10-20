@@ -80,17 +80,17 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
       try {
         setLoading(true);
         setError(false);
-        const res = await fetch('/api/market-watch/vnindex-history?index=VNINDEX&page=0&size=90');
+        const res = await fetch('/api/market-watch/vnindex-history?index=VNINDEX&page=0&size=250');
         if (!res.ok) throw new Error('upstream');
         const json = await res.json();
 
         const raw: RawHistoryItem[] = Array.isArray(json)
           ? json
           : Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json?.data?.content)
-          ? json.data.content
-          : [];
+            ? json.data
+            : Array.isArray(json?.data?.content)
+              ? json.data.content
+              : [];
 
         if (raw.length < 5) {
           setError(true);
@@ -231,8 +231,8 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
           }
         });
 
-        // Take last sessions (75 for dashboard, 45 for sidebar)
-        const displayCandles = points.slice(isDashboard ? -75 : -45);
+        // Take last sessions (130 for dashboard to fill frame, 55 for sidebar)
+        const displayCandles = points.slice(isDashboard ? -130 : -55);
         setCandles(displayCandles);
         setActiveCount(activeCounter);
         setHasFtd(displayCandles.some((c) => c.isFTD));
@@ -286,7 +286,8 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
   const svgHeight = isDashboard ? 360 : 185;
   const candleAreaHeight = isDashboard ? 240 : 125;
   const volumeAreaHeight = isDashboard ? 85 : 45;
-  const candleWidth = Math.max((svgWidth - 10) / candles.length - 2, 3);
+  const candleSpacing = svgWidth / Math.max(candles.length, 1);
+  const candleWidth = Math.max(candleSpacing * 0.72, 2.5);
 
   const getPriceY = (price: number) => {
     const ratio = (price - minLow) / priceRange;
@@ -302,9 +303,9 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
   const ma20PricePts = candles
     .map((c, i) => {
       if (isNaN(c.ma20Price) || c.ma20Price === undefined) return null;
-      const x = (i / candles.length) * (svgWidth - 10) + 5 + candleWidth / 2;
+      const centerX = (i + 0.5) * candleSpacing;
       const y = getPriceY(c.ma20Price);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
+      return `${centerX.toFixed(1)},${y.toFixed(1)}`;
     })
     .filter(Boolean);
   const ma20PricePath = ma20PricePts.length > 1 ? `M ${ma20PricePts.join(' L ')}` : '';
@@ -312,9 +313,9 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
   const ma20VolPts = candles
     .map((c, i) => {
       if (isNaN(c.ma20Vol) || c.ma20Vol === undefined) return null;
-      const x = (i / candles.length) * (svgWidth - 10) + 5 + candleWidth / 2;
+      const centerX = (i + 0.5) * candleSpacing;
       const y = getVolY(c.ma20Vol);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
+      return `${centerX.toFixed(1)},${y.toFixed(1)}`;
     })
     .filter(Boolean);
   const ma20VolPath = ma20VolPts.length > 1 ? `M ${ma20VolPts.join(' L ')}` : '';
@@ -329,13 +330,12 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
           </span>
           {activeCandle && (
             <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${
-                pointDiff > 0
-                  ? 'bg-emerald-500/15 text-emerald-500'
-                  : pointDiff < 0
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${pointDiff > 0
+                ? 'bg-emerald-500/15 text-emerald-500'
+                : pointDiff < 0
                   ? 'bg-red-500/15 text-red-500'
                   : 'bg-gray-500/15 text-gray-400'
-              }`}
+                }`}
             >
               {pointDiff > 0 ? '+' : ''}{pointDiff.toFixed(2)} ({pointDiff > 0 ? '+' : ''}{pointPct.toFixed(2)}%)
             </span>
@@ -354,13 +354,12 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
             </span>
           )}
           <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-              activeCount >= 6
-                ? 'bg-red-500/20 text-red-500 border border-red-500/30'
-                : activeCount >= 4
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${activeCount >= 6
+              ? 'bg-red-500/20 text-red-500 border border-red-500/30'
+              : activeCount >= 4
                 ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30'
                 : 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
-            }`}
+              }`}
             title="Số phiên phân phối CANSLIM còn hiệu lực (trong 25 phiên & chưa hồi >5%)"
           >
             {activeCount >= 4 ? <AlertTriangle className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
@@ -400,7 +399,8 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
 
           {/* Render Candles & Volume Bars */}
           {candles.map((c, i) => {
-            const x = (i / candles.length) * (svgWidth - 10) + 5;
+            const centerX = (i + 0.5) * candleSpacing;
+            const x = centerX - candleWidth / 2;
             const isGreen = c.close >= c.open;
             const strokeColor = isGreen ? '#22c55e' : '#ef4444';
             const fillColor = isGreen ? '#22c55e' : '#ef4444';
@@ -424,9 +424,9 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
               >
                 {/* Candle Wick */}
                 <line
-                  x1={x + candleWidth / 2}
+                  x1={centerX}
                   y1={yHigh}
-                  x2={x + candleWidth / 2}
+                  x2={centerX}
                   y2={yLow}
                   stroke={strokeColor}
                   strokeWidth="1"
@@ -456,16 +456,16 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
                 {c.isDistribution && (
                   <g>
                     <line
-                      x1={x + candleWidth / 2}
+                      x1={centerX}
                       y1={yHigh - 2}
-                      x2={x + candleWidth / 2}
+                      x2={centerX}
                       y2={yHigh - 10}
                       stroke={c.isDistribActive ? '#ef4444' : '#9ca3af'}
                       strokeWidth="1"
                       strokeDasharray={c.isDistribActive ? 'none' : '1 1'}
                     />
                     <circle
-                      cx={x + candleWidth / 2}
+                      cx={centerX}
                       cy={yHigh - 13}
                       r="5.5"
                       fill={c.isDistribActive ? '#ef4444' : '#6b7280'}
@@ -473,7 +473,7 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
                       strokeWidth="0.8"
                     />
                     <text
-                      x={x + candleWidth / 2}
+                      x={centerX}
                       y={yHigh - 10.5}
                       textAnchor="middle"
                       fill="#ffffff"
@@ -489,15 +489,15 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
                 {c.isFTD && (
                   <g>
                     <line
-                      x1={x + candleWidth / 2}
+                      x1={centerX}
                       y1={yLow + 2}
-                      x2={x + candleWidth / 2}
+                      x2={centerX}
                       y2={yLow + 9}
                       stroke="#22c55e"
                       strokeWidth="1"
                     />
                     <rect
-                      x={x + candleWidth / 2 - 11}
+                      x={centerX - 11}
                       y={yLow + 9}
                       width="22"
                       height="9"
@@ -505,7 +505,7 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
                       fill="#22c55e"
                     />
                     <text
-                      x={x + candleWidth / 2}
+                      x={centerX}
                       y={yLow + 16}
                       textAnchor="middle"
                       fill="#ffffff"
@@ -521,16 +521,16 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
                 {c.isRallyDay1 && !c.isFTD && (
                   <g>
                     <line
-                      x1={x + candleWidth / 2}
+                      x1={centerX}
                       y1={yLow + 2}
-                      x2={x + candleWidth / 2}
+                      x2={centerX}
                       y2={yLow + 9}
                       stroke="#3b82f6"
                       strokeWidth="1"
                       strokeDasharray="1 1"
                     />
                     <rect
-                      x={x + candleWidth / 2 - 12}
+                      x={centerX - 12}
                       y={yLow + 9}
                       width="24"
                       height="9"
@@ -538,7 +538,7 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
                       fill="#3b82f6"
                     />
                     <text
-                      x={x + candleWidth / 2}
+                      x={centerX}
                       y={yLow + 16}
                       textAnchor="middle"
                       fill="#ffffff"

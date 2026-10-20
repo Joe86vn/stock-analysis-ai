@@ -55,8 +55,8 @@ const fetchBreadthCond = async (cond: string): Promise<{ date: string; value: nu
     const raw: BreadthPoint[] = Array.isArray(json)
       ? json
       : Array.isArray(json?.data)
-      ? json.data
-      : [];
+        ? json.data
+        : [];
 
     return raw
       .map((d) => {
@@ -146,6 +146,36 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
     setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const yDomain = useMemo(() => {
+    if (data.length === 0) return [0, 100];
+    const vals: number[] = [];
+    data.forEach((d) => {
+      if (visible.ema20 && typeof d.ema20 === 'number') vals.push(d.ema20);
+      if (visible.ema50 && typeof d.ema50 === 'number') vals.push(d.ema50);
+      if (visible.ema200 && typeof d.ema200 === 'number') vals.push(d.ema200);
+    });
+    if (vals.length === 0) return [0, 100];
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const range = max - min;
+    const pad = Math.max(range * 0.08, 2);
+    const yMin = Math.max(0, Math.floor((min - pad) / 2) * 2);
+    const yMax = Math.min(100, Math.ceil((max + pad) / 2) * 2);
+    return [yMin, yMax];
+  }, [data, visible]);
+
+  const yTicks = useMemo(() => {
+    const [min, max] = yDomain;
+    const step = (max - min) / 4;
+    return [
+      Math.round(min),
+      Math.round(min + step),
+      Math.round(min + step * 2),
+      Math.round(min + step * 3),
+      Math.round(max),
+    ];
+  }, [yDomain]);
+
   return (
     <div className="w-full font-sans select-none">
       {/* Header & Legend Toggles for EMA20, EMA50, EMA200 */}
@@ -154,11 +184,10 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
           {/* EMA20 */}
           <button
             onClick={() => toggleLine('ema20')}
-            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded cursor-pointer transition ${
-              visible.ema20
+            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded cursor-pointer transition ${visible.ema20
                 ? 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through opacity-60'
-            }`}
+              }`}
             title="Bật/tắt đường % cổ phiếu trên EMA20"
           >
             <span className="w-2 h-2 rounded-full bg-cyan-500 shrink-0" />
@@ -169,11 +198,10 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
           {/* EMA50 */}
           <button
             onClick={() => toggleLine('ema50')}
-            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded cursor-pointer transition ${
-              visible.ema50
+            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded cursor-pointer transition ${visible.ema50
                 ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through opacity-60'
-            }`}
+              }`}
             title="Bật/tắt đường % cổ phiếu trên EMA50"
           >
             <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
@@ -184,11 +212,10 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
           {/* EMA200 */}
           <button
             onClick={() => toggleLine('ema200')}
-            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded cursor-pointer transition ${
-              visible.ema200
+            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded cursor-pointer transition ${visible.ema200
                 ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 line-through opacity-60'
-            }`}
+              }`}
             title="Bật/tắt đường % cổ phiếu trên EMA200"
           >
             <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
@@ -217,23 +244,23 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
               />
               <YAxis
                 orientation="right"
-                domain={[0, 100]}
+                domain={yDomain}
                 stroke="#94a3b8"
                 fontSize={9}
                 tickLine={false}
                 axisLine={false}
-                width={32}
-                ticks={[0, 25, 50, 75, 100]}
+                width={36}
+                ticks={yTicks}
                 tickFormatter={(val) => `${val}%`}
               />
-              <ReferenceLine y={75} stroke="rgba(239, 68, 68, 0.45)" strokeDasharray="3 3" strokeWidth={1} />
-              <ReferenceLine y={50} stroke="rgba(148, 163, 184, 0.5)" strokeDasharray="3 3" strokeWidth={1} />
-              <ReferenceLine y={25} stroke="rgba(34, 197, 94, 0.45)" strokeDasharray="3 3" strokeWidth={1} />
+              {50 >= yDomain[0] && 50 <= yDomain[1] && (
+                <ReferenceLine y={50} stroke="rgba(148, 163, 184, 0.4)" strokeDasharray="3 3" strokeWidth={1} />
+              )}
 
               <Tooltip
                 contentStyle={{
-                  background: 'rgba(15,23,42,0.92)',
-                  border: 'none',
+                  background: 'rgba(15,23,42,0.94)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: 6,
                   fontSize: 11,
                   color: '#ffffff',
@@ -248,9 +275,9 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
                   dataKey="ema20"
                   name="EMA20"
                   stroke="#06b6d4"
-                  strokeWidth={1.5}
+                  strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 3.5 }}
+                  activeDot={{ r: 4 }}
                 />
               )}
               {visible.ema50 && (
@@ -258,10 +285,10 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
                   type="monotone"
                   dataKey="ema50"
                   name="EMA50"
-                  stroke="#8b5cf6"
-                  strokeWidth={1.5}
+                  stroke="#a855f7"
+                  strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 3.5 }}
+                  activeDot={{ r: 4 }}
                 />
               )}
               {visible.ema200 && (
@@ -270,9 +297,9 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
                   dataKey="ema200"
                   name="EMA200"
                   stroke="#f59e0b"
-                  strokeWidth={1.5}
+                  strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 3.5 }}
+                  activeDot={{ r: 4 }}
                 />
               )}
             </LineChart>

@@ -57,9 +57,9 @@ const STATUS_CONFIG: Record<MarketStatus, {
   confirmed_uptrend: {
     label: 'Confirmed Uptrend (Xác Nhận Tăng)',
     icon: TrendingUp,
-    color: 'text-emerald-700 dark:text-emerald-400',
-    bgColor: 'bg-emerald-50/90 dark:bg-emerald-500/10',
-    borderColor: 'border-emerald-200 dark:border-emerald-500/30',
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bgColor: 'bg-emerald-500/5 dark:bg-emerald-950/20',
+    borderColor: 'border-emerald-500/25 dark:border-emerald-500/30',
     exposureLow: 75,
     exposureHigh: 100,
     strategy: 'Tập trung vào cổ phiếu cơ bản thoát nền giá đẹp. Tham gia gia tăng vị thế.',
@@ -68,9 +68,9 @@ const STATUS_CONFIG: Record<MarketStatus, {
   uptrend_under_pressure: {
     label: 'Uptrend Under Pressure (Gặp Áp Lực)',
     icon: AlertTriangle,
-    color: 'text-amber-700 dark:text-amber-400',
-    bgColor: 'bg-amber-50/90 dark:bg-amber-500/10',
-    borderColor: 'border-amber-200 dark:border-amber-500/30',
+    color: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-500/5 dark:bg-amber-950/20',
+    borderColor: 'border-amber-500/25 dark:border-amber-500/30',
     exposureLow: 25,
     exposureHigh: 50,
     strategy: 'Cẩn thận trước mọi quyết định mua mới. Lên kế hoạch phòng thủ từng cổ phiếu.',
@@ -79,9 +79,9 @@ const STATUS_CONFIG: Record<MarketStatus, {
   correction: {
     label: 'Market in Correction (Điều Chỉnh)',
     icon: TrendingDown,
-    color: 'text-red-700 dark:text-red-400',
-    bgColor: 'bg-red-50/90 dark:bg-red-500/10',
-    borderColor: 'border-red-200 dark:border-red-500/30',
+    color: 'text-rose-600 dark:text-rose-400',
+    bgColor: 'bg-rose-500/5 dark:bg-rose-950/20',
+    borderColor: 'border-rose-500/25 dark:border-rose-500/30',
     exposureLow: 0,
     exposureHigh: 25,
     strategy: 'Tránh mua mới. Giảm toàn bộ Margin trước tiên, bảo vệ lợi nhuận và cắt lỗ 7-8%. Cân nhắc hạ tỷ trọng cổ phiếu yếu.',
@@ -122,10 +122,10 @@ export const HealthScore: React.FC<HealthScoreProps> = ({ isDashboard = false })
         const raw: HistoryPoint[] = Array.isArray(json)
           ? json
           : Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json?.data?.content)
-          ? json.data.content
-          : [];
+            ? json.data
+            : Array.isArray(json?.data?.content)
+              ? json.data.content
+              : [];
 
         if (raw.length < 10) { setError(true); return; }
 
@@ -209,22 +209,21 @@ export const HealthScore: React.FC<HealthScoreProps> = ({ isDashboard = false })
         </div>
 
         {/* 10-Point Score Badge */}
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-gray-600 dark:text-gray-400 font-medium">Điểm:</span>
-          <span className={`text-sm font-black px-2.5 py-0.5 rounded-full ${
-            result.score >= 7
-              ? 'bg-emerald-600 text-white dark:bg-emerald-500'
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Điểm sức khỏe:</span>
+          <span className={`text-xs font-black px-2 py-0.5 rounded-md font-mono border ${result.score >= 7
+              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
               : result.score >= 5
-              ? 'bg-amber-600 text-white dark:bg-amber-500'
-              : 'bg-red-600 text-white dark:bg-red-500'
-          }`}>
+                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+            }`}>
             {result.score}/10
           </span>
         </div>
       </div>
 
       {/* Metrics & Deductions Grid */}
-      <div className="grid grid-cols-2 gap-x-2 gap-y-1 mb-1.5 text-[10.5px] bg-white/90 dark:bg-black/40 p-2 rounded-lg border border-gray-200/80 dark:border-gray-800/60 shadow-2xs shrink-0">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1 mb-1.5 text-[10.5px] bg-slate-50/80 dark:bg-slate-900/40 p-2 rounded-lg border border-slate-200/60 dark:border-slate-800/60 shadow-2xs shrink-0">
         <div className="flex justify-between items-center">
           <span className="text-gray-600 dark:text-gray-400 text-[10px] font-medium">Phiên phân phối</span>
           <span className={`font-bold text-[10px] ${result.distributionDays > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
@@ -264,9 +263,8 @@ export const HealthScore: React.FC<HealthScoreProps> = ({ isDashboard = false })
       {/* Exposure Progress Bar */}
       <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700/80 rounded-full mb-1.5 overflow-hidden shrink-0">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${
-            result.score >= 7 ? 'bg-emerald-500' : result.score >= 5 ? 'bg-amber-500' : 'bg-red-500'
-          }`}
+          className={`h-full rounded-full transition-all duration-500 ${result.score >= 7 ? 'bg-emerald-500' : result.score >= 5 ? 'bg-amber-500' : 'bg-red-500'
+            }`}
           style={{ width: `${result.exposureHigh}%` }}
         />
       </div>

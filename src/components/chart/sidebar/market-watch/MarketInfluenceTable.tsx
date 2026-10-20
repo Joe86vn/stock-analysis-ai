@@ -75,9 +75,9 @@ export const MarketInfluenceTable: React.FC<MarketInfluenceTableProps> = ({ isDa
   return (
     <div className={`w-full font-sans select-none text-[10px] ${isDashboard ? 'h-full flex flex-col overflow-hidden' : ''}`}>
       {/* Header titles (Vietcap style) */}
-      <div className="grid grid-cols-2 gap-3 mb-1.5 font-bold tracking-tight text-[10.5px] shrink-0">
-        <div className="text-center text-slate-900 dark:text-white">Đóng góp tăng</div>
-        <div className="text-center text-slate-900 dark:text-white">Đóng góp giảm</div>
+      <div className="grid grid-cols-2 gap-3 mb-1.5 font-bold tracking-tight text-[10.5px] shrink-0 border-b border-slate-100 dark:border-slate-800/60 pb-1">
+        <div className="text-center text-emerald-600 dark:text-emerald-400">Đóng góp tăng</div>
+        <div className="text-center text-rose-600 dark:text-rose-400">Đóng góp giảm</div>
       </div>
 
       {/* 2-Column Vietcap Horizontal Bar Chart Grid */}
@@ -89,22 +89,22 @@ export const MarketInfluenceTable: React.FC<MarketInfluenceTableProps> = ({ isDa
             const barWidthPct = Math.min((Math.abs(inf) / maxVal) * 100, 100);
 
             return (
-              <div key={item.StockCode} className="flex items-center gap-1.5 h-5">
+              <div key={item.StockCode} className="flex items-center gap-1.5 h-5 group">
                 {/* Number on left + Green Bar growing to right */}
                 <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
-                  <span className="text-[9.5px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <span className="text-[9.5px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
                     {inf > 0 ? `+${inf.toFixed(2)}` : inf.toFixed(2)}
                   </span>
-                  <div className="flex-1 flex items-center justify-end h-3 min-w-0">
+                  <div className="flex-1 flex items-center justify-end h-2 bg-slate-100 dark:bg-slate-800/60 rounded-full min-w-0 overflow-hidden">
                     <div
-                      className="h-2.5 bg-[#22c55e] dark:bg-emerald-500 rounded-full transition-all duration-300 min-w-[4px]"
-                      style={{ width: `${Math.max(barWidthPct, 4)}%` }}
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-300 min-w-[3px]"
+                      style={{ width: `${Math.max(barWidthPct, 3)}%` }}
                     />
                   </div>
                 </div>
 
-                {/* Ticker on right - Regular font weight */}
-                <span className="font-semibold text-slate-800 dark:text-slate-100 w-7 shrink-0 text-left text-[10px]">
+                {/* Ticker on right */}
+                <span className="font-bold text-slate-800 dark:text-slate-200 w-7 shrink-0 text-left text-[10px] font-mono">
                   {item.StockCode}
                 </span>
               </div>
@@ -119,21 +119,21 @@ export const MarketInfluenceTable: React.FC<MarketInfluenceTableProps> = ({ isDa
             const barWidthPct = Math.min((Math.abs(inf) / maxVal) * 100, 100);
 
             return (
-              <div key={item.StockCode} className="flex items-center gap-1.5 h-5">
-                {/* Ticker on left - Regular font weight */}
-                <span className="font-semibold text-slate-800 dark:text-slate-100 w-7 shrink-0 text-right text-[10px]">
+              <div key={item.StockCode} className="flex items-center gap-1.5 h-5 group">
+                {/* Ticker on left */}
+                <span className="font-bold text-slate-800 dark:text-slate-200 w-7 shrink-0 text-right text-[10px] font-mono">
                   {item.StockCode}
                 </span>
 
                 {/* Red Bar growing to right + Number on right */}
                 <div className="flex-1 flex items-center justify-start gap-1.5 min-w-0">
-                  <div className="flex-1 flex items-center justify-start h-3 min-w-0">
+                  <div className="flex-1 flex items-center justify-start h-2 bg-slate-100 dark:bg-slate-800/60 rounded-full min-w-0 overflow-hidden">
                     <div
-                      className="h-2.5 bg-[#dc2626] dark:bg-red-500 rounded-full transition-all duration-300 min-w-[4px]"
-                      style={{ width: `${Math.max(barWidthPct, 4)}%` }}
+                      className="h-full bg-rose-500 rounded-full transition-all duration-300 min-w-[3px]"
+                      style={{ width: `${Math.max(barWidthPct, 3)}%` }}
                     />
                   </div>
-                  <span className="text-[9.5px] font-semibold text-red-600 dark:text-red-400 shrink-0">
+                  <span className="text-[9.5px] font-mono font-semibold text-rose-600 dark:text-rose-400 shrink-0">
                     {inf.toFixed(2)}
                   </span>
                 </div>
