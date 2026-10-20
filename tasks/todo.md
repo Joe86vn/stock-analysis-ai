@@ -53,6 +53,24 @@
   - Thanh khoản 20 phiên: > 1 tỷ, > 3 tỷ, > 5 tỷ, > 10 tỷ, > 20 tỷ
   - Sức mạnh giá RS: > 60, > 70, > 80
   - Bổ sung 2 cột hiển thị trực quan `RS` (Badge màu) và `GTGD 20P` (tỷ VNĐ) kèm tính năng click tiêu đề sắp xếp.
-- [x] Task 5.5: Biên dịch chuẩn xác `tsc --noEmit`, push GitHub và đồng bộ build + reload PM2 trên Oracle VPS (`valuex.duckdns.org`).
+## Phase 6: Tự Động Hóa Kỳ Báo Cáo Theo Lịch Dương & Lọc Nhập Liệu Trực Tiếp
+- [x] Task 6.1: Tự động hóa xác định kỳ báo cáo theo thời gian thực trong `calculateCurrentReportPeriod()`:
+  - 01/01 - 31/03: Quý 4 năm trước (fromDate: 01/01)
+  - 01/04 - 30/06: Quý 1 năm nay (fromDate: 01/04)
+  - 01/07 - 30/09: Quý 2 năm nay (fromDate: 01/07)
+  - 01/10 - 31/12: Quý 3 năm nay (fromDate: 01/10)
+  - Tự động lưu trữ (archive) kỳ cũ và khởi tạo kỳ mới khi bước qua mốc thời gian tiếp theo mà không cần thao tác người dùng.
+- [x] Task 6.2: Xóa bỏ nút bấm "Chuyển kỳ" và Modal chuyển kỳ thủ công trên giao diện ValueX.
+- [x] Task 6.3: Thiết kế lại toàn diện thanh "Lọc theo chỉ tiêu tài chính & thị trường" cho phép **nhập trực tiếp giá trị cụ thể**:
+  - Doanh thu tối thiểu (tỷ VNĐ)
+  - Tăng trưởng doanh thu (% YoY)
+  - LNST tối thiểu (tỷ VNĐ)
+  - Tăng trưởng LNST (% YoY)
+  - GTGD 20P tối thiểu (tỷ VNĐ/phiên)
+  - Chỉ số RS tối thiểu (0 - 99)
+  - Bổ sung nút "Xóa bộ lọc" khi đang có bộ lọc hoạt động.
+- [x] Task 6.4: Thêm tính năng click sắp xếp theo giá trị Doanh Thu Thuần trên header bảng (`revenueCurrent`).
+- [x] Task 6.5: Typecheck `tsc --noEmit` đạt 100%, commit GitHub và build deploy thành công lên Oracle Cloud VPS (`valuex.duckdns.org`).
+
 
 
