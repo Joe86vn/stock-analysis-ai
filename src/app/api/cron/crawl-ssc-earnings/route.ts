@@ -42,8 +42,8 @@ async function handleCronJob(request: NextRequest) {
 
   try {
     const result = await runSscEarningsPipeline({
-      maxPages: 2, // Quét 2 trang gần nhất trong mỗi lần chạy định kỳ
-      maxItemsToProcess: 5,
+      maxPages: 3, // Quét 3 trang gần nhất trong mỗi lần chạy định kỳ (8h sáng và 17h chiều)
+      maxItemsToProcess: 15,
     });
 
     const durationSeconds = ((Date.now() - startTime) / 1000).toFixed(1);

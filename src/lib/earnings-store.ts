@@ -267,3 +267,46 @@ export function deleteEarningsRecord(id: string): boolean {
 
   return false;
 }
+
+/**
+ * Dọn sạch các bản ghi không hợp lệ (mã không niêm yết, bán niên 6T, năm cũ, báo cáo riêng lẻ khi có hợp nhất)
+ */
+export function cleanInvalidEarningsRecords(): number {
+  const store = getEarningsStore();
+  const validPeriods = new Set(['Q1', 'Q2', 'Q3', 'Q4']);
+  const validExchanges = new Set(['HOSE', 'HNX', 'UPCOM']);
+
+  const initialCount = store.records.length;
+  store.records = store.records.filter((r) => {
+    // 1. Phải là mã niêm yết 3 ký tự
+    if (!r.ticker || r.ticker === 'UNKNOWN' || !/^[A-Z0-9]{3}$/.test(r.ticker)) {
+      return false;
+    }
+    // 2. Sàn giao dịch thuộc HOSE, HNX, UPCOM
+    if (!validExchanges.has(r.exchange)) {
+      return false;
+    }
+    // 3. Phải là báo cáo Quý (loại bỏ 6T bán niên hoặc báo cáo năm cũ)
+    if (!validPeriods.has(r.period)) {
+      return false;
+    }
+    // 4. Nếu có phân loại mẹ và hợp nhất: loại bỏ bản ghi PARENT nếu đã có CONSOLIDATED
+    if (r.reportType === 'PARENT') {
+      const hasConsolidated = store.records.some(
+        (other) => other.ticker === r.ticker && other.year === r.year && other.period === r.period && other.reportType === 'CONSOLIDATED'
+      );
+      if (hasConsolidated) return false;
+    }
+    return true;
+  });
+
+  if (store.records.length !== initialCount) {
+    store.totalRecords = store.records.length;
+    store.updatedAt = new Date().toISOString();
+    persistStore(store);
+    console.log(`[Earnings Store] Cleaned up ${initialCount - store.records.length} invalid records.`);
+  }
+
+  return initialCount - store.records.length;
+}
+

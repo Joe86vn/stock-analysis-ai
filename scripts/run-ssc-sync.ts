@@ -2,8 +2,8 @@ import { runSscEarningsPipeline } from '@/lib/ssc-crawler-service';
 
 async function main() {
   console.log('=== VALUEX CLI: SYNC SSC EARNINGS ===');
-  const pages = Number(process.argv[2]) || 1;
-  const limit = Number(process.argv[3]) || 5;
+  const pages = Number(process.argv[2]) || 3;
+  const limit = Number(process.argv[3]) || 15;
 
   console.log(`Starting crawl with pages=${pages}, limit=${limit}...`);
   const result = await runSscEarningsPipeline({

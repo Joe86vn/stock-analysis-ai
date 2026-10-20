@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runSscEarningsPipeline } from '@/lib/ssc-crawler-service';
+import { cleanInvalidEarningsRecords } from '@/lib/earnings-store';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Hỗ trợ chạy tối đa 60s trên server
+export const maxDuration = 120; // Hỗ trợ chạy tối đa 120s trên server
 
 /**
  * POST /api/earnings/scan-ssc
@@ -11,10 +12,13 @@ export const maxDuration = 60; // Hỗ trợ chạy tối đa 60s trên server
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const maxPages = Number(body.pages) || 1;
-    const maxItems = Number(body.limit) || 3;
+    const maxPages = Number(body.pages) || 3;
+    const maxItems = Number(body.limit) || 15;
 
     console.log(`[API /api/earnings/scan-ssc] Manual trigger: pages=${maxPages}, limit=${maxItems}`);
+
+    // Dọn dẹp dữ liệu rác nếu có
+    cleanInvalidEarningsRecords();
 
     const result = await runSscEarningsPipeline({
       maxPages,
@@ -23,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Đã quét xong: Phát hiện ${result.newReportsFoundCount} báo cáo mới, số hóa thành công ${result.processedCount} doanh nghiệp.`,
+      message: `Đã quét xong: Phát hiện ${result.newReportsFoundCount} báo cáo hợp lệ mới, số hóa thành công ${result.processedCount} doanh nghiệp niêm yết.`,
       ...result,
     });
   } catch (err: any) {

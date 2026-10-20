@@ -63,15 +63,15 @@ export function LatestEarningsTable() {
   const handleScanManual = async () => {
     try {
       setScanning(true);
-      setScanMessage(null);
+      setScanMessage('Đang quét BCTC Quý từ UBCKNN (SSC) trên các sàn HOSE, HNX, UPCOM... Quá trình có thể mất 30-45 giây.');
       const res = await fetch('/api/earnings/scan-ssc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pages: 1, limit: 3 }),
+        body: JSON.stringify({ pages: 3, limit: 15 }),
       });
       const data = await res.json();
       if (data.success) {
-        setScanMessage(data.message || `Đã hoàn tất quét: Số hóa thành công ${data.processedCount} BCTC mới.`);
+        setScanMessage(data.message || `Đã hoàn tất quét: Số hóa thành công ${data.processedCount} BCTC Quý mới.`);
         await fetchRecords();
       } else {
         setScanMessage(`Lỗi quét: ${data.error}`);

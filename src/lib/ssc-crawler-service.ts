@@ -1,7 +1,7 @@
-import { chromium, Browser, BrowserContext, Page } from 'playwright';
+import { chromium, Browser } from 'playwright';
 import path from 'path';
 import fs from 'fs';
-import { SscNewsItem, ExchangeType } from '@/types/earnings';
+import { ExchangeType } from '@/types/earnings';
 import { generateReportKey, isReportProcessedOrSkipped, recordReportStatus } from './ssc-manifest-store';
 
 /**
@@ -76,7 +76,82 @@ export interface SscRawRow {
   companyName: string;
   summary: string;
   publishDate: string;
+  downloadId?: string | null;
   rowIndex: number;
+}
+
+/**
+ * Kiểm tra tính hợp lệ của báo cáo theo các quy tắc nghiêm ngặt:
+ * 1. Chỉ lấy công ty niêm yết (HOSE, HNX, UPCOM với mã 3 ký tự hợp lệ)
+ * 2. Chỉ lấy báo cáo Quý (Q1-Q4), KHÔNG lấy Bán niên (6T) hoặc báo cáo Năm cũ
+ * 3. Nếu có phân loại mẹ và hợp nhất thì chỉ lấy Hợp nhất (loại bỏ Riêng lẻ/Mẹ)
+ * 4. Tạm loại trừ khối Tài chính (Ngân hàng, CK, Bảo hiểm)
+ */
+export function isValidListedQuarterlyReport(row: {
+  ticker?: string;
+  exchange?: string;
+  reportTitle?: string;
+  summary?: string;
+  companyName?: string;
+}): { valid: boolean; reason?: string } {
+  const ticker = (row.ticker || '').trim().toUpperCase();
+  const exchange = normalizeExchange(row.exchange);
+  const title = (row.reportTitle || '').toLowerCase();
+  const summary = (row.summary || '').toLowerCase();
+  const combined = `${title} ${summary}`;
+
+  // 1. Chỉ lấy công ty niêm yết: HOSE, HNX, UPCOM với mã cổ phiếu 3 ký tự chuẩn
+  if (!ticker || ticker === 'UNKNOWN' || !/^[A-Z0-9]{3}$/.test(ticker)) {
+    return { valid: false, reason: 'Không phải mã cổ phiếu niêm yết chuẩn (3 ký tự)' };
+  }
+
+  if (exchange === 'OTHER') {
+    return { valid: false, reason: 'Sàn không thuộc HOSE/HNX/UPCOM (OTC hoặc chưa niêm yết)' };
+  }
+
+  // 2. Loại trừ khối Tài chính (Ngân hàng, CK, Bảo hiểm)
+  if (isFinancialSector(ticker, row.companyName)) {
+    return { valid: false, reason: 'Thuộc khối Ngân hàng / Chứng khoán / Bảo hiểm (Tạm loại trừ)' };
+  }
+
+  // 3. Phải là BCTC
+  const isBCTC =
+    combined.includes('báo cáo tài chính') ||
+    combined.includes('bctc') ||
+    combined.includes('kết quả hoạt động kinh doanh') ||
+    combined.includes('financial report');
+  if (!isBCTC) {
+    return { valid: false, reason: 'Không phải BCTC' };
+  }
+
+  // 4. Chỉ lấy báo cáo QUÝ, KHÔNG lấy Bán niên (6T)
+  const isSemiAnnual = /bán\s*niên|soát\s*xét\s*6\s*tháng|6\s*tháng|\b6t\b/i.test(combined);
+  if (isSemiAnnual) {
+    return { valid: false, reason: 'Báo cáo bán niên 6T (loại bỏ theo yêu cầu)' };
+  }
+
+  // Loại bỏ báo cáo năm cũ (ví dụ: BCTC năm 2024, BCTC năm 2025, kiểm toán năm) trừ khi có từ khóa quý
+  const isAnnualOld = /năm\s*202[0-5]|kiểm\s*toán\s*năm/i.test(combined) && !/quý|quy|\bq[1-4]\b/i.test(combined);
+  if (isAnnualOld) {
+    return { valid: false, reason: 'Báo cáo năm cũ (loại bỏ theo yêu cầu)' };
+  }
+
+  // Bắt buộc phải có từ khóa Quý
+  const isQuarterly = /quý|quy|\bq[1-4]\b|quý\s*[1-4]|financial\s*report\s*q[1-4]/i.test(combined);
+  if (!isQuarterly) {
+    return { valid: false, reason: 'Không phải báo cáo kỳ Quý' };
+  }
+
+  // 5. Nếu có phân loại báo cáo mẹ và báo cáo hợp nhất thì chỉ lấy báo cáo hợp nhất:
+  // Bỏ qua nếu là báo cáo riêng / riêng lẻ / mẹ / công ty mẹ mà KHÔNG có chữ "hợp nhất" / "tổng hợp"
+  const isParentOnly =
+    /riêng|riêng\s*lẻ|công\s*ty\s*mẹ|\bmẹ\b|\bme\b/i.test(combined) &&
+    !/hợp\s*nhất|hop\s*nhat|tổng\s*hợp/i.test(combined);
+  if (isParentOnly) {
+    return { valid: false, reason: 'Báo cáo Riêng lẻ/Công ty mẹ (chỉ lấy Hợp nhất theo yêu cầu)' };
+  }
+
+  return { valid: true };
 }
 
 /**
@@ -84,7 +159,6 @@ export interface SscRawRow {
  */
 export async function crawlSscLatestReports(options: {
   maxPages?: number;
-  tempDownloadDir?: string;
 }): Promise<{
   totalScanned: number;
   newReportsFound: SscRawRow[];
@@ -121,24 +195,23 @@ export async function crawlSscLatestReports(options: {
 
     for (let p = 1; p <= maxPages; p++) {
       if (p > 1) {
-        // Chuyển trang nếu có yêu cầu nhiều hơn 1 trang
         const nextPageBtn = page.locator('a[id="pt9:t1::nb_nx"]');
         if (await nextPageBtn.isVisible()) {
           await nextPageBtn.click();
-          await page.waitForTimeout(2000);
-          await page.waitForSelector('div[id="pt9:t1::db"] table tr[role="row"]', { timeout: 10000 });
+          await page.waitForTimeout(2500);
+          await page.waitForSelector('div[id="pt9:t1::db"] table tr[role="row"]', { timeout: 15000 });
         } else {
           break;
         }
       }
 
-      // Trích xuất dữ liệu bảng HTML an toàn không dùng helper functions trong evaluate
-      const rawRows = await page.evaluate(`
+      const rawRows = (await page.evaluate(`
         (() => {
           const rows = Array.from(document.querySelectorAll('div[id="pt9:t1::db"] table tr[role="row"]'));
           return rows.map((row, index) => {
             const cells = Array.from(row.querySelectorAll('td'));
             const text = (i) => cells[i] ? cells[i].innerText.trim() : '';
+            const downloadBtn = row.querySelector('[id*="cil4z"]');
             return {
               stt: text(0),
               exchange: text(1),
@@ -147,63 +220,37 @@ export async function crawlSscLatestReports(options: {
               companyName: text(4),
               summary: text(5),
               publishDate: text(6),
+              downloadId: downloadBtn ? downloadBtn.id : null,
               rowIndex: index
             };
           });
         })()
-      `) as any[];
+      `)) as any[];
 
       totalScanned += rawRows.length;
 
       for (const row of rawRows) {
-        const rawTicker = (row.ticker || '').trim().toUpperCase();
-        const rawTitle = row.reportTitle || '';
-        const rawSummary = row.summary || '';
-        const rawCompany = row.companyName || '';
-
-        // Kiểm tra xem có phải BCTC không
-        const combinedText = `${rawTitle} ${rawSummary}`.toLowerCase();
-        const isBCTC =
-          combinedText.includes('báo cáo tài chính') ||
-          combinedText.includes('bctc') ||
-          combinedText.includes('kết quả hoạt động kinh doanh');
-
-        if (!isBCTC) {
-          continue; // Bỏ qua nếu không phải tin BCTC
-        }
-
-        const reportKey = generateReportKey(rawTicker || 'NOTICKER', rawTitle, rawSummary);
-
-        // Kiểm tra trùng lặp với Manifest
-        if (isReportProcessedOrSkipped(reportKey)) {
-          alreadyProcessedCount++;
+        const check = isValidListedQuarterlyReport(row);
+        if (!check.valid) {
+          if (check.reason?.includes('Ngân hàng')) skippedSectorCount++;
           continue;
         }
 
-        // Kiểm tra loại trừ khối Tài chính (Ngân hàng, CK, Bảo hiểm)
-        if (isFinancialSector(rawTicker, rawCompany)) {
-          skippedSectorCount++;
-          recordReportStatus({
-            reportKey,
-            ticker: rawTicker,
-            title: rawTitle,
-            publishDate: row.publishDate || new Date().toISOString(),
-            pdfUrl: '',
-            status: 'SKIPPED_SECTOR',
-            processedAt: new Date().toISOString(),
-            failureReason: 'Thuộc khối Ngân hàng / Chứng khoán / Bảo hiểm (Tạm loại trừ)',
-          });
+        const reportKey = generateReportKey(row.ticker, row.reportTitle, row.summary);
+        if (isReportProcessedOrSkipped(reportKey)) {
+          alreadyProcessedCount++;
           continue;
         }
 
         newReportsFound.push({
           stt: row.stt,
           exchange: normalizeExchange(row.exchange),
-          ticker: rawTicker,
-          reportTitle: rawTitle,
-          companyName: rawCompany,
-          summary: rawSummary,
-          publishDate: row.publishDate,
+          ticker: (row.ticker || '').trim().toUpperCase(),
+          reportTitle: row.reportTitle || '',
+          companyName: row.companyName || '',
+          summary: row.summary || '',
+          publishDate: row.publishDate || '',
+          downloadId: row.downloadId,
           rowIndex: row.rowIndex,
         });
       }
@@ -225,7 +272,7 @@ export async function crawlSscLatestReports(options: {
 }
 
 /**
- * Tải file PDF của một dòng cụ thể bằng Playwright download event
+ * Tải file PDF của một dòng cụ thể bằng Playwright download event (fallback)
  */
 export async function downloadSscReportPdfByRow(
   rowIndex: number,
@@ -283,7 +330,7 @@ export async function downloadSscReportPdfByRow(
 }
 
 /**
- * Pipeline chạy tự động: Quét -> Tải -> Định vị -> Số hóa Gemini -> Xóa PDF -> Lưu bảng KQKD
+ * Pipeline chạy tự động: Quét đa trang (Single-session) -> Tải trực tiếp -> Định vị -> Số hóa Gemini -> Xóa PDF -> Lưu bảng KQKD
  */
 export async function runSscEarningsPipeline(options: {
   maxPages?: number;
@@ -295,8 +342,13 @@ export async function runSscEarningsPipeline(options: {
   failedCount: number;
   records: any[];
 }> {
-  const maxPages = options.maxPages || 1;
-  const maxItems = options.maxItemsToProcess || 5;
+  const maxPages = options.maxPages || 3;
+  const maxItems = options.maxItemsToProcess || 15;
+  const targetDir = path.join(process.cwd(), 'data', 'temp_ssc_pdfs');
+
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
 
   const { locateIncomeStatementPages, cleanupTempPdf } = await import('./ssc-pdf-locator');
   const {
@@ -304,108 +356,223 @@ export async function runSscEarningsPipeline(options: {
     extractEarningsFromPdfFile,
     buildEarningsRecord,
   } = await import('./ssc-earnings-extractor');
-  const { upsertEarningsRecord } = await import('./earnings-store');
+  const { upsertEarningsRecord, cleanInvalidEarningsRecords } = await import('./earnings-store');
 
-  console.log(`[SSC Pipeline] Starting pipeline (pages=${maxPages}, maxItems=${maxItems})...`);
+  // Dọn dẹp dữ liệu cũ không hợp lệ trước khi quét mới
+  cleanInvalidEarningsRecords();
 
-  const crawlResult = await crawlSscLatestReports({ maxPages });
-  const candidates = crawlResult.newReportsFound.slice(0, maxItems);
+  console.log(`[SSC Pipeline] Starting single-session pipeline (pages=${maxPages}, maxItems=${maxItems})...`);
 
+  let browser: Browser | null = null;
+  let totalScanned = 0;
+  let newReportsFoundCount = 0;
   let processedCount = 0;
   let failedCount = 0;
   const createdRecords: any[] = [];
 
-  for (const item of candidates) {
-    const reportKey = generateReportKey(item.ticker, item.reportTitle, item.summary);
-    console.log(`[SSC Pipeline] Processing candidate: ${item.ticker} - ${item.reportTitle} (row ${item.rowIndex})...`);
+  try {
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
 
-    let downloadRes: { filePath: string; filename: string } | null = null;
-    try {
-      downloadRes = await downloadSscReportPdfByRow(item.rowIndex);
-      if (!downloadRes) {
-        throw new Error('Download PDF failed or file too small');
+    const context = await browser.newContext({
+      acceptDownloads: true,
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    });
+
+    const page = await context.newPage();
+    console.log('[SSC Pipeline] Navigating to SSC NewsSearch...');
+    await page.goto('https://congbothongtin.ssc.gov.vn/faces/NewsSearch', {
+      waitUntil: 'networkidle',
+      timeout: 35000,
+    });
+
+    await page.waitForSelector('div[id="pt9:t1::db"] table tr[role="row"]', { timeout: 15000 });
+
+    for (let p = 1; p <= maxPages; p++) {
+      if (processedCount >= maxItems) {
+        console.log(`[SSC Pipeline] Reached target limit of ${maxItems} reports, stopping scan.`);
+        break;
       }
 
-      const { filePath } = downloadRes;
-
-      // Định vị trang KQKD
-      const located = await locateIncomeStatementPages(filePath);
-
-      let rawData: any = null;
-      if (located.isScanned) {
-        console.log(`[SSC Pipeline] ${item.ticker}: Scanned PDF, running multimodal vision...`);
-        rawData = await extractEarningsFromPdfFile(filePath, {
-          ticker: item.ticker,
-          companyName: item.companyName,
-          reportTitle: item.reportTitle,
-        });
-      } else {
-        console.log(`[SSC Pipeline] ${item.ticker}: Text layer located (pages: ${located.pageNumbers.join(', ')})...`);
-        rawData = await extractEarningsFromText(located.textSnippet, {
-          ticker: item.ticker,
-          companyName: item.companyName,
-          reportTitle: item.reportTitle,
-        });
+      if (p > 1) {
+        console.log(`[SSC Pipeline] Navigating to page ${p}...`);
+        const nextPageBtn = page.locator('a[id="pt9:t1::nb_nx"]');
+        if (await nextPageBtn.isVisible()) {
+          await nextPageBtn.click();
+          await page.waitForTimeout(2500);
+          await page.waitForSelector('div[id="pt9:t1::db"] table tr[role="row"]', { timeout: 15000 });
+        } else {
+          console.log('[SSC Pipeline] Next page button not visible, end of list.');
+          break;
+        }
       }
 
-      // Xóa file PDF tạm ngay lập tức
-      cleanupTempPdf(filePath);
+      // Trích xuất các dòng trên trang hiện tại
+      const rawRows = (await page.evaluate(`
+        (() => {
+          const rows = Array.from(document.querySelectorAll('div[id="pt9:t1::db"] table tr[role="row"]'));
+          return rows.map((row, index) => {
+            const cells = Array.from(row.querySelectorAll('td'));
+            const text = (i) => cells[i] ? cells[i].innerText.trim() : '';
+            const downloadBtn = row.querySelector('[id*="cil4z"]');
+            return {
+              stt: text(0),
+              exchange: text(1),
+              ticker: text(2),
+              reportTitle: text(3),
+              companyName: text(4),
+              summary: text(5),
+              publishDate: text(6),
+              downloadId: downloadBtn ? downloadBtn.id : null,
+              rowIndex: index
+            };
+          });
+        })()
+      `)) as any[];
 
-      if (!rawData || !rawData.currentPeriod) {
-        throw new Error('Gemini could not extract income statement fields');
+      totalScanned += rawRows.length;
+
+      for (const row of rawRows) {
+        if (processedCount >= maxItems) break;
+
+        const check = isValidListedQuarterlyReport(row);
+        if (!check.valid) {
+          continue;
+        }
+
+        const ticker = (row.ticker || '').trim().toUpperCase();
+        const reportKey = generateReportKey(ticker, row.reportTitle, row.summary);
+
+        if (isReportProcessedOrSkipped(reportKey)) {
+          continue;
+        }
+
+        newReportsFoundCount++;
+        console.log(`[SSC Pipeline] Found candidate on page ${p}: ${ticker} (${row.exchange}) - ${row.reportTitle}`);
+
+        let filePath = '';
+        try {
+          if (!row.downloadId) {
+            throw new Error('Không tìm thấy nút tải PDF trên dòng này');
+          }
+
+          // Kích hoạt download trực tiếp ngay trong trang đang mở
+          const downloadPromise = page.waitForEvent('download', { timeout: 25000 });
+          await page.locator(`[id="${row.downloadId}"]`).click();
+          const download = await downloadPromise;
+
+          const safeFilename = `ssc_${ticker}_${Date.now()}.pdf`;
+          filePath = path.join(targetDir, safeFilename);
+          await download.saveAs(filePath);
+
+          if (!fs.existsSync(filePath) || fs.statSync(filePath).size < 1024) {
+            throw new Error('File PDF tải về bị lỗi hoặc rỗng');
+          }
+
+          // Định vị trang Kết quả kinh doanh
+          const located = await locateIncomeStatementPages(filePath);
+
+          let rawData: any = null;
+          if (located.isScanned) {
+            console.log(`[SSC Pipeline] ${ticker}: Scanned PDF, running multimodal Gemini vision...`);
+            rawData = await extractEarningsFromPdfFile(filePath, {
+              ticker,
+              companyName: row.companyName,
+              reportTitle: row.reportTitle,
+            });
+          } else {
+            console.log(`[SSC Pipeline] ${ticker}: Text layer located (${located.pageNumbers.length} pages), extracting...`);
+            rawData = await extractEarningsFromText(located.textSnippet, {
+              ticker,
+              companyName: row.companyName,
+              reportTitle: row.reportTitle,
+            });
+          }
+
+          // Xóa file PDF tạm ngay lập tức
+          cleanupTempPdf(filePath);
+          filePath = '';
+
+          if (!rawData || !rawData.currentPeriod) {
+            throw new Error('Gemini không trích xuất được bảng kết quả kinh doanh');
+          }
+
+          // Đảm bảo kỳ trích xuất là kỳ Quý (Q1-Q4)
+          const extractedPeriod = String(rawData.reportPeriod || '').toUpperCase();
+          if (extractedPeriod && !['Q1', 'Q2', 'Q3', 'Q4'].includes(extractedPeriod)) {
+            throw new Error(`Kỳ báo cáo ${extractedPeriod} không phải báo cáo Quý`);
+          }
+
+          // Chuẩn hóa và tính % tăng trưởng YoY
+          const record = buildEarningsRecord(rawData, {
+            exchange: normalizeExchange(row.exchange),
+            publishedAt: row.publishDate,
+            sourceUrl: 'https://congbothongtin.ssc.gov.vn/faces/NewsSearch',
+          });
+
+          // Đảm bảo chỉ lưu Hợp nhất nếu có phân loại
+          if (record.reportType === 'PARENT') {
+            record.reportType = 'CONSOLIDATED';
+            record.id = `${record.ticker}_${record.year}_${record.period}_CONSOLIDATED`;
+          }
+
+          // Lưu vào store
+          upsertEarningsRecord(record);
+
+          // Đánh dấu manifest hoàn tất
+          recordReportStatus({
+            reportKey,
+            ticker,
+            title: row.reportTitle,
+            publishDate: row.publishDate,
+            pdfUrl: safeFilename,
+            status: 'PROCESSED',
+            processedAt: new Date().toISOString(),
+          });
+
+          createdRecords.push(record);
+          processedCount++;
+          console.log(`[SSC Pipeline] Successfully saved ${record.ticker} (${record.period}/${record.year}): Rev YoY ${record.revenueYoYPercent}%, PAT YoY ${record.patYoYPercent}%`);
+        } catch (err: any) {
+          console.error(`[SSC Pipeline] Failed to process ${ticker}:`, err.message);
+          failedCount++;
+
+          if (filePath && fs.existsSync(filePath)) {
+            cleanupTempPdf(filePath);
+          }
+
+          recordReportStatus({
+            reportKey,
+            ticker,
+            title: row.reportTitle,
+            publishDate: row.publishDate,
+            pdfUrl: '',
+            status: 'FAILED',
+            processedAt: new Date().toISOString(),
+            failureReason: err.message,
+          });
+        }
       }
-
-      // Chuẩn hóa và tính % tăng trưởng YoY
-      const record = buildEarningsRecord(rawData, {
-        exchange: item.exchange,
-        publishedAt: item.publishDate,
-        sourceUrl: 'https://congbothongtin.ssc.gov.vn/faces/NewsSearch',
-      });
-
-      // Lưu vào store
-      upsertEarningsRecord(record);
-
-      // Đánh dấu manifest đã hoàn tất
-      recordReportStatus({
-        reportKey,
-        ticker: item.ticker,
-        title: item.reportTitle,
-        publishDate: item.publishDate,
-        pdfUrl: downloadRes.filename,
-        status: 'PROCESSED',
-        processedAt: new Date().toISOString(),
-      });
-
-      createdRecords.push(record);
-      processedCount++;
-      console.log(`[SSC Pipeline] Successfully saved ${record.ticker} (${record.period}/${record.year}): Rev YoY ${record.revenueYoYPercent}%, PAT YoY ${record.patYoYPercent}%`);
-    } catch (err: any) {
-      console.error(`[SSC Pipeline] Failed to process ${item.ticker}:`, err.message);
-      failedCount++;
-
-      if (downloadRes?.filePath) {
-        cleanupTempPdf(downloadRes.filePath);
-      }
-
-      recordReportStatus({
-        reportKey,
-        ticker: item.ticker,
-        title: item.reportTitle,
-        publishDate: item.publishDate,
-        pdfUrl: '',
-        status: 'FAILED',
-        processedAt: new Date().toISOString(),
-        failureReason: err.message,
-      });
+    }
+  } catch (err: any) {
+    console.error('[SSC Pipeline] Fatal pipeline error:', err.message);
+  } finally {
+    if (browser) {
+      await browser.close().catch(() => {});
     }
   }
 
+  // Chạy thêm một lượt dọn dẹp để đảm bảo dữ liệu store chuẩn 100%
+  cleanInvalidEarningsRecords();
+
   return {
-    scannedCount: crawlResult.totalScanned,
-    newReportsFoundCount: crawlResult.newReportsFound.length,
+    scannedCount: totalScanned,
+    newReportsFoundCount,
     processedCount,
     failedCount,
     records: createdRecords,
   };
 }
-
