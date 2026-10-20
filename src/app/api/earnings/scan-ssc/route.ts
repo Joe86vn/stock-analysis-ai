@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runSscEarningsPipeline } from '@/lib/ssc-crawler-service';
-import { cleanInvalidEarningsRecords } from '@/lib/earnings-store';
+import { cleanInvalidEarningsRecords, calculateCurrentReportPeriod } from '@/lib/earnings-store';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120; // Hỗ trợ chạy tối đa 120s trên server
@@ -11,12 +11,13 @@ export const maxDuration = 120; // Hỗ trợ chạy tối đa 120s trên server
  */
 export async function POST(request: NextRequest) {
   try {
+    const currentPeriod = calculateCurrentReportPeriod();
     const body = await request.json().catch(() => ({}));
     const maxPages = Number(body.pages) || 10;
-    const maxItems = Number(body.limit) || 30;
-    const fromDate = body.fromDate || '01/10/2026';
+    const maxItems = Number(body.limit) || 50;
+    const fromDate = body.fromDate || currentPeriod.fromDate;
 
-    console.log(`[API /api/earnings/scan-ssc] Manual trigger: pages=${maxPages}, limit=${maxItems}, fromDate=${fromDate}`);
+    console.log(`[API /api/earnings/scan-ssc] Manual trigger: period=${currentPeriod.label}, pages=${maxPages}, limit=${maxItems}, fromDate=${fromDate}`);
 
     // Dọn dẹp dữ liệu rác nếu có
     cleanInvalidEarningsRecords();

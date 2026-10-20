@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
     const minRevenueYoY = searchParams.get('minRevenueYoY')
       ? parseFloat(searchParams.get('minRevenueYoY')!)
       : undefined;
+    const minRevenueAbsolute = searchParams.get('minRevenueAbsolute')
+      ? parseFloat(searchParams.get('minRevenueAbsolute')!)
+      : undefined;
     const minPatYoY = searchParams.get('minPatYoY')
       ? parseFloat(searchParams.get('minPatYoY')!)
       : undefined;
@@ -39,6 +42,7 @@ export async function GET(request: NextRequest) {
       period,
       year,
       minRevenueYoY,
+      minRevenueAbsolute,
       minPatYoY,
       minPatAbsolute,
       minAdtv20,
@@ -69,6 +73,11 @@ export async function GET(request: NextRequest) {
     // Lọc theo sàn
     if (filter.exchange && filter.exchange !== ('ALL' as any)) {
       list = list.filter((r) => r.exchange === filter.exchange);
+    }
+
+    // Lọc doanh thu tuyệt đối tối thiểu (VNĐ)
+    if (typeof filter.minRevenueAbsolute === 'number') {
+      list = list.filter((r) => r.revenueCurrent >= filter.minRevenueAbsolute!);
     }
 
     // Lọc tăng trưởng doanh thu tối thiểu

@@ -41,9 +41,12 @@ async function handleCronJob(request: NextRequest) {
   console.log('[CRON SSC] Scheduled task started at:', new Date().toISOString());
 
   try {
+    const { calculateCurrentReportPeriod } = await import('@/lib/earnings-store');
+    const currentPeriod = calculateCurrentReportPeriod();
     const result = await runSscEarningsPipeline({
       maxPages: 3, // Quét 3 trang gần nhất trong mỗi lần chạy định kỳ (8h sáng và 17h chiều)
-      maxItemsToProcess: 15,
+      maxItemsToProcess: 25,
+      fromDate: currentPeriod.fromDate,
     });
 
     const durationSeconds = ((Date.now() - startTime) / 1000).toFixed(1);

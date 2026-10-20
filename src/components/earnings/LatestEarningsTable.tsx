@@ -4,17 +4,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   TrendingUp,
-  TrendingDown,
   RefreshCw,
   Search,
   Filter,
   ArrowUpDown,
   ExternalLink,
-  Calendar,
-  Building2,
   CheckCircle2,
   AlertCircle,
-  Archive,
+  X,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { EarningsRecord, ExchangeType } from '@/types/earnings';
 
@@ -26,24 +24,23 @@ export function LatestEarningsTable() {
   const [scanning, setScanning] = useState<boolean>(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
 
-  // Bộ lọc
+  // Bộ lọc cơ bản
   const [search, setSearch] = useState<string>('');
   const [selectedExchange, setSelectedExchange] = useState<string>('ALL');
   const [filterGrowthType, setFilterGrowthType] = useState<'ALL' | 'PAT_20' | 'REV_15' | 'HIGH_GROWTH'>('ALL');
 
-  // Bộ lọc chuyên sâu
-  const [minPatFilter, setMinPatFilter] = useState<number | 'ALL'>('ALL'); // VNĐ
-  const [minAdtvFilter, setMinAdtvFilter] = useState<number | 'ALL'>('ALL'); // Tỷ VNĐ
-  const [minRsFilter, setMinRsFilter] = useState<number | 'ALL'>('ALL'); // 0-99
+  // Bộ lọc chuyên sâu linh hoạt (cho phép nhập giá trị cụ thể)
+  const [minRevenueBillion, setMinRevenueBillion] = useState<string>(''); // Doanh thu >= X tỷ
+  const [minRevenueYoY, setMinRevenueYoY] = useState<string>(''); // Tăng trưởng DT >= X %
+  const [minPatBillion, setMinPatBillion] = useState<string>(''); // LNST >= X tỷ
+  const [minPatYoY, setMinPatYoY] = useState<string>(''); // Tăng trưởng LNST >= X %
+  const [minAdtv20, setMinAdtv20] = useState<string>(''); // GTGD 20P >= X tỷ/phiên
+  const [minRs, setMinRs] = useState<string>(''); // RS >= X (0-99)
 
   const [sortBy, setSortBy] = useState<
-    'publishedAt' | 'patYoYPercent' | 'revenueYoYPercent' | 'ticker' | 'patCurrent' | 'adtv20Billion' | 'rsRating'
+    'publishedAt' | 'patYoYPercent' | 'revenueYoYPercent' | 'ticker' | 'patCurrent' | 'revenueCurrent' | 'adtv20Billion' | 'rsRating'
   >('publishedAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
-  // Modal chuyển kỳ
-  const [showRolloverModal, setShowRolloverModal] = useState<boolean>(false);
-  const [nextPeriodInput, setNextPeriodInput] = useState<string>('Q4/2026');
 
   // Tải dữ liệu ban đầu
   const fetchRecords = async () => {
@@ -71,11 +68,11 @@ export function LatestEarningsTable() {
   const handleScanManual = async () => {
     try {
       setScanning(true);
-      setScanMessage('Đang quét BCTC Quý 3/2026 từ ngày 01/10/2026 trên UBCKNN (HOSE/HNX/UPCOM)... Quá trình có thể mất một vài phút.');
+      setScanMessage(`Đang quét BCTC kỳ ${activePeriod} trên UBCKNN (HOSE/HNX/UPCOM)... Quá trình có thể mất một vài phút.`);
       const res = await fetch('/api/earnings/scan-ssc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pages: 10, limit: 50, fromDate: '01/10/2026' }),
+        body: JSON.stringify({ pages: 10, limit: 50 }),
       });
       const data = await res.json();
       if (data.success) {
@@ -91,30 +88,11 @@ export function LatestEarningsTable() {
     }
   };
 
-  // Rollover kỳ báo cáo
-  const handleRollover = async () => {
-    if (!nextPeriodInput) return;
-    try {
-      const res = await fetch('/api/earnings/latest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPeriod: nextPeriodInput }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowRolloverModal(false);
-        await fetchRecords();
-        setScanMessage(data.message);
-      }
-    } catch (err: any) {
-      alert(`Lỗi rollover: ${err.message}`);
-    }
-  };
-
   // Lọc và sắp xếp dữ liệu trên Client
   const filteredRecords = useMemo(() => {
     let list = [...records];
 
+    // 1. Tìm kiếm theo mã hoặc tên
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
@@ -122,11 +100,12 @@ export function LatestEarningsTable() {
       );
     }
 
+    // 2. Lọc sàn
     if (selectedExchange !== 'ALL') {
       list = list.filter((r) => r.exchange === selectedExchange);
     }
 
-    // Lọc theo loại tăng trưởng
+    // 3. Nút lọc nhanh tăng trưởng
     if (filterGrowthType === 'PAT_20') {
       list = list.filter((r) => r.patYoYPercent !== null && r.patYoYPercent >= 20);
     } else if (filterGrowthType === 'REV_15') {
@@ -137,21 +116,43 @@ export function LatestEarningsTable() {
       );
     }
 
-    // Lọc LNST tuyệt đối kỳ này
-    if (minPatFilter !== 'ALL') {
-      list = list.filter((r) => r.patCurrent >= minPatFilter);
+    // 4. Lọc Doanh thu giá trị tuyệt đối (nhập tỷ VNĐ)
+    const revBillionNum = parseFloat(minRevenueBillion);
+    if (!isNaN(revBillionNum) && revBillionNum > 0) {
+      list = list.filter((r) => r.revenueCurrent >= revBillionNum * 1_000_000_000);
     }
 
-    // Lọc GTGD bình quân 20 phiên (Tỷ VNĐ)
-    if (minAdtvFilter !== 'ALL') {
-      list = list.filter((r) => (r.adtv20Billion ?? 0) >= minAdtvFilter);
+    // 5. Lọc Tăng trưởng Doanh thu %
+    const revYoYNum = parseFloat(minRevenueYoY);
+    if (!isNaN(revYoYNum)) {
+      list = list.filter((r) => r.revenueYoYPercent !== null && r.revenueYoYPercent >= revYoYNum);
     }
 
-    // Lọc RS Rating
-    if (minRsFilter !== 'ALL') {
-      list = list.filter((r) => (r.rsRating ?? 0) >= minRsFilter);
+    // 6. Lọc LNST giá trị tuyệt đối (nhập tỷ VNĐ)
+    const patBillionNum = parseFloat(minPatBillion);
+    if (!isNaN(patBillionNum) && patBillionNum > 0) {
+      list = list.filter((r) => r.patCurrent >= patBillionNum * 1_000_000_000);
     }
 
+    // 7. Lọc Tăng trưởng LNST %
+    const patYoYNum = parseFloat(minPatYoY);
+    if (!isNaN(patYoYNum)) {
+      list = list.filter((r) => r.patYoYPercent !== null && r.patYoYPercent >= patYoYNum);
+    }
+
+    // 8. Lọc GTGD 20 phiên (nhập tỷ VNĐ/phiên)
+    const adtvNum = parseFloat(minAdtv20);
+    if (!isNaN(adtvNum) && adtvNum > 0) {
+      list = list.filter((r) => (r.adtv20Billion ?? 0) >= adtvNum);
+    }
+
+    // 9. Lọc Sức mạnh giá RS Rating (nhập điểm 0-99)
+    const rsNum = parseFloat(minRs);
+    if (!isNaN(rsNum) && rsNum > 0) {
+      list = list.filter((r) => (r.rsRating ?? 0) >= rsNum);
+    }
+
+    // 10. Sắp xếp
     list.sort((a, b) => {
       let valA: any = a[sortBy];
       let valB: any = b[sortBy];
@@ -165,7 +166,20 @@ export function LatestEarningsTable() {
     });
 
     return list;
-  }, [records, search, selectedExchange, filterGrowthType, minPatFilter, minAdtvFilter, minRsFilter, sortBy, sortOrder]);
+  }, [
+    records,
+    search,
+    selectedExchange,
+    filterGrowthType,
+    minRevenueBillion,
+    minRevenueYoY,
+    minPatBillion,
+    minPatYoY,
+    minAdtv20,
+    minRs,
+    sortBy,
+    sortOrder,
+  ]);
 
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
@@ -176,12 +190,22 @@ export function LatestEarningsTable() {
     }
   };
 
-  const hasActiveAdvancedFilters = minPatFilter !== 'ALL' || minAdtvFilter !== 'ALL' || minRsFilter !== 'ALL';
+  const hasActiveAdvancedFilters =
+    Boolean(minRevenueBillion) ||
+    Boolean(minRevenueYoY) ||
+    Boolean(minPatBillion) ||
+    Boolean(minPatYoY) ||
+    Boolean(minAdtv20) ||
+    Boolean(minRs);
 
   const resetAdvancedFilters = () => {
-    setMinPatFilter('ALL');
-    setMinAdtvFilter('ALL');
-    setMinRsFilter('ALL');
+    setMinRevenueBillion('');
+    setMinRevenueYoY('');
+    setMinPatBillion('');
+    setMinPatYoY('');
+    setMinAdtv20('');
+    setMinRs('');
+    setFilterGrowthType('ALL');
   };
 
   const formatVnd = (num: number) => {
@@ -207,8 +231,11 @@ export function LatestEarningsTable() {
               <TrendingUp className="h-6 w-6 text-emerald-500" />
               Cập Nhật Kết Quả Kinh Doanh Mới Nhất
             </h1>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-              Kỳ: {activePeriod}
+            <span
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+              title="Kỳ báo cáo tự động xác định theo quý gần nhất trước đó"
+            >
+              Kỳ: {activePeriod} (Tự động)
             </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
@@ -234,16 +261,6 @@ export function LatestEarningsTable() {
           >
             <RefreshCw className={`h-4 w-4 ${scanning ? 'animate-spin' : ''}`} />
             <span>{scanning ? 'Đang quét SSC...' : 'Quét BCTC Mới Nhất'}</span>
-          </button>
-
-          {/* Nút chuyển kỳ */}
-          <button
-            onClick={() => setShowRolloverModal(true)}
-            className="flex items-center space-x-1.5 px-3 py-2.5 rounded-xl text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            title="Lưu trữ kỳ hiện tại và mở kỳ mới"
-          >
-            <Archive className="h-4 w-4 text-gray-500" />
-            <span className="hidden sm:inline">Chuyển Kỳ</span>
           </button>
         </div>
       </div>
@@ -359,94 +376,133 @@ export function LatestEarningsTable() {
           </div>
         </div>
 
-        {/* Thanh Bộ Lọc Chuyên Sâu (LNST tối thiểu, Thanh khoản ADTV 20P, RS Rating) */}
-        <div className="pt-3 border-t border-gray-200/80 dark:border-gray-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex flex-wrap items-center gap-4">
+        {/* Thanh Bộ Lọc Chuyên Sâu Tùy Chỉnh (Cho phép nhập giá trị cụ thể) */}
+        <div className="pt-3 border-t border-gray-200/80 dark:border-gray-800/80 space-y-2.5 text-xs">
+          <div className="flex items-center justify-between">
             <span className="font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-              <Filter className="h-3.5 w-3.5 text-emerald-500" />
-              Lọc chuyên sâu:
+              <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-500" />
+              Lọc theo chỉ tiêu tài chính &amp; thị trường:
             </span>
-
-            {/* Lọc LNST tuyệt đối */}
-            <div className="flex items-center space-x-1.5">
-              <span className="text-gray-500 dark:text-gray-400">LNST kỳ này:</span>
-              <select
-                value={minPatFilter === 'ALL' ? 'ALL' : String(minPatFilter)}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setMinPatFilter(val === 'ALL' ? 'ALL' : Number(val));
-                }}
-                className={`px-2 py-1 rounded-md text-xs border font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
-                  minPatFilter !== 'ALL'
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold'
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                }`}
+            {hasActiveAdvancedFilters && (
+              <button
+                onClick={resetAdvancedFilters}
+                className="text-xs text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 font-medium"
               >
-                <option value="ALL">Tất cả</option>
-                <option value="5000000000">&gt; 5 tỷ</option>
-                <option value="10000000000">&gt; 10 tỷ ⭐</option>
-                <option value="20000000000">&gt; 20 tỷ</option>
-                <option value="50000000000">&gt; 50 tỷ</option>
-                <option value="100000000000">&gt; 100 tỷ</option>
-              </select>
-            </div>
-
-            {/* Lọc Thanh khoản ADTV 20P */}
-            <div className="flex items-center space-x-1.5">
-              <span className="text-gray-500 dark:text-gray-400">GTGD 20P:</span>
-              <select
-                value={minAdtvFilter === 'ALL' ? 'ALL' : String(minAdtvFilter)}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setMinAdtvFilter(val === 'ALL' ? 'ALL' : Number(val));
-                }}
-                className={`px-2 py-1 rounded-md text-xs border font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
-                  minAdtvFilter !== 'ALL'
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold'
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                <option value="ALL">Tất cả</option>
-                <option value="1">&gt; 1 tỷ/ngày</option>
-                <option value="3">&gt; 3 tỷ/ngày</option>
-                <option value="5">&gt; 5 tỷ/ngày ⭐</option>
-                <option value="10">&gt; 10 tỷ/ngày</option>
-                <option value="20">&gt; 20 tỷ/ngày</option>
-              </select>
-            </div>
-
-            {/* Lọc Sức mạnh giá RS */}
-            <div className="flex items-center space-x-1.5">
-              <span className="text-gray-500 dark:text-gray-400">Chỉ số RS:</span>
-              <select
-                value={minRsFilter === 'ALL' ? 'ALL' : String(minRsFilter)}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setMinRsFilter(val === 'ALL' ? 'ALL' : Number(val));
-                }}
-                className={`px-2 py-1 rounded-md text-xs border font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
-                  minRsFilter !== 'ALL'
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold'
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                <option value="ALL">Tất cả</option>
-                <option value="60">RS &gt; 60</option>
-                <option value="70">RS &gt; 70 ⭐</option>
-                <option value="80">RS &gt; 80 (Siêu cổ)</option>
-              </select>
-            </div>
+                <X className="h-3 w-3" />
+                <span>Xóa bộ lọc</span>
+              </button>
+            )}
           </div>
 
-          {/* Reset bộ lọc */}
-          {hasActiveAdvancedFilters && (
-            <button
-              onClick={resetAdvancedFilters}
-              className="text-xs text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 font-medium"
-            >
-              <span>✕ Đặt lại lọc chuyên sâu</span>
-            </button>
-          )}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            {/* 1. Doanh thu tuyệt đối */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                Doanh thu tối thiểu:
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="any"
+                  placeholder="VD: 50"
+                  value={minRevenueBillion}
+                  onChange={(e) => setMinRevenueBillion(e.target.value)}
+                  className="w-full px-2.5 py-1.5 pr-8 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+              </div>
+            </div>
+
+            {/* 2. Tăng trưởng Doanh thu % */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                Tăng trưởng DT (%):
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="any"
+                  placeholder="VD: 15"
+                  value={minRevenueYoY}
+                  onChange={(e) => setMinRevenueYoY(e.target.value)}
+                  className="w-full px-2.5 py-1.5 pr-6 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">%</span>
+              </div>
+            </div>
+
+            {/* 3. LNST tuyệt đối */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                LNST tối thiểu:
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="any"
+                  placeholder="VD: 10"
+                  value={minPatBillion}
+                  onChange={(e) => setMinPatBillion(e.target.value)}
+                  className="w-full px-2.5 py-1.5 pr-8 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+              </div>
+            </div>
+
+            {/* 4. Tăng trưởng LNST % */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                Tăng trưởng LNST (%):
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="any"
+                  placeholder="VD: 20"
+                  value={minPatYoY}
+                  onChange={(e) => setMinPatYoY(e.target.value)}
+                  className="w-full px-2.5 py-1.5 pr-6 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">%</span>
+              </div>
+            </div>
+
+            {/* 5. GTGD bình quân 20 phiên */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                GTGD 20P tối thiểu:
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="any"
+                  placeholder="VD: 5"
+                  value={minAdtv20}
+                  onChange={(e) => setMinAdtv20(e.target.value)}
+                  className="w-full px-2.5 py-1.5 pr-8 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">tỷ/P</span>
+              </div>
+            </div>
+
+            {/* 6. Chỉ số RS Rating */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                Chỉ số RS tối thiểu:
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="any"
+                  placeholder="VD: 70"
+                  value={minRs}
+                  onChange={(e) => setMinRs(e.target.value)}
+                  className="w-full px-2.5 py-1.5 pr-6 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">/99</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -467,7 +523,15 @@ export function LatestEarningsTable() {
                 </th>
                 <th className="py-3 px-4">Doanh Nghiệp & Sàn</th>
                 <th className="py-3 px-3 text-center">Kỳ BCTC</th>
-                <th className="py-3 px-4 text-right">Doanh Thu Thuần</th>
+                <th
+                  onClick={() => handleSort('revenueCurrent')}
+                  className="py-3 px-4 text-right cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Doanh Thu Thuần
+                    <ArrowUpDown className="h-3 w-3 opacity-60" />
+                  </div>
+                </th>
                 <th
                   onClick={() => handleSort('revenueYoYPercent')}
                   className="py-3 px-3 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
@@ -744,49 +808,6 @@ export function LatestEarningsTable() {
           </table>
         </div>
       </div>
-
-      {/* Modal Rollover Kỳ */}
-      {showRolloverModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6 shadow-xl space-y-4">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Archive className="h-5 w-5 text-amber-500" />
-              Chuyển Sang Kỳ Báo Cáo Mới
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-              Hành động này sẽ đóng gói toàn bộ bảng hiện tại (Kỳ <b>{activePeriod}</b>) vào thư mục lưu trữ lịch sử, và làm mới bảng để sẵn sàng tích lũy các doanh nghiệp công bố sớm của kỳ tiếp theo.
-            </p>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                Tên kỳ báo cáo mới:
-              </label>
-              <input
-                type="text"
-                value={nextPeriodInput}
-                onChange={(e) => setNextPeriodInput(e.target.value)}
-                placeholder="VD: Q4/2026 hoặc Q1/2027"
-                className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                onClick={() => setShowRolloverModal(false)}
-                className="px-4 py-2 text-xs font-medium rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                onClick={handleRollover}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
-              >
-                Xác nhận Chuyển Kỳ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -32,11 +32,64 @@ function ensureDirectories(): void {
 }
 
 /**
+ * Xác định kỳ báo cáo tài chính mặc định theo mốc thời gian thực:
+ * - Từ 01/01 - 31/03: báo cáo Quý 4 năm trước (ví dụ 15/02/2027 -> Q4/2026, từ 01/01/2027)
+ * - Từ 01/04 - 30/06: báo cáo Quý 1 năm nay (ví dụ 15/05/2026 -> Q1/2026, từ 01/04/2026)
+ * - Từ 01/07 - 30/09: báo cáo Quý 2 năm nay (ví dụ 15/08/2026 -> Q2/2026, từ 01/07/2026)
+ * - Từ 01/10 - 31/12: báo cáo Quý 3 năm nay (ví dụ 20/10/2026 -> Q3/2026, từ 01/10/2026)
+ */
+export function calculateCurrentReportPeriod(date: Date = new Date()): {
+  period: EarningsPeriod;
+  year: number;
+  label: string; // "Q3/2026"
+  fromDate: string; // "01/10/2026"
+} {
+  const month = date.getMonth() + 1; // 1-12
+  const fullYear = date.getFullYear();
+
+  if (month >= 1 && month <= 3) {
+    // Quý 4 năm trước
+    const targetYear = fullYear - 1;
+    return {
+      period: 'Q4',
+      year: targetYear,
+      label: `Q4/${targetYear}`,
+      fromDate: `01/01/${fullYear}`,
+    };
+  } else if (month >= 4 && month <= 6) {
+    // Quý 1 năm nay
+    return {
+      period: 'Q1',
+      year: fullYear,
+      label: `Q1/${fullYear}`,
+      fromDate: `01/04/${fullYear}`,
+    };
+  } else if (month >= 7 && month <= 9) {
+    // Quý 2 năm nay
+    return {
+      period: 'Q2',
+      year: fullYear,
+      label: `Q2/${fullYear}`,
+      fromDate: `01/07/${fullYear}`,
+    };
+  } else {
+    // Quý 3 năm nay (tháng 10 - 12)
+    return {
+      period: 'Q3',
+      year: fullYear,
+      label: `Q3/${fullYear}`,
+      fromDate: `01/10/${fullYear}`,
+    };
+  }
+}
+
+/**
  * Tạo dữ liệu store mặc định
  */
 function createDefaultStore(): EarningsStoreData {
+  const currentPeriod = calculateCurrentReportPeriod();
   return {
-    activePeriod: 'Q3/2026',
+    activePeriod: currentPeriod.label,
     updatedAt: new Date().toISOString(),
     totalRecords: 0,
     records: [],
@@ -44,20 +97,33 @@ function createDefaultStore(): EarningsStoreData {
 }
 
 /**
- * Tải dữ liệu store vào bộ nhớ cache, tự động đọc lại đĩa nếu file có thay đổi mtime
+ * Tải dữ liệu store vào bộ nhớ cache, tự động đọc lại đĩa nếu file có thay đổi mtime.
+ * Đồng thời tự động kiểm tra nếu đã bước sang giai đoạn/kỳ tiếp theo thì tự động rollover & lưu trữ kỳ cũ!
  */
 export function getEarningsStore(): EarningsStoreData {
   ensureDirectories();
+
+  const currentPeriodInfo = calculateCurrentReportPeriod();
 
   try {
     if (fs.existsSync(STORE_FILE_PATH)) {
       const mtime = fs.statSync(STORE_FILE_PATH).mtimeMs;
       if (globalThis.__EARNINGS_STORE_CACHE__ && globalThis.__EARNINGS_STORE_MTIME__ === mtime) {
-        return globalThis.__EARNINGS_STORE_CACHE__;
+        // Kiểm tra xem store trong bộ nhớ có khớp với kỳ hiện tại không
+        if (globalThis.__EARNINGS_STORE_CACHE__.activePeriod === currentPeriodInfo.label) {
+          return globalThis.__EARNINGS_STORE_CACHE__;
+        }
       }
       const raw = fs.readFileSync(STORE_FILE_PATH, 'utf-8');
       const parsed: EarningsStoreData = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.records)) {
+        // Kiểm tra tự động chuyển kỳ nếu thời gian đã sang kỳ mới
+        if (parsed.activePeriod && parsed.activePeriod !== currentPeriodInfo.label) {
+          console.log(`[Earnings Store] Tự động chuyển kỳ: ${parsed.activePeriod} -> ${currentPeriodInfo.label}`);
+          rolloverToNewPeriod(currentPeriodInfo.label);
+          return getEarningsStore();
+        }
+
         globalThis.__EARNINGS_STORE_CACHE__ = parsed;
         globalThis.__EARNINGS_STORE_MTIME__ = mtime;
         return parsed;
@@ -68,7 +134,7 @@ export function getEarningsStore(): EarningsStoreData {
   }
 
   const def = createDefaultStore();
-  globalThis.__EARNINGS_STORE_CACHE__ = def;
+  persistStore(def);
   return def;
 }
 
@@ -170,6 +236,11 @@ export function queryEarningsRecords(filter: EarningsFilterParams = {}): {
   // Lọc theo sàn
   if (filter.exchange) {
     list = list.filter((r) => r.exchange === filter.exchange);
+  }
+
+  // Lọc doanh thu tối thiểu tuyệt đối (VNĐ)
+  if (typeof filter.minRevenueAbsolute === 'number') {
+    list = list.filter((r) => r.revenueCurrent >= filter.minRevenueAbsolute!);
   }
 
   // Lọc tăng trưởng doanh thu tối thiểu

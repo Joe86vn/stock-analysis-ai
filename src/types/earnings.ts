@@ -110,13 +110,14 @@ export interface EarningsFilterParams {
   period?: EarningsPeriod;
   year?: number;
   minRevenueYoY?: number;
+  minRevenueAbsolute?: number; // Doanh thu tối thiểu kỳ này (VNĐ, ví dụ 50 tỷ = 50_000_000_000)
   minPatYoY?: number;
   minPatAbsolute?: number; // LNST tối thiểu kỳ này (VNĐ, ví dụ 10 tỷ = 10_000_000_000)
   minAdtv20?: number; // GTGD bình quân 20 phiên tối thiểu (Tỷ VNĐ, ví dụ 5)
   minRs?: number; // Sức mạnh giá RS Rating tối thiểu (ví dụ 70)
   exchange?: ExchangeType;
   search?: string;
-  sortBy?: 'publishedAt' | 'patYoYPercent' | 'revenueYoYPercent' | 'ticker' | 'patCurrent' | 'adtv20Billion' | 'rsRating';
+  sortBy?: 'publishedAt' | 'patYoYPercent' | 'revenueYoYPercent' | 'ticker' | 'patCurrent' | 'revenueCurrent' | 'adtv20Billion' | 'rsRating';
   sortOrder?: 'asc' | 'desc';
 }
 
