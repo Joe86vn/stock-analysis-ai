@@ -48,9 +48,14 @@ next-env.d.ts
 data/ohlc/
 data/financials/
 data/rankings/
+data/temp_ssc_pdfs/
+data/ssc-crawl/
+data/earnings/
 data/*.json
 data/*.json.tmp*
 data/*.tmp*
 
+.playwright-mcp/
 .vercel
 .env*
+
