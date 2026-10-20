@@ -2,13 +2,15 @@ import { runSscEarningsPipeline } from '@/lib/ssc-crawler-service';
 
 async function main() {
   console.log('=== VALUEX CLI: SYNC SSC EARNINGS ===');
-  const pages = Number(process.argv[2]) || 3;
-  const limit = Number(process.argv[3]) || 15;
+  const pages = Number(process.argv[2]) || 10;
+  const limit = Number(process.argv[3]) || 100;
+  const fromDate = process.argv[4] || '01/10/2026';
 
-  console.log(`Starting crawl with pages=${pages}, limit=${limit}...`);
+  console.log(`Starting crawl with pages=${pages}, limit=${limit}, fromDate=${fromDate}...`);
   const result = await runSscEarningsPipeline({
     maxPages: pages,
     maxItemsToProcess: limit,
+    fromDate,
   });
 
   console.log('\n--- Sync Result ---');

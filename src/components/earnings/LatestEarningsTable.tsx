@@ -63,11 +63,11 @@ export function LatestEarningsTable() {
   const handleScanManual = async () => {
     try {
       setScanning(true);
-      setScanMessage('Đang quét BCTC Quý từ UBCKNN (SSC) trên các sàn HOSE, HNX, UPCOM... Quá trình có thể mất 30-45 giây.');
+      setScanMessage('Đang quét BCTC Quý 3/2026 từ ngày 01/10/2026 trên UBCKNN (HOSE/HNX/UPCOM)... Quá trình có thể mất một vài phút.');
       const res = await fetch('/api/earnings/scan-ssc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pages: 3, limit: 15 }),
+        body: JSON.stringify({ pages: 10, limit: 50, fromDate: '01/10/2026' }),
       });
       const data = await res.json();
       if (data.success) {

@@ -12,10 +12,11 @@ export const maxDuration = 120; // Hỗ trợ chạy tối đa 120s trên server
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const maxPages = Number(body.pages) || 3;
-    const maxItems = Number(body.limit) || 15;
+    const maxPages = Number(body.pages) || 10;
+    const maxItems = Number(body.limit) || 30;
+    const fromDate = body.fromDate || '01/10/2026';
 
-    console.log(`[API /api/earnings/scan-ssc] Manual trigger: pages=${maxPages}, limit=${maxItems}`);
+    console.log(`[API /api/earnings/scan-ssc] Manual trigger: pages=${maxPages}, limit=${maxItems}, fromDate=${fromDate}`);
 
     // Dọn dẹp dữ liệu rác nếu có
     cleanInvalidEarningsRecords();
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
     const result = await runSscEarningsPipeline({
       maxPages,
       maxItemsToProcess: maxItems,
+      fromDate,
     });
 
     return NextResponse.json({

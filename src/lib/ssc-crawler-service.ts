@@ -66,6 +66,23 @@ export function normalizeExchange(raw?: string): ExchangeType {
 }
 
 /**
+ * Phân tích chuỗi ngày dạng DD/MM/YYYY thành đối tượng Date
+ */
+export function parseSscDate(dateStr?: string): Date | null {
+  if (!dateStr) return null;
+  const parts = dateStr.trim().split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+      return new Date(year, month, day);
+    }
+  }
+  return null;
+}
+
+/**
  * Cấu trúc dòng tin cào từ SSC table
  */
 export interface SscRawRow {
@@ -86,14 +103,21 @@ export interface SscRawRow {
  * 2. Chỉ lấy báo cáo Quý (Q1-Q4), KHÔNG lấy Bán niên (6T) hoặc báo cáo Năm cũ
  * 3. Nếu có phân loại mẹ và hợp nhất thì chỉ lấy Hợp nhất (loại bỏ Riêng lẻ/Mẹ)
  * 4. Tạm loại trừ khối Tài chính (Ngân hàng, CK, Bảo hiểm)
+ * 5. Lọc theo ngày công bố từ mốc fromDate (ví dụ: 01/10/2026)
  */
-export function isValidListedQuarterlyReport(row: {
-  ticker?: string;
-  exchange?: string;
-  reportTitle?: string;
-  summary?: string;
-  companyName?: string;
-}): { valid: boolean; reason?: string } {
+export function isValidListedQuarterlyReport(
+  row: {
+    ticker?: string;
+    exchange?: string;
+    reportTitle?: string;
+    summary?: string;
+    companyName?: string;
+    publishDate?: string;
+  },
+  options?: {
+    fromDate?: string;
+  }
+): { valid: boolean; reason?: string } {
   const ticker = (row.ticker || '').trim().toUpperCase();
   const exchange = normalizeExchange(row.exchange);
   const title = (row.reportTitle || '').toLowerCase();
@@ -151,6 +175,15 @@ export function isValidListedQuarterlyReport(row: {
     return { valid: false, reason: 'Báo cáo Riêng lẻ/Công ty mẹ (chỉ lấy Hợp nhất theo yêu cầu)' };
   }
 
+  // 6. Kiểm tra mốc ngày công bố tối thiểu (nếu có yêu cầu fromDate)
+  if (options?.fromDate && row.publishDate) {
+    const minDate = parseSscDate(options.fromDate);
+    const rowDate = parseSscDate(row.publishDate);
+    if (minDate && rowDate && rowDate < minDate) {
+      return { valid: false, reason: `Ngày công bố ${row.publishDate} trước mốc ${options.fromDate}` };
+    }
+  }
+
   return { valid: true };
 }
 
@@ -159,13 +192,17 @@ export function isValidListedQuarterlyReport(row: {
  */
 export async function crawlSscLatestReports(options: {
   maxPages?: number;
+  fromDate?: string;
 }): Promise<{
   totalScanned: number;
   newReportsFound: SscRawRow[];
   skippedSectorCount: number;
   alreadyProcessedCount: number;
 }> {
-  const maxPages = options.maxPages || 1;
+  const maxPages = options.maxPages || 10;
+  const fromDate = options.fromDate || '01/10/2026';
+  const minDate = parseSscDate(fromDate);
+
   const newReportsFound: SscRawRow[] = [];
   let totalScanned = 0;
   let skippedSectorCount = 0;
@@ -185,7 +222,7 @@ export async function crawlSscLatestReports(options: {
     });
 
     const page = await context.newPage();
-    console.log('[SSC Crawler] Navigating to SSC NewsSearch...');
+    console.log(`[SSC Crawler] Navigating to SSC NewsSearch (filtering from ${fromDate})...`);
     await page.goto('https://congbothongtin.ssc.gov.vn/faces/NewsSearch', {
       waitUntil: 'networkidle',
       timeout: 35000,
@@ -230,7 +267,7 @@ export async function crawlSscLatestReports(options: {
       totalScanned += rawRows.length;
 
       for (const row of rawRows) {
-        const check = isValidListedQuarterlyReport(row);
+        const check = isValidListedQuarterlyReport(row, { fromDate });
         if (!check.valid) {
           if (check.reason?.includes('Ngân hàng')) skippedSectorCount++;
           continue;
@@ -253,6 +290,18 @@ export async function crawlSscLatestReports(options: {
           downloadId: row.downloadId,
           rowIndex: row.rowIndex,
         });
+      }
+
+      // Kiểm tra nếu ngày cuối của trang đã vượt quá mốc fromDate thì dừng phân trang
+      if (minDate && rawRows.length > 0) {
+        const lastRowWithDate = [...rawRows].reverse().find((r) => r.publishDate);
+        if (lastRowWithDate) {
+          const lastDate = parseSscDate(lastRowWithDate.publishDate);
+          if (lastDate && lastDate < minDate) {
+            console.log(`[SSC Crawler] Reached announcements before ${fromDate} on page ${p}, stopping pagination.`);
+            break;
+          }
+        }
       }
     }
   } catch (err: any) {
@@ -335,6 +384,7 @@ export async function downloadSscReportPdfByRow(
 export async function runSscEarningsPipeline(options: {
   maxPages?: number;
   maxItemsToProcess?: number;
+  fromDate?: string; // Mặc định: '01/10/2026'
 }): Promise<{
   scannedCount: number;
   newReportsFoundCount: number;
@@ -342,8 +392,10 @@ export async function runSscEarningsPipeline(options: {
   failedCount: number;
   records: any[];
 }> {
-  const maxPages = options.maxPages || 3;
-  const maxItems = options.maxItemsToProcess || 15;
+  const maxPages = options.maxPages || 10;
+  const maxItems = options.maxItemsToProcess || 50;
+  const fromDate = options.fromDate || '01/10/2026';
+  const minDate = parseSscDate(fromDate);
   const targetDir = path.join(process.cwd(), 'data', 'temp_ssc_pdfs');
 
   if (!fs.existsSync(targetDir)) {
@@ -361,7 +413,7 @@ export async function runSscEarningsPipeline(options: {
   // Dọn dẹp dữ liệu cũ không hợp lệ trước khi quét mới
   cleanInvalidEarningsRecords();
 
-  console.log(`[SSC Pipeline] Starting single-session pipeline (pages=${maxPages}, maxItems=${maxItems})...`);
+  console.log(`[SSC Pipeline] Starting single-session pipeline (pages=${maxPages}, maxItems=${maxItems}, fromDate=${fromDate})...`);
 
   let browser: Browser | null = null;
   let totalScanned = 0;
@@ -438,7 +490,7 @@ export async function runSscEarningsPipeline(options: {
       for (const row of rawRows) {
         if (processedCount >= maxItems) break;
 
-        const check = isValidListedQuarterlyReport(row);
+        const check = isValidListedQuarterlyReport(row, { fromDate });
         if (!check.valid) {
           continue;
         }
@@ -451,7 +503,7 @@ export async function runSscEarningsPipeline(options: {
         }
 
         newReportsFoundCount++;
-        console.log(`[SSC Pipeline] Found candidate on page ${p}: ${ticker} (${row.exchange}) - ${row.reportTitle}`);
+        console.log(`[SSC Pipeline] Found candidate on page ${p}: ${ticker} (${row.exchange}) [${row.publishDate}] - ${row.reportTitle}`);
 
         let filePath = '';
         try {
@@ -554,6 +606,18 @@ export async function runSscEarningsPipeline(options: {
             processedAt: new Date().toISOString(),
             failureReason: err.message,
           });
+        }
+      }
+
+      // Kiểm tra nếu ngày cuối của trang đã vượt quá mốc fromDate thì dừng phân trang
+      if (minDate && rawRows.length > 0) {
+        const lastRowWithDate = [...rawRows].reverse().find((r) => r.publishDate);
+        if (lastRowWithDate) {
+          const lastDate = parseSscDate(lastRowWithDate.publishDate);
+          if (lastDate && lastDate < minDate) {
+            console.log(`[SSC Pipeline] Reached announcements before ${fromDate} on page ${p}, stopping pagination.`);
+            break;
+          }
         }
       }
     }
