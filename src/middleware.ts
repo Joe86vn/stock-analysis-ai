@@ -8,10 +8,10 @@ export default auth((req) => {
     const isLoggedIn = !!req.auth;
     const { pathname } = req.nextUrl;
 
-    // Bỏ qua static assets, favicon, brand assets
+    // Bỏ qua static assets, favicon, brand assets và tất cả các API routes (API tự quản lý auth/cron secret)
     if (
         pathname.startsWith('/_next') ||
-        pathname.startsWith('/api/auth') ||
+        pathname.startsWith('/api/') ||
         pathname.startsWith('/brand') ||
         pathname.startsWith('/favicon.ico') ||
         pathname.includes('.')
@@ -19,9 +19,16 @@ export default auth((req) => {
         return NextResponse.next();
     }
 
-    // Trang login & register & trang chủ & reports không yêu cầu đăng nhập bắt buộc
+    // Các trang công khai không yêu cầu đăng nhập bắt buộc
     const isAuthPage = pathname === '/login' || pathname === '/register';
-    const isPublicPage = isAuthPage || pathname === '/' || pathname.startsWith('/reports');
+    const isPublicPage =
+        isAuthPage ||
+        pathname === '/' ||
+        pathname.startsWith('/reports') ||
+        pathname.startsWith('/earnings') ||
+        pathname.startsWith('/ranking') ||
+        pathname.startsWith('/chart') ||
+        pathname.startsWith('/market');
 
     if (!isLoggedIn) {
         if (!isPublicPage) {
