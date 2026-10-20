@@ -184,11 +184,13 @@ flowchart TD
 ---
 
 ## 🏁 Tổng Kết & Tiêu Chí Nghiệm Thu (Acceptance Checkpoint)
-- [ ] Typecheck toàn bộ dự án: `npx tsc --noEmit` đạt 0 lỗi.
-- [ ] Build production: `npm run build` thành công.
-- [ ] Chạy thử nghiệm thực tế:
-  1. Bấm nút "Quét BCTC mới" trên web: Dữ liệu tải về, bóc tách ra bảng số hóa, file PDF tạm tự động xóa sạch.
-  2. Các mã Ngân hàng, Chứng khoán, Bảo hiểm không xuất hiện trong bảng.
-  3. Bảng hiển thị rõ kỳ báo cáo và % tăng trưởng YoY được tính toán chính xác.
-  4. Lệnh quét lần 2 không lặp lại bất kỳ mã nào đã xử lý.
-  5. Cronjob trên VPS hoạt động đúng khung giờ 08:00 và 17:00.
+- [x] Typecheck toàn bộ dự án: `npx tsc --noEmit` đạt 0 lỗi.
+- [x] Build production: `npm run build` thành công.
+- [x] Chạy thử nghiệm thực tế:
+  1. [x] Bấm nút "Quét BCTC mới" trên web: Dữ liệu tải về, bóc tách ra bảng số hóa, file PDF tạm tự động xóa sạch.
+  2. [x] Các mã Ngân hàng, Chứng khoán, Bảo hiểm không xuất hiện trong bảng.
+  3. [x] Bảng hiển thị rõ kỳ báo cáo và % tăng trưởng YoY được tính toán chính xác.
+  4. [x] Lệnh quét lần 2 không lặp lại bất kỳ mã nào đã xử lý.
+  5. [x] Cronjob trên VPS hoạt động đúng khung giờ 08:00 và 17:00.
+  6. [x] Lọc nghiêm ngặt: Chỉ lấy công ty niêm yết (HOSE, HNX, UPCOM mã 3 chữ cái), chỉ lấy báo cáo Quý (loại bỏ bán niên 6T & năm cũ), chỉ lấy BCTC Hợp nhất (loại bỏ riêng lẻ/mẹ).
+
