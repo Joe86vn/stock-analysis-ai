@@ -120,7 +120,7 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
         const combined = Array.from(dateMap.values())
           .filter((p) => p.date !== '')
           .sort((a, b) => a.date.localeCompare(b.date))
-          .slice(-180);
+          .slice(-500);
 
         setData(combined);
       } catch {
@@ -239,7 +239,7 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
                 tickLine={false}
                 axisLine={{ stroke: '#e2e8f0' }}
                 interval="preserveStartEnd"
-                minTickGap={35}
+                minTickGap={45}
                 padding={{ left: 0, right: 0 }}
               />
               <YAxis

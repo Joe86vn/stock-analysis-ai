@@ -281,23 +281,70 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
   const maxVol = Math.max(...candles.map((c) => c.volume));
   const priceRange = Math.max(maxHigh - minLow, 1);
 
-  // SVG Dimension Specs
+  // SVG Dimension Specs with Right Price Axis, Bottom Time Axis, and Right Offset Margin
   const svgWidth = isDashboard ? 860 : 360;
   const svgHeight = isDashboard ? 360 : 185;
-  const candleAreaHeight = isDashboard ? 240 : 125;
-  const volumeAreaHeight = isDashboard ? 85 : 45;
-  const candleSpacing = svgWidth / Math.max(candles.length, 1);
+  const priceAxisWidth = isDashboard ? 54 : 38;
+  const timeAxisHeight = isDashboard ? 20 : 14;
+  const rightOffsetCandles = isDashboard ? 6 : 3;
+
+  const chartPlotWidth = svgWidth - priceAxisWidth;
+  const totalSlots = candles.length + rightOffsetCandles;
+  const candleSpacing = chartPlotWidth / Math.max(totalSlots, 1);
   const candleWidth = Math.max(candleSpacing * 0.72, 2.5);
+
+  const candleAreaHeight = isDashboard ? 230 : 115;
+  const candleTop = 12;
+  const candleHeightAvail = candleAreaHeight - candleTop;
 
   const getPriceY = (price: number) => {
     const ratio = (price - minLow) / priceRange;
-    return candleAreaHeight - ratio * (candleAreaHeight - 22) + 5;
+    return candleAreaHeight - ratio * candleHeightAvail;
   };
+
+  const volTop = candleAreaHeight + 10;
+  const volBottom = svgHeight - timeAxisHeight - 2;
+  const volHeightAvail = Math.max(volBottom - volTop, 20);
 
   const getVolY = (vol: number) => {
     const ratio = vol / (maxVol || 1);
-    return svgHeight - ratio * (volumeAreaHeight - 5);
+    return volBottom - ratio * volHeightAvail;
   };
+
+  // 5 Price Axis Ticks across priceRange
+  const priceTicks = useMemo(() => {
+    const count = 5;
+    const step = priceRange / (count - 1);
+    return Array.from({ length: count }, (_, idx) => {
+      const price = minLow + idx * step;
+      const y = getPriceY(price);
+      return { price, y };
+    });
+  }, [minLow, priceRange, candleAreaHeight]);
+
+  // Sampled Time Axis Ticks across candles
+  const timeTicks = useMemo(() => {
+    if (candles.length < 5) return [];
+    const count = isDashboard ? 8 : 4;
+    const step = Math.max(1, Math.floor(candles.length / count));
+    const ticks: { date: string; x: number }[] = [];
+    for (let i = 0; i < candles.length; i += step) {
+      const c = candles[i];
+      const centerX = (i + 0.5) * candleSpacing;
+      const parts = c.date.slice(0, 10).split('-');
+      const formatted = parts.length === 3 ? `${parts[2]}/${parts[1]}` : c.date;
+      ticks.push({ date: formatted, x: centerX });
+    }
+    const lastIdx = candles.length - 1;
+    const lastC = candles[lastIdx];
+    const lastParts = lastC.date.slice(0, 10).split('-');
+    const lastFormatted = lastParts.length === 3 ? `${lastParts[2]}/${lastParts[1]}` : lastC.date;
+    const lastCenterX = (lastIdx + 0.5) * candleSpacing;
+    if (ticks.length > 0 && lastCenterX - ticks[ticks.length - 1].x > 35) {
+      ticks.push({ date: lastFormatted, x: lastCenterX });
+    }
+    return ticks;
+  }, [candles, candleSpacing, isDashboard]);
 
   // Generate SVG Path for MA20 Price (Amber) & MA20 Volume (Cyan)
   const ma20PricePts = candles
@@ -391,11 +438,26 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
           className="w-full h-full overflow-visible"
           onMouseLeave={() => setHoveredIdx(null)}
         >
-          {/* Horizontal Grid lines */}
-          <line x1="0" y1={candleAreaHeight * 0.25} x2={svgWidth} y2={candleAreaHeight * 0.25} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-          <line x1="0" y1={candleAreaHeight * 0.5} x2={svgWidth} y2={candleAreaHeight * 0.5} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-          <line x1="0" y1={candleAreaHeight * 0.75} x2={svgWidth} y2={candleAreaHeight * 0.75} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-          <line x1="0" y1={candleAreaHeight + 5} x2={svgWidth} y2={candleAreaHeight + 5} stroke="rgba(255,255,255,0.1)" />
+          {/* Horizontal Grid lines aligned with priceTicks */}
+          {priceTicks.map((t, idx) => (
+            <line
+              key={idx}
+              x1="0"
+              y1={t.y}
+              x2={chartPlotWidth}
+              y2={t.y}
+              stroke="rgba(255,255,255,0.06)"
+              strokeDasharray="3 3"
+            />
+          ))}
+          {/* Separator line between candle area and volume */}
+          <line
+            x1="0"
+            y1={candleAreaHeight + 5}
+            x2={chartPlotWidth}
+            y2={candleAreaHeight + 5}
+            stroke="rgba(255,255,255,0.12)"
+          />
 
           {/* Render Candles & Volume Bars */}
           {candles.map((c, i) => {
@@ -585,10 +647,134 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
               strokeLinecap="round"
             />
           )}
+
+          {/* ─── Vertical Divider between Plot & Price Scale ─── */}
+          <line
+            x1={chartPlotWidth}
+            y1={0}
+            x2={chartPlotWidth}
+            y2={svgHeight - timeAxisHeight}
+            stroke="rgba(255, 255, 255, 0.15)"
+          />
+
+          {/* ─── Horizontal Divider above Time Axis ─── */}
+          <line
+            x1={0}
+            y1={svgHeight - timeAxisHeight}
+            x2={chartPlotWidth}
+            y2={svgHeight - timeAxisHeight}
+            stroke="rgba(255, 255, 255, 0.15)"
+          />
+
+          {/* ─── Right Price Scale (Trục Giá) ─── */}
+          <g>
+            {priceTicks.map((t, idx) => (
+              <g key={`ptick-${idx}`}>
+                <line
+                  x1={chartPlotWidth}
+                  y1={t.y}
+                  x2={chartPlotWidth + 3}
+                  y2={t.y}
+                  stroke="rgba(255, 255, 255, 0.3)"
+                />
+                <text
+                  x={chartPlotWidth + 6}
+                  y={t.y + 3}
+                  fill="#94a3b8"
+                  fontSize={isDashboard ? "9" : "8"}
+                  fontFamily="monospace"
+                >
+                  {t.price.toFixed(1)}
+                </text>
+              </g>
+            ))}
+
+            {/* Last Close Price Mark Badge */}
+            {activeCandle && (
+              <g>
+                <line
+                  x1={0}
+                  y1={getPriceY(activeCandle.close)}
+                  x2={chartPlotWidth}
+                  y2={getPriceY(activeCandle.close)}
+                  stroke={pointDiff >= 0 ? '#22c55e' : '#ef4444'}
+                  strokeDasharray="2 2"
+                  strokeWidth="0.8"
+                  opacity="0.8"
+                />
+                <rect
+                  x={chartPlotWidth + 1}
+                  y={getPriceY(activeCandle.close) - 7}
+                  width={priceAxisWidth - 3}
+                  height={14}
+                  rx="2"
+                  fill={pointDiff >= 0 ? '#22c55e' : '#ef4444'}
+                />
+                <text
+                  x={chartPlotWidth + (priceAxisWidth - 3) / 2 + 1}
+                  y={getPriceY(activeCandle.close) + 3}
+                  textAnchor="middle"
+                  fill="#ffffff"
+                  fontSize={isDashboard ? "8.5" : "7.5"}
+                  fontWeight="bold"
+                  fontFamily="monospace"
+                >
+                  {activeCandle.close.toFixed(1)}
+                </text>
+              </g>
+            )}
+          </g>
+
+          {/* ─── Bottom Time Axis (Trục Thời Gian) ─── */}
+          <g>
+            {timeTicks.map((t, idx) => (
+              <g key={`ttick-${idx}`}>
+                <line
+                  x1={t.x}
+                  y1={svgHeight - timeAxisHeight}
+                  x2={t.x}
+                  y2={svgHeight - timeAxisHeight + 3}
+                  stroke="rgba(255, 255, 255, 0.25)"
+                />
+                <text
+                  x={t.x}
+                  y={svgHeight - 4}
+                  textAnchor="middle"
+                  fill="#94a3b8"
+                  fontSize={isDashboard ? "8.5" : "7.5"}
+                  fontFamily="monospace"
+                >
+                  {t.date}
+                </text>
+              </g>
+            ))}
+          </g>
+
+          {/* ─── Interactive Crosshair on Hover ─── */}
+          {hoveredIdx !== null && candles[hoveredIdx] && (
+            <g>
+              <line
+                x1={(hoveredIdx + 0.5) * candleSpacing}
+                y1={0}
+                x2={(hoveredIdx + 0.5) * candleSpacing}
+                y2={svgHeight - timeAxisHeight}
+                stroke="rgba(255, 255, 255, 0.35)"
+                strokeDasharray="2 2"
+              />
+              <line
+                x1={0}
+                y1={getPriceY(candles[hoveredIdx].close)}
+                x2={chartPlotWidth}
+                y2={getPriceY(candles[hoveredIdx].close)}
+                stroke="rgba(255, 255, 255, 0.35)"
+                strokeDasharray="2 2"
+              />
+            </g>
+          )}
         </svg>
 
-        {/* Legend Footnote */}
-        <div className="absolute bottom-1 right-2 flex items-center gap-2 text-[8px] text-gray-400 bg-black/60 px-1.5 py-0.5 rounded backdrop-blur-xs">
+        {/* Legend Footnote (Positioned bottom-left above time axis to avoid price scale collision) */}
+        <div className="absolute bottom-5 left-2 flex items-center gap-2 text-[8px] text-gray-400 bg-black/70 px-1.5 py-0.5 rounded backdrop-blur-xs border border-white/5 pointer-events-none">
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
             <strong className="text-gray-200">D</strong>: Phân phối

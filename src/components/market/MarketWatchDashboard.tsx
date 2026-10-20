@@ -51,8 +51,8 @@ const DEFAULT_LAYOUT: LayoutConfig = {
   col1H1: 28,
   col1H2: 36,
   col1H3: 36,
-  col2H1: 65,
-  col2H2: 35,
+  col2H1: 60,
+  col2H2: 40,
   col3H1: 50,
   col3H2: 50,
 };
@@ -524,7 +524,7 @@ export const MarketWatchDashboard: React.FC = () => {
           {/* Panel 2.2: Biểu Đồ Intraday VN-Index Realtime */}
           <div
             style={{ height: `${layout.col2H2}%` }}
-            className="min-h-[140px] flex flex-col bg-white dark:bg-[#0C1220] rounded-lg border border-slate-200/80 dark:border-slate-800/80 p-2 shadow-2xs overflow-hidden"
+            className="min-h-[160px] flex flex-col bg-white dark:bg-[#0C1220] rounded-lg border border-slate-200/80 dark:border-slate-800/80 p-2 shadow-2xs overflow-hidden"
           >
             <PanelHeader
               icon={Activity}

@@ -273,9 +273,9 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
   };
 
   return (
-    <div className="w-full font-sans select-none">
+    <div className={`w-full font-sans select-none flex flex-col ${isDashboard ? 'h-full' : ''}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-1 px-0.5">
+      <div className="flex items-center justify-between mb-1 px-0.5 shrink-0">
         <div className="flex items-center gap-1.5">
           {isUp && <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />}
           {isDown && <TrendingDown className="w-3.5 h-3.5 text-red-500" />}
@@ -318,7 +318,7 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
       </div>
 
       {/* Sub-header Date & Time */}
-      <div className="flex justify-between items-center text-[10px] text-gray-400 mb-1 px-0.5">
+      <div className="flex justify-between items-center text-[10px] text-gray-400 mb-1 px-0.5 shrink-0">
         <div className="flex items-center gap-1.5">
           {dateStr && <span className="font-semibold text-gray-400">{dateStr}</span>}
           <span>•</span>
@@ -351,9 +351,10 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
 
       {!loading && !error && points.length > 0 && (
         <>
-          <div className={`relative w-full ${isDashboard ? 'flex-1 min-h-[90px]' : 'h-[110px]'} bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden`}>
+          <div className={`relative w-full ${isDashboard ? 'flex-1 min-h-0' : 'h-[110px]'} bg-gray-50/50 dark:bg-black/20 rounded-lg p-1 border border-gray-100 dark:border-gray-800/60 overflow-hidden`}>
             <svg
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              preserveAspectRatio="none"
               className="w-full h-full overflow-visible"
               onMouseMove={handleMouseMove}
               onMouseLeave={() => setHoverIdx(null)}
