@@ -6,13 +6,14 @@ import {
   TrendingUp,
   RefreshCw,
   Search,
-  Filter,
   ArrowUpDown,
-  ExternalLink,
   CheckCircle2,
   AlertCircle,
   X,
-  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { EarningsRecord, ExchangeType } from '@/types/earnings';
 
@@ -23,6 +24,10 @@ export function LatestEarningsTable() {
   const [loading, setLoading] = useState<boolean>(true);
   const [scanning, setScanning] = useState<boolean>(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+
+  // Phân trang: Mặc định 50 mã / trang
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 50;
 
   // Bộ lọc cơ bản
   const [search, setSearch] = useState<string>('');
@@ -40,6 +45,32 @@ export function LatestEarningsTable() {
     'publishedAt' | 'patYoYPercent' | 'revenueYoYPercent' | 'ticker' | 'patCurrent' | 'revenueCurrent' | 'adtv20Billion' | 'rsRating'
   >('publishedAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Xử lý an toàn khi người dùng nhập hoặc ấn ESC trên input
+  const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>) => {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      if (!val || val === 'null' || val === 'undefined') {
+        setter('');
+      } else {
+        setter(val);
+      }
+      setCurrentPage(1); // Reset về trang 1 khi lọc
+    };
+  };
+
+  const handleInputKeyDown = (setter: React.Dispatch<React.SetStateAction<string>>) => {
+    return (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setter('');
+        (e.target as HTMLInputElement).value = '';
+        (e.target as HTMLInputElement).blur();
+        setCurrentPage(1);
+      }
+    };
+  };
 
   // Tải dữ liệu ban đầu
   const fetchRecords = async () => {
@@ -168,6 +199,13 @@ export function LatestEarningsTable() {
     sortOrder,
   ]);
 
+  // Phân trang: Mặc định 50 mã / trang
+  const totalPages = Math.ceil(filteredRecords.length / pageSize) || 1;
+  const pagedRecords = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredRecords.slice(start, start + pageSize);
+  }, [filteredRecords, currentPage, pageSize]);
+
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -196,6 +234,7 @@ export function LatestEarningsTable() {
     setMinPatYoY('');
     setMinAdtv20('');
     setMinRs('');
+    setCurrentPage(1);
   };
 
   const formatVnd = (num: number) => {
@@ -212,7 +251,7 @@ export function LatestEarningsTable() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Top Banner / Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs">
         <div>
@@ -271,28 +310,32 @@ export function LatestEarningsTable() {
         </div>
       )}
 
-      {/* Thanh Bộ Lọc & Tìm Kiếm Hợp Nhất (1 Hàng siêu gọn) */}
-      <div className="p-3 rounded-2xl bg-gray-50/80 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* Ô Tìm kiếm Mã CP gọn gàng */}
-          <div className="relative w-28 sm:w-32 shrink-0">
-            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
+      {/* Thanh Bộ Lọc & Tìm Kiếm Hợp Nhất (Kích thước rộng đều, lấp đầy chiều ngang) */}
+      <div className="p-3.5 rounded-2xl bg-gray-50/80 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 shadow-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 items-center text-xs">
+          {/* 1. Ô Tìm kiếm Mã CP */}
+          <div className="relative w-full">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
             <input
               type="text"
               placeholder="Mã CP..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={search || ''}
+              onChange={handleInputChange(setSearch)}
+              onKeyDown={handleInputKeyDown(setSearch)}
               title="Tìm theo Mã cổ phiếu hoặc từ khóa tên doanh nghiệp"
-              className="w-full pl-7 pr-2.5 py-1.5 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 uppercase font-semibold"
+              className="w-full pl-8 pr-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 uppercase font-semibold"
             />
           </div>
 
-          {/* Lọc Sàn */}
-          <div className="w-28 shrink-0">
+          {/* 2. Lọc Sàn */}
+          <div className="w-full">
             <select
               value={selectedExchange}
-              onChange={(e) => setSelectedExchange(e.target.value)}
-              className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              onChange={(e) => {
+                setSelectedExchange(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
             >
               <option value="ALL">Mọi sàn ({records.length})</option>
               <option value="HOSE">Sàn HOSE</option>
@@ -301,102 +344,112 @@ export function LatestEarningsTable() {
             </select>
           </div>
 
-          {/* 1. Doanh thu >= X tỷ */}
-          <div className="relative w-24 shrink-0">
+          {/* 3. Doanh thu >= X tỷ */}
+          <div className="relative w-full">
             <input
               type="number"
               step="any"
               placeholder="DT ≥"
-              value={minRevenueBillion}
-              onChange={(e) => setMinRevenueBillion(e.target.value)}
+              value={minRevenueBillion || ''}
+              onChange={handleInputChange(setMinRevenueBillion)}
+              onKeyDown={handleInputKeyDown(setMinRevenueBillion)}
               title="Doanh thu thuần tối thiểu (tỷ VNĐ)"
-              className="w-full px-2.5 py-1.5 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
-            <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
           </div>
 
-          {/* 2. Tăng trưởng DT >= X % */}
-          <div className="relative w-24 shrink-0">
+          {/* 4. Tăng trưởng DT >= X % */}
+          <div className="relative w-full">
             <input
               type="number"
               step="any"
               placeholder="DT tăng ≥"
-              value={minRevenueYoY}
-              onChange={(e) => setMinRevenueYoY(e.target.value)}
+              value={minRevenueYoY || ''}
+              onChange={handleInputChange(setMinRevenueYoY)}
+              onKeyDown={handleInputKeyDown(setMinRevenueYoY)}
               title="Tăng trưởng doanh thu cùng kỳ tối thiểu (%)"
-              className="w-full px-2.5 py-1.5 pr-5 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
-            <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">%</span>
+            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">%</span>
           </div>
 
-          {/* 3. LNST >= X tỷ */}
-          <div className="relative w-24 shrink-0">
+          {/* 5. LNST >= X tỷ */}
+          <div className="relative w-full">
             <input
               type="number"
               step="any"
               placeholder="LNST ≥"
-              value={minPatBillion}
-              onChange={(e) => setMinPatBillion(e.target.value)}
+              value={minPatBillion || ''}
+              onChange={handleInputChange(setMinPatBillion)}
+              onKeyDown={handleInputKeyDown(setMinPatBillion)}
               title="Lợi nhuận sau thuế tối thiểu (tỷ VNĐ)"
-              className="w-full px-2.5 py-1.5 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
-            <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
           </div>
 
-          {/* 4. Tăng trưởng LNST >= X % */}
-          <div className="relative w-26 shrink-0">
+          {/* 6. Tăng trưởng LNST >= X % */}
+          <div className="relative w-full">
             <input
               type="number"
               step="any"
               placeholder="LNST tăng ≥"
-              value={minPatYoY}
-              onChange={(e) => setMinPatYoY(e.target.value)}
+              value={minPatYoY || ''}
+              onChange={handleInputChange(setMinPatYoY)}
+              onKeyDown={handleInputKeyDown(setMinPatYoY)}
               title="Tăng trưởng LNST cùng kỳ tối thiểu (%)"
-              className="w-full px-2.5 py-1.5 pr-5 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
-            <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">%</span>
+            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">%</span>
           </div>
 
-          {/* 5. GTGD 20P >= X tỷ */}
-          <div className="relative w-28 shrink-0">
+          {/* 7. GTGD 20P >= X tỷ */}
+          <div className="relative w-full">
             <input
               type="number"
               step="any"
               placeholder="GTGD 20P ≥"
-              value={minAdtv20}
-              onChange={(e) => setMinAdtv20(e.target.value)}
+              value={minAdtv20 || ''}
+              onChange={handleInputChange(setMinAdtv20)}
+              onKeyDown={handleInputKeyDown(setMinAdtv20)}
               title="Giá trị giao dịch trung bình 20 phiên tối thiểu (tỷ VNĐ/phiên)"
-              className="w-full px-2.5 py-1.5 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
-            <span className="absolute right-2 top-1.5 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
           </div>
 
-          {/* 6. RS Rating >= X */}
-          <div className="relative w-20 shrink-0">
+          {/* 8. RS Rating >= X */}
+          <div className="relative w-full">
             <input
               type="number"
               step="any"
               placeholder="RS ≥"
-              value={minRs}
-              onChange={(e) => setMinRs(e.target.value)}
+              value={minRs || ''}
+              onChange={handleInputChange(setMinRs)}
+              onKeyDown={handleInputKeyDown(setMinRs)}
               title="Chỉ số sức mạnh giá RS tối thiểu (0-99)"
-              className="w-full px-2.5 py-1.5 pr-4 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full px-2.5 py-2 pr-5 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
-            <span className="absolute right-1.5 top-1.5 text-[10px] text-gray-400 pointer-events-none">đ</span>
+            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">đ</span>
           </div>
+        </div>
 
-          {/* Nút Xóa lọc */}
-          {hasActiveAdvancedFilters && (
+        {/* Thanh trạng thái lọc nếu có điều kiện active */}
+        {hasActiveAdvancedFilters && (
+          <div className="mt-2.5 pt-2 border-t border-gray-200/60 dark:border-gray-800/60 flex items-center justify-between text-xs">
+            <span className="text-gray-500 dark:text-gray-400">
+              Đang lọc: Tìm thấy <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{filteredRecords.length}</strong> / {records.length} mã thỏa mãn
+            </span>
             <button
               onClick={resetAdvancedFilters}
-              className="px-2.5 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl flex items-center gap-1 font-semibold transition-colors shrink-0"
-              title="Đặt lại toàn bộ điều kiện lọc"
+              className="px-2.5 py-1 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg flex items-center gap-1 font-semibold transition-colors"
             >
               <X className="h-3.5 w-3.5" />
-              <span>Xóa lọc</span>
+              <span>Xóa bộ lọc</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Bảng Dữ Liệu */}
@@ -404,58 +457,58 @@ export function LatestEarningsTable() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/75 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider">
+              <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/75 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider text-[11px]">
                 <th
                   onClick={() => handleSort('ticker')}
-                  className="py-3 px-4 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                  className="py-3 px-3 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[7%]"
                 >
                   <div className="flex items-center gap-1">
                     Mã CP
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-3 px-4">Doanh Nghiệp & Sàn</th>
-                <th className="py-3 px-3 text-center">Kỳ BCTC</th>
+                <th className="py-3 px-3 w-[22%]">Doanh Nghiệp & Sàn</th>
+                <th className="py-3 px-2 text-center w-[7%]">Kỳ BCTC</th>
                 <th
                   onClick={() => handleSort('revenueCurrent')}
-                  className="py-3 px-4 text-right cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                  className="py-3 px-3 text-right cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[11%]"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Doanh Thu Thuần
+                    Doanh Thu
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('revenueYoYPercent')}
-                  className="py-3 px-3 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                  className="py-3 px-2 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[9%]"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    Tăng Trưởng DT
+                    Tăng DT
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('patCurrent')}
-                  className="py-3 px-4 text-right cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                  className="py-3 px-3 text-right cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[11%]"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Lợi Nhuận Sau Thuế
+                    LNST
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('patYoYPercent')}
-                  className="py-3 px-3 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                  className="py-3 px-2 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[9%]"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    Tăng Trưởng LNST
+                    Tăng LNST
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
                 {/* Cột Sức mạnh giá RS */}
                 <th
                   onClick={() => handleSort('rsRating')}
-                  className="py-3 px-3 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                  className="py-3 px-2 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[5%]"
                   title="Sức mạnh giá tương đối (RS 0 - 99 theo O'Neil)"
                 >
                   <div className="flex items-center justify-center gap-1">
@@ -466,7 +519,7 @@ export function LatestEarningsTable() {
                 {/* Cột GTGD bình quân 20 phiên */}
                 <th
                   onClick={() => handleSort('adtv20Billion')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                  className="py-3 px-2 text-right cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[8%]"
                   title="Giá trị giao dịch trung bình 20 phiên gần nhất"
                 >
                   <div className="flex items-center justify-end gap-1">
@@ -474,36 +527,35 @@ export function LatestEarningsTable() {
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-3 px-3 text-center">Biên Lãi Gộp</th>
+                <th className="py-3 px-2 text-center w-[9%]">Biên Lãi Gộp</th>
                 <th
                   onClick={() => handleSort('publishedAt')}
-                  className="py-3 px-3 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                  className="py-3 px-2 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[8%]"
                 >
                   <div className="flex items-center justify-center gap-1">
                     Công Bố SSC
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-3 px-3 text-center">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-gray-700 dark:text-gray-300">
               {loading ? (
                 <tr>
-                  <td colSpan={12} className="py-12 text-center text-gray-400">
+                  <td colSpan={11} className="py-12 text-center text-gray-400">
                     <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-emerald-500" />
                     Đang tải dữ liệu kết quả kinh doanh...
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-12 text-center text-gray-400">
+                  <td colSpan={11} className="py-12 text-center text-gray-400">
                     <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
                     Không tìm thấy doanh nghiệp nào phù hợp với bộ lọc hiện tại.
                   </td>
                 </tr>
               ) : (
-                filteredRecords.map((r) => {
+                pagedRecords.map((r) => {
                   const isRevPos = (r.revenueYoYPercent || 0) > 0;
                   const isPatPos = (r.patYoYPercent || 0) > 0;
                   const rs = r.rsRating;
@@ -515,18 +567,18 @@ export function LatestEarningsTable() {
                       className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors"
                     >
                       {/* Mã CP */}
-                      <td className="py-3 px-4 font-bold text-gray-900 dark:text-gray-100">
+                      <td className="py-2.5 px-3 font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
                         <Link
-                          href={`/chart?ticker=${r.ticker}`}
-                          className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors underline decoration-dotted"
-                          title="Mở biểu đồ kỹ thuật"
+                          href={`/analysis?ticker=${r.ticker}`}
+                          className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors underline decoration-dotted font-extrabold tracking-tight"
+                          title={`Xem Phân tích AI & Biểu đồ kỹ thuật ${r.ticker}`}
                         >
                           {r.ticker}
                         </Link>
                       </td>
 
                       {/* Tên DN & Sàn */}
-                      <td className="py-3 px-4 max-w-xs truncate">
+                      <td className="py-2.5 px-3 max-w-[200px] truncate">
                         <div className="font-medium text-gray-900 dark:text-gray-200 truncate" title={r.companyName}>
                           {r.companyName}
                         </div>
@@ -549,14 +601,14 @@ export function LatestEarningsTable() {
                       </td>
 
                       {/* Kỳ báo cáo */}
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                           {r.period}/{r.year}
                         </span>
                       </td>
 
                       {/* Doanh thu thuần */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
                         <div className="font-semibold text-gray-900 dark:text-gray-100">
                           {formatVnd(r.revenueCurrent)}
                         </div>
@@ -566,7 +618,7 @@ export function LatestEarningsTable() {
                       </td>
 
                       {/* Tăng trưởng doanh thu YoY */}
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         {r.revenueYoYPercent !== null ? (
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
@@ -584,7 +636,7 @@ export function LatestEarningsTable() {
                       </td>
 
                       {/* Lợi nhuận sau thuế */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
                         <div className="font-semibold text-gray-900 dark:text-gray-100">
                           {formatVnd(r.patCurrent)}
                         </div>
@@ -594,7 +646,7 @@ export function LatestEarningsTable() {
                       </td>
 
                       {/* Tăng trưởng LNST YoY */}
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         {r.patYoYPercent !== null ? (
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
@@ -612,7 +664,7 @@ export function LatestEarningsTable() {
                       </td>
 
                       {/* RS Rating */}
-                      <td className="py-3 px-3 text-center font-bold">
+                      <td className="py-2.5 px-2 text-center font-bold whitespace-nowrap">
                         {typeof rs === 'number' && rs > 0 ? (
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
@@ -634,7 +686,7 @@ export function LatestEarningsTable() {
                       </td>
 
                       {/* GTGD 20 Phiên (Tỷ VNĐ) */}
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-2.5 px-2 text-right whitespace-nowrap">
                         {typeof adtv === 'number' && adtv > 0 ? (
                           <span
                             className={`font-medium ${
@@ -654,7 +706,7 @@ export function LatestEarningsTable() {
                       </td>
 
                       {/* Biên lãi gộp */}
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         {r.grossMarginCurrent !== null ? (
                           <div>
                             <div className="font-medium text-gray-900 dark:text-gray-200">
@@ -679,19 +731,8 @@ export function LatestEarningsTable() {
                       </td>
 
                       {/* Ngày công bố */}
-                      <td className="py-3 px-3 text-center text-gray-500 dark:text-gray-400">
+                      <td className="py-2.5 px-2 text-center text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         {r.publishedAt}
-                      </td>
-
-                      {/* Thao tác */}
-                      <td className="py-3 px-3 text-center">
-                        <Link
-                          href={`/analysis?ticker=${r.ticker}`}
-                          className="inline-flex items-center px-2 py-1 rounded text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors"
-                        >
-                          Phân tích AI
-                          <ExternalLink className="h-3 w-3 ml-1" />
-                        </Link>
                       </td>
                     </tr>
                   );
@@ -700,7 +741,89 @@ export function LatestEarningsTable() {
             </tbody>
           </table>
         </div>
+
+        {/* Phân trang (Pagination) */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3.5 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 text-xs">
+          <div className="text-gray-500 dark:text-gray-400">
+            Hiển thị <strong className="text-gray-900 dark:text-gray-100">{filteredRecords.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</strong> -{' '}
+            <strong className="text-gray-900 dark:text-gray-100">
+              {Math.min(currentPage * pageSize, filteredRecords.length)}
+            </strong>{' '}
+            trong tổng số <strong className="text-gray-900 dark:text-gray-100">{filteredRecords.length}</strong> doanh nghiệp (Kỳ {activePeriod})
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Trang đầu"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Trang trước"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              {/* Danh sách số trang */}
+              <div className="flex items-center space-x-1 px-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
+                    return (
+                      page === 1 ||
+                      page === totalPages ||
+                      Math.abs(page - currentPage) <= 1
+                    );
+                  })
+                  .map((page, idx, arr) => {
+                    const prev = arr[idx - 1];
+                    const hasGap = prev && page - prev > 1;
+
+                    return (
+                      <React.Fragment key={page}>
+                        {hasGap && <span className="px-1 text-gray-400">...</span>}
+                        <button
+                          onClick={() => setCurrentPage(page)}
+                          className={`min-w-[28px] h-7 px-2 text-xs font-semibold rounded-lg transition-colors ${
+                            currentPage === page
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Trang tiếp"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Trang cuối"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
