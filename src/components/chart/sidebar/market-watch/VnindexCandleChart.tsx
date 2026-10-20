@@ -452,37 +452,47 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
                   opacity={hoveredIdx === i ? '0.7' : '0.35'}
                 />
 
-                {/* CANSLIM Distribution Marker Badge (🔴 D) */}
+                {/* CANSLIM Distribution Marker Badge (🔴 D active vs dot inactive) */}
                 {c.isDistribution && (
-                  <g>
-                    <line
-                      x1={centerX}
-                      y1={yHigh - 2}
-                      x2={centerX}
-                      y2={yHigh - 10}
-                      stroke={c.isDistribActive ? '#ef4444' : '#9ca3af'}
-                      strokeWidth="1"
-                      strokeDasharray={c.isDistribActive ? 'none' : '1 1'}
-                    />
+                  c.isDistribActive ? (
+                    <g>
+                      <line
+                        x1={centerX}
+                        y1={yHigh - 2}
+                        x2={centerX}
+                        y2={yHigh - 9}
+                        stroke="#ef4444"
+                        strokeWidth="1"
+                      />
+                      <circle
+                        cx={centerX}
+                        cy={yHigh - 12}
+                        r="4.5"
+                        fill="#ef4444"
+                        stroke="#ffffff"
+                        strokeWidth="0.8"
+                      />
+                      <text
+                        x={centerX}
+                        y={yHigh - 9.8}
+                        textAnchor="middle"
+                        fill="#ffffff"
+                        fontSize="6"
+                        fontWeight="bold"
+                      >
+                        D
+                      </text>
+                    </g>
+                  ) : (
+                    /* Inactive / neutralized distribution: minimal subtle dot */
                     <circle
                       cx={centerX}
-                      cy={yHigh - 13}
-                      r="5.5"
-                      fill={c.isDistribActive ? '#ef4444' : '#6b7280'}
-                      stroke="#ffffff"
-                      strokeWidth="0.8"
+                      cy={yHigh - 4}
+                      r="1.5"
+                      fill="#94a3b8"
+                      opacity="0.35"
                     />
-                    <text
-                      x={centerX}
-                      y={yHigh - 10.5}
-                      textAnchor="middle"
-                      fill="#ffffff"
-                      fontSize="7"
-                      fontWeight="bold"
-                    >
-                      D
-                    </text>
-                  </g>
+                  )
                 )}
 
                 {/* CANSLIM FTD Marker Badge (🟢 FTD - Phiên 4-10) */}

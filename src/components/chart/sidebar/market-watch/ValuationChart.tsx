@@ -39,12 +39,16 @@ const fetchValuation = async (type: ValType): Promise<ChartPoint[]> => {
       : Array.isArray(json?.data?.values)
       ? json.data.values
       : [];
-    return raw
+    const mapped = raw
       .map((d) => ({
         date: String(d.date ?? d.time ?? d.t ?? ''),
         value: Number(d.value ?? d.pe ?? d.pb ?? 0),
       }))
-      .filter((p) => p.value > 0);
+      .filter((p) => p.value > 0 && p.date !== '');
+
+    // Sort ascending by date so chronological order is strictly maintained
+    mapped.sort((a, b) => a.date.localeCompare(b.date));
+    return mapped;
   } catch {
     return [];
   }
@@ -55,14 +59,15 @@ const formatDateLabel = (dStr: string) => {
   const clean = dStr.slice(0, 10);
   const parts = clean.split('-');
   if (parts.length === 3) {
-    return `${parts[1]}/${parts[0]}`;
+    // MM/YY e.g. 10/24
+    return `${parts[1]}/${parts[0].slice(2)}`;
   }
   return clean;
 };
 
 export interface ValuationChartProps {
   isDashboard?: boolean;
-  height?: number;
+  height?: number | string;
 }
 
 export const ValuationChart: React.FC<ValuationChartProps> = ({ isDashboard = false, height = 135 }) => {
@@ -78,8 +83,9 @@ export const ValuationChart: React.FC<ValuationChartProps> = ({ isDashboard = fa
         setLoading(true);
         const [pe, pb] = await Promise.all([fetchValuation('pe'), fetchValuation('pb')]);
         if (pe.length === 0 && pb.length === 0) { setError(true); return; }
-        setPeData(pe.slice(-250));
-        setPbData(pb.slice(-250));
+        // Keep up to latest 350 sessions for high resolution and clean multi-year trends
+        setPeData(pe.length > 350 ? pe.slice(-350) : pe);
+        setPbData(pb.length > 350 ? pb.slice(-350) : pb);
       } catch {
         setError(true);
       } finally {
@@ -130,7 +136,7 @@ export const ValuationChart: React.FC<ValuationChartProps> = ({ isDashboard = fa
   }, [activeData, valType]);
 
   return (
-    <div className="w-full font-sans select-none">
+    <div className={`w-full font-sans select-none flex flex-col ${isDashboard ? 'h-full' : ''}`}>
       {/* Header with PE / PB Selector */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -207,7 +213,7 @@ export const ValuationChart: React.FC<ValuationChartProps> = ({ isDashboard = fa
                 tickLine={false}
                 axisLine={{ stroke: '#e2e8f0' }}
                 interval="preserveStartEnd"
-                minTickGap={35}
+                minTickGap={45}
                 padding={{ left: 0, right: 0 }}
               />
               <YAxis

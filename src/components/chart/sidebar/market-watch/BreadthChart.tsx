@@ -76,7 +76,7 @@ const fetchBreadthCond = async (cond: string): Promise<{ date: string; value: nu
 
 export interface BreadthChartProps {
   isDashboard?: boolean;
-  height?: number;
+  height?: number | string;
 }
 
 export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false, height = 135 }) => {
@@ -177,7 +177,7 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
   }, [yDomain]);
 
   return (
-    <div className="w-full font-sans select-none">
+    <div className={`w-full font-sans select-none flex flex-col ${isDashboard ? 'h-full' : ''}`}>
       {/* Header & Legend Toggles for EMA20, EMA50, EMA200 */}
       <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
         <div className="flex items-center gap-1.5 flex-wrap">

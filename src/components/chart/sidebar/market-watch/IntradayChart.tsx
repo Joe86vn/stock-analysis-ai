@@ -131,17 +131,35 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
   const svgHeight = 110;
   const padding = 6;
 
-  // Time-to-X Coordinate Mapping (09:00 = 0% -> 15:00 = 100%)
+  // Time-to-X Coordinate Mapping (Compress 11:30 - 13:00 lunch break)
+  // Morning: 09:00 - 11:30 (150 mins) | Afternoon: 13:00 - 15:00 (120 mins) | Total = 270 mins
   const getXForTime = useCallback((ts: number) => {
     const d = new Date(ts < 1e12 ? ts * 1000 : ts);
     const h = d.getHours();
     const m = d.getMinutes();
     const minsFromMidnight = h * 60 + m;
-    const startMins = 9 * 60; // 09:00 AM = 540
-    const endMins = 15 * 60; // 15:00 PM = 900
-    const totalSpan = endMins - startMins; // 360 mins
 
-    const ratio = Math.max(0, Math.min(1, (minsFromMidnight - startMins) / totalSpan));
+    const morningStart = 9 * 60; // 540
+    const morningEnd = 11 * 60 + 30; // 690 (150 mins)
+    const afternoonStart = 13 * 60; // 780
+    const afternoonEnd = 15 * 60; // 900 (120 mins)
+    const totalTradingMins = 270;
+
+    let tradingMins = 0;
+    if (minsFromMidnight <= morningStart) {
+      tradingMins = 0;
+    } else if (minsFromMidnight <= morningEnd) {
+      tradingMins = minsFromMidnight - morningStart;
+    } else if (minsFromMidnight < afternoonStart) {
+      // During lunch break: clamp to morning end so morning & afternoon connect seamlessly
+      tradingMins = 150;
+    } else if (minsFromMidnight <= afternoonEnd) {
+      tradingMins = 150 + (minsFromMidnight - afternoonStart);
+    } else {
+      tradingMins = totalTradingMins;
+    }
+
+    const ratio = Math.max(0, Math.min(1, tradingMins / totalTradingMins));
     return padding + ratio * (svgWidth - padding * 2);
   }, [padding, svgWidth]);
 
@@ -437,12 +455,11 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
             </svg>
           </div>
 
-          {/* Bottom Time Axis (9g -> 11g30 -> 13g -> 15g) aligned precisely with time percentage */}
-          <div className="relative w-full h-4 text-[9.5px] text-gray-400 font-sans font-medium mt-1 border-t border-gray-100 dark:border-gray-800/60 pt-0.5 select-none">
-            <span className="absolute left-0">9g</span>
-            <span className="absolute left-[41.67%] -translate-x-1/2">11g30</span>
-            <span className="absolute left-[66.67%] -translate-x-1/2">13g</span>
-            <span className="absolute right-0">15g</span>
+          {/* Bottom Time Axis (09:00 -> 11:30 | 13:00 -> 15:00) aligned with compressed session */}
+          <div className="relative w-full h-4 text-[9px] text-gray-400 font-sans font-medium mt-1 border-t border-gray-100 dark:border-gray-800/60 pt-0.5 select-none">
+            <span className="absolute left-0 font-mono">09:00</span>
+            <span className="absolute left-[55.56%] -translate-x-1/2 font-mono text-[8px] text-slate-500 dark:text-slate-400">11:30 | 13:00</span>
+            <span className="absolute right-0 font-mono">15:00</span>
           </div>
         </>
       )}

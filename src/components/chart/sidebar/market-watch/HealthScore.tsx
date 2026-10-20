@@ -84,8 +84,8 @@ const STATUS_CONFIG: Record<MarketStatus, {
     borderColor: 'border-rose-500/25 dark:border-rose-500/30',
     exposureLow: 0,
     exposureHigh: 25,
-    strategy: 'Tránh mua mới. Giảm toàn bộ Margin trước tiên, bảo vệ lợi nhuận và cắt lỗ 7-8%. Cân nhắc hạ tỷ trọng cổ phiếu yếu.',
-    note: 'Ưu tiên hạ toàn bộ đòn bẩy Margin trước tiên để bảo vệ vốn an toàn.',
+    strategy: 'Tránh mua mới. Bảo vệ lợi nhuận và tuân thủ cắt lỗ 7-8%. Ưu tiên đưa tài khoản về tỷ trọng an toàn.',
+    note: 'Hạ toàn bộ đòn bẩy Margin, chủ động cơ cấu các mã suy yếu.',
   },
   unknown: {
     label: 'Đang phân tích...',
