@@ -79,8 +79,11 @@ export interface BreadthChartProps {
   height?: number | string;
 }
 
+export type BreadthTimeRange = '6M' | '1Y' | '2Y';
+
 export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false, height = 135 }) => {
   const [data, setData] = useState<CombinedPoint[]>([]);
+  const [timeRange, setTimeRange] = useState<BreadthTimeRange>('1Y');
   const [visible, setVisible] = useState({ ema20: true, ema50: true, ema200: true });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -132,6 +135,24 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
     load();
   }, []);
 
+  const displayData = useMemo(() => {
+    if (data.length === 0) return [];
+    if (timeRange === '2Y') return data;
+
+    const lastDateStr = data[data.length - 1].date;
+    const lastDate = new Date(lastDateStr);
+    const cutoff = new Date(lastDate);
+    if (timeRange === '6M') {
+      cutoff.setMonth(cutoff.getMonth() - 6);
+    } else if (timeRange === '1Y') {
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+    }
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    const filtered = data.filter((d) => d.date >= cutoffStr);
+    if (filtered.length >= 10) return filtered;
+    return timeRange === '6M' ? data.slice(-126) : data.slice(-252);
+  }, [data, timeRange]);
+
   const currentVals = useMemo(() => {
     if (data.length === 0) return { ema20: null, ema50: null, ema200: null };
     const last = data[data.length - 1];
@@ -147,9 +168,9 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
   };
 
   const yDomain = useMemo(() => {
-    if (data.length === 0) return [0, 100];
+    if (displayData.length === 0) return [0, 100];
     const vals: number[] = [];
-    data.forEach((d) => {
+    displayData.forEach((d) => {
       if (visible.ema20 && typeof d.ema20 === 'number') vals.push(d.ema20);
       if (visible.ema50 && typeof d.ema50 === 'number') vals.push(d.ema50);
       if (visible.ema200 && typeof d.ema200 === 'number') vals.push(d.ema200);
@@ -157,28 +178,21 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
     if (vals.length === 0) return [0, 100];
     const min = Math.min(...vals);
     const max = Math.max(...vals);
-    const range = max - min;
-    const pad = Math.max(range * 0.08, 2);
-    const yMin = Math.max(0, Math.floor((min - pad) / 2) * 2);
-    const yMax = Math.min(100, Math.ceil((max + pad) / 2) * 2);
+    // Ensure bounds encompass at least 20% to 80% so 30% and 70% reference lines have breathing room
+    const yMin = Math.max(0, Math.min(20, Math.floor((min - 5) / 10) * 10));
+    const yMax = Math.min(100, Math.max(80, Math.ceil((max + 5) / 10) * 10));
     return [yMin, yMax];
-  }, [data, visible]);
+  }, [displayData, visible]);
 
   const yTicks = useMemo(() => {
     const [min, max] = yDomain;
-    const step = (max - min) / 4;
-    return [
-      Math.round(min),
-      Math.round(min + step),
-      Math.round(min + step * 2),
-      Math.round(min + step * 3),
-      Math.round(max),
-    ];
+    const candidates = [min, 30, 50, 70, max].filter((v) => v >= min && v <= max);
+    return Array.from(new Set(candidates)).sort((a, b) => a - b);
   }, [yDomain]);
 
   return (
     <div className={`w-full font-sans select-none flex flex-col ${isDashboard ? 'h-full' : ''}`}>
-      {/* Header & Legend Toggles for EMA20, EMA50, EMA200 */}
+      {/* Header & Legend Toggles for EMA20, EMA50, EMA200 + TimeRange Selector */}
       <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* EMA20 */}
@@ -223,14 +237,31 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
             {currentVals.ema200 !== null && <span className="font-mono">({currentVals.ema200.toFixed(1)}%)</span>}
           </button>
         </div>
+
+        {/* TimeRange Selector: 6M | 1Y | 2Y */}
+        <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-md border border-slate-200/60 dark:border-slate-700/60 text-[9px] font-mono shrink-0">
+          {(['6M', '1Y', '2Y'] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setTimeRange(r)}
+              className={`px-1.5 py-0.5 rounded font-bold cursor-pointer transition-colors ${
+                timeRange === r
+                  ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading && <div className={`flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white ${isDashboard ? 'h-[120px]' : 'h-[140px]'}`}>Đang tải 3 đường độ rộng...</div>}
       {error && !loading && <div className={`flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white ${isDashboard ? 'h-[120px]' : 'h-[140px]'}`}>Không có dữ liệu độ rộng</div>}
-      {!loading && !error && data.length > 0 && (
+      {!loading && !error && displayData.length > 0 && (
         <div className={`relative w-full ${isDashboard ? 'flex-1 min-h-[110px] bg-transparent border-none p-0' : 'bg-white dark:bg-slate-900/50 rounded-lg p-2 border border-gray-200 dark:border-gray-800 shadow-xs'}`}>
           <ResponsiveContainer width="100%" height={height}>
-            <LineChart data={data} margin={{ top: 8, right: 0, left: 0, bottom: 4 }}>
+            <LineChart data={displayData} margin={{ top: 8, right: 0, left: 0, bottom: 4 }}>
               <XAxis
                 dataKey="date"
                 tickFormatter={formatDateLabel}
@@ -253,8 +284,43 @@ export const BreadthChart: React.FC<BreadthChartProps> = ({ isDashboard = false,
                 ticks={yTicks}
                 tickFormatter={(val) => `${val}%`}
               />
+              {/* Reference Line 70% (Mốc 70% Quá mua / Hưng phấn) */}
+              {70 >= yDomain[0] && 70 <= yDomain[1] && (
+                <ReferenceLine
+                  y={70}
+                  stroke="rgba(244, 63, 94, 0.4)"
+                  strokeDasharray="3 3"
+                  strokeWidth={1}
+                  label={{
+                    value: '70%',
+                    position: 'insideRight',
+                    fill: '#f43f5e',
+                    fontSize: 8.5,
+                    opacity: 0.8,
+                  }}
+                />
+              )}
+
+              {/* Reference Line 50% (Đường trung vị cân bằng) */}
               {50 >= yDomain[0] && 50 <= yDomain[1] && (
-                <ReferenceLine y={50} stroke="rgba(148, 163, 184, 0.4)" strokeDasharray="3 3" strokeWidth={1} />
+                <ReferenceLine y={50} stroke="rgba(148, 163, 184, 0.3)" strokeDasharray="2 3" strokeWidth={0.8} />
+              )}
+
+              {/* Reference Line 30% (Mốc 30% Quá bán / Cơ hội) */}
+              {30 >= yDomain[0] && 30 <= yDomain[1] && (
+                <ReferenceLine
+                  y={30}
+                  stroke="rgba(16, 185, 129, 0.4)"
+                  strokeDasharray="3 3"
+                  strokeWidth={1}
+                  label={{
+                    value: '30%',
+                    position: 'insideRight',
+                    fill: '#10b981',
+                    fontSize: 8.5,
+                    opacity: 0.8,
+                  }}
+                />
               )}
 
               <Tooltip

@@ -17,16 +17,16 @@ const formatTime = (ts: number) => {
 
 // 30-minute intervals along the 270-minute compressed timeline
 const TIME_TICKS_30M = [
-  { label: '09:00', tradingMins: 0, align: 'left' as const, isBreak: false },
-  { label: '09:30', tradingMins: 30, align: 'center' as const, isBreak: false },
-  { label: '10:00', tradingMins: 60, align: 'center' as const, isBreak: false },
-  { label: '10:30', tradingMins: 90, align: 'center' as const, isBreak: false },
-  { label: '11:00', tradingMins: 120, align: 'center' as const, isBreak: false },
-  { label: '11:30', tradingMins: 150, align: 'center' as const, isBreak: true },
-  { label: '13:30', tradingMins: 180, align: 'center' as const, isBreak: false },
-  { label: '14:00', tradingMins: 210, align: 'center' as const, isBreak: false },
-  { label: '14:30', tradingMins: 240, align: 'center' as const, isBreak: false },
-  { label: '15:00', tradingMins: 270, align: 'right' as const, isBreak: false },
+  { label: '09:00', tradingMins: 0, align: 'left' as const },
+  { label: '09:30', tradingMins: 30, align: 'center' as const },
+  { label: '10:00', tradingMins: 60, align: 'center' as const },
+  { label: '10:30', tradingMins: 90, align: 'center' as const },
+  { label: '11:00', tradingMins: 120, align: 'center' as const },
+  { label: '11:30', tradingMins: 150, align: 'center' as const },
+  { label: '13:30', tradingMins: 180, align: 'center' as const },
+  { label: '14:00', tradingMins: 210, align: 'center' as const },
+  { label: '14:30', tradingMins: 240, align: 'center' as const },
+  { label: '15:00', tradingMins: 270, align: 'right' as const },
 ];
 
 export interface IntradayChartProps {
@@ -399,7 +399,6 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
               {TIME_TICKS_30M.map((tick, i) => {
                 const ratio = tick.tradingMins / 270;
                 const x = padding + ratio * (svgWidth - padding * 2);
-                const isBreak = tick.isBreak;
                 return (
                   <line
                     key={`vgrid-${i}`}
@@ -408,9 +407,9 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
                     x2={x}
                     y2={svgHeight}
                     stroke="currentColor"
-                    className={isBreak ? 'text-slate-400/40 dark:text-slate-500/50' : 'text-slate-300/30 dark:text-slate-800/60'}
-                    strokeDasharray={isBreak ? '3 3' : '2 3'}
-                    strokeWidth={isBreak ? '1' : '0.6'}
+                    className="text-slate-300/30 dark:text-slate-800/60"
+                    strokeDasharray="2 3"
+                    strokeWidth="0.6"
                   />
                 );
               })}
@@ -512,15 +511,9 @@ export const IntradayChart: React.FC<IntradayChartProps> = ({ isDashboard = fals
                 <span
                   key={tick.label}
                   style={{ left: `${pct}%` }}
-                  className={`absolute -translate-x-1/2 font-mono whitespace-nowrap ${
-                    tick.isBreak
-                      ? 'text-slate-700 dark:text-slate-300 font-semibold'
-                      : 'text-slate-500 dark:text-slate-400'
-                  }`}
-                  title={tick.isBreak ? 'Nghỉ trưa 11:30 - 13:00' : undefined}
+                  className="absolute -translate-x-1/2 font-mono whitespace-nowrap text-slate-500 dark:text-slate-400"
                 >
                   {tick.label}
-                  {tick.isBreak && <span className="hidden sm:inline text-[7px] text-slate-400 dark:text-slate-500">|13h</span>}
                 </span>
               );
             })}

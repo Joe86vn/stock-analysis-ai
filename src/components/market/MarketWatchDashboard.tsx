@@ -445,7 +445,7 @@ export const MarketWatchDashboard: React.FC = () => {
             <PanelHeader
               icon={LineChartIcon}
               title="Độ Rộng Thị Trường"
-              badge="2 NĂM"
+              badge="% CP TRÊN MA"
             />
             <div className="flex-1 min-h-0 w-full overflow-hidden">
               <BreadthChart isDashboard={true} height="100%" />
@@ -592,7 +592,7 @@ export const MarketWatchDashboard: React.FC = () => {
               title="Nước Ngoài Mua / Bán Ròng"
               badge="TỶ VNĐ"
             />
-            <div className="flex-1 min-h-0 w-full overflow-y-auto">
+            <div className="flex-1 min-h-0 w-full">
               <NetFlowTable isDashboard={true} maxItems={10} />
             </div>
           </div>
