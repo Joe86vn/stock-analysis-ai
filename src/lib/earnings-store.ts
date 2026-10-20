@@ -14,6 +14,8 @@ const STORE_FILE_PATH = path.join(DATA_DIR, 'latest_earnings_updates.json');
 declare global {
   // eslint-disable-next-line no-var
   var __EARNINGS_STORE_CACHE__: EarningsStoreData | undefined;
+  // eslint-disable-next-line no-var
+  var __EARNINGS_STORE_MTIME__: number | undefined;
 }
 
 function ensureDirectories(): void {
@@ -42,21 +44,22 @@ function createDefaultStore(): EarningsStoreData {
 }
 
 /**
- * Tải dữ liệu store vào bộ nhớ cache
+ * Tải dữ liệu store vào bộ nhớ cache, tự động đọc lại đĩa nếu file có thay đổi mtime
  */
 export function getEarningsStore(): EarningsStoreData {
-  if (globalThis.__EARNINGS_STORE_CACHE__) {
-    return globalThis.__EARNINGS_STORE_CACHE__;
-  }
-
   ensureDirectories();
 
   try {
     if (fs.existsSync(STORE_FILE_PATH)) {
+      const mtime = fs.statSync(STORE_FILE_PATH).mtimeMs;
+      if (globalThis.__EARNINGS_STORE_CACHE__ && globalThis.__EARNINGS_STORE_MTIME__ === mtime) {
+        return globalThis.__EARNINGS_STORE_CACHE__;
+      }
       const raw = fs.readFileSync(STORE_FILE_PATH, 'utf-8');
       const parsed: EarningsStoreData = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.records)) {
         globalThis.__EARNINGS_STORE_CACHE__ = parsed;
+        globalThis.__EARNINGS_STORE_MTIME__ = mtime;
         return parsed;
       }
     }
@@ -76,7 +79,9 @@ function persistStore(data: EarningsStoreData): void {
   try {
     ensureDirectories();
     fs.writeFileSync(STORE_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    const mtime = fs.existsSync(STORE_FILE_PATH) ? fs.statSync(STORE_FILE_PATH).mtimeMs : Date.now();
     globalThis.__EARNINGS_STORE_CACHE__ = data;
+    globalThis.__EARNINGS_STORE_MTIME__ = mtime;
   } catch (err: any) {
     console.warn('[Earnings Store] Error writing store to disk:', err.message);
   }
