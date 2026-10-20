@@ -312,7 +312,7 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
   };
 
   // 5 Price Axis Ticks across priceRange
-  const priceTicks = useMemo(() => {
+  const priceTicks = (() => {
     const count = 5;
     const step = priceRange / (count - 1);
     return Array.from({ length: count }, (_, idx) => {
@@ -320,10 +320,10 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
       const y = getPriceY(price);
       return { price, y };
     });
-  }, [minLow, priceRange, candleAreaHeight]);
+  })();
 
   // Sampled Time Axis Ticks across candles
-  const timeTicks = useMemo(() => {
+  const timeTicks = (() => {
     if (candles.length < 5) return [];
     const count = isDashboard ? 8 : 4;
     const step = Math.max(1, Math.floor(candles.length / count));
@@ -344,7 +344,7 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
       ticks.push({ date: lastFormatted, x: lastCenterX });
     }
     return ticks;
-  }, [candles, candleSpacing, isDashboard]);
+  })();
 
   // Generate SVG Path for MA20 Price (Amber) & MA20 Volume (Cyan)
   const ma20PricePts = candles
