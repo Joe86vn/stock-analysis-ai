@@ -335,7 +335,10 @@ export function LatestEarningsTable() {
       )}
 
       {/* Thanh Bộ Lọc & Tìm Kiếm Hợp Nhất (Kích thước rộng đều, lấp đầy chiều ngang) */}
-      <div className="p-3.5 rounded-2xl bg-gray-50/80 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 shadow-xs">
+      <div
+        translate="no"
+        className="notranslate p-3.5 rounded-2xl bg-gray-50/80 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 shadow-xs"
+      >
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 items-center text-xs">
           {/* 1. Ô Tìm kiếm Mã CP */}
           <div className="relative w-full">
@@ -343,11 +346,14 @@ export function LatestEarningsTable() {
             <input
               type="text"
               placeholder="Mã CP..."
+              translate="no"
+              autoComplete="off"
+              spellCheck={false}
               value={search || ''}
               onChange={handleInputChange(setSearch)}
               onKeyDown={handleInputKeyDown(setSearch)}
               title="Tìm theo Mã cổ phiếu hoặc từ khóa tên doanh nghiệp"
-              className="w-full pl-8 pr-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 uppercase font-semibold"
+              className="notranslate w-full pl-8 pr-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 uppercase font-semibold"
             />
           </div>
 
@@ -359,7 +365,7 @@ export function LatestEarningsTable() {
                 setSelectedExchange(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full px-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              className="notranslate w-full px-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
             >
               <option value="ALL">Mọi sàn ({records.length})</option>
               <option value="HOSE">Sàn HOSE</option>
@@ -373,12 +379,15 @@ export function LatestEarningsTable() {
             <input
               type="number"
               step="any"
-              placeholder="DT ≥"
+              placeholder="Tối thiểu"
+              translate="no"
+              autoComplete="off"
+              spellCheck={false}
               value={minRevenueBillion || ''}
               onChange={handleInputChange(setMinRevenueBillion)}
               onKeyDown={handleInputKeyDown(setMinRevenueBillion)}
               title="Doanh thu thuần tối thiểu (tỷ VNĐ)"
-              className="w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="notranslate w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
             <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
           </div>
@@ -388,12 +397,15 @@ export function LatestEarningsTable() {
             <input
               type="number"
               step="any"
-              placeholder="DT tăng ≥"
+              placeholder="Tối thiểu"
+              translate="no"
+              autoComplete="off"
+              spellCheck={false}
               value={minRevenueYoY || ''}
               onChange={handleInputChange(setMinRevenueYoY)}
               onKeyDown={handleInputKeyDown(setMinRevenueYoY)}
               title="Tăng trưởng doanh thu cùng kỳ tối thiểu (%)"
-              className="w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="notranslate w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
             <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">%</span>
           </div>
@@ -403,12 +415,15 @@ export function LatestEarningsTable() {
             <input
               type="number"
               step="any"
-              placeholder="LNST ≥"
+              placeholder="Tối thiểu"
+              translate="no"
+              autoComplete="off"
+              spellCheck={false}
               value={minPatBillion || ''}
               onChange={handleInputChange(setMinPatBillion)}
               onKeyDown={handleInputKeyDown(setMinPatBillion)}
               title="Lợi nhuận sau thuế tối thiểu (tỷ VNĐ)"
-              className="w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="notranslate w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
             <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
           </div>
@@ -418,12 +433,15 @@ export function LatestEarningsTable() {
             <input
               type="number"
               step="any"
-              placeholder="LNST tăng ≥"
+              placeholder="Tối thiểu"
+              translate="no"
+              autoComplete="off"
+              spellCheck={false}
               value={minPatYoY || ''}
               onChange={handleInputChange(setMinPatYoY)}
               onKeyDown={handleInputKeyDown(setMinPatYoY)}
               title="Tăng trưởng LNST cùng kỳ tối thiểu (%)"
-              className="w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="notranslate w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
             <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">%</span>
           </div>
@@ -433,12 +451,15 @@ export function LatestEarningsTable() {
             <input
               type="number"
               step="any"
-              placeholder="GTGD 20P ≥"
+              placeholder="Tối thiểu"
+              translate="no"
+              autoComplete="off"
+              spellCheck={false}
               value={minAdtv20 || ''}
               onChange={handleInputChange(setMinAdtv20)}
               onKeyDown={handleInputKeyDown(setMinAdtv20)}
               title="Giá trị giao dịch trung bình 20 phiên tối thiểu (tỷ VNĐ/phiên)"
-              className="w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="notranslate w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
             <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
           </div>
@@ -448,14 +469,17 @@ export function LatestEarningsTable() {
             <input
               type="number"
               step="any"
-              placeholder="RS ≥"
+              placeholder="Tối thiểu"
+              translate="no"
+              autoComplete="off"
+              spellCheck={false}
               value={minRs || ''}
               onChange={handleInputChange(setMinRs)}
               onKeyDown={handleInputKeyDown(setMinRs)}
               title="Chỉ số sức mạnh giá RS tối thiểu (0-99)"
-              className="w-full px-2.5 py-2 pr-5 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="notranslate w-full px-2.5 py-2 pr-10 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
-            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">đ</span>
+            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">điểm</span>
           </div>
         </div>
 
@@ -762,16 +786,29 @@ export function LatestEarningsTable() {
 
                       {/* Mở đọc BCTC gốc trực tiếp */}
                       <td className="py-2.5 px-2 text-center whitespace-nowrap">
-                        <a
-                          href={`/api/earnings/pdf/${encodeURIComponent(r.id)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs"
-                          title={`Mở xem văn bản PDF BCTC gốc của ${r.ticker}`}
-                        >
-                          <FileText className="h-3.5 w-3.5 text-emerald-500" />
-                          <span>Xem PDF</span>
-                        </a>
+                        {r.hasPdf ? (
+                          <a
+                            href={`/api/earnings/pdf/${encodeURIComponent(r.id)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs"
+                            title={`Mở xem văn bản PDF BCTC gốc của ${r.ticker}`}
+                          >
+                            <FileText className="h-3.5 w-3.5 text-emerald-500" />
+                            <span>Xem PDF</span>
+                          </a>
+                        ) : (
+                          <a
+                            href={r.sourceUrl || 'https://congbothongtin.ssc.gov.vn/faces/NewsSearch'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/80 border border-sky-200 dark:border-sky-800 transition-colors shadow-2xs"
+                            title={`Bản tin cào từ các phiên trước - mở tra cứu nguồn gốc tại Cổng UBCKNN`}
+                          >
+                            <ExternalLink className="h-3 w-3 text-sky-500" />
+                            <span>Nguồn SSC</span>
+                          </a>
+                        )}
                       </td>
                     </tr>
                   );
