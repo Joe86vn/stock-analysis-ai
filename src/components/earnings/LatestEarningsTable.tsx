@@ -334,152 +334,192 @@ export function LatestEarningsTable() {
         </div>
       )}
 
-      {/* Thanh Bộ Lọc & Tìm Kiếm Hợp Nhất (Kích thước rộng đều, lấp đầy chiều ngang) */}
+      {/* Thanh Bộ Lọc & Tìm Kiếm Hợp Nhất (Có nhãn rõ ràng phía trên mỗi tiêu chí) */}
       <div
         translate="no"
         className="notranslate p-3.5 rounded-2xl bg-gray-50/80 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 shadow-xs"
       >
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 items-center text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 items-end text-xs">
           {/* 1. Ô Tìm kiếm Mã CP */}
-          <div className="relative w-full">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Mã CP..."
-              translate="no"
-              autoComplete="off"
-              spellCheck={false}
-              value={search || ''}
-              onChange={handleInputChange(setSearch)}
-              onKeyDown={handleInputKeyDown(setSearch)}
-              title="Tìm theo Mã cổ phiếu hoặc từ khóa tên doanh nghiệp"
-              className="notranslate w-full pl-8 pr-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 uppercase font-semibold"
-            />
+          <div className="flex flex-col w-full">
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1.5 flex items-center gap-1 truncate select-none">
+              <Search className="h-3 w-3 text-emerald-500 shrink-0" />
+              <span>Tìm Mã CP</span>
+            </label>
+            <div className="relative w-full">
+              <input
+                type="text"
+                placeholder="Mã hoặc tên..."
+                translate="no"
+                autoComplete="off"
+                spellCheck={false}
+                value={search || ''}
+                onChange={handleInputChange(setSearch)}
+                onKeyDown={handleInputKeyDown(setSearch)}
+                title="Tìm theo Mã cổ phiếu hoặc từ khóa tên doanh nghiệp"
+                className="notranslate w-full px-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 uppercase font-semibold"
+              />
+            </div>
           </div>
 
           {/* 2. Lọc Sàn */}
-          <div className="w-full">
-            <select
-              value={selectedExchange}
-              onChange={(e) => {
-                setSelectedExchange(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="notranslate w-full px-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
-            >
-              <option value="ALL">Mọi sàn ({records.length})</option>
-              <option value="HOSE">Sàn HOSE</option>
-              <option value="HNX">Sàn HNX</option>
-              <option value="UPCOM">Sàn UPCOM</option>
-            </select>
+          <div className="flex flex-col w-full">
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1.5 truncate select-none">
+              Sàn Niêm Yết
+            </label>
+            <div className="w-full">
+              <select
+                value={selectedExchange}
+                onChange={(e) => {
+                  setSelectedExchange(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="notranslate w-full px-2.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              >
+                <option value="ALL">Mọi sàn ({records.length})</option>
+                <option value="HOSE">Sàn HOSE</option>
+                <option value="HNX">Sàn HNX</option>
+                <option value="UPCOM">Sàn UPCOM</option>
+              </select>
+            </div>
           </div>
 
           {/* 3. Doanh thu >= X tỷ */}
-          <div className="relative w-full">
-            <input
-              type="number"
-              step="any"
-              placeholder="Tối thiểu"
-              translate="no"
-              autoComplete="off"
-              spellCheck={false}
-              value={minRevenueBillion || ''}
-              onChange={handleInputChange(setMinRevenueBillion)}
-              onKeyDown={handleInputKeyDown(setMinRevenueBillion)}
-              title="Doanh thu thuần tối thiểu (tỷ VNĐ)"
-              className="notranslate w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+          <div className="flex flex-col w-full">
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1.5 truncate select-none" title="Doanh thu thuần tối thiểu">
+              Doanh Thu ≥
+            </label>
+            <div className="relative w-full">
+              <input
+                type="number"
+                step="any"
+                placeholder="Tối thiểu"
+                translate="no"
+                autoComplete="off"
+                spellCheck={false}
+                value={minRevenueBillion || ''}
+                onChange={handleInputChange(setMinRevenueBillion)}
+                onKeyDown={handleInputKeyDown(setMinRevenueBillion)}
+                title="Doanh thu thuần tối thiểu (tỷ VNĐ)"
+                className="notranslate w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              />
+              <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+            </div>
           </div>
 
           {/* 4. Tăng trưởng DT >= X % */}
-          <div className="relative w-full">
-            <input
-              type="number"
-              step="any"
-              placeholder="Tối thiểu"
-              translate="no"
-              autoComplete="off"
-              spellCheck={false}
-              value={minRevenueYoY || ''}
-              onChange={handleInputChange(setMinRevenueYoY)}
-              onKeyDown={handleInputKeyDown(setMinRevenueYoY)}
-              title="Tăng trưởng doanh thu cùng kỳ tối thiểu (%)"
-              className="notranslate w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">%</span>
+          <div className="flex flex-col w-full">
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1.5 truncate select-none" title="Tăng trưởng doanh thu YoY tối thiểu">
+              Tăng DT YoY ≥
+            </label>
+            <div className="relative w-full">
+              <input
+                type="number"
+                step="any"
+                placeholder="Tối thiểu"
+                translate="no"
+                autoComplete="off"
+                spellCheck={false}
+                value={minRevenueYoY || ''}
+                onChange={handleInputChange(setMinRevenueYoY)}
+                onKeyDown={handleInputKeyDown(setMinRevenueYoY)}
+                title="Tăng trưởng doanh thu cùng kỳ tối thiểu (%)"
+                className="notranslate w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              />
+              <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">%</span>
+            </div>
           </div>
 
           {/* 5. LNST >= X tỷ */}
-          <div className="relative w-full">
-            <input
-              type="number"
-              step="any"
-              placeholder="Tối thiểu"
-              translate="no"
-              autoComplete="off"
-              spellCheck={false}
-              value={minPatBillion || ''}
-              onChange={handleInputChange(setMinPatBillion)}
-              onKeyDown={handleInputKeyDown(setMinPatBillion)}
-              title="Lợi nhuận sau thuế tối thiểu (tỷ VNĐ)"
-              className="notranslate w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+          <div className="flex flex-col w-full">
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1.5 truncate select-none" title="Lợi nhuận sau thuế tối thiểu">
+              LNST ≥
+            </label>
+            <div className="relative w-full">
+              <input
+                type="number"
+                step="any"
+                placeholder="Tối thiểu"
+                translate="no"
+                autoComplete="off"
+                spellCheck={false}
+                value={minPatBillion || ''}
+                onChange={handleInputChange(setMinPatBillion)}
+                onKeyDown={handleInputKeyDown(setMinPatBillion)}
+                title="Lợi nhuận sau thuế tối thiểu (tỷ VNĐ)"
+                className="notranslate w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              />
+              <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+            </div>
           </div>
 
           {/* 6. Tăng trưởng LNST >= X % */}
-          <div className="relative w-full">
-            <input
-              type="number"
-              step="any"
-              placeholder="Tối thiểu"
-              translate="no"
-              autoComplete="off"
-              spellCheck={false}
-              value={minPatYoY || ''}
-              onChange={handleInputChange(setMinPatYoY)}
-              onKeyDown={handleInputKeyDown(setMinPatYoY)}
-              title="Tăng trưởng LNST cùng kỳ tối thiểu (%)"
-              className="notranslate w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">%</span>
+          <div className="flex flex-col w-full">
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1.5 truncate select-none" title="Tăng trưởng LNST YoY tối thiểu">
+              Tăng LNST YoY ≥
+            </label>
+            <div className="relative w-full">
+              <input
+                type="number"
+                step="any"
+                placeholder="Tối thiểu"
+                translate="no"
+                autoComplete="off"
+                spellCheck={false}
+                value={minPatYoY || ''}
+                onChange={handleInputChange(setMinPatYoY)}
+                onKeyDown={handleInputKeyDown(setMinPatYoY)}
+                title="Tăng trưởng LNST cùng kỳ tối thiểu (%)"
+                className="notranslate w-full px-2.5 py-2 pr-6 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              />
+              <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">%</span>
+            </div>
           </div>
 
           {/* 7. GTGD 20P >= X tỷ */}
-          <div className="relative w-full">
-            <input
-              type="number"
-              step="any"
-              placeholder="Tối thiểu"
-              translate="no"
-              autoComplete="off"
-              spellCheck={false}
-              value={minAdtv20 || ''}
-              onChange={handleInputChange(setMinAdtv20)}
-              onKeyDown={handleInputKeyDown(setMinAdtv20)}
-              title="Giá trị giao dịch trung bình 20 phiên tối thiểu (tỷ VNĐ/phiên)"
-              className="notranslate w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+          <div className="flex flex-col w-full">
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1.5 truncate select-none" title="Giá trị giao dịch trung bình 20 phiên tối thiểu">
+              GTGD 20P ≥
+            </label>
+            <div className="relative w-full">
+              <input
+                type="number"
+                step="any"
+                placeholder="Tối thiểu"
+                translate="no"
+                autoComplete="off"
+                spellCheck={false}
+                value={minAdtv20 || ''}
+                onChange={handleInputChange(setMinAdtv20)}
+                onKeyDown={handleInputKeyDown(setMinAdtv20)}
+                title="Giá trị giao dịch trung bình 20 phiên tối thiểu (tỷ VNĐ/phiên)"
+                className="notranslate w-full px-2.5 py-2 pr-7 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              />
+              <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">tỷ</span>
+            </div>
           </div>
 
           {/* 8. RS Rating >= X */}
-          <div className="relative w-full">
-            <input
-              type="number"
-              step="any"
-              placeholder="Tối thiểu"
-              translate="no"
-              autoComplete="off"
-              spellCheck={false}
-              value={minRs || ''}
-              onChange={handleInputChange(setMinRs)}
-              onKeyDown={handleInputKeyDown(setMinRs)}
-              title="Chỉ số sức mạnh giá RS tối thiểu (0-99)"
-              className="notranslate w-full px-2.5 py-2 pr-10 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-            <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">điểm</span>
+          <div className="flex flex-col w-full">
+            <label className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1.5 truncate select-none" title="Chỉ số sức mạnh giá RS tối thiểu (0-99)">
+              RS Rating ≥
+            </label>
+            <div className="relative w-full">
+              <input
+                type="number"
+                step="any"
+                placeholder="Tối thiểu"
+                translate="no"
+                autoComplete="off"
+                spellCheck={false}
+                value={minRs || ''}
+                onChange={handleInputChange(setMinRs)}
+                onKeyDown={handleInputKeyDown(setMinRs)}
+                title="Chỉ số sức mạnh giá RS tối thiểu (0-99)"
+                className="notranslate w-full px-2.5 py-2 pr-10 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              />
+              <span className="absolute right-2 top-2 text-[10px] text-gray-400 pointer-events-none">điểm</span>
+            </div>
           </div>
         </div>
 
