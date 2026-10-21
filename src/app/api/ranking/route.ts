@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       count: rankings.length,
-      totalTracked: FILTER_75_TICKERS.length,
+      totalTracked: rankings.length,
       updatedAt: new Date().toISOString(),
       data: rankings,
     });

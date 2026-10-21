@@ -458,11 +458,33 @@ export async function getFullStockRankingList(forceRefresh = false): Promise<Sto
     }
   }
 
+  // 2. Nếu cần tính toán / làm mới: Lấy danh sách cổ phiếu đạt chuẩn từ Vietcap Screener
+  let candidateTickers: string[] = [];
+  try {
+    const { executeVietcapScreener } = await import('./vietcap-screener-service');
+    const screened = await executeVietcapScreener({
+      exchanges: ['HSX', 'HNX', 'UPCOM'],
+      rsMin: 65,
+      adtvMinBillion: 3,
+    });
+    if (screened && screened.length > 0) {
+      candidateTickers = screened.map((s) => s.ticker).filter((t) => t && t.length === 3);
+    }
+  } catch (err: any) {
+    console.warn('[Ranking] Vietcap Screener error, fallback to FILTER_75_TICKERS:', err.message);
+  }
+
+  // Đảm bảo có ít nhất các mã chiến lược nếu screener không trả về đủ
+  if (candidateTickers.length < 30) {
+    const set = new Set([...candidateTickers, ...FILTER_75_TICKERS]);
+    candidateTickers = Array.from(set);
+  }
+
   const results: StockRankingItem[] = [];
   const batchSize = 8;
 
-  for (let i = 0; i < FILTER_75_TICKERS.length; i += batchSize) {
-    const batch = FILTER_75_TICKERS.slice(i, i + batchSize);
+  for (let i = 0; i < candidateTickers.length; i += batchSize) {
+    const batch = candidateTickers.slice(i, i + batchSize);
     const batchPromises = batch.map((ticker) => calculateStockRankingItem(ticker, undefined, forceRefresh));
     const batchResults = await Promise.all(batchPromises);
 
@@ -482,7 +504,9 @@ export async function getFullStockRankingList(forceRefresh = false): Promise<Sto
   });
 
   // Lưu lại vào RAM & SSD NVMe cho các lần gọi sau
-  await savePrecomputedRankings(results);
+  if (results.length > 0) {
+    await savePrecomputedRankings(results);
+  }
 
   return results;
 }
