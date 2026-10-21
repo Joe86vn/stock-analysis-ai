@@ -9,6 +9,7 @@ import {
 
 const DATA_DIR = path.join(process.cwd(), 'data', 'earnings');
 const ARCHIVE_DIR = path.join(DATA_DIR, 'archive');
+const PDFS_DIR = path.join(DATA_DIR, 'pdfs');
 const STORE_FILE_PATH = path.join(DATA_DIR, 'latest_earnings_updates.json');
 
 declare global {
@@ -25,6 +26,9 @@ function ensureDirectories(): void {
     }
     if (!fs.existsSync(ARCHIVE_DIR)) {
       fs.mkdirSync(ARCHIVE_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(PDFS_DIR)) {
+      fs.mkdirSync(PDFS_DIR, { recursive: true });
     }
   } catch (err) {
     console.warn('[Earnings Store] Cannot create directory:', err);
@@ -86,10 +90,10 @@ export function calculateCurrentReportPeriod(date: Date = new Date()): {
 /**
  * Tạo dữ liệu store mặc định
  */
-function createDefaultStore(): EarningsStoreData {
+function createDefaultStore(periodLabel?: string): EarningsStoreData {
   const currentPeriod = calculateCurrentReportPeriod();
   return {
-    activePeriod: currentPeriod.label,
+    activePeriod: periodLabel || currentPeriod.label,
     updatedAt: new Date().toISOString(),
     totalRecords: 0,
     records: [],
@@ -117,11 +121,10 @@ export function getEarningsStore(): EarningsStoreData {
       const raw = fs.readFileSync(STORE_FILE_PATH, 'utf-8');
       const parsed: EarningsStoreData = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.records)) {
-        // Kiểm tra tự động chuyển kỳ nếu thời gian đã sang kỳ mới
+        // Kiểm tra tự động chuyển kỳ nếu thời gian đã sang kỳ mới (tránh đệ quy bằng rolloverToNewPeriodInternal)
         if (parsed.activePeriod && parsed.activePeriod !== currentPeriodInfo.label) {
           console.log(`[Earnings Store] Tự động chuyển kỳ: ${parsed.activePeriod} -> ${currentPeriodInfo.label}`);
-          rolloverToNewPeriod(currentPeriodInfo.label);
-          return getEarningsStore();
+          return rolloverToNewPeriodInternal(parsed, currentPeriodInfo.label);
         }
 
         globalThis.__EARNINGS_STORE_CACHE__ = parsed;
@@ -301,28 +304,37 @@ export function queryEarningsRecords(filter: EarningsFilterParams = {}): {
 }
 
 /**
- * Cơ chế Rollover theo Kỳ Báo Cáo:
- * Đóng gói bảng kỳ hiện tại lưu vào archive và làm mới bảng cho kỳ mới
+ * Hàm nội bộ thực hiện rollover từ store hiện có sang kỳ mới (không gây đệ quy)
  */
-export function rolloverToNewPeriod(newPeriod: string): {
-  archivedPeriod: string;
-  archivedCount: number;
-  newActivePeriod: string;
-} {
+function rolloverToNewPeriodInternal(
+  oldStore: EarningsStoreData,
+  newPeriod: string
+): EarningsStoreData {
   ensureDirectories();
-  const store = getEarningsStore();
-
-  const oldPeriod = store.activePeriod || 'OLD_PERIOD';
+  const oldPeriod = oldStore.activePeriod || 'OLD_PERIOD';
   const slug = oldPeriod.replace(/[^a-zA-Z0-9_-]/g, '_');
   const archiveFilePath = path.join(ARCHIVE_DIR, `earnings_${slug}.json`);
 
   // Lưu trữ dữ liệu kỳ cũ
-  if (store.records.length > 0) {
-    fs.writeFileSync(archiveFilePath, JSON.stringify(store, null, 2), 'utf-8');
-    console.log(`[Earnings Store] Archived ${store.records.length} records of period ${oldPeriod} to ${archiveFilePath}`);
+  if (oldStore.records && oldStore.records.length > 0) {
+    try {
+      fs.writeFileSync(archiveFilePath, JSON.stringify(oldStore, null, 2), 'utf-8');
+      console.log(`[Earnings Store] Archived ${oldStore.records.length} records of period ${oldPeriod} to ${archiveFilePath}`);
+    } catch (err: any) {
+      console.warn('[Earnings Store] Failed to write archive:', err.message);
+    }
   }
 
-  const archivedCount = store.records.length;
+  // Dọn dẹp thư mục PDF của kỳ cũ để tiết kiệm dung lượng SSD
+  try {
+    const oldPdfDir = path.join(PDFS_DIR, slug);
+    if (fs.existsSync(oldPdfDir)) {
+      fs.rmSync(oldPdfDir, { recursive: true, force: true });
+      console.log(`[Earnings Store] Cleaned up old PDFs directory for period ${oldPeriod}: ${oldPdfDir}`);
+    }
+  } catch (err: any) {
+    console.warn('[Earnings Store] Failed to clean old PDFs directory:', err.message);
+  }
 
   // Khởi tạo bảng mới
   const freshStore: EarningsStoreData = {
@@ -333,12 +345,99 @@ export function rolloverToNewPeriod(newPeriod: string): {
   };
 
   persistStore(freshStore);
+  return freshStore;
+}
+
+/**
+ * Cơ chế Rollover theo Kỳ Báo Cáo:
+ * Đóng gói bảng kỳ hiện tại lưu vào archive và làm mới bảng cho kỳ mới
+ */
+export function rolloverToNewPeriod(newPeriod: string): {
+  archivedPeriod: string;
+  archivedCount: number;
+  newActivePeriod: string;
+} {
+  ensureDirectories();
+  let currentStore: EarningsStoreData;
+  try {
+    if (fs.existsSync(STORE_FILE_PATH)) {
+      const raw = fs.readFileSync(STORE_FILE_PATH, 'utf-8');
+      currentStore = JSON.parse(raw);
+    } else {
+      currentStore = createDefaultStore();
+    }
+  } catch {
+    currentStore = createDefaultStore();
+  }
+
+  const oldPeriod = currentStore.activePeriod || 'OLD_PERIOD';
+  const archivedCount = currentStore.records?.length || 0;
+
+  rolloverToNewPeriodInternal(currentStore, newPeriod);
 
   return {
     archivedPeriod: oldPeriod,
     archivedCount,
     newActivePeriod: newPeriod,
   };
+}
+
+/**
+ * Lưu file PDF BCTC gốc vào thư mục lưu trữ theo kỳ: data/earnings/pdfs/[periodSlug]/[recordId].pdf
+ */
+export function saveEarningsPdf(
+  recordId: string,
+  periodLabel: string,
+  sourcePdfPath: string
+): string | null {
+  try {
+    ensureDirectories();
+    const periodSlug = periodLabel.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const targetDir = path.join(PDFS_DIR, periodSlug);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const safeFilename = `${recordId}.pdf`;
+    const targetPath = path.join(targetDir, safeFilename);
+
+    fs.copyFileSync(sourcePdfPath, targetPath);
+    console.log(`[Earnings Store] Saved full BCTC PDF for ${recordId} at: ${targetPath}`);
+    return targetPath;
+  } catch (err: any) {
+    console.warn(`[Earnings Store] Failed to save BCTC PDF for ${recordId}:`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Lấy đường dẫn file PDF của một bản ghi để mở đọc trực tiếp trên trình duyệt
+ */
+export function getEarningsPdfPath(recordId: string): string | null {
+  try {
+    ensureDirectories();
+    // 1. Kiểm tra trong kỳ hiện tại
+    const currentPeriod = calculateCurrentReportPeriod();
+    const currentSlug = currentPeriod.label.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const directPath = path.join(PDFS_DIR, currentSlug, `${recordId}.pdf`);
+    if (fs.existsSync(directPath)) {
+      return directPath;
+    }
+
+    // 2. Tìm kiếm trong tất cả thư mục kỳ con của PDFS_DIR
+    if (fs.existsSync(PDFS_DIR)) {
+      const subdirs = fs.readdirSync(PDFS_DIR);
+      for (const dir of subdirs) {
+        const candidate = path.join(PDFS_DIR, dir, `${recordId}.pdf`);
+        if (fs.existsSync(candidate)) {
+          return candidate;
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[Earnings Store] Error finding PDF path for ${recordId}:`, err.message);
+  }
+  return null;
 }
 
 /**

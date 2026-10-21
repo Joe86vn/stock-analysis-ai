@@ -101,6 +101,10 @@ export interface EarningsRecord {
   rsRating?: number | null; // Sức mạnh giá tương đối RS (0 - 99)
   adtv20Billion?: number | null; // Giá trị giao dịch bình quân 20 phiên (Tỷ VNĐ)
   currentPrice?: number | null; // Thị giá hiện tại (VNĐ)
+
+  // Liên kết file PDF BCTC gốc
+  hasPdf?: boolean;
+  pdfPath?: string;
 }
 
 /**
@@ -129,4 +133,25 @@ export interface EarningsStoreData {
   updatedAt: string;
   totalRecords: number;
   records: EarningsRecord[];
+}
+
+/**
+ * Trạng thái tiến trình quét SSC toàn cục
+ */
+export interface SscScanProgress {
+  isScanning: boolean;
+  currentStep: string;
+  page: number;
+  totalScanned: number;
+  foundNewCount: number;
+  processedCount: number;
+  currentTicker?: string;
+  startedAt?: string;
+  updatedAt?: string;
+  finishedAt?: string;
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __SSC_SCAN_PROGRESS__: SscScanProgress | undefined;
 }

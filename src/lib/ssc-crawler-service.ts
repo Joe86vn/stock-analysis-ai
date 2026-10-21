@@ -402,18 +402,32 @@ export async function runSscEarningsPipeline(options: {
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
-  const { locateIncomeStatementPages, cleanupTempPdf } = await import('./ssc-pdf-locator');
+  const { locateIncomeStatementPages, cleanupTempPdf, slicePdfPages } = await import('./ssc-pdf-locator');
   const {
     extractEarningsFromText,
     extractEarningsFromPdfFile,
     buildEarningsRecord,
   } = await import('./ssc-earnings-extractor');
-  const { upsertEarningsRecord, cleanInvalidEarningsRecords } = await import('./earnings-store');
+  const { upsertEarningsRecord, cleanInvalidEarningsRecords, saveEarningsPdf, calculateCurrentReportPeriod } = await import('./earnings-store');
+
+  const currentPeriodInfo = calculateCurrentReportPeriod();
 
   // Dọn dẹp dữ liệu cũ không hợp lệ trước khi quét mới
   cleanInvalidEarningsRecords();
 
-  console.log(`[SSC Pipeline] Starting single-session pipeline (pages=${maxPages}, maxItems=${maxItems}, fromDate=${fromDate})...`);
+  console.log(`[SSC Pipeline] Starting adaptive pipeline (maxPages=${maxPages}, maxItems=${maxItems}, fromDate=${fromDate})...`);
+
+  // Khởi tạo trạng thái tiến trình toàn cục
+  globalThis.__SSC_SCAN_PROGRESS__ = {
+    isScanning: true,
+    currentStep: 'Đang mở Cổng UBCKNN...',
+    page: 1,
+    totalScanned: 0,
+    foundNewCount: 0,
+    processedCount: 0,
+    startedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 
   let browser: Browser | null = null;
   let totalScanned = 0;
@@ -421,6 +435,9 @@ export async function runSscEarningsPipeline(options: {
   let processedCount = 0;
   let failedCount = 0;
   const createdRecords: any[] = [];
+  let consecutiveExistingCount = 0;
+  const CONSECUTIVE_EXISTING_THRESHOLD = 5;
+  let earlyStopTriggered = false;
 
   try {
     browser = await chromium.launch({
@@ -444,9 +461,14 @@ export async function runSscEarningsPipeline(options: {
     await page.waitForSelector('div[id="pt9:t1::db"] table tr[role="row"]', { timeout: 15000 });
 
     for (let p = 1; p <= maxPages; p++) {
-      if (processedCount >= maxItems) {
-        console.log(`[SSC Pipeline] Reached target limit of ${maxItems} reports, stopping scan.`);
+      if (processedCount >= maxItems || earlyStopTriggered) {
         break;
+      }
+
+      if (globalThis.__SSC_SCAN_PROGRESS__) {
+        globalThis.__SSC_SCAN_PROGRESS__.page = p;
+        globalThis.__SSC_SCAN_PROGRESS__.currentStep = `Đang quét trang ${p}...`;
+        globalThis.__SSC_SCAN_PROGRESS__.updatedAt = new Date().toISOString();
       }
 
       if (p > 1) {
@@ -454,7 +476,7 @@ export async function runSscEarningsPipeline(options: {
         const nextPageBtn = page.locator('a[id="pt9:t1::nb_nx"]');
         if (await nextPageBtn.isVisible()) {
           await nextPageBtn.click();
-          await page.waitForTimeout(2500);
+          await page.waitForTimeout(2000);
           await page.waitForSelector('div[id="pt9:t1::db"] table tr[role="row"]', { timeout: 15000 });
         } else {
           console.log('[SSC Pipeline] Next page button not visible, end of list.');
@@ -486,6 +508,9 @@ export async function runSscEarningsPipeline(options: {
       `)) as any[];
 
       totalScanned += rawRows.length;
+      if (globalThis.__SSC_SCAN_PROGRESS__) {
+        globalThis.__SSC_SCAN_PROGRESS__.totalScanned = totalScanned;
+      }
 
       for (const row of rawRows) {
         if (processedCount >= maxItems) break;
@@ -498,21 +523,41 @@ export async function runSscEarningsPipeline(options: {
         const ticker = (row.ticker || '').trim().toUpperCase();
         const reportKey = generateReportKey(ticker, row.reportTitle, row.summary);
 
+        // THUẬT TOÁN EARLY STOPPING: Kiểm tra nếu báo cáo đã có trong hệ thống
         if (isReportProcessedOrSkipped(reportKey)) {
+          consecutiveExistingCount++;
+          if (consecutiveExistingCount >= CONSECUTIVE_EXISTING_THRESHOLD) {
+            console.log(
+              `[SSC Pipeline] Đã gặp ${consecutiveExistingCount} báo cáo liên tiếp đã có trong hệ thống -> Kích hoạt Early Stopping dừng quét!`
+            );
+            earlyStopTriggered = true;
+            break;
+          }
           continue;
         }
 
+        // Gặp báo cáo mới -> Reset bộ đếm tin cũ liên tiếp
+        consecutiveExistingCount = 0;
         newReportsFoundCount++;
+
+        if (globalThis.__SSC_SCAN_PROGRESS__) {
+          globalThis.__SSC_SCAN_PROGRESS__.foundNewCount = newReportsFoundCount;
+          globalThis.__SSC_SCAN_PROGRESS__.currentTicker = ticker;
+          globalThis.__SSC_SCAN_PROGRESS__.currentStep = `Phát hiện ${ticker} [${row.publishDate}], đang tải & số hóa...`;
+          globalThis.__SSC_SCAN_PROGRESS__.updatedAt = new Date().toISOString();
+        }
+
         console.log(`[SSC Pipeline] Found candidate on page ${p}: ${ticker} (${row.exchange}) [${row.publishDate}] - ${row.reportTitle}`);
 
         let filePath = '';
+        let slicedPath = '';
         try {
           if (!row.downloadId) {
             throw new Error('Không tìm thấy nút tải PDF trên dòng này');
           }
 
-          // Kích hoạt download trực tiếp ngay trong trang đang mở
-          const downloadPromise = page.waitForEvent('download', { timeout: 25000 });
+          // Kích hoạt download trực tiếp ngay trong trang đang mở (timeout giảm còn 8s để skip nhanh file lỗi)
+          const downloadPromise = page.waitForEvent('download', { timeout: 8000 });
           await page.locator(`[id="${row.downloadId}"]`).click();
           const download = await downloadPromise;
 
@@ -529,12 +574,21 @@ export async function runSscEarningsPipeline(options: {
 
           let rawData: any = null;
           if (located.isScanned) {
-            console.log(`[SSC Pipeline] ${ticker}: Scanned PDF, running multimodal Gemini vision...`);
-            rawData = await extractEarningsFromPdfFile(filePath, {
+            console.log(`[SSC Pipeline] ${ticker}: Scanned PDF, slicing relevant pages ${JSON.stringify(located.pageNumbers)}...`);
+            // Cắt trang PDF chỉ lấy các trang Báo cáo KQKD (giảm 95% dung lượng file gửi cho AI Vision)
+            const sliceResult = await slicePdfPages(filePath, located.pageNumbers);
+            slicedPath = sliceResult.slicedPath;
+            console.log(`[SSC Pipeline] ${ticker}: Sliced PDF from ${Math.round(sliceResult.originalSize / 1024)}KB to ${Math.round(sliceResult.slicedSize / 1024)}KB`);
+
+            rawData = await extractEarningsFromPdfFile(slicedPath, {
               ticker,
               companyName: row.companyName,
               reportTitle: row.reportTitle,
             });
+
+            // Xóa file cắt tạm
+            cleanupTempPdf(slicedPath);
+            slicedPath = '';
           } else {
             console.log(`[SSC Pipeline] ${ticker}: Text layer located (${located.pageNumbers.length} pages), extracting...`);
             rawData = await extractEarningsFromText(located.textSnippet, {
@@ -543,10 +597,6 @@ export async function runSscEarningsPipeline(options: {
               reportTitle: row.reportTitle,
             });
           }
-
-          // Xóa file PDF tạm ngay lập tức
-          cleanupTempPdf(filePath);
-          filePath = '';
 
           if (!rawData || !rawData.currentPeriod) {
             throw new Error('Gemini không trích xuất được bảng kết quả kinh doanh');
@@ -571,6 +621,17 @@ export async function runSscEarningsPipeline(options: {
             record.id = `${record.ticker}_${record.year}_${record.period}_CONSOLIDATED`;
           }
 
+          // LƯU TRỮ FILE PDF GỐC ĐẦY ĐỦ TRONG KỲ ĐỂ PHỤC VỤ XEM TRỰC TIẾP TRÊN TRÌNH DUYỆT
+          const savedPath = saveEarningsPdf(record.id, currentPeriodInfo.label, filePath);
+          if (savedPath) {
+            record.hasPdf = true;
+            record.pdfPath = savedPath;
+          }
+
+          // Xóa file tạm trong thư mục temp sau khi đã sao chép bền vững
+          cleanupTempPdf(filePath);
+          filePath = '';
+
           // Lưu vào store
           upsertEarningsRecord(record);
 
@@ -587,6 +648,13 @@ export async function runSscEarningsPipeline(options: {
 
           createdRecords.push(record);
           processedCount++;
+
+          if (globalThis.__SSC_SCAN_PROGRESS__) {
+            globalThis.__SSC_SCAN_PROGRESS__.processedCount = processedCount;
+            globalThis.__SSC_SCAN_PROGRESS__.currentStep = `Đã số hóa thành công ${record.ticker} (Rev YoY ${record.revenueYoYPercent}%, PAT YoY ${record.patYoYPercent}%)`;
+            globalThis.__SSC_SCAN_PROGRESS__.updatedAt = new Date().toISOString();
+          }
+
           console.log(`[SSC Pipeline] Successfully saved ${record.ticker} (${record.period}/${record.year}): Rev YoY ${record.revenueYoYPercent}%, PAT YoY ${record.patYoYPercent}%`);
         } catch (err: any) {
           console.error(`[SSC Pipeline] Failed to process ${ticker}:`, err.message);
@@ -594,6 +662,9 @@ export async function runSscEarningsPipeline(options: {
 
           if (filePath && fs.existsSync(filePath)) {
             cleanupTempPdf(filePath);
+          }
+          if (slicedPath && fs.existsSync(slicedPath)) {
+            cleanupTempPdf(slicedPath);
           }
 
           recordReportStatus({
@@ -607,6 +678,11 @@ export async function runSscEarningsPipeline(options: {
             failureReason: err.message,
           });
         }
+      }
+
+      if (earlyStopTriggered) {
+        console.log('[SSC Pipeline] Early Stopping triggered. Ending pagination scan.');
+        break;
       }
 
       // Kiểm tra nếu ngày cuối của trang đã vượt quá mốc fromDate thì dừng phân trang
@@ -626,6 +702,11 @@ export async function runSscEarningsPipeline(options: {
   } finally {
     if (browser) {
       await browser.close().catch(() => {});
+    }
+    if (globalThis.__SSC_SCAN_PROGRESS__) {
+      globalThis.__SSC_SCAN_PROGRESS__.isScanning = false;
+      globalThis.__SSC_SCAN_PROGRESS__.currentStep = `Hoàn tất: Đã số hóa thành công ${processedCount} BCTC mới.`;
+      globalThis.__SSC_SCAN_PROGRESS__.finishedAt = new Date().toISOString();
     }
   }
 

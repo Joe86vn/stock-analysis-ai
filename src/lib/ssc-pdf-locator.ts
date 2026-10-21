@@ -173,3 +173,46 @@ export function cleanupTempPdf(filePath: string): void {
     console.warn(`[PDF Cleanup] Failed to delete temporary file ${filePath}:`, err.message);
   }
 }
+
+/**
+ * Cắt trích xuất các trang cần thiết thành 1 file PDF thu nhỏ để gửi cho AI Vision
+ * Giúp giảm 90-95% dung lượng upload và tăng tốc xử lý
+ */
+export async function slicePdfPages(
+  sourcePath: string,
+  pageNumbers: number[] = [1, 2, 3, 4, 5, 6, 7, 8],
+  targetPath?: string
+): Promise<{ slicedPath: string; originalSize: number; slicedSize: number }> {
+  const { PDFDocument } = await import('pdf-lib');
+  const existingPdfBytes = fs.readFileSync(sourcePath);
+  const pdfDoc = await PDFDocument.load(existingPdfBytes, { ignoreEncryption: true });
+  const totalPages = pdfDoc.getPageCount();
+
+  const newPdf = await PDFDocument.create();
+
+  // Chuyển 1-indexed thành 0-indexed và lọc các trang hợp lệ
+  const validIndices = Array.from(new Set(pageNumbers))
+    .map((p) => p - 1)
+    .filter((idx) => idx >= 0 && idx < totalPages);
+
+  // Mặc định lấy tối đa 8 trang đầu nếu không định vị được trang
+  const indicesToCopy =
+    validIndices.length > 0
+      ? validIndices
+      : Array.from({ length: Math.min(8, totalPages) }, (_, i) => i);
+
+  const copiedPages = await newPdf.copyPages(pdfDoc, indicesToCopy);
+  for (const page of copiedPages) {
+    newPdf.addPage(page);
+  }
+
+  const slicedPdfBytes = await newPdf.save();
+  const outputPath = targetPath || sourcePath.replace(/\.pdf$/i, '_sliced.pdf');
+  fs.writeFileSync(outputPath, slicedPdfBytes);
+
+  return {
+    slicedPath: outputPath,
+    originalSize: existingPdfBytes.length,
+    slicedSize: slicedPdfBytes.length,
+  };
+}

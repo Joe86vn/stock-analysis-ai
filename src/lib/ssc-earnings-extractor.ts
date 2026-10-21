@@ -113,9 +113,7 @@ LƯU Ý QUAN TRỌNG:
   const candidateModels = [
     process.env.GEMINI_MODEL,
     'gemini-3.8-flash',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
+    'gemini-3.7-flash',
   ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
   const uniqueModels = Array.from(new Set(candidateModels));
@@ -329,30 +327,45 @@ TRÍCH XUẤT CHÍNH XÁC VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON:
       requestOptions.customHeaders = { Authorization: `Bearer ${apiKey}` };
     }
 
-    const model = genAI.getGenerativeModel(
-      {
-        model: 'gemini-3.8-flash',
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1,
-          maxOutputTokens: 2048,
-        },
-      },
-      Object.keys(requestOptions).length > 0 ? requestOptions : undefined
-    );
+    const visionModels = ['gemini-3.8-flash', 'gemini-3.7-flash'];
+    let lastVisionError: any = null;
 
-    const res = await model.generateContent([
-      {
-        fileData: {
-          mimeType: uploadedFile.mimeType,
-          fileUri: uploadedFile.uri,
-        },
-      },
-      { text: prompt },
-    ]);
+    for (const modelName of visionModels) {
+      try {
+        const model = genAI.getGenerativeModel(
+          {
+            model: modelName,
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.1,
+              maxOutputTokens: 2048,
+            },
+          },
+          Object.keys(requestOptions).length > 0 ? requestOptions : undefined
+        );
 
-    const parsed = JSON.parse(cleanJsonOutput(res.response.text()));
-    return parsed as ExtractedEarningsRaw;
+        const res = await model.generateContent([
+          {
+            fileData: {
+              mimeType: uploadedFile.mimeType,
+              fileUri: uploadedFile.uri,
+            },
+          },
+          { text: prompt },
+        ]);
+
+        const parsed = JSON.parse(cleanJsonOutput(res.response.text()));
+        return parsed as ExtractedEarningsRaw;
+      } catch (mErr: any) {
+        lastVisionError = mErr;
+        console.warn(`[Earnings Extractor] Vision model ${modelName} failed:`, mErr.message);
+      }
+    }
+
+    if (lastVisionError) {
+      throw lastVisionError;
+    }
+    return null;
   } catch (err: any) {
     console.error('[Earnings Extractor] Error extracting from PDF file:', err.message);
     return null;

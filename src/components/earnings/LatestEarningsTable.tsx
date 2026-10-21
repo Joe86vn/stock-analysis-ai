@@ -14,6 +14,8 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
 import { EarningsRecord, ExchangeType } from '@/types/earnings';
 
@@ -94,19 +96,39 @@ export function LatestEarningsTable() {
     fetchRecords();
   }, []);
 
-  // Kích hoạt quét thủ công
+  // Kích hoạt quét thông minh (Tự động nhận diện & Dừng sớm khi gặp tin cũ)
   const handleScanManual = async () => {
+    let pollTimer: NodeJS.Timeout | null = null;
     try {
       setScanning(true);
-      setScanMessage(`Đang quét BCTC kỳ ${activePeriod} trên UBCKNN (HOSE/HNX/UPCOM)... Quá trình có thể mất một vài phút.`);
+      setScanMessage(
+        `Đang kết nối Cổng UBCKNN... Hệ thống sẽ tự động quét và dừng ngay khi gặp các bản tin đã cập nhật.`
+      );
+
+      // Bật polling tiến độ thời gian thực
+      pollTimer = setInterval(async () => {
+        try {
+          const sRes = await fetch('/api/earnings/scan-status');
+          const sData = await sRes.json();
+          if (sData.success && sData.progress) {
+            const p = sData.progress;
+            if (p.isScanning) {
+              setScanMessage(`[Trang ${p.page || 1}] ${p.currentStep} (Đã số hóa: ${p.processedCount || 0})`);
+            }
+          }
+        } catch {}
+      }, 1500);
+
       const res = await fetch('/api/earnings/scan-ssc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pages: 10, limit: 50 }),
+        body: JSON.stringify({ pages: 5, limit: 50 }),
       });
       const data = await res.json();
       if (data.success) {
-        setScanMessage(data.message || `Đã hoàn tất quét: Số hóa thành công ${data.processedCount} BCTC Quý mới.`);
+        setScanMessage(
+          data.message || `Đã hoàn tất quét: Số hóa thành công ${data.processedCount} BCTC Quý mới.`
+        );
         await fetchRecords();
       } else {
         setScanMessage(`Lỗi quét: ${data.error}`);
@@ -114,6 +136,7 @@ export function LatestEarningsTable() {
     } catch (err: any) {
       setScanMessage(`Lỗi kết nối: ${err.message}`);
     } finally {
+      if (pollTimer) clearInterval(pollTimer);
       setScanning(false);
     }
   };
@@ -282,6 +305,7 @@ export function LatestEarningsTable() {
           <button
             onClick={handleScanManual}
             disabled={scanning}
+            title="Tự động quét Cổng UBCKNN và dừng ngay khi gặp các báo cáo đã cập nhật"
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white shadow-xs transition-all duration-200 ${
               scanning
                 ? 'bg-emerald-400 cursor-not-allowed'
@@ -289,7 +313,7 @@ export function LatestEarningsTable() {
             }`}
           >
             <RefreshCw className={`h-4 w-4 ${scanning ? 'animate-spin' : ''}`} />
-            <span>{scanning ? 'Đang quét SSC...' : 'Quét BCTC Mới Nhất'}</span>
+            <span>{scanning ? 'Đang quét SSC...' : 'Quét BCTC Mới'}</span>
           </button>
         </div>
       </div>
@@ -537,6 +561,7 @@ export function LatestEarningsTable() {
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
+                <th className="py-3 px-2 text-center w-[7%]">BCTC Gốc</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-gray-700 dark:text-gray-300">
@@ -733,6 +758,20 @@ export function LatestEarningsTable() {
                       {/* Ngày công bố */}
                       <td className="py-2.5 px-2 text-center text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         {r.publishedAt}
+                      </td>
+
+                      {/* Mở đọc BCTC gốc trực tiếp */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                        <a
+                          href={`/api/earnings/pdf/${encodeURIComponent(r.id)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs"
+                          title={`Mở xem văn bản PDF BCTC gốc của ${r.ticker}`}
+                        >
+                          <FileText className="h-3.5 w-3.5 text-emerald-500" />
+                          <span>Xem PDF</span>
+                        </a>
                       </td>
                     </tr>
                   );
