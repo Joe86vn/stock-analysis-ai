@@ -385,6 +385,7 @@ export async function runSscEarningsPipeline(options: {
   maxPages?: number;
   maxItemsToProcess?: number;
   fromDate?: string; // Mặc định: '01/10/2026'
+  fullScanUntilFromDate?: boolean; // Nếu true: quét toàn bộ từ trang 1 đến mốc fromDate, không áp dụng dừng sớm theo ngày
 }): Promise<{
   scannedCount: number;
   newReportsFoundCount: number;
@@ -392,8 +393,8 @@ export async function runSscEarningsPipeline(options: {
   failedCount: number;
   records: any[];
 }> {
-  const maxPages = options.maxPages || 10;
-  const maxItems = options.maxItemsToProcess || 50;
+  const maxPages = options.maxPages || 20;
+  const maxItems = options.maxItemsToProcess || 100;
   const fromDate = options.fromDate || '01/10/2026';
   const minDate = parseSscDate(fromDate);
   const targetDir = path.join(process.cwd(), 'data', 'temp_ssc_pdfs');
@@ -415,7 +416,7 @@ export async function runSscEarningsPipeline(options: {
   // Dọn dẹp dữ liệu cũ không hợp lệ trước khi quét mới
   cleanInvalidEarningsRecords();
 
-  console.log(`[SSC Pipeline] Starting adaptive pipeline (maxPages=${maxPages}, maxItems=${maxItems}, fromDate=${fromDate})...`);
+  console.log(`[SSC Pipeline] Bắt đầu quét: maxPages=${maxPages}, maxItems=${maxItems}, fromDate=${fromDate}, fullScan=${!!options.fullScanUntilFromDate}`);
 
   // Khởi tạo trạng thái tiến trình toàn cục
   globalThis.__SSC_SCAN_PROGRESS__ = {
@@ -435,8 +436,12 @@ export async function runSscEarningsPipeline(options: {
   let processedCount = 0;
   let failedCount = 0;
   const createdRecords: any[] = [];
-  let consecutiveExistingCount = 0;
-  const CONSECUTIVE_EXISTING_THRESHOLD = 5;
+  
+  // Cơ chế dừng theo thời gian nộp báo cáo:
+  // Quét từ trang đầu (ngày mới nhất), khi gặp mã đã có cập nhật thì ghi nhận ngày nộp đó,
+  // quét nốt hết tất cả các bản tin trong ngày đó rồi dừng, KHÔNG quét tiếp các ngày trước đó.
+  let stopCutoffDate: Date | null = null;
+  let stopCutoffDateStr: string | null = null;
   let earlyStopTriggered = false;
 
   try {
@@ -515,6 +520,19 @@ export async function runSscEarningsPipeline(options: {
       for (const row of rawRows) {
         if (processedCount >= maxItems) break;
 
+        const rowDate = parseSscDate(row.publishDate);
+
+        // 1. CƠ CHẾ DỪNG THEO THỜI GIAN NỘP BÁO CÁO:
+        // Quét từ trang đầu có ngày nộp gần nhất đến khi gặp mã đã có cập nhật thì quét nốt hết ngày đó
+        // và dừng không quét tiếp ngày trước đó.
+        if (!options.fullScanUntilFromDate && stopCutoffDate && rowDate && rowDate < stopCutoffDate) {
+          console.log(
+            `[SSC Pipeline] Bản tin ngày ${row.publishDate} đã trước ngày ${stopCutoffDateStr} (ngày đã quét nốt xong) -> Dừng quét theo cơ chế thời gian nộp!`
+          );
+          earlyStopTriggered = true;
+          break;
+        }
+
         const check = isValidListedQuarterlyReport(row, { fromDate });
         if (!check.valid) {
           continue;
@@ -530,20 +548,19 @@ export async function runSscEarningsPipeline(options: {
         );
 
         if (alreadyInStore) {
-          consecutiveExistingCount++;
-          // Chỉ cho phép dừng sớm từ trang 3 trở đi và khi gặp ít nhất 10 báo cáo liên tiếp đã có trong hệ thống
-          if (p >= 3 && consecutiveExistingCount >= 10) {
+          // Gặp mã đã có cập nhật:
+          // Nếu chưa đặt mốc dừng theo ngày, ghi nhận ngày nộp của mã này làm mốc dừng
+          if (!options.fullScanUntilFromDate && !stopCutoffDate && rowDate) {
+            stopCutoffDate = rowDate;
+            stopCutoffDateStr = row.publishDate;
             console.log(
-              `[SSC Pipeline] Đã gặp ${consecutiveExistingCount} báo cáo liên tiếp đã có trong bảng KQKD (tại trang ${p}) -> Kích hoạt Early Stopping dừng quét!`
+              `[SSC Pipeline] Gặp mã đã cập nhật ${ticker} (ngày nộp: ${row.publishDate}). Hệ thống sẽ quét nốt toàn bộ các báo cáo trong ngày ${row.publishDate} và dừng lại trước khi sang ngày trước đó.`
             );
-            earlyStopTriggered = true;
-            break;
           }
           continue;
         }
 
-        // Gặp báo cáo mới -> Reset bộ đếm tin cũ liên tiếp
-        consecutiveExistingCount = 0;
+        // Gặp báo cáo mới chưa có trong hệ thống -> Tiến hành bóc tách
         newReportsFoundCount++;
 
         if (globalThis.__SSC_SCAN_PROGRESS__) {
@@ -687,8 +704,22 @@ export async function runSscEarningsPipeline(options: {
       }
 
       if (earlyStopTriggered) {
-        console.log('[SSC Pipeline] Early Stopping triggered. Ending pagination scan.');
+        console.log('[SSC Pipeline] Đã quét nốt xong ngày nộp của mã đã cập nhật. Dừng quét các trang tiếp theo.');
         break;
+      }
+
+      // Kiểm tra nếu tất cả các bản tin tiếp theo đều trước mốc ngày dừng (stopCutoffDate)
+      if (!options.fullScanUntilFromDate && stopCutoffDate && rawRows.length > 0) {
+        const lastRowWithDate = [...rawRows].reverse().find((r) => r.publishDate);
+        if (lastRowWithDate) {
+          const lastDate = parseSscDate(lastRowWithDate.publishDate);
+          if (lastDate && lastDate < stopCutoffDate) {
+            console.log(
+              `[SSC Pipeline] Dòng cuối trang ${p} có ngày ${lastRowWithDate.publishDate} < ${stopCutoffDateStr} -> Đã quét hết ngày dừng, kết thúc phân trang.`
+            );
+            break;
+          }
+        }
       }
 
       // Kiểm tra nếu ngày cuối của trang đã vượt quá mốc fromDate thì dừng phân trang

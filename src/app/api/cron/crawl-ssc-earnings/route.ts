@@ -44,8 +44,8 @@ async function handleCronJob(request: NextRequest) {
     const { calculateCurrentReportPeriod } = await import('@/lib/earnings-store');
     const currentPeriod = calculateCurrentReportPeriod();
     const result = await runSscEarningsPipeline({
-      maxPages: 3, // Quét 3 trang gần nhất trong mỗi lần chạy định kỳ (8h sáng và 17h chiều)
-      maxItemsToProcess: 25,
+      maxPages: 15, // Tự động dừng theo mốc ngày nộp báo cáo (quét nốt hết ngày gặp mã cũ rồi dừng)
+      maxItemsToProcess: 50,
       fromDate: currentPeriod.fromDate,
     });
 

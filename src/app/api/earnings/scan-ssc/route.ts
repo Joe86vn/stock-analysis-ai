@@ -13,11 +13,12 @@ export async function POST(request: NextRequest) {
   try {
     const currentPeriod = calculateCurrentReportPeriod();
     const body = await request.json().catch(() => ({}));
-    const maxPages = Number(body.pages) || 10;
-    const maxItems = Number(body.limit) || 50;
+    const maxPages = Number(body.pages) || 20;
+    const maxItems = Number(body.limit) || 100;
     const fromDate = body.fromDate || currentPeriod.fromDate;
+    const fullScan = Boolean(body.fullScan);
 
-    console.log(`[API /api/earnings/scan-ssc] Manual trigger: period=${currentPeriod.label}, pages=${maxPages}, limit=${maxItems}, fromDate=${fromDate}`);
+    console.log(`[API /api/earnings/scan-ssc] Manual trigger: period=${currentPeriod.label}, pages=${maxPages}, limit=${maxItems}, fromDate=${fromDate}, fullScan=${fullScan}`);
 
     // Dọn dẹp dữ liệu rác nếu có
     cleanInvalidEarningsRecords();
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
       maxPages,
       maxItemsToProcess: maxItems,
       fromDate,
+      fullScanUntilFromDate: fullScan,
     });
 
     return NextResponse.json({
