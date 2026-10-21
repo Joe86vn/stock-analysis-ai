@@ -85,22 +85,24 @@ async function main() {
       }
     }
 
-    const rows = await page.evaluate(() => {
-      const rowEls = Array.from(document.querySelectorAll('div[id="pt9:t1::db"] table tr[role="row"]'));
-      return rowEls.map((row) => {
-        const cells = Array.from(row.querySelectorAll('td'));
-        const text = (i: number) => cells[i] ? (cells[i] as HTMLElement).innerText.trim() : '';
-        const downloadBtn = row.querySelector('[id*="cil4z"]');
-        return {
-          exchange: text(1),
-          ticker: text(2),
-          reportTitle: text(3),
-          companyName: text(4),
-          publishDate: text(5),
-          downloadId: downloadBtn ? downloadBtn.id : null,
-        };
-      });
-    });
+    const rows = (await page.evaluate(`
+      (() => {
+        const rowEls = Array.from(document.querySelectorAll('div[id="pt9:t1::db"] table tr[role="row"]'));
+        return rowEls.map((row) => {
+          const cells = Array.from(row.querySelectorAll('td'));
+          const text = (i) => cells[i] ? cells[i].innerText.trim() : '';
+          const downloadBtn = row.querySelector('[id*="cil4z"]');
+          return {
+            exchange: text(1),
+            ticker: text(2),
+            reportTitle: text(3),
+            companyName: text(4),
+            publishDate: text(5),
+            downloadId: downloadBtn ? downloadBtn.id : null,
+          };
+        });
+      })()
+    `)) as any[];
 
     for (const row of rows) {
       const ticker = (row.ticker || '').trim().toUpperCase();
