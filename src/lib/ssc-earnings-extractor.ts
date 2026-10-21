@@ -9,6 +9,7 @@ import {
   ExchangeType,
   ExtractedEarningsRaw,
 } from '@/types/earnings';
+import { isUsingOpenAIProxy, callOpenAIChatCompletion } from './llm-provider';
 
 /**
  * Lấy Gemini API key từ biến môi trường hoặc fallback .env.local
@@ -63,10 +64,6 @@ export async function extractEarningsFromText(
     reportTitle?: string;
   }
 ): Promise<ExtractedEarningsRaw | null> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured');
-  }
 
   const prompt = `
 Bạn là chuyên gia phân tích báo cáo tài chính kế toán Việt Nam (VAS / Thông tư 200).
@@ -108,6 +105,30 @@ LƯU Ý QUAN TRỌNG:
 4. Giữ nguyên số âm nếu lỗ (ví dụ: -1500000000).
 5. "reportType": Nếu tiêu đề ghi "Hợp nhất" hoặc "Tổng hợp" thì là "CONSOLIDATED"; nếu ghi "Riêng" hoặc "Công ty mẹ" thì là "PARENT".
 `;
+
+  // 1. Ưu tiên gọi qua CLIProxyAPI (OpenAI-compatible) trên Oracle VPS nếu được cấu hình
+  if (isUsingOpenAIProxy()) {
+    try {
+      console.log(`[Earnings Extractor] Trích xuất BCTC qua CLIProxyAPI (OpenAI format) cho ${hints?.ticker || 'doanh nghiệp'}...`);
+      const rawText = await callOpenAIChatCompletion({
+        messages: [{ role: 'user', content: prompt }],
+        jsonMode: true,
+        temperature: 0.1,
+      });
+      const parsed = JSON.parse(cleanJsonOutput(rawText));
+      if (parsed && (parsed.currentPeriod || parsed.ticker)) {
+        return parsed as ExtractedEarningsRaw;
+      }
+    } catch (proxyErr: any) {
+      console.warn(`[Earnings Extractor] CLIProxyAPI failed: ${proxyErr.message}. Fallback sang Google AI Studio trực tiếp...`);
+    }
+  }
+
+  // 2. Fallback sang Google Generative AI SDK trực tiếp
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY hoặc CLIProxyAPI chưa được cấu hình');
+  }
 
   const baseUrl = process.env.GEMINI_BASE_URL?.trim().replace(/\/+$/, '');
   const candidateModels = [

@@ -5,8 +5,10 @@ import { getQualitativeReport } from '@/lib/r2-storage';
 import { QualitativeInsights } from '@/types/qualitative';
 import { generateDefaultExpertReport } from '@/lib/default-report';
 import { fetchGoogleAIGroundedInsights } from '@/lib/crawl-report-service';
+import { isUsingOpenAIProxy, callOpenAIChatCompletion } from '@/lib/llm-provider';
 
 export { generateDefaultExpertReport };
+
 
 export function getForecastYearsFromItems(items: ParsedVietcapQuarter[]) {
   const validItems = (items || []).filter((q) => q && q.revenue > 0);
@@ -212,7 +214,7 @@ export async function generateAnalysisReport(
     combinedText += JSON.stringify(qualitativeInsights, null, 2);
   }
 
-  if (apiKey) {
+  if (isUsingOpenAIProxy() || apiKey) {
     const hasR2 = Boolean(qualitativeInsights);
 
     const sectionA_Req = hasR2 ? '' : `
@@ -444,6 +446,40 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
 }
       `;
 
+    // 1. Ưu tiên gọi CLIProxyAPI (Oracle VPS) theo chuẩn OpenAI nếu USE_OPENAI_PROXY bật
+    if (isUsingOpenAIProxy()) {
+      try {
+        const proxyModel = preferredModel || process.env.OPENAI_MODEL || 'gemini-3.8-flash-high';
+        console.log(`[AI Analyzer] Ưu tiên sử dụng CLIProxyAPI (Oracle VPS) với model: ${proxyModel}...`);
+        const text = await callOpenAIChatCompletion({
+          messages: [{ role: 'user', content: prompt }],
+          model: proxyModel,
+          jsonMode: true,
+          temperature: 0.2,
+          timeoutMs: 120000,
+        });
+
+        const parsed = repairAndParseJson(text);
+        const report = buildReportFromParsed(ticker, marketData, parsed, year1, year2, qualitativeInsights);
+        report.generationModel = `CLIProxyAPI (${proxyModel})`;
+        if (googleInsightData) {
+          report.googleAiInsights = googleInsightData;
+        }
+        console.log(`[AI Analyzer] ✓ Tạo báo cáo thành công qua CLIProxyAPI (${proxyModel})`);
+        return report;
+      } catch (proxyErr: any) {
+        console.warn(`[AI Analyzer] CLIProxyAPI gặp sự cố, fallback sang Google AI Studio / Default Engine:`, proxyErr?.message || proxyErr);
+        if (!apiKey) {
+          console.warn(`[AI Analyzer] Không có GEMINI_API_KEY để fallback, sử dụng Default Expert Engine.`);
+          return generateDefaultExpertReport(ticker, marketData, uploadedFiles, qualitativeInsights);
+        }
+      }
+    }
+
+    if (!apiKey) {
+      return generateDefaultExpertReport(ticker, marketData, uploadedFiles, qualitativeInsights);
+    }
+
     const baseUrl = process.env.GEMINI_BASE_URL?.trim().replace(/\/+$/, '');
     const rawCandidates = [
       preferredModel,
@@ -472,6 +508,7 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
         Authorization: `Bearer ${apiKey}`,
       };
     }
+
 
     for (const modelName of candidateModels) {
       try {
