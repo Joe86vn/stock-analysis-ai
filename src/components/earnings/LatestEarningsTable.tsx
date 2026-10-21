@@ -826,29 +826,16 @@ export function LatestEarningsTable() {
 
                       {/* Mở đọc BCTC gốc trực tiếp */}
                       <td className="py-2.5 px-2 text-center whitespace-nowrap">
-                        {r.hasPdf ? (
-                          <a
-                            href={`/api/earnings/pdf/${encodeURIComponent(r.id)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs"
-                            title={`Mở xem văn bản PDF BCTC gốc của ${r.ticker}`}
-                          >
-                            <FileText className="h-3.5 w-3.5 text-emerald-500" />
-                            <span>Xem PDF</span>
-                          </a>
-                        ) : (
-                          <a
-                            href={r.sourceUrl || 'https://congbothongtin.ssc.gov.vn/faces/NewsSearch'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/80 border border-sky-200 dark:border-sky-800 transition-colors shadow-2xs"
-                            title={`Bản tin cào từ các phiên trước - mở tra cứu nguồn gốc tại Cổng UBCKNN`}
-                          >
-                            <ExternalLink className="h-3 w-3 text-sky-500" />
-                            <span>Nguồn SSC</span>
-                          </a>
-                        )}
+                        <a
+                          href={`/api/earnings/pdf/${encodeURIComponent(r.id)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs"
+                          title={`Mở xem văn bản PDF BCTC gốc của ${r.ticker}`}
+                        >
+                          <FileText className="h-3.5 w-3.5 text-emerald-500" />
+                          <span>Xem PDF</span>
+                        </a>
                       </td>
                     </tr>
                   );

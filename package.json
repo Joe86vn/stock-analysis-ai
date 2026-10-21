@@ -10,7 +10,8 @@
     "sync:eod": "npx tsx scripts/sync-eod-ohlc.ts",
     "sync:rankings": "npx tsx scripts/precalculate-rankings.ts",
     "sync:financials": "npx tsx scripts/sync-financials.ts",
-    "sync:ssc": "npx tsx scripts/run-ssc-sync.ts"
+    "sync:ssc": "npx tsx scripts/run-ssc-sync.ts",
+    "download:pdfs": "npx tsx scripts/download-missing-earnings-pdfs.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
