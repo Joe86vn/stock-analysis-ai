@@ -452,9 +452,127 @@ export function StockChartPanel({
     };
   }, []);
 
-  // Ticker search switcher state
+  // ─── TradingView Symbol Search State & Logic ──────────────────────────────
   const [showTickerSearch, setShowTickerSearch] = useState(false);
   const [tickerSearchInput, setTickerSearchInput] = useState('');
+  const [searchExchangeTab, setSearchExchangeTab] = useState<'ALL' | 'HOSE' | 'HNX' | 'UPCOM'>('ALL');
+  const [selectedSearchIndex, setSelectedSearchIndex] = useState<number>(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchResultsContainerRef = useRef<HTMLDivElement>(null);
+  const [stockCatalog, setStockCatalog] = useState<StockRankingItem[]>(allStocks || []);
+
+  // Đồng bộ danh bạ cổ phiếu (nếu allStocks rỗng thì tự động fetch từ ranking API)
+  useEffect(() => {
+    if (allStocks && allStocks.length > 0) {
+      setStockCatalog(allStocks);
+    } else {
+      fetch('/api/ranking')
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && Array.isArray(json.data)) {
+            setStockCatalog(json.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [allStocks]);
+
+  // Danh sách cổ phiếu lọc theo từ khóa & tab sàn
+  const filteredSearchStocks = useMemo(() => {
+    const q = tickerSearchInput.trim().toUpperCase();
+    let list = stockCatalog;
+
+    if (searchExchangeTab !== 'ALL') {
+      list = list.filter((s) => {
+        const ex = (s.exchange || '').toUpperCase();
+        if (searchExchangeTab === 'HOSE') return ex === 'HOSE' || ex === 'HSX';
+        return ex === searchExchangeTab;
+      });
+    }
+
+    if (!q) {
+      return list.slice(0, 30);
+    }
+
+    const startsWithTicker: StockRankingItem[] = [];
+    const containsTicker: StockRankingItem[] = [];
+    const containsName: StockRankingItem[] = [];
+    const lowerQ = tickerSearchInput.trim().toLowerCase();
+
+    for (const s of list) {
+      const t = s.ticker.toUpperCase();
+      if (t.startsWith(q)) {
+        startsWithTicker.push(s);
+      } else if (t.includes(q)) {
+        containsTicker.push(s);
+      } else if (s.companyName.toLowerCase().includes(lowerQ)) {
+        containsName.push(s);
+      }
+    }
+
+    return [...startsWithTicker, ...containsTicker, ...containsName].slice(0, 50);
+  }, [stockCatalog, tickerSearchInput, searchExchangeTab]);
+
+  // Cuộn item được highlight vào view
+  useEffect(() => {
+    if (!showTickerSearch || !searchResultsContainerRef.current) return;
+    const container = searchResultsContainerRef.current;
+    const activeEl = container.querySelector(`[data-index="${selectedSearchIndex}"]`) as HTMLElement;
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }, [selectedSearchIndex, showTickerSearch]);
+
+  // Tự động focus input và đưa con trỏ về cuối khi mở modal
+  useEffect(() => {
+    if (showTickerSearch) {
+      const timer = setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+          const len = searchInputRef.current.value.length;
+          searchInputRef.current.setSelectionRange(len, len);
+        }
+      }, 30);
+      return () => clearTimeout(timer);
+    }
+  }, [showTickerSearch]);
+
+  // Hàm chọn mã và đóng modal
+  const selectTickerAndClose = useCallback(
+    (newTicker: string) => {
+      const formatted = newTicker.trim().toUpperCase();
+      if (formatted) {
+        if (onSelectTicker) {
+          onSelectTicker(formatted);
+        }
+      }
+      setShowTickerSearch(false);
+      setTickerSearchInput('');
+    },
+    [onSelectTicker]
+  );
+
+  // Xử lý phím điều hướng trong ô input
+  const handleSearchInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSearchIndex((prev) => Math.min(prev + 1, Math.max(0, filteredSearchStocks.length - 1)));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSearchIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredSearchStocks.length > 0 && filteredSearchStocks[selectedSearchIndex]) {
+        selectTickerAndClose(filteredSearchStocks[selectedSearchIndex].ticker);
+      } else if (tickerSearchInput.trim()) {
+        selectTickerAndClose(tickerSearchInput.trim().toUpperCase());
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowTickerSearch(false);
+      setTickerSearchInput('');
+    }
+  };
 
   // ─── Drawing Tools State ──────────────────────────────────────────────────
   const [activeTool, setActiveTool] = useState<DrawingToolType>('cursor');
@@ -528,6 +646,49 @@ export function StockChartPanel({
   const [indicatorFormatSettings, setIndicatorFormatSettings] = useState<
     Record<string, { showPriceScaleLabel: boolean; showStatusValue: boolean }>
   >(() => loadSavedIndicatorFormatSettings());
+
+  // ─── Tự động kích hoạt Quick Search chuẩn TradingView khi gõ bàn phím bất kỳ ───
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Nếu modal tìm kiếm đang mở thì để modal tự xử lý
+      if (showTickerSearch) return;
+
+      // Bỏ qua nếu đang gõ trong input, textarea, select hoặc contenteditable
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+
+      // Bỏ qua các tổ hợp phím có Ctrl, Alt, Meta (để người dùng dùng được Ctrl+C, Ctrl+V, Alt+Tab...)
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        return;
+      }
+
+      // Bỏ qua nếu đang mở các modal khác (cài đặt biểu đồ hoặc cài đặt chỉ báo)
+      if (showChartSettingsModal || indicatorDialogState.isOpen) {
+        return;
+      }
+
+      // Kích hoạt khi bấm phím chữ cái (a-z, A-Z), phím số (0-9) hoặc phím '/'
+      const isChar = /^[a-zA-Z0-9]$/.test(e.key);
+      const isSlash = e.key === '/';
+
+      if (isChar || isSlash) {
+        e.preventDefault();
+        const initialChar = isSlash ? '' : e.key.toUpperCase();
+        setTickerSearchInput(initialChar);
+        setSelectedSearchIndex(0);
+        setShowTickerSearch(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [showTickerSearch, showChartSettingsModal, indicatorDialogState.isOpen]);
 
   // ─── Utility Sidebar State ────────────────────────────────────────────────
   const [showSidebar, setShowSidebar] = useState<boolean>(() => {
@@ -2470,103 +2631,21 @@ export function StockChartPanel({
       <div className="flex items-center justify-between px-5 py-2 border-b border-gray-200 dark:border-gray-800/80 bg-gray-50/80 dark:bg-gray-900/80 flex-shrink-0 gap-4 flex-wrap min-h-[42px]">
         {/* Block 1 (Trái): Mã CP, Sàn, Tên, Ngành */}
         <div className="flex items-center space-x-2.5 min-w-0">
-          {/* Ticker Switcher */}
-          <div className="relative">
-            <button
-              onClick={() => setShowTickerSearch((v) => !v)}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-gray-200/80 dark:bg-gray-800 hover:bg-gray-300/80 dark:hover:bg-gray-700 transition cursor-pointer group"
-              title="Bấm để chuyển sang mã cổ phiếu khác"
-            >
-              <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono tracking-tight">
-                {ticker}
-              </span>
-              <ChevronDown className="h-3.5 w-3.5 text-gray-500 group-hover:text-slate-900 dark:group-hover:text-white transition" />
-            </button>
-
-            {showTickerSearch && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowTickerSearch(false)} />
-                <div className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-3 select-none font-sans">
-                  <div className="relative mb-2">
-                    <input
-                      type="text"
-                      placeholder="Gõ mã cổ phiếu (VD: SSI, KBC, HPG)..."
-                      value={tickerSearchInput}
-                      onChange={(e) => setTickerSearchInput(e.target.value.toUpperCase())}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const query = tickerSearchInput.trim().toUpperCase();
-                          if (query) {
-                            if (onSelectTicker) onSelectTicker(query);
-                            setShowTickerSearch(false);
-                            setTickerSearchInput('');
-                          }
-                        }
-                      }}
-                      autoFocus
-                      className="w-full px-3 py-1.5 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 uppercase font-mono font-bold"
-                    />
-                  </div>
-                  <div className="max-h-56 overflow-y-auto space-y-1">
-                    {tickerSearchInput.trim().length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const query = tickerSearchInput.trim().toUpperCase();
-                          if (onSelectTicker) onSelectTicker(query);
-                          setShowTickerSearch(false);
-                          setTickerSearchInput('');
-                        }}
-                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-bold transition mb-1.5"
-                      >
-                        <div className="flex items-center space-x-1.5 truncate">
-                          <Search className="w-3.5 h-3.5 flex-shrink-0 text-blue-500" />
-                          <span>Xem mã <strong className="font-mono text-sm">{tickerSearchInput.trim().toUpperCase()}</strong></span>
-                        </div>
-                        <span className="text-[10px] bg-blue-200 dark:bg-blue-800 px-1.5 py-0.5 rounded font-mono">↵ Enter</span>
-                      </button>
-                    )}
-
-                    {allStocks && allStocks.length > 0 ? (
-                      allStocks
-                        .filter(
-                          (s) =>
-                            s.ticker.includes(tickerSearchInput.trim().toUpperCase()) ||
-                            s.companyName.toLowerCase().includes(tickerSearchInput.trim().toLowerCase())
-                        )
-                        .slice(0, 10)
-                        .map((s) => (
-                          <button
-                            key={s.ticker}
-                            onClick={() => {
-                              if (onSelectTicker) onSelectTicker(s.ticker);
-                              setShowTickerSearch(false);
-                              setTickerSearchInput('');
-                            }}
-                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-blue-50 dark:hover:bg-blue-950/60 transition ${
-                              s.ticker === ticker ? 'bg-blue-50/80 dark:bg-blue-950/80 font-bold' : ''
-                            }`}
-                          >
-                            <div className="flex items-center space-x-2 truncate">
-                              <span className="font-black text-slate-900 dark:text-white font-mono">{s.ticker}</span>
-                              <span className="text-[10px] text-gray-400 truncate max-w-[120px]">{s.companyName}</span>
-                            </div>
-                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">RS {s.rsRating}</span>
-                          </button>
-                        ))
-                    ) : (
-                      !tickerSearchInput.trim() && (
-                        <div className="text-center py-3 text-xs text-gray-400">
-                          Nhập mã cổ phiếu để xem biểu đồ
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          {/* Ticker Switcher Button */}
+          <button
+            onClick={() => {
+              setTickerSearchInput('');
+              setSelectedSearchIndex(0);
+              setShowTickerSearch(true);
+            }}
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-gray-200/80 dark:bg-gray-800 hover:bg-gray-300/80 dark:hover:bg-gray-700 transition cursor-pointer group"
+            title="Bấm hoặc gõ bàn phím bất kỳ để tìm kiếm mã cổ phiếu (TradingView Style)"
+          >
+            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono tracking-tight">
+              {ticker}
+            </span>
+            <Search className="h-3.5 w-3.5 text-gray-500 group-hover:text-blue-500 transition ml-0.5" />
+          </button>
 
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-gray-200/90 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-mono">
             {effectiveStockData.exchange}
@@ -3411,6 +3490,171 @@ export function StockChartPanel({
         defaultParams={DEFAULT_INDICATOR_PARAMS}
         onResetDefaults={handleResetIndicatorDefaults}
       />
+
+      {/* ─── Modal Tìm Kiếm Mã Cổ Phiếu Nhanh Chuẩn TradingView (Symbol Search) ─── */}
+      {showTickerSearch && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-100">
+          <div
+            className="fixed inset-0 -z-10"
+            onClick={() => {
+              setShowTickerSearch(false);
+              setTickerSearchInput('');
+            }}
+          />
+          <div className="w-full max-w-lg md:max-w-xl bg-white dark:bg-[#1e222d] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#2a2e39] overflow-hidden flex flex-col font-sans max-h-[75vh] select-none">
+            {/* Search Header */}
+            <div className="p-3.5 border-b border-gray-100 dark:border-[#2a2e39] flex items-center space-x-3 bg-gray-50/50 dark:bg-[#181b24]">
+              <Search className="h-5 w-5 text-blue-500 flex-shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={tickerSearchInput}
+                onChange={(e) => {
+                  setTickerSearchInput(e.target.value.toUpperCase());
+                  setSelectedSearchIndex(0);
+                }}
+                onKeyDown={handleSearchInputKeyDown}
+                placeholder="Gõ mã cổ phiếu (VD: SSI, HPG, FPT)..."
+                className="flex-1 bg-transparent text-slate-900 dark:text-white font-mono font-bold text-base sm:text-lg focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 uppercase"
+                autoFocus
+              />
+              {tickerSearchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTickerSearchInput('');
+                    setSelectedSearchIndex(0);
+                    searchInputRef.current?.focus();
+                  }}
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 transition cursor-pointer"
+                  title="Xóa tìm kiếm"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 hidden sm:inline">
+                ESC để đóng
+              </span>
+            </div>
+
+            {/* Filter Exchange Tabs */}
+            <div className="flex items-center space-x-1.5 px-3 py-2 border-b border-gray-100 dark:border-[#2a2e39] bg-white dark:bg-[#1e222d] text-xs">
+              {(['ALL', 'HOSE', 'HNX', 'UPCOM'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    setSearchExchangeTab(tab);
+                    setSelectedSearchIndex(0);
+                    searchInputRef.current?.focus();
+                  }}
+                  className={`px-3 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
+                    searchExchangeTab === tab
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  {tab === 'ALL' ? 'Tất cả sàn' : tab}
+                </button>
+              ))}
+              <span className="text-[11px] text-gray-400 ml-auto hidden sm:inline font-mono">
+                {filteredSearchStocks.length} kết quả
+              </span>
+            </div>
+
+            {/* Results List */}
+            <div
+              ref={searchResultsContainerRef}
+              className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-[#262a35] p-1.5"
+            >
+              {filteredSearchStocks.length > 0 ? (
+                filteredSearchStocks.map((stock, idx) => {
+                  const isSelected = idx === selectedSearchIndex;
+                  return (
+                    <div
+                      key={stock.ticker}
+                      data-index={idx}
+                      onClick={() => selectTickerAndClose(stock.ticker)}
+                      onMouseEnter={() => setSelectedSearchIndex(idx)}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition ${
+                        isSelected
+                          ? 'bg-blue-50 dark:bg-blue-950/70 border-l-4 border-blue-500 pl-2.5'
+                          : 'hover:bg-gray-50 dark:hover:bg-[#252936]'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <span className="font-mono font-black text-sm sm:text-base text-slate-900 dark:text-white tracking-wide w-14">
+                          {stock.ticker}
+                        </span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-mono">
+                          {stock.exchange}
+                        </span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-medium text-slate-700 dark:text-gray-200 truncate max-w-[200px] sm:max-w-[280px]">
+                            {stock.companyName}
+                          </span>
+                          {stock.industry && (
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+                              {stock.industry}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        {stock.rsRating > 0 && (
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              stock.rsRating >= 80
+                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400'
+                                : stock.rsRating >= 70
+                                ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                            }`}
+                            title={`Sức mạnh giá RS 1 Tháng: ${stock.rsRating}/99`}
+                          >
+                            RS {stock.rsRating}
+                          </span>
+                        )}
+                        {isSelected && (
+                          <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono hidden sm:inline">
+                            ↵ Chọn
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-8 text-center text-xs text-gray-400 space-y-2">
+                  <div>Không tìm thấy mã khớp trong danh bạ</div>
+                  {tickerSearchInput.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => selectTickerAndClose(tickerSearchInput.trim().toUpperCase())}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold font-mono transition cursor-pointer"
+                    >
+                      <Search className="h-3.5 w-3.5" />
+                      <span>Xem biểu đồ mã {tickerSearchInput.trim().toUpperCase()} (Enter)</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer shortcuts helper */}
+            <div className="px-4 py-2 border-t border-gray-100 dark:border-[#2a2e39] bg-gray-50/70 dark:bg-[#161922] flex items-center justify-between text-[11px] text-gray-400">
+              <div className="flex items-center space-x-3">
+                <span><kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">↑↓</kbd> Điều hướng</span>
+                <span><kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">Enter</kbd> Chọn mã</span>
+                <span><kbd className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 font-mono text-[10px]">Esc</kbd> Đóng</span>
+              </div>
+              <span className="text-[10px] text-gray-400 font-mono">TradingView Symbol Search</span>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
