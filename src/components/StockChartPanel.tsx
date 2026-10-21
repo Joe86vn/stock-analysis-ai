@@ -461,20 +461,29 @@ export function StockChartPanel({
   const searchResultsContainerRef = useRef<HTMLDivElement>(null);
   const [stockCatalog, setStockCatalog] = useState<StockRankingItem[]>(allStocks || []);
 
-  // Đồng bộ danh bạ cổ phiếu (nếu allStocks rỗng thì tự động fetch từ ranking API)
+  // Đồng bộ danh bạ toàn thị trường (1.519 mã) cho bộ tìm kiếm chuẩn TradingView
   useEffect(() => {
-    if (allStocks && allStocks.length > 0) {
+    if (allStocks && allStocks.length > 100) {
       setStockCatalog(allStocks);
-    } else {
-      fetch('/api/ranking')
-        .then((res) => res.json())
-        .then((json) => {
-          if (json.success && Array.isArray(json.data)) {
-            setStockCatalog(json.data);
-          }
-        })
-        .catch(() => {});
+      return;
     }
+
+    // Nạp toàn bộ universe 1.519 mã từ API presets
+    fetch('/api/stocks/watchlist-presets')
+      .then((res) => res.json())
+      .then((json) => {
+        const universe = json?.data?.universe || json?.data?.filter_75 || [];
+        if (Array.isArray(universe) && universe.length > 0) {
+          setStockCatalog(universe);
+        } else if (allStocks && allStocks.length > 0) {
+          setStockCatalog(allStocks);
+        }
+      })
+      .catch(() => {
+        if (allStocks && allStocks.length > 0) {
+          setStockCatalog(allStocks);
+        }
+      });
   }, [allStocks]);
 
   // Danh sách cổ phiếu lọc theo từ khóa & tab sàn
@@ -494,6 +503,7 @@ export function StockChartPanel({
       return list.slice(0, 30);
     }
 
+    const exactMatches: StockRankingItem[] = [];
     const startsWithTicker: StockRankingItem[] = [];
     const containsTicker: StockRankingItem[] = [];
     const containsName: StockRankingItem[] = [];
@@ -501,7 +511,9 @@ export function StockChartPanel({
 
     for (const s of list) {
       const t = s.ticker.toUpperCase();
-      if (t.startsWith(q)) {
+      if (t === q) {
+        exactMatches.push(s);
+      } else if (t.startsWith(q)) {
         startsWithTicker.push(s);
       } else if (t.includes(q)) {
         containsTicker.push(s);
@@ -510,7 +522,49 @@ export function StockChartPanel({
       }
     }
 
-    return [...startsWithTicker, ...containsTicker, ...containsName].slice(0, 50);
+    const merged = [...exactMatches, ...startsWithTicker, ...containsTicker, ...containsName];
+
+    // Nếu người dùng nhập mã 2-5 ký tự mà không trùng khớp bất kỳ mã nào trong danh bạ:
+    // Tạo sẵn 1 lựa chọn trực tiếp để người dùng bấm Enter mở ngay lập tức!
+    if (merged.length === 0 && q.length >= 2) {
+      merged.push({
+        ticker: q,
+        companyName: `Xem biểu đồ kỹ thuật mã ${q}`,
+        exchange: 'THỊ TRƯỜNG',
+        industry: 'Cổ phiếu niêm yết',
+        currentPrice: 0,
+        rsRating: 0,
+        totalScore: 0,
+        maxScore: 150,
+        totalPercentage: 0,
+        rankGrade: 'C',
+        rankTitle: 'Khá',
+        financialHealthScore: 0,
+        growthQualityScore: 0,
+        businessQualityScore: 0,
+        financialHealthGrade: 'Trung bình',
+        growthQualityGrade: 'Trung bình',
+        businessQualityGrade: 'Trung bình',
+        adtv20Billion: 0,
+        marketCapBillion: 0,
+        foreignPercentage: 0,
+        freeFloatPercentage: 0,
+        coreEpsGrowthYoY: 0,
+        coreNetProfitGrowthYoY: 0,
+        headlineNetProfitGrowthYoY: 0,
+        q0RevenueGrowthYoY: 0,
+        roic: 0,
+        roe: 0,
+        grossMargin: 0,
+        netMargin: 0,
+        netDebtToEbitda: 0,
+        cfoBillion: 0,
+        latestQuarter: '',
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    return merged.slice(0, 50);
   }, [stockCatalog, tickerSearchInput, searchExchangeTab]);
 
   // Cuộn item được highlight vào view

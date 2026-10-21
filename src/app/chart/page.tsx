@@ -33,17 +33,31 @@ function ChartViewInner() {
     }
   }, [urlTicker]);
 
-  // Tải danh sách cổ phiếu để phục vụ bộ tìm kiếm chuyển mã nhanh
+  // Tải danh sách toàn bộ cổ phiếu thị trường (1.519 mã) để phục vụ tìm kiếm nhanh chuẩn TradingView
   useEffect(() => {
     const loadStockList = async () => {
       try {
-        const res = await fetch('/api/ranking');
-        if (!res.ok) return;
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data)) {
-          setAllStocks(json.data);
-          // Nếu mã hiện tại khớp trong danh sách, cập nhật luôn thông tin
-          const matched = json.data.find((s: StockRankingItem) => s.ticker === currentTicker);
+        const res = await fetch('/api/stocks/watchlist-presets');
+        if (res.ok) {
+          const json = await res.json();
+          const universe = json?.data?.universe || json?.data?.filter_75 || [];
+          if (Array.isArray(universe) && universe.length > 0) {
+            setAllStocks(universe);
+            const matched = universe.find((s: StockRankingItem) => s.ticker === currentTicker);
+            if (matched) {
+              setCurrentStockData(matched);
+            }
+            return;
+          }
+        }
+
+        // Fallback sang /api/ranking nếu API presets không phản hồi
+        const fallbackRes = await fetch('/api/ranking');
+        if (!fallbackRes.ok) return;
+        const fallbackJson = await fallbackRes.json();
+        if (fallbackJson.success && Array.isArray(fallbackJson.data)) {
+          setAllStocks(fallbackJson.data);
+          const matched = fallbackJson.data.find((s: StockRankingItem) => s.ticker === currentTicker);
           if (matched) {
             setCurrentStockData(matched);
           }
