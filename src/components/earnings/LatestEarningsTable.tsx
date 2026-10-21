@@ -785,9 +785,13 @@ export function LatestEarningsTable() {
                                 ? 'text-blue-600 dark:text-blue-400'
                                 : 'text-gray-700 dark:text-gray-300'
                             }`}
-                            title={`Thanh khoản bình quân 20 phiên: ${adtv.toFixed(2)} tỷ/phiên`}
+                            title={`Thanh khoản bình quân 20 phiên: ${adtv >= 1 ? `${adtv.toFixed(2)} tỷ/phiên` : `${(adtv * 1000).toFixed(1)} tr/phiên`}`}
                           >
-                            {adtv >= 1 ? `${adtv.toFixed(1)} tỷ` : `${(adtv * 1000).toFixed(0)} tr`}
+                            {adtv >= 1
+                              ? `${adtv.toFixed(1)} tỷ`
+                              : adtv >= 0.001
+                              ? `${Math.round(adtv * 1000)} tr`
+                              : '< 1 tr'}
                           </span>
                         ) : (
                           <span className="text-gray-400">—</span>

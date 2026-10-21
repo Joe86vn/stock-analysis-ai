@@ -31,7 +31,7 @@ export async function getMarketMetricsMap(forceRefresh = false): Promise<Map<str
         const cleanTicker = s.ticker.trim().toUpperCase();
         const rs = s.rs1Month ?? s.stockStrength ?? (FILTER_75_RS_MAP[cleanTicker] ?? null);
         map.set(cleanTicker, {
-          adtv20Billion: typeof s.adtv20Billion === 'number' ? Number(s.adtv20Billion.toFixed(2)) : null,
+          adtv20Billion: typeof s.adtv20Billion === 'number' ? s.adtv20Billion : null,
           rsRating: typeof rs === 'number' ? Math.round(rs) : null,
           currentPrice: typeof s.marketPrice === 'number' ? s.marketPrice : null,
         });

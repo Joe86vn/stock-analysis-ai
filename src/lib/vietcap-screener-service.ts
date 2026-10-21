@@ -69,21 +69,22 @@ export function buildVietcapScreenerPayload(criteria: ScreenerFilterCriteria): V
     })),
   });
 
-  // 2. Điều kiện Thanh khoản (ADTV 20 ngày)
-  if (typeof criteria.adtvMinBillion === 'number' && criteria.adtvMinBillion > 0) {
-    const minVnd = criteria.adtvMinBillion * 1_000_000_000;
-    payload.push({
-      name: 'adtv',
-      category: 'general',
-      conditionOptions: [
-        {
-          from: minVnd,
-          to: 2_000_000_000_000, // 2000 Tỷ tối đa
-        },
-      ],
-      extraName: '20Days',
-    });
-  }
+  // 2. Điều kiện Thanh khoản (ADTV 20 ngày) - Luôn yêu cầu để Vietcap Screener API trả về trường adtv20Days
+  const minVnd = typeof criteria.adtvMinBillion === 'number' && criteria.adtvMinBillion > 0
+    ? criteria.adtvMinBillion * 1_000_000_000
+    : 0;
+
+  payload.push({
+    name: 'adtv',
+    category: 'general',
+    conditionOptions: [
+      {
+        from: minVnd,
+        to: 2_000_000_000_000, // 2000 Tỷ tối đa
+      },
+    ],
+    extraName: '20Days',
+  });
 
   // 3. Điều kiện Sức mạnh giá (RS Rating)
   if (typeof criteria.rsMin === 'number' && criteria.rsMin > 0) {
@@ -195,8 +196,8 @@ export async function executeVietcapScreener(
     const dataList = Array.isArray(json?.data) ? json.data : [];
 
     return dataList.map((item: any) => {
-      const adtvVnd = item.adtv20Days || item.accumulatedValue || 0;
-      const adtvBillion = Math.round((adtvVnd / 1_000_000_000) * 10) / 10;
+      const adtvVnd = typeof item.adtv20Days === 'number' ? item.adtv20Days : (item.accumulatedValue || 0);
+      const adtvBillion = Number((adtvVnd / 1_000_000_000).toFixed(4));
       let ex = (item.exchange || 'HSX').toUpperCase();
       if (ex === 'HOSE') ex = 'HSX';
 
