@@ -408,7 +408,7 @@ export async function runSscEarningsPipeline(options: {
     extractEarningsFromPdfFile,
     buildEarningsRecord,
   } = await import('./ssc-earnings-extractor');
-  const { upsertEarningsRecord, cleanInvalidEarningsRecords, saveEarningsPdf, calculateCurrentReportPeriod } = await import('./earnings-store');
+  const { upsertEarningsRecord, cleanInvalidEarningsRecords, saveEarningsPdf, calculateCurrentReportPeriod, getEarningsStore } = await import('./earnings-store');
 
   const currentPeriodInfo = calculateCurrentReportPeriod();
 
@@ -523,12 +523,18 @@ export async function runSscEarningsPipeline(options: {
         const ticker = (row.ticker || '').trim().toUpperCase();
         const reportKey = generateReportKey(ticker, row.reportTitle, row.summary);
 
-        // THUẬT TOÁN EARLY STOPPING: Kiểm tra nếu báo cáo đã có trong hệ thống
-        if (isReportProcessedOrSkipped(reportKey)) {
+        // KIỂM TRA ĐỒNG BỘ: Báo cáo chỉ được coi là đã có khi THỰC SỰ ĐÃ NẰM TRONG BẢNG KQKD KỲ HIỆN TẠI
+        const store = getEarningsStore();
+        const alreadyInStore = store.records.some(
+          (r) => r.ticker === ticker && r.period === currentPeriodInfo.period && r.year === currentPeriodInfo.year
+        );
+
+        if (alreadyInStore) {
           consecutiveExistingCount++;
-          if (consecutiveExistingCount >= CONSECUTIVE_EXISTING_THRESHOLD) {
+          // Chỉ cho phép dừng sớm từ trang 3 trở đi và khi gặp ít nhất 10 báo cáo liên tiếp đã có trong hệ thống
+          if (p >= 3 && consecutiveExistingCount >= 10) {
             console.log(
-              `[SSC Pipeline] Đã gặp ${consecutiveExistingCount} báo cáo liên tiếp đã có trong hệ thống -> Kích hoạt Early Stopping dừng quét!`
+              `[SSC Pipeline] Đã gặp ${consecutiveExistingCount} báo cáo liên tiếp đã có trong bảng KQKD (tại trang ${p}) -> Kích hoạt Early Stopping dừng quét!`
             );
             earlyStopTriggered = true;
             break;

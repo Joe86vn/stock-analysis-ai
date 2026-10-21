@@ -100,7 +100,25 @@ export function isReportProcessedOrSkipped(reportKey: string): boolean {
   const map = loadManifestToCache();
   const item = map.get(reportKey);
   if (!item) return false;
-  return item.status === 'PROCESSED' || item.status === 'SKIPPED_SECTOR';
+  if (item.status === 'SKIPPED_SECTOR') return true;
+
+  if (item.status === 'PROCESSED') {
+    try {
+      const storeFile = path.join(process.cwd(), 'data', 'earnings', 'latest_earnings_updates.json');
+      if (fs.existsSync(storeFile) && item.ticker) {
+        const raw = fs.readFileSync(storeFile, 'utf-8');
+        const store = JSON.parse(raw);
+        const exists = (store.records || []).some((r: any) => r.ticker === item.ticker);
+        if (!exists) {
+          // Báo cáo ghi là PROCESSED nhưng trong bảng KQKD thực tế chưa có -> Cần cào và xử lý lại!
+          return false;
+        }
+      }
+    } catch {}
+    return true;
+  }
+
+  return false;
 }
 
 /**
