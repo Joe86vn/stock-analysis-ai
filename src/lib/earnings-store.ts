@@ -173,10 +173,9 @@ export function upsertEarningsRecord(record: EarningsRecord): void {
     store.records.unshift(record);
   }
 
-  // Tự động nhận diện kỳ hoạt động nếu kỳ của bản ghi chiếm ưu thế
-  if (record.period && record.year) {
-    store.activePeriod = `${record.period}/${record.year}`;
-  }
+  // Luôn đảm bảo kỳ hoạt động của bảng khớp với kỳ thị trường hiện tại
+  const currentPeriodInfo = calculateCurrentReportPeriod();
+  store.activePeriod = currentPeriodInfo.label;
 
   store.totalRecords = store.records.length;
   store.updatedAt = new Date().toISOString();
@@ -203,10 +202,8 @@ export function upsertMultipleEarningsRecords(records: EarningsRecord[]): void {
     }
   }
 
-  const first = records[0];
-  if (first.period && first.year) {
-    store.activePeriod = `${first.period}/${first.year}`;
-  }
+  const currentPeriodInfo = calculateCurrentReportPeriod();
+  store.activePeriod = currentPeriodInfo.label;
 
   store.totalRecords = store.records.length;
   store.updatedAt = new Date().toISOString();
