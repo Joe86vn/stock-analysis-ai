@@ -166,3 +166,27 @@ export function getSafeUsers(): SafeUser[] {
     const users = getAllUsers();
     return users.map(({ passwordHash: _, ...safe }) => safe);
 }
+
+export function findOrCreateGoogleUser(googleUser: {
+    email: string;
+    name?: string | null;
+    image?: string | null;
+}): AppUser {
+    const users = getAllUsers();
+    const cleanEmail = googleUser.email.trim().toLowerCase();
+    let existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
+
+    if (!existing) {
+        existing = {
+            id: `usr_g_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            email: cleanEmail,
+            name: googleUser.name?.trim() || cleanEmail.split('@')[0],
+            role: 'member_free',
+            passwordHash: '',
+            createdAt: new Date().toISOString(),
+        };
+        users.push(existing);
+        saveUsers(users);
+    }
+    return existing;
+}

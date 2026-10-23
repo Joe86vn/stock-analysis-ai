@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { UserPlus, Mail, Lock, User, AlertCircle, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { validatePasswordStrength } from '@/types/auth';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -48,8 +49,8 @@ export default function RegisterPage() {
             } else {
                 setSuccess('Đăng ký thành công! Đang chuyển hướng sang trang đăng nhập...');
                 setTimeout(() => {
-                    router.push('/login');
-                }, 1500);
+                    router.push(`/login?registered=1&email=${encodeURIComponent(email)}`);
+                }, 1200);
             }
         } catch (err) {
             console.error('Register submit error:', err);
@@ -62,12 +63,12 @@ export default function RegisterPage() {
         <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50/50 dark:bg-[#0B0F19]">
             <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white dark:bg-gray-900 border border-gray-200/90 dark:border-gray-800/90 rounded-2xl shadow-sm">
                 <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 mb-3 border border-blue-500/20">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 mb-3 border border-emerald-500/20">
                         <UserPlus className="w-6 h-6" />
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Đăng Ký Tài Khoản</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Gói miễn phí: Truy cập Bộ lọc RS và Biểu đồ kỹ thuật
+                        Khởi đầu miễn phí: Truy cập Bộ lọc RS và Biểu đồ kỹ thuật
                     </p>
                 </div>
 
@@ -98,7 +99,7 @@ export default function RegisterPage() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Nguyễn Văn A"
-                                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                             />
                         </div>
                     </div>
@@ -115,7 +116,7 @@ export default function RegisterPage() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="ten@example.com"
-                                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                             />
                         </div>
                     </div>
@@ -137,7 +138,7 @@ export default function RegisterPage() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="VD: Valuex@2025"
-                                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                             />
                         </div>
                     </div>
@@ -154,7 +155,7 @@ export default function RegisterPage() {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="Xác nhận lại mật khẩu"
-                                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                             />
                         </div>
                     </div>
@@ -162,7 +163,7 @@ export default function RegisterPage() {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm flex items-center justify-center space-x-2 transition-all shadow-md shadow-blue-600/20 disabled:opacity-50"
+                        className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50 cursor-pointer"
                     >
                         {isLoading ? (
                             <>
@@ -177,6 +178,19 @@ export default function RegisterPage() {
                         )}
                     </button>
                 </form>
+
+                <div className="relative my-5">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-200 dark:border-gray-800" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white dark:bg-gray-900 px-3 text-gray-400 dark:text-gray-500 font-medium">
+                            Hoặc tiếp tục với
+                        </span>
+                    </div>
+                </div>
+
+                <GoogleSignInButton callbackUrl="/" text="Đăng ký nhanh bằng Google" />
 
                 <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">
                     <p className="text-xs text-gray-500 dark:text-gray-400">

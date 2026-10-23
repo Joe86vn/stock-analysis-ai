@@ -1,20 +1,43 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { ShieldCheck, Mail, Lock, AlertCircle, ArrowRight, Loader2, Sparkles, Crown, User } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, AlertCircle, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 
 function LoginFormContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get('callbackUrl') || '/';
+    const registeredParam = searchParams.get('registered');
+    const emailParam = searchParams.get('email');
+    const errorParam = searchParams.get('error');
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (registeredParam === '1') {
+            setSuccessMessage('Đăng ký tài khoản thành công! Bạn có thể đăng nhập ngay.');
+        }
+        if (emailParam) {
+            setEmail(emailParam);
+        }
+        if (errorParam) {
+            if (errorParam === 'OAuthAccountNotLinked') {
+                setError('Email này đã được đăng ký bằng phương thức khác. Vui lòng đăng nhập bằng mật khẩu.');
+            } else if (errorParam === 'Configuration') {
+                setError('Hệ thống xác thực Google chưa được cấu hình đầy đủ.');
+            } else {
+                setError('Xác thực thất bại. Vui lòng thử lại.');
+            }
+        }
+    }, [registeredParam, emailParam, errorParam]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,11 +65,6 @@ function LoginFormContent() {
         }
     };
 
-    const handleQuickLogin = (demoEmail: string, demoPass: string) => {
-        setEmail(demoEmail);
-        setPassword(demoPass);
-    };
-
     return (
         <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white dark:bg-gray-900 border border-gray-200/90 dark:border-gray-800/90 rounded-2xl shadow-sm">
             <div className="text-center mb-6">
@@ -58,6 +76,13 @@ function LoginFormContent() {
                     Hệ thống phân tích chứng khoán & định giá bứt phá
                 </p>
             </div>
+
+            {successMessage && (
+                <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{successMessage}</span>
+                </div>
+            )}
 
             {error && (
                 <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center space-x-2">
@@ -104,7 +129,7 @@ function LoginFormContent() {
                 <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50"
+                    className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50 cursor-pointer"
                 >
                     {isLoading ? (
                         <>
@@ -120,6 +145,19 @@ function LoginFormContent() {
                 </button>
             </form>
 
+            <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200 dark:border-gray-800" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white dark:bg-gray-900 px-3 text-gray-400 dark:text-gray-500 font-medium">
+                        Hoặc tiếp tục với
+                    </span>
+                </div>
+            </div>
+
+            <GoogleSignInButton callbackUrl={callbackUrl} text="Đăng nhập bằng tài khoản Google" />
+
             <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                     Chưa có tài khoản?{' '}
@@ -130,49 +168,6 @@ function LoginFormContent() {
                         Đăng ký miễn phí ngay
                     </Link>
                 </p>
-            </div>
-
-            {/* Demo Credentials Helper Box */}
-            <div className="mt-6 p-3.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200/60 dark:border-gray-700/60 text-xs text-gray-600 dark:text-gray-400">
-                <div className="flex items-center space-x-1.5 font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Tài khoản Demo thử nghiệm nhanh:</span>
-                </div>
-                <div className="grid grid-cols-1 gap-1.5 font-mono text-[11px]">
-                    <button
-                        type="button"
-                        onClick={() => handleQuickLogin('admin@valuex.vn', 'valuex@Admin2025')}
-                        className="text-left p-2 rounded-lg bg-gray-100/60 dark:bg-gray-800/60 hover:bg-emerald-500/10 dark:hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/30 flex justify-between items-center transition"
-                    >
-                        <span className="flex items-center gap-1.5 font-sans">
-                            <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                            <b>Admin:</b> <span className="font-mono text-slate-700 dark:text-slate-300">admin@valuex.vn</span>
-                        </span>
-                        <span className="text-[10px] font-sans font-medium text-emerald-600 dark:text-emerald-400">Nạp mật khẩu</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleQuickLogin('vip@valuex.vn', 'valuex@VIP2025')}
-                        className="text-left p-2 rounded-lg bg-gray-100/60 dark:bg-gray-800/60 hover:bg-amber-500/10 dark:hover:bg-amber-500/10 border border-transparent hover:border-amber-500/30 flex justify-between items-center transition"
-                    >
-                        <span className="flex items-center gap-1.5 font-sans">
-                            <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                            <b>VIP Pro:</b> <span className="font-mono text-slate-700 dark:text-slate-300">vip@valuex.vn</span>
-                        </span>
-                        <span className="text-[10px] font-sans font-medium text-amber-600 dark:text-amber-400">Nạp mật khẩu</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleQuickLogin('demo@valuex.vn', 'demo@Free2025')}
-                        className="text-left p-2 rounded-lg bg-gray-100/60 dark:bg-gray-800/60 hover:bg-blue-500/10 dark:hover:bg-blue-500/10 border border-transparent hover:border-blue-500/30 flex justify-between items-center transition"
-                    >
-                        <span className="flex items-center gap-1.5 font-sans">
-                            <User className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            <b>Free:</b> <span className="font-mono text-slate-700 dark:text-slate-300">demo@valuex.vn</span>
-                        </span>
-                        <span className="text-[10px] font-sans font-medium text-blue-600 dark:text-blue-400">Nạp mật khẩu</span>
-                    </button>
-                </div>
             </div>
         </div>
     );
