@@ -43,8 +43,13 @@ export function UserMenu() {
     }
 
     const role = (session.user.role as UserRole) || 'member_free';
-    const roleMeta = ROLE_LABELS[role] || ROLE_LABELS.member_free;
-    const isAdmin = role === 'admin';
+    const roleMeta = ROLE_LABELS[role] || {
+        label: role,
+        badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+        color: '#10b981',
+    };
+    const userPermissions = (session.user as any)?.permissions as string[] | undefined;
+    const canAccessAdmin = role === 'admin' || userPermissions?.includes('admin_dashboard');
 
     return (
         <div className="relative" ref={menuRef}>
@@ -92,7 +97,7 @@ export function UserMenu() {
                             <span>Hồ Sơ & Nâng Cấp VIP</span>
                         </Link>
 
-                        {isAdmin && (
+                        {canAccessAdmin && (
                             <Link
                                 href="/admin"
                                 onClick={() => setIsOpen(false)}

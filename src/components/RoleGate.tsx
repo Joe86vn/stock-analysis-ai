@@ -31,7 +31,8 @@ export function RoleGate({
     }
 
     const role = (session?.user?.role as UserRole) || 'member_free';
-    const allowed = hasPermission(role, feature);
+    const permissions = (session?.user as any)?.permissions;
+    const allowed = hasPermission(role, feature, permissions);
 
     if (allowed) {
         return <>{children}</>;

@@ -3,8 +3,9 @@ import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import { findUserByEmail, findOrCreateGoogleUser } from './users-store';
-import { UserRole } from '@/types/auth';
+import { UserRole, FeatureKey } from '@/types/auth';
 import { authConfig } from './auth.config';
+import { getRolePermissions } from './roles-store';
 
 // Mở rộng kiểu dữ liệu Session và JWT cho NextAuth
 declare module 'next-auth' {
@@ -13,6 +14,7 @@ declare module 'next-auth' {
         email: string;
         name: string;
         role: UserRole;
+        permissions?: FeatureKey[];
     }
     interface Session {
         user: {
@@ -20,6 +22,7 @@ declare module 'next-auth' {
             email: string;
             name: string;
             role: UserRole;
+            permissions?: FeatureKey[];
         };
     }
 }
@@ -109,12 +112,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     token.role = 'member_free';
                 }
             }
+            token.permissions = getRolePermissions(token.role as string);
             return token;
         },
         async session({ session, token }) {
             if (token && session.user) {
                 session.user.id = (token.id as string) || (token.sub as string);
                 session.user.role = (token.role as any) || 'member_free';
+                session.user.permissions = (token.permissions as any) || [];
             }
             return session;
         },

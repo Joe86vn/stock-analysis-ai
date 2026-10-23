@@ -60,7 +60,7 @@ function ensureDataDir() {
  * Ghi dữ liệu ra file tạm .tmp trước, sau đó rename thay thế file đích để ngăn ngừa
  * lỗi file JSON bị hỏng (corrupted) khi có nhiều request đồng thời hoặc mất điện.
  */
-function saveUsers(users: AppUser[]): boolean {
+export function saveUsers(users: AppUser[]): boolean {
     globalThis.__USERS_STORE__ = users;
     try {
         ensureDataDir();
