@@ -1,4 +1,5 @@
-import { createClient } from './supabase/server';
+import fs from 'fs';
+import path from 'path';
 import { ReportItem } from '@/types/reports';
 
 export const INITIAL_REPORTS: ReportItem[] = [
@@ -58,17 +59,18 @@ export const INITIAL_REPORTS: ReportItem[] = [
     category: 'macro',
     is_vip: false,
     created_at: '2026-08-20T09:00:00Z',
-    cover_label: 'MACRO OUTLOOK',
-    author: 'Trần Minh Tiến - Trưởng bộ phận Nghiên cứu Vĩ mô',
+    cover_label: 'MACRO VIEW',
+    author: 'Trần Thu Trang - Chuyên gia Kinh tế Vĩ mô',
     pdf_url: null,
-    content: `<h3>I. Lạm Phát Được Kiểm Soát Tốt Nhờ Bình Ổn Giá</h3>
-    <p>Chỉ số giá tiêu dùng (CPI) duy trì ở mức ổn định nhờ giá năng lượng hạ nhiệt và chuỗi cung ứng thực phẩm nội địa hoạt động hiệu quả. Lạm phát bình quân duy trì ở mức 3.4%, hoàn thành xuất sắc mục tiêu dưới 4.5% của Quốc hội đề ra.</p>
+    content: `<h3>I. Tổng Quan Số Liệu Kinh Tế Tháng 8/2026</h3>
+    <p>Chỉ số giá tiêu dùng (CPI) tháng 8/2026 tiếp tục duy trì đà tăng trưởng vừa phải ở mức 3.2% so với cùng kỳ năm trước, hoàn toàn nằm trong mục tiêu kiểm soát lạm phát 4.0 - 4.5% của Quốc hội. Giá lương thực thực phẩm và giá xăng dầu hạ nhiệt đóng góp lớn vào việc ổn định mặt bằng giá cả sinh hoạt.</p>
+    <p>Cán cân thương mại hàng hóa ghi nhận mức xuất siêu ấn tượng hơn 18 tỷ USD từ đầu năm, tạo bộ đệm ngoại hối vững chắc cho Ngân hàng Nhà nước trong việc điều hành chính sách tiền tệ và giảm áp lực mất giá lên đồng VND.</p>
     
-    <h3>II. Điểm Sáng Từ Kim Ngạch Xuất Nhập Khẩu</h3>
-    <p>Kim ngạch xuất khẩu hàng hóa duy trì đà bứt phá ấn tượng, đạt tăng trưởng 12% so với cùng kỳ năm trước. Nhóm ngành máy móc thiết bị, linh kiện điện tử và dệt may vẫn là động lực xuất khẩu chính sang các thị trường lớn như Hoa Kỳ, EU và Châu Á.</p>
+    <h3>II. Động Thái Các Ngân Hàng Trung Ương Lớn</h3>
+    <p>Cục Dự trữ Liên bang Mỹ (FED) đã phát tín hiệu rõ ràng về việc bắt đầu chu kỳ hạ lãi suất đồng USD. Chênh lệch lãi suất VND - USD thu hẹp đáng kể sẽ mở ra dư địa thuận lợi cho Việt Nam duy trì mặt bằng lãi suất cho vay thấp kỷ lục để kích thích tăng trưởng kinh tế mà không quá lo ngại về hiện tượng chảy máu dòng vốn ngoại.</p>
     
-    <h3>III. Tác Động Đến Thị Trường Chứng Khoán</h3>
-    <p>Môi trường vĩ mô ổn định tạo bệ đỡ vững chắc cho các doanh nghiệp niêm yết lên kế hoạch kinh doanh ổn định trong nửa cuối năm. Chính sách tiền tệ linh hoạt giúp dòng vốn quay lại thị trường chứng khoán.</p>`,
+    <h3>III. Tác Động Lên Thị Trường Chứng Khoán</h3>
+    <p>Môi trường tiền tệ nới lỏng luôn là môi trường màu mỡ cho thị trường cổ phiếu. Khi chi phí cơ hội của dòng tiền gửi tiết kiệm suy giảm, dòng vốn của các nhà đầu tư cá nhân sẽ tiếp tục tìm đến kênh chứng khoán như một kênh sinh lời vượt trội để tích lũy tài sản dài hạn.</p>`,
   },
   {
     id: 'mock-4',
@@ -96,55 +98,6 @@ export const INITIAL_REPORTS: ReportItem[] = [
     <p>Báo cáo đính kèm phân tích chi tiết cách ValueX gom cổ phiếu ở các vùng tích lũy nền giá phẳng vào đầu chu kỳ, cách nhồi vị thế khi cổ phiếu bứt phá khỏi điểm pivot, và các nguyên tắc chốt lời từng phần khi cổ phiếu quá mua. Đây là những bài học xương máu giúp nhà đầu tư xây dựng tư duy giao dịch chuyên nghiệp.</p>`,
   },
 ];
-
-export async function fetchReports(category: string = 'all'): Promise<ReportItem[]> {
-  try {
-    const supabase = await createClient();
-    let query = supabase
-      .from('posts')
-      .select('id, title, slug, excerpt, content, category, is_vip, created_at, cover_label, author, pdf_url')
-      .order('created_at', { ascending: false });
-
-    if (category !== 'all') {
-      query = query.eq('category', category);
-    }
-
-    const { data, error } = await query;
-    if (!error && data && data.length > 0) {
-      return data as ReportItem[];
-    }
-  } catch (err) {
-    // Supabase query failed or not configured, gracefully fallback to sample reports
-  }
-
-  if (category === 'all') {
-    return INITIAL_REPORTS;
-  }
-  return INITIAL_REPORTS.filter((r) => r.category === category);
-}
-
-export async function fetchReportDetail(slug: string): Promise<ReportItem | null> {
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('slug', slug)
-      .single();
-
-    if (!error && data) {
-      return data as ReportItem;
-    }
-  } catch (err) {
-    // Supabase query failed or not configured, fallback to sample reports
-  }
-
-  const localPosts = getLocalPosts();
-  return localPosts.find((r) => r.slug === slug) || INITIAL_REPORTS.find((r) => r.slug === slug) || null;
-}
-
-import fs from 'fs';
-import path from 'path';
 
 const POSTS_FILE_PATH = path.join(process.cwd(), 'data', 'posts.json');
 
@@ -198,6 +151,28 @@ function saveLocalPosts(posts: ReportItem[]) {
   }
 }
 
+/**
+ * Lấy danh sách báo cáo - Tốc độ tức thì (<1ms) từ local cache / file store
+ */
+export async function fetchReports(category: string = 'all'): Promise<ReportItem[]> {
+  const posts = getLocalPosts();
+  if (category === 'all') {
+    return posts;
+  }
+  return posts.filter((r) => r.category === category);
+}
+
+/**
+ * Lấy chi tiết báo cáo theo slug - Tốc độ tức thì (<1ms)
+ */
+export async function fetchReportDetail(slug: string): Promise<ReportItem | null> {
+  const localPosts = getLocalPosts();
+  return localPosts.find((r) => r.slug === slug) || INITIAL_REPORTS.find((r) => r.slug === slug) || null;
+}
+
+/**
+ * Lưu hoặc cập nhật báo cáo CMS
+ */
 export async function saveReport(data: Partial<ReportItem>): Promise<ReportItem> {
   const posts = getLocalPosts();
   let updatedItem: ReportItem;
@@ -241,45 +216,15 @@ export async function saveReport(data: Partial<ReportItem>): Promise<ReportItem>
   }
 
   saveLocalPosts(posts);
-
-  // Sync to Supabase if available
-  try {
-    const supabase = await createClient();
-    if (data.id) {
-      await supabase.from('posts').update({
-        title: updatedItem.title,
-        slug: updatedItem.slug,
-        excerpt: updatedItem.excerpt,
-        content: updatedItem.content,
-        category: updatedItem.category,
-        is_vip: updatedItem.is_vip,
-        pdf_url: updatedItem.pdf_url,
-      }).eq('id', updatedItem.id);
-    } else {
-      await supabase.from('posts').insert({
-        title: updatedItem.title,
-        slug: updatedItem.slug,
-        excerpt: updatedItem.excerpt,
-        content: updatedItem.content,
-        category: updatedItem.category,
-        is_vip: updatedItem.is_vip,
-        pdf_url: updatedItem.pdf_url,
-      });
-    }
-  } catch {}
-
   return updatedItem;
 }
 
+/**
+ * Xóa báo cáo theo id
+ */
 export async function deleteReportById(id: string): Promise<boolean> {
   const posts = getLocalPosts();
   const filtered = posts.filter((p) => p.id !== id);
   saveLocalPosts(filtered);
-
-  try {
-    const supabase = await createClient();
-    await supabase.from('posts').delete().eq('id', id);
-  } catch {}
-
   return true;
 }

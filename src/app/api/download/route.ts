@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: Request) {
   try {
@@ -23,21 +22,7 @@ export async function GET(request: Request) {
       return new NextResponse('Tài khoản của bạn cần được nâng cấp lên VIP để tải file báo cáo này.', { status: 403 });
     }
 
-    // 2. Generate signed URL from Supabase Storage if configured
-    try {
-      const supabase = await createClient();
-      const { data, error } = await supabase.storage
-        .from('reports-bucket')
-        .createSignedUrl(filePath, 60);
-
-      if (!error && data?.signedUrl) {
-        return NextResponse.redirect(data.signedUrl);
-      }
-    } catch (storageErr) {
-      // Supabase storage unavailable, fallback below
-    }
-
-    // 3. Fallback: If sample file or local demo
+    // Fallback: If sample file or local demo
     return new NextResponse(
       `Đã xác thực quyền VIP thành công cho tài khoản ${session.user.email}. File tài liệu: ${filePath} đang được đồng bộ từ kho lưu trữ.`,
       {

@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { createClient } from './supabase/server';
 import { updateUserRole } from './users-store';
 
 export interface VipRequest {
@@ -56,7 +55,7 @@ function ensureStoreExists(): VipRequest[] {
   // Fallback to initial sample
   globalThis.__VIP_REQUESTS_STORE__ = [...INITIAL_VIP_REQUESTS];
 
-  // Attempt to write to disk if environment allows (ignore EROFS on Vercel)
+  // Attempt to write to disk if environment allows
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -80,7 +79,6 @@ function saveRequests(list: VipRequest[]) {
     fs.writeFileSync(tempPath, JSON.stringify(list, null, 2), 'utf-8');
     fs.renameSync(tempPath, FILE_PATH);
   } catch {
-    // Read-only filesystem on Vercel/serverless — in-memory cache is already updated
     console.warn('[vip-requests-store] File save skipped (read-only filesystem or IO error)');
   }
 }
@@ -94,7 +92,6 @@ export async function createVipRequest(
 ): Promise<VipRequest> {
   const list = ensureStoreExists();
 
-  // If user already has pending request, update it
   const existingIndex = list.findIndex((r) => r.userId === userId && r.status === 'pending');
   const newReq: VipRequest = {
     id: `req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -114,20 +111,6 @@ export async function createVipRequest(
   }
 
   saveRequests(list);
-
-  // Try saving to Supabase if configured
-  try {
-    const supabase = await createClient();
-    await supabase.from('vip_requests').insert({
-      user_id: userId,
-      phone_contact: phoneContact,
-      note,
-      status: 'pending',
-    });
-  } catch (err) {
-    // Ignore error if Supabase is offline
-  }
-
   return newReq;
 }
 
@@ -150,22 +133,6 @@ export async function approveVipRequest(requestId: string): Promise<boolean> {
 
   // Upgrade user role in users-store to member_vip
   updateUserRole(req.userId, 'member_vip');
-
-  // Sync to Supabase if available
-  try {
-    const supabase = await createClient();
-    await supabase
-      .from('vip_requests')
-      .update({ status: 'approved' })
-      .eq('id', requestId);
-    await supabase
-      .from('profiles')
-      .update({ role: 'vip' })
-      .eq('id', req.userId);
-  } catch (err) {
-    // Ignore Supabase error
-  }
-
   return true;
 }
 
@@ -176,16 +143,5 @@ export async function rejectVipRequest(requestId: string): Promise<boolean> {
 
   req.status = 'rejected';
   saveRequests(list);
-
-  try {
-    const supabase = await createClient();
-    await supabase
-      .from('vip_requests')
-      .update({ status: 'rejected' })
-      .eq('id', requestId);
-  } catch (err) {
-    // Ignore Supabase error
-  }
-
   return true;
 }
