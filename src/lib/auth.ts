@@ -100,11 +100,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 token.id = user.id;
                 token.role = (user as any).role;
             }
-            if (!token.role && token.email) {
+            if (token.email) {
                 const existing = findUserByEmail(token.email);
-                token.role = existing?.role || 'member_free';
                 if (existing) {
+                    token.role = existing.role;
                     token.id = existing.id;
+                } else if (!token.role) {
+                    token.role = 'member_free';
                 }
             }
             return token;
