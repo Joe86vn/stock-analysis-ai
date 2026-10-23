@@ -104,11 +104,12 @@ export function UserMenu() {
                         )}
 
                         <button
-                            onClick={() => {
+                            onClick={async () => {
                                 setIsOpen(false);
-                                signOut({ callbackUrl: '/login' });
+                                await signOut({ redirect: false });
+                                window.location.href = '/login';
                             }}
-                            className="w-full flex items-center space-x-2 px-3.5 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                            className="w-full flex items-center space-x-2 px-3.5 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
                         >
                             <LogOut className="w-3.5 h-3.5 text-rose-500" />
                             <span>Đăng xuất</span>
