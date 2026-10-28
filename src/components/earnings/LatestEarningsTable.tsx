@@ -15,6 +15,7 @@ import {
   ChevronsRight,
   FileText,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import { EarningsRecord, ExchangeType } from '@/types/earnings';
 import { StockChartPanel } from '@/components/StockChartPanel';
@@ -299,6 +300,32 @@ export function LatestEarningsTable() {
     selectedExchange !== 'ALL' ||
     Boolean(search.trim());
 
+  const isPresetActive =
+    minAdtv20 === '1' &&
+    minPatBillion === '5' &&
+    minPatYoY === '20' &&
+    minRs === '70' &&
+    !minRevenueBillion &&
+    !minRevenueYoY &&
+    !search.trim() &&
+    selectedExchange === 'ALL';
+
+  const applyPresetFilter = () => {
+    if (isPresetActive) {
+      resetAdvancedFilters();
+    } else {
+      setMinAdtv20('1');
+      setMinPatBillion('5');
+      setMinPatYoY('20');
+      setMinRs('70');
+      setMinRevenueBillion('');
+      setMinRevenueYoY('');
+      setSearch('');
+      setSelectedExchange('ALL');
+      setCurrentPage(1);
+    }
+  };
+
   const resetAdvancedFilters = () => {
     setSearch('');
     setSelectedExchange('ALL');
@@ -574,21 +601,49 @@ export function LatestEarningsTable() {
           </div>
         </div>
 
-        {/* Thanh trạng thái lọc nếu có điều kiện active */}
-        {hasActiveAdvancedFilters && (
-          <div className="mt-2.5 pt-2 border-t border-gray-200/60 dark:border-gray-800/60 flex items-center justify-between text-xs">
-            <span className="text-gray-500 dark:text-gray-400">
-              Đang lọc: Tìm thấy <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{filteredRecords.length}</strong> / {records.length} mã thỏa mãn
-            </span>
-            <button
-              onClick={resetAdvancedFilters}
-              className="px-2.5 py-1 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg flex items-center gap-1 font-semibold transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-              <span>Xóa bộ lọc</span>
-            </button>
+        {/* Thanh trạng thái lọc & Bộ lọc mẫu */}
+        <div className="mt-2.5 pt-2 border-t border-gray-200/60 dark:border-gray-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            {hasActiveAdvancedFilters ? (
+              <span className="text-gray-500 dark:text-gray-400">
+                Đang lọc: Tìm thấy <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{filteredRecords.length}</strong> / {records.length} mã thỏa mãn
+              </span>
+            ) : (
+              <span className="text-gray-400 dark:text-gray-500 text-[11px]">
+                Tổng cộng: <strong className="text-gray-700 dark:text-gray-300 font-semibold">{records.length}</strong> doanh nghiệp ({activePeriod})
+              </span>
+            )}
           </div>
-        )}
+
+          <div className="flex items-center gap-2">
+            {/* Bộ lọc mẫu: GTGD >= 1 tỷ, LNST >= 5 tỷ, Tăng LNST >= 20%, RS >= 70 */}
+            <button
+              type="button"
+              onClick={applyPresetFilter}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                isPresetActive
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                  : 'bg-emerald-50/80 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+              }`}
+              title="Bộ lọc mẫu: GTGD 20P ≥ 1 tỷ, LNST ≥ 5 tỷ, Tăng LNST ≥ 20%, RS Rating ≥ 70"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span>Bộ lọc mẫu (GTGD &gt; 1 tỷ, LNST &gt; 5 tỷ, Tăng LNST &gt; 20%, RS &gt; 70)</span>
+            </button>
+
+            {hasActiveAdvancedFilters && (
+              <button
+                type="button"
+                onClick={resetAdvancedFilters}
+                className="px-2.5 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl flex items-center gap-1 font-semibold transition-colors cursor-pointer"
+                title="Xóa tất cả các tiêu chí lọc"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span>Xóa bộ lọc</span>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Bảng Dữ Liệu */}
@@ -793,52 +848,16 @@ export function LatestEarningsTable() {
                       {/* Tăng trưởng LNST YoY */}
                       <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         {r.patYoYPercent !== null ? (
-                          (() => {
-                            const isPrevNegative = typeof r.patPrevious === 'number' && r.patPrevious < 0;
-                            const isCurPositive = r.patCurrent > 0;
-                            const isTurnaround = isPrevNegative && isCurPositive;
-                            const isTurnToLoss =
-                              typeof r.patPrevious === 'number' && r.patPrevious > 0 && r.patCurrent < 0;
-                            const isReducedLoss =
-                              isPrevNegative && r.patCurrent < 0 && r.patCurrent > r.patPrevious;
-
-                            return (
-                              <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold ${
-                                  isPatPos
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
-                                    : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
-                                }`}
-                                title={
-                                  isTurnaround
-                                    ? `Đổi chiều từ lỗ (${formatVnd(r.patPrevious)}) sang lãi (${formatVnd(r.patCurrent)}) - Tăng trưởng tương đối: +${r.patYoYPercent}%`
-                                    : isTurnToLoss
-                                    ? `Đổi chiều từ lãi (${formatVnd(r.patPrevious)}) sang lỗ (${formatVnd(r.patCurrent)})`
-                                    : isReducedLoss
-                                    ? `Thu hẹp mức lỗ từ ${formatVnd(r.patPrevious)} về ${formatVnd(r.patCurrent)}`
-                                    : undefined
-                                }
-                              >
-                                {isPatPos ? '+' : ''}
-                                {r.patYoYPercent}%
-                                {isTurnaround && (
-                                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-emerald-200/60 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 uppercase tracking-tighter">
-                                    Chuyển lãi
-                                  </span>
-                                )}
-                                {isTurnToLoss && (
-                                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-rose-200/60 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 uppercase tracking-tighter">
-                                    Chuyển lỗ
-                                  </span>
-                                )}
-                                {isReducedLoss && (
-                                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-amber-200/60 dark:bg-amber-900/80 text-amber-800 dark:text-amber-200 uppercase tracking-tighter">
-                                    Giảm lỗ
-                                  </span>
-                                )}
-                              </span>
-                            );
-                          })()
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                              isPatPos
+                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                            }`}
+                          >
+                            {isPatPos ? '+' : ''}
+                            {r.patYoYPercent}%
+                          </span>
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
