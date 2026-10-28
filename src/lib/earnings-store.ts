@@ -212,13 +212,20 @@ export function mergeWiDataRecords(widataRecords: EarningsRecord[]): {
 
     if (existingIndex >= 0) {
       const existing = store.records[existingIndex];
-      // Nếu đã có nguồn SSC (hoặc đã có PDF), ưu tiên nguồn SSC -> Bỏ qua không ghi đè
-      if (existing.sourceType === 'SSC' || existing.hasPdf) {
+      // Kiểm tra xem bản ghi hiện tại có bị rỗng số liệu không (do PDF SSC chỉ là văn bản thông báo công bố)
+      const isExistingEmpty =
+        (!existing.revenueCurrent && !existing.patCurrent) ||
+        (existing.revenueCurrent === 0 && existing.patCurrent === 0);
+      const widataHasData = record.revenueCurrent !== 0 || record.patCurrent !== 0;
+
+      // Nếu đã có nguồn SSC hợp lệ (có dữ liệu kinh doanh thực tế), ưu tiên giữ nguyên nguồn SSC -> Bỏ qua không ghi đè
+      if ((existing.sourceType === 'SSC' || existing.hasPdf) && !isExistingEmpty) {
         skippedExistingSsc++;
         continue;
       }
 
-      // Nếu là bản ghi WiData cũ thì cập nhật số liệu mới nhất
+      // Nếu bản ghi SSC trước đó bị rỗng (PDF chỉ là thông báo) HOẶC là bản ghi WiData cũ:
+      // Cập nhật số liệu chuẩn từ WiData
       store.records[existingIndex] = {
         ...record,
         id: existing.id || record.id,
@@ -226,6 +233,14 @@ export function mergeWiDataRecords(widataRecords: EarningsRecord[]): {
           existing.companyName && !existing.companyName.startsWith('CTCP ') && existing.companyName !== record.ticker
             ? existing.companyName
             : record.companyName,
+        // Nếu có PDF thông báo từ SSC thì vẫn giữ lại để người dùng có thể mở xem văn bản gốc
+        hasPdf: existing.hasPdf || false,
+        pdfPath: existing.pdfPath || undefined,
+        sourceType: isExistingEmpty && widataHasData ? 'WIDATA' : (existing.sourceType || 'WIDATA'),
+        note:
+          isExistingEmpty && widataHasData
+            ? 'Số liệu đồng bộ từ WiData (File PDF SSC là thông báo công bố thông tin)'
+            : existing.note || record.note,
         extractedAt: new Date().toISOString(),
       };
       updated++;

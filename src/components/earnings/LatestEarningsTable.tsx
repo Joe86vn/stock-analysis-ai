@@ -793,16 +793,52 @@ export function LatestEarningsTable() {
                       {/* Tăng trưởng LNST YoY */}
                       <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         {r.patYoYPercent !== null ? (
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                              isPatPos
-                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
-                                : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
-                            }`}
-                          >
-                            {isPatPos ? '+' : ''}
-                            {r.patYoYPercent}%
-                          </span>
+                          (() => {
+                            const isPrevNegative = typeof r.patPrevious === 'number' && r.patPrevious < 0;
+                            const isCurPositive = r.patCurrent > 0;
+                            const isTurnaround = isPrevNegative && isCurPositive;
+                            const isTurnToLoss =
+                              typeof r.patPrevious === 'number' && r.patPrevious > 0 && r.patCurrent < 0;
+                            const isReducedLoss =
+                              isPrevNegative && r.patCurrent < 0 && r.patCurrent > r.patPrevious;
+
+                            return (
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold ${
+                                  isPatPos
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+                                    : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                                }`}
+                                title={
+                                  isTurnaround
+                                    ? `Đổi chiều từ lỗ (${formatVnd(r.patPrevious)}) sang lãi (${formatVnd(r.patCurrent)}) - Tăng trưởng tương đối: +${r.patYoYPercent}%`
+                                    : isTurnToLoss
+                                    ? `Đổi chiều từ lãi (${formatVnd(r.patPrevious)}) sang lỗ (${formatVnd(r.patCurrent)})`
+                                    : isReducedLoss
+                                    ? `Thu hẹp mức lỗ từ ${formatVnd(r.patPrevious)} về ${formatVnd(r.patCurrent)}`
+                                    : undefined
+                                }
+                              >
+                                {isPatPos ? '+' : ''}
+                                {r.patYoYPercent}%
+                                {isTurnaround && (
+                                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-emerald-200/60 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 uppercase tracking-tighter">
+                                    Chuyển lãi
+                                  </span>
+                                )}
+                                {isTurnToLoss && (
+                                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-rose-200/60 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 uppercase tracking-tighter">
+                                    Chuyển lỗ
+                                  </span>
+                                )}
+                                {isReducedLoss && (
+                                  <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-amber-200/60 dark:bg-amber-900/80 text-amber-800 dark:text-amber-200 uppercase tracking-tighter">
+                                    Giảm lỗ
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })()
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
@@ -890,12 +926,28 @@ export function LatestEarningsTable() {
                         onClick={(e) => e.stopPropagation()}
                       >
                         {r.sourceType === 'WIDATA' || (!r.hasPdf && !r.pdfPath) ? (
-                          <span
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/80 cursor-default select-none shadow-2xs"
-                            title="Dữ liệu đồng bộ từ nguồn WiData (Sẽ tự động thay bằng PDF gốc khi SSC công bố)"
-                          >
-                            WiData
-                          </span>
+                          <div className="inline-flex items-center justify-center gap-1">
+                            <span
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/80 cursor-default select-none shadow-2xs"
+                              title={
+                                r.note ||
+                                'Dữ liệu đồng bộ từ nguồn WiData (Sẽ tự động thay bằng PDF gốc khi SSC công bố)'
+                              }
+                            >
+                              WiData
+                            </span>
+                            {r.hasPdf && (
+                              <a
+                                href={`/api/earnings/pdf/${encodeURIComponent(r.id)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 rounded text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                                title="Xem văn bản thông báo công bố gốc từ SSC"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
                         ) : (
                           <a
                             href={`/api/earnings/pdf/${encodeURIComponent(r.id)}`}
