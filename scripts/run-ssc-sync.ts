@@ -32,6 +32,16 @@ async function main() {
       }))
     );
   }
+
+  // Bước 2: Đồng bộ bổ sung từ nguồn WiData
+  console.log('\n--- Sync WiData Backup ---');
+  try {
+    const { syncWiDataEarnings } = await import('../src/lib/widata-crawler-service');
+    const widataResult = await syncWiDataEarnings();
+    console.log(`WiData sync: added ${widataResult.addedCount}, updated ${widataResult.updatedCount}, preserved ${widataResult.skippedExistingSscCount} SSC records.`);
+  } catch (err: any) {
+    console.warn('WiData sync warning:', err.message);
+  }
 }
 
 main().catch((err) => {

@@ -43,20 +43,37 @@ async function handleCronJob(request: NextRequest) {
   try {
     const { calculateCurrentReportPeriod } = await import('@/lib/earnings-store');
     const currentPeriod = calculateCurrentReportPeriod();
+    // Bước 1: Quét các báo cáo mới từ Cổng UBCKNN (SSC)
     const result = await runSscEarningsPipeline({
       maxPages: 15, // Tự động dừng theo mốc ngày nộp báo cáo (quét nốt hết ngày gặp mã cũ rồi dừng)
       maxItemsToProcess: 50,
       fromDate: currentPeriod.fromDate,
     });
 
+    // Bước 2: Đồng bộ bổ sung từ nguồn WiData cho các mã SSC chưa kịp có
+    let widataResult: any = null;
+    try {
+      const { syncWiDataEarnings } = await import('@/lib/widata-crawler-service');
+      widataResult = await syncWiDataEarnings();
+      console.log(
+        `[CRON] WiData sync completed: added ${widataResult.addedCount}, updated ${widataResult.updatedCount}, preserved ${widataResult.skippedExistingSscCount} SSC records.`
+      );
+    } catch (wErr: any) {
+      console.warn('[CRON] WiData backup sync warning:', wErr.message);
+    }
+
     const durationSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[CRON SSC] Finished in ${durationSeconds}s. Processed: ${result.processedCount}, Failed: ${result.failedCount}`);
+    console.log(
+      `[CRON] Finished in ${durationSeconds}s. SSC Processed: ${result.processedCount}, WiData Added: ${widataResult?.addedCount || 0}`
+    );
 
     return NextResponse.json({
       success: true,
       executedAt: new Date().toISOString(),
       durationSeconds: `${durationSeconds}s`,
-      ...result,
+      ssc: result,
+      widata: widataResult,
+      totalProcessed: result.processedCount + (widataResult?.addedCount || 0),
     });
   } catch (err: any) {
     console.error('[CRON SSC] Execution error:', err.message);

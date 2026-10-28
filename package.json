@@ -11,6 +11,7 @@
     "sync:rankings": "npx tsx scripts/precalculate-rankings.ts",
     "sync:financials": "npx tsx scripts/sync-financials.ts",
     "sync:ssc": "npx tsx scripts/run-ssc-sync.ts",
+    "sync:widata": "npx tsx scripts/run-widata-sync.ts",
     "download:pdfs": "npx tsx scripts/download-missing-earnings-pdfs.ts"
   },
   "dependencies": {

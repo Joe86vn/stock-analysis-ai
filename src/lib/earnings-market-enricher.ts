@@ -6,6 +6,7 @@ interface StockMarketSnapshot {
   adtv20Billion: number | null;
   rsRating: number | null;
   currentPrice: number | null;
+  companyNameVi?: string;
 }
 
 let cachedMarketMap: Map<string, StockMarketSnapshot> | null = null;
@@ -34,6 +35,7 @@ export async function getMarketMetricsMap(forceRefresh = false): Promise<Map<str
           adtv20Billion: typeof s.adtv20Billion === 'number' ? s.adtv20Billion : null,
           rsRating: typeof rs === 'number' ? Math.round(rs) : null,
           currentPrice: typeof s.marketPrice === 'number' ? s.marketPrice : null,
+          companyNameVi: s.companyNameVi,
         });
       }
       cachedMarketMap = map;
@@ -73,8 +75,18 @@ export async function enrichEarningsWithMarketMetrics(
 
   return records.map((record) => {
     const market = marketMap.get(record.ticker.toUpperCase());
+    const companyName =
+      market?.companyNameVi &&
+      (!record.companyName ||
+        record.companyName === record.ticker ||
+        record.companyName.startsWith('CTCP ') ||
+        record.companyName.startsWith('Công ty Cổ phần '))
+        ? market.companyNameVi
+        : record.companyName;
+
     return {
       ...record,
+      companyName,
       rsRating: market?.rsRating ?? record.rsRating ?? (FILTER_75_RS_MAP[record.ticker.toUpperCase()] ?? null),
       adtv20Billion: market?.adtv20Billion ?? record.adtv20Billion ?? null,
       currentPrice: market?.currentPrice ?? record.currentPrice ?? null,

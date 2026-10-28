@@ -184,6 +184,75 @@ export function upsertEarningsRecord(record: EarningsRecord): void {
 }
 
 /**
+ * Trộn dữ liệu từ nguồn WiData vào bảng kết quả kinh doanh:
+ * - Nếu mã nào bên SSC đã có (sourceType === 'SSC' hoặc hasPdf === true), GIỮ NGUYÊN nguồn SSC.
+ * - Nếu mã nào bên SSC chưa có, chèn hoặc cập nhật từ nguồn WiData.
+ */
+export function mergeWiDataRecords(widataRecords: EarningsRecord[]): {
+  added: number;
+  updated: number;
+  skippedExistingSsc: number;
+} {
+  if (!widataRecords || widataRecords.length === 0) {
+    return { added: 0, updated: 0, skippedExistingSsc: 0 };
+  }
+
+  const store = getEarningsStore();
+  let added = 0;
+  let updated = 0;
+  let skippedExistingSsc = 0;
+
+  for (const record of widataRecords) {
+    const existingIndex = store.records.findIndex(
+      (r) =>
+        r.ticker.toUpperCase() === record.ticker.toUpperCase() &&
+        r.period === record.period &&
+        r.year === record.year
+    );
+
+    if (existingIndex >= 0) {
+      const existing = store.records[existingIndex];
+      // Nếu đã có nguồn SSC (hoặc đã có PDF), ưu tiên nguồn SSC -> Bỏ qua không ghi đè
+      if (existing.sourceType === 'SSC' || existing.hasPdf) {
+        skippedExistingSsc++;
+        continue;
+      }
+
+      // Nếu là bản ghi WiData cũ thì cập nhật số liệu mới nhất
+      store.records[existingIndex] = {
+        ...record,
+        id: existing.id || record.id,
+        companyName:
+          existing.companyName && !existing.companyName.startsWith('CTCP ') && existing.companyName !== record.ticker
+            ? existing.companyName
+            : record.companyName,
+        extractedAt: new Date().toISOString(),
+      };
+      updated++;
+    } else {
+      store.records.push({
+        ...record,
+        sourceType: 'WIDATA',
+        hasPdf: false,
+      });
+      added++;
+    }
+  }
+
+  const currentPeriodInfo = calculateCurrentReportPeriod();
+  if (!store.activePeriod) {
+    store.activePeriod = currentPeriodInfo.label;
+  }
+
+  store.totalRecords = store.records.length;
+  store.updatedAt = new Date().toISOString();
+
+  persistStore(store);
+
+  return { added, updated, skippedExistingSsc };
+}
+
+/**
  * Thêm hoặc cập nhật hàng loạt bản ghi
  */
 export function upsertMultipleEarningsRecords(records: EarningsRecord[]): void {

@@ -102,7 +102,8 @@ export interface EarningsRecord {
   adtv20Billion?: number | null; // Giá trị giao dịch bình quân 20 phiên (Tỷ VNĐ)
   currentPrice?: number | null; // Thị giá hiện tại (VNĐ)
 
-  // Liên kết file PDF BCTC gốc
+  // Nguồn dữ liệu & Liên kết file PDF BCTC gốc
+  sourceType?: 'SSC' | 'WIDATA';
   hasPdf?: boolean;
   pdfPath?: string;
 }

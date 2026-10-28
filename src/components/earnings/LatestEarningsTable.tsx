@@ -96,13 +96,13 @@ export function LatestEarningsTable() {
     fetchRecords();
   }, []);
 
-  // Kích hoạt quét thông minh (Tự động nhận diện & Dừng sớm khi gặp tin cũ)
+  // Kích hoạt quét thông minh (Tự động quét SSC trước, sau đó đồng bộ WiData cho các mã còn thiếu)
   const handleScanManual = async () => {
     let pollTimer: NodeJS.Timeout | null = null;
     try {
       setScanning(true);
       setScanMessage(
-        `Đang kết nối Cổng UBCKNN... Hệ thống sẽ tự động quét và dừng ngay khi gặp các bản tin đã cập nhật.`
+        'Đang kết nối Cổng UBCKNN & WiData... Hệ thống sẽ tự động quét lần lượt SSC sau đó đến WiData.'
       );
 
       // Bật polling tiến độ thời gian thực
@@ -127,7 +127,7 @@ export function LatestEarningsTable() {
       const data = await res.json();
       if (data.success) {
         setScanMessage(
-          data.message || `Đã hoàn tất quét: Số hóa thành công ${data.processedCount} BCTC Quý mới.`
+          data.message || `Đã hoàn tất quét: Cập nhật thành công ${data.processedCount} BCTC Quý mới.`
         );
         await fetchRecords();
       } else {
@@ -291,7 +291,7 @@ export function LatestEarningsTable() {
             </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            Dữ liệu tự động cào và số hóa từ Cổng UBCKNN (SSC) • Khối Sản xuất, Thương mại & Dịch vụ
+            Dữ liệu tổng hợp từ Cổng UBCKNN (SSC) & nguồn backup WiData
             {updatedAt && (
               <span className="ml-2 text-gray-400 dark:text-gray-500">
                 (Cập nhật: {new Date(updatedAt).toLocaleTimeString('vi-VN')} {new Date(updatedAt).toLocaleDateString('vi-VN')})
@@ -301,11 +301,11 @@ export function LatestEarningsTable() {
         </div>
 
         <div className="flex items-center space-x-2">
-          {/* Nút bấm quét thủ công */}
+          {/* Nút bấm quét BCTC tự động: SSC trước, sau đó đến WiData */}
           <button
             onClick={handleScanManual}
             disabled={scanning}
-            title="Tự động quét Cổng UBCKNN và dừng ngay khi gặp các báo cáo đã cập nhật"
+            title="Tự động quét Cổng UBCKNN (SSC) sau đó cập nhật bổ sung từ nguồn WiData"
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white shadow-xs transition-all duration-200 ${
               scanning
                 ? 'bg-emerald-400 cursor-not-allowed'
@@ -313,7 +313,7 @@ export function LatestEarningsTable() {
             }`}
           >
             <RefreshCw className={`h-4 w-4 ${scanning ? 'animate-spin' : ''}`} />
-            <span>{scanning ? 'Đang quét SSC...' : 'Quét BCTC Mới'}</span>
+            <span>{scanning ? 'Đang quét BCTC...' : 'Quét BCTC Mới'}</span>
           </button>
         </div>
       </div>
@@ -828,18 +828,27 @@ export function LatestEarningsTable() {
                         {r.publishedAt}
                       </td>
 
-                      {/* Mở đọc BCTC gốc trực tiếp */}
+                      {/* Mở đọc BCTC gốc trực tiếp hoặc nguồn WiData */}
                       <td className="py-2.5 px-2 text-center whitespace-nowrap">
-                        <a
-                          href={`/api/earnings/pdf/${encodeURIComponent(r.id)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs"
-                          title={`Mở xem văn bản PDF BCTC gốc của ${r.ticker}`}
-                        >
-                          <FileText className="h-3.5 w-3.5 text-emerald-500" />
-                          <span>Xem PDF</span>
-                        </a>
+                        {r.sourceType === 'WIDATA' || (!r.hasPdf && !r.pdfPath) ? (
+                          <span
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/80 cursor-default select-none shadow-2xs"
+                            title="Dữ liệu đồng bộ từ nguồn WiData (Sẽ tự động thay bằng PDF gốc khi SSC công bố)"
+                          >
+                            WiData
+                          </span>
+                        ) : (
+                          <a
+                            href={`/api/earnings/pdf/${encodeURIComponent(r.id)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs"
+                            title={`Mở xem văn bản PDF BCTC gốc của ${r.ticker}`}
+                          >
+                            <FileText className="h-3.5 w-3.5 text-emerald-500" />
+                            <span>Xem PDF</span>
+                          </a>
+                        )}
                       </td>
                     </tr>
                   );

@@ -262,6 +262,7 @@ export function buildEarningsRecord(
     patYoYPercent,
     publishedAt: meta.publishedAt || new Date().toISOString().slice(0, 10),
     sourceUrl: meta.sourceUrl || 'https://congbothongtin.ssc.gov.vn/faces/NewsSearch',
+    sourceType: 'SSC',
     extractedAt: new Date().toISOString(),
     note: raw.notes,
   };

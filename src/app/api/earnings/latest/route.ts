@@ -53,7 +53,18 @@ export async function GET(request: NextRequest) {
       sortOrder,
     };
 
-    const store = getEarningsStore();
+    let store = getEarningsStore();
+
+    // Nếu store hiện tại chưa có bản ghi nào, tự động đồng bộ từ WiData làm dữ liệu nền tảng
+    if (store.records.length === 0) {
+      try {
+        const { syncWiDataEarnings } = await import('@/lib/widata-crawler-service');
+        await syncWiDataEarnings();
+        store = getEarningsStore();
+      } catch (err: any) {
+        console.warn('[API /api/earnings/latest] Auto-sync WiData fallback error:', err.message);
+      }
+    }
 
     // Bổ sung dữ liệu thị trường (RS Rating, GTGD 20 ngày, giá hiện tại)
     const enrichedRecords = await enrichEarningsWithMarketMetrics(store.records);
