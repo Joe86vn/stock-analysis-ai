@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import {
   TrendingUp,
   RefreshCw,
@@ -18,6 +17,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { EarningsRecord, ExchangeType } from '@/types/earnings';
+import { StockChartPanel } from '@/components/StockChartPanel';
+import { StockRankingItem } from '@/lib/filter-rs-data';
 
 export function LatestEarningsTable() {
   const [records, setRecords] = useState<EarningsRecord[]>([]);
@@ -26,6 +27,56 @@ export function LatestEarningsTable() {
   const [loading, setLoading] = useState<boolean>(true);
   const [scanning, setScanning] = useState<boolean>(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+
+  // Modal / Drawer biểu đồ kỹ thuật toàn màn hình
+  const [selectedChartTicker, setSelectedChartTicker] = useState<string | null>(null);
+  const [selectedChartStock, setSelectedChartStock] = useState<StockRankingItem | null>(null);
+
+  const convertRecordToRankingItem = (r: EarningsRecord): StockRankingItem => ({
+    ticker: r.ticker,
+    companyName: r.companyName || r.ticker,
+    exchange: r.exchange,
+    industry: 'Cổ phiếu niêm yết',
+    currentPrice: r.currentPrice || 0,
+    rsRating: r.rsRating || 75,
+    totalScore: 100,
+    maxScore: 150,
+    totalPercentage: 67,
+    rankGrade: 'B',
+    rankTitle: 'Khá',
+    financialHealthScore: 35,
+    growthQualityScore: 40,
+    businessQualityScore: 25,
+    financialHealthGrade: 'Tốt',
+    growthQualityGrade: 'Tốt',
+    businessQualityGrade: 'Khá',
+    adtv20Billion: r.adtv20Billion || 0,
+    marketCapBillion: 1000,
+    foreignPercentage: 0,
+    freeFloatPercentage: 0,
+    coreEpsGrowthYoY: r.patYoYPercent || 0,
+    coreNetProfitGrowthYoY: r.patYoYPercent || 0,
+    headlineNetProfitGrowthYoY: r.patYoYPercent || 0,
+    q0RevenueGrowthYoY: r.revenueYoYPercent || 0,
+    roic: 15,
+    roe: 15,
+    grossMargin: r.grossMarginCurrent || 0,
+    netMargin: 10,
+    netDebtToEbitda: 0.5,
+    cfoBillion: 100,
+    latestQuarter: `${r.period}/${r.year}`,
+    updatedAt: r.publishedAt || new Date().toISOString(),
+  });
+
+  const handleOpenChart = (r: EarningsRecord) => {
+    setSelectedChartTicker(r.ticker);
+    setSelectedChartStock(convertRecordToRankingItem(r));
+  };
+
+  const handleCloseChart = () => {
+    setSelectedChartTicker(null);
+    setSelectedChartStock(null);
+  };
 
   // Phân trang: Mặc định 50 mã / trang
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -653,17 +704,22 @@ export function LatestEarningsTable() {
                   return (
                     <tr
                       key={r.id}
-                      className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors"
+                      onClick={() => handleOpenChart(r)}
+                      className="hover:bg-emerald-50/40 dark:hover:bg-gray-800/60 transition-colors cursor-pointer group"
                     >
                       {/* Mã CP */}
                       <td className="py-2.5 px-3 font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                        <Link
-                          href={`/analysis?ticker=${r.ticker}`}
-                          className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors underline decoration-dotted font-extrabold tracking-tight"
-                          title={`Xem Phân tích AI & Biểu đồ kỹ thuật ${r.ticker}`}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenChart(r);
+                          }}
+                          className="hover:text-emerald-600 dark:hover:text-emerald-400 text-left font-black tracking-tight cursor-pointer group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors"
+                          title={`Xem Biểu đồ kỹ thuật ${r.ticker}`}
                         >
                           {r.ticker}
-                        </Link>
+                        </button>
                       </td>
 
                       {/* Tên DN & Sàn */}
@@ -829,7 +885,10 @@ export function LatestEarningsTable() {
                       </td>
 
                       {/* Mở đọc BCTC gốc trực tiếp hoặc nguồn WiData */}
-                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                      <td
+                        className="py-2.5 px-2 text-center whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {r.sourceType === 'WIDATA' || (!r.hasPdf && !r.pdfPath) ? (
                           <span
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/80 cursor-default select-none shadow-2xs"
@@ -939,6 +998,20 @@ export function LatestEarningsTable() {
           )}
         </div>
       </div>
+
+      {/* Stock Chart Drawer / Modal toàn màn hình */}
+      {selectedChartTicker && (
+        <StockChartPanel
+          ticker={selectedChartTicker}
+          stockData={selectedChartStock}
+          onSelectTicker={(newTicker) => {
+            const match = records.find((rec) => rec.ticker === newTicker);
+            setSelectedChartTicker(newTicker);
+            setSelectedChartStock(match ? convertRecordToRankingItem(match) : null);
+          }}
+          onClose={handleCloseChart}
+        />
+      )}
     </div>
   );
 }
