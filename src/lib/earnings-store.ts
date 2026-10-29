@@ -218,8 +218,22 @@ export function mergeWiDataRecords(widataRecords: EarningsRecord[]): {
         (existing.revenueCurrent === 0 && existing.patCurrent === 0);
       const widataHasData = record.revenueCurrent !== 0 || record.patCurrent !== 0;
 
-      // Nếu đã có nguồn SSC hợp lệ (có dữ liệu kinh doanh thực tế), ưu tiên giữ nguyên nguồn SSC -> Bỏ qua không ghi đè
+      // Nếu đã có nguồn SSC hợp lệ (có dữ liệu kinh doanh thực tế), ưu tiên giữ nguyên nguồn SSC -> Bổ sung thêm QoQ và chỉ số kỹ thuật từ WiData
       if ((existing.sourceType === 'SSC' || existing.hasPdf) && !isExistingEmpty) {
+        let changed = false;
+        if (record.patQoQPercent !== undefined && record.patQoQPercent !== null && existing.patQoQPercent !== record.patQoQPercent) {
+          existing.patQoQPercent = record.patQoQPercent;
+          changed = true;
+        }
+        if (existing.rsRating == null && record.rsRating != null) {
+          existing.rsRating = record.rsRating;
+          changed = true;
+        }
+        if (existing.adtv20Billion == null && record.adtv20Billion != null) {
+          existing.adtv20Billion = record.adtv20Billion;
+          changed = true;
+        }
+        if (changed) updated++;
         skippedExistingSsc++;
         continue;
       }

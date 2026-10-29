@@ -90,7 +90,8 @@ export interface EarningsRecord {
   // Lợi nhuận sau thuế
   patCurrent: number;
   patPrevious: number;
-  patYoYPercent: number | null; // Tăng trưởng LNST %
+  patYoYPercent: number | null; // Tăng trưởng LNST % (so với cùng kỳ năm trước - YoY)
+  patQoQPercent?: number | null; // Tăng trưởng LNST % (so với quý liền trước - QoQ)
 
   publishedAt: string;
   sourceUrl: string;

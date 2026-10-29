@@ -228,7 +228,11 @@ export function convertWiDataItemToEarningsRecord(
   // Doanh thu (WiData đơn vị Tỷ VNĐ -> quy đổi về VNĐ)
   const revCurrent = Math.round((Number(item.doanhthu) || 0) * 1_000_000_000);
   const revYoYPercent =
-    typeof item.doanhthu_ttckq === 'number' ? Number(item.doanhthu_ttckq.toFixed(2)) : null;
+    typeof item.doanhthu_ttckn === 'number'
+      ? Number(item.doanhthu_ttckn.toFixed(2))
+      : typeof item.doanhthu_ttckq === 'number'
+      ? Number(item.doanhthu_ttckq.toFixed(2))
+      : null;
   const revPrevious =
     revYoYPercent !== null && revYoYPercent !== -100
       ? Math.round(revCurrent / (1 + revYoYPercent / 100))
@@ -236,7 +240,12 @@ export function convertWiDataItemToEarningsRecord(
 
   // Lợi nhuận sau thuế (WiData đơn vị Tỷ VNĐ -> quy đổi về VNĐ)
   const patCurrent = Math.round((Number(item.loinhuan) || 0) * 1_000_000_000);
+  // ttckn: Tăng trưởng cùng kỳ năm (YoY - svck), ttckq: Tăng trưởng quý liền trước (QoQ)
   const patYoYPercent =
+    typeof item.loinhuan_ttckn === 'number'
+      ? Number(item.loinhuan_ttckn.toFixed(2))
+      : null;
+  const patQoQPercent =
     typeof item.loinhuan_ttckq === 'number' ? Number(item.loinhuan_ttckq.toFixed(2)) : null;
   const patPrevious =
     patYoYPercent !== null && patYoYPercent !== -100
@@ -274,6 +283,7 @@ export function convertWiDataItemToEarningsRecord(
     patCurrent,
     patPrevious,
     patYoYPercent,
+    patQoQPercent,
 
     publishedAt: formatPublishDate(item.ngayup),
     sourceUrl: 'https://widata.vn/ket-qua-kinh-doanh',

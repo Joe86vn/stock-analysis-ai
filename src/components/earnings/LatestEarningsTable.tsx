@@ -96,7 +96,7 @@ export function LatestEarningsTable() {
   const [minRs, setMinRs] = useState<string>(''); // RS >= X (0-99)
 
   const [sortBy, setSortBy] = useState<
-    'publishedAt' | 'patYoYPercent' | 'revenueYoYPercent' | 'ticker' | 'patCurrent' | 'revenueCurrent' | 'adtv20Billion' | 'rsRating'
+    'publishedAt' | 'patYoYPercent' | 'patQoQPercent' | 'revenueYoYPercent' | 'ticker' | 'patCurrent' | 'revenueCurrent' | 'adtv20Billion' | 'rsRating'
   >('publishedAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -693,9 +693,20 @@ export function LatestEarningsTable() {
                 <th
                   onClick={() => handleSort('patYoYPercent')}
                   className="py-3 px-2 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[9%]"
+                  title="Tăng trưởng Lợi nhuận sau thuế so với cùng kỳ năm trước (svck - YoY %)"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    Tăng LNST
+                    Tăng LNST (svck)
+                    <ArrowUpDown className="h-3 w-3 opacity-60" />
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('patQoQPercent')}
+                  className="py-3 px-2 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[10%]"
+                  title="Tăng trưởng Lợi nhuận sau thuế so với quý liền trước (QoQ %)"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Tăng LNST (Quý trước)
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
@@ -721,7 +732,6 @@ export function LatestEarningsTable() {
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-3 px-2 text-center w-[9%]">Biên Lãi Gộp</th>
                 <th
                   onClick={() => handleSort('publishedAt')}
                   className="py-3 px-2 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[8%]"
@@ -845,7 +855,7 @@ export function LatestEarningsTable() {
                         </div>
                       </td>
 
-                      {/* Tăng trưởng LNST YoY */}
+                      {/* Tăng trưởng LNST YoY (svck) */}
                       <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         {r.patYoYPercent !== null ? (
                           <span
@@ -854,9 +864,31 @@ export function LatestEarningsTable() {
                                 ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
                                 : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
                             }`}
+                            title={`Tăng trưởng LNST so với cùng kỳ năm trước: ${isPatPos ? '+' : ''}${r.patYoYPercent}%`}
                           >
                             {isPatPos ? '+' : ''}
                             {r.patYoYPercent}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+
+                      {/* Tăng trưởng LNST so với quý liền trước (QoQ) */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                        {typeof r.patQoQPercent === 'number' ? (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                              r.patQoQPercent > 0
+                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+                                : r.patQoQPercent < 0
+                                ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                            }`}
+                            title={`Tăng trưởng LNST so với quý liền trước: ${r.patQoQPercent > 0 ? '+' : ''}${r.patQoQPercent}%`}
+                          >
+                            {r.patQoQPercent > 0 ? '+' : ''}
+                            {r.patQoQPercent}%
                           </span>
                         ) : (
                           <span className="text-gray-400">—</span>
@@ -904,31 +936,6 @@ export function LatestEarningsTable() {
                               ? `${Math.round(adtv * 1000)} tr`
                               : '< 1 tr'}
                           </span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-
-                      {/* Biên lãi gộp */}
-                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
-                        {r.grossMarginCurrent !== null ? (
-                          <div>
-                            <div className="font-medium text-gray-900 dark:text-gray-200">
-                              {r.grossMarginCurrent}%
-                            </div>
-                            {r.grossMarginDelta !== null && (
-                              <div
-                                className={`text-[10px] ${
-                                  r.grossMarginDelta > 0
-                                    ? 'text-emerald-600 dark:text-emerald-400'
-                                    : 'text-rose-600 dark:text-rose-400'
-                                }`}
-                              >
-                                {r.grossMarginDelta > 0 ? '+' : ''}
-                                {r.grossMarginDelta} pt
-                              </div>
-                            )}
-                          </div>
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
