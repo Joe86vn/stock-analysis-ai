@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { EarningsRecord, EarningsPeriod, ExchangeType } from '@/types/earnings';
 import { getEarningsStore, mergeWiDataRecords } from './earnings-store';
+import { getPreviousQuarterPatMap, calculatePatQoQPercent } from './prev-quarter-service';
 
 const WIDATA_SECRET_KEY = 'ZmRvaWFmaGRpc2ZoaWRzZHNoa2RoaW9zZGZoc2E=';
 const SIGN_TOKEN = 'ObBeWhVmYs3tP2Nz$C$FJ@P4AQfTjlPX';
@@ -219,7 +220,8 @@ function normalizeExchange(san?: string): ExchangeType {
 export function convertWiDataItemToEarningsRecord(
   item: WiDataFsItem,
   quy: number,
-  nam: number
+  nam: number,
+  prevPatMap?: Record<string, number>
 ): EarningsRecord {
   const ticker = item.mack.trim().toUpperCase();
   const period: EarningsPeriod = `Q${quy}` as EarningsPeriod;
@@ -227,11 +229,12 @@ export function convertWiDataItemToEarningsRecord(
 
   // Doanh thu (WiData đơn vị Tỷ VNĐ -> quy đổi về VNĐ)
   const revCurrent = Math.round((Number(item.doanhthu) || 0) * 1_000_000_000);
+  // ttckq: Tăng trưởng cùng kỳ quý (Quarterly YoY), ttckn: Tăng trưởng lũy kế đầu năm (YTD YoY)
   const revYoYPercent =
-    typeof item.doanhthu_ttckn === 'number'
-      ? Number(item.doanhthu_ttckn.toFixed(2))
-      : typeof item.doanhthu_ttckq === 'number'
+    typeof item.doanhthu_ttckq === 'number'
       ? Number(item.doanhthu_ttckq.toFixed(2))
+      : typeof item.doanhthu_ttckn === 'number'
+      ? Number(item.doanhthu_ttckn.toFixed(2))
       : null;
   const revPrevious =
     revYoYPercent !== null && revYoYPercent !== -100
@@ -240,13 +243,19 @@ export function convertWiDataItemToEarningsRecord(
 
   // Lợi nhuận sau thuế (WiData đơn vị Tỷ VNĐ -> quy đổi về VNĐ)
   const patCurrent = Math.round((Number(item.loinhuan) || 0) * 1_000_000_000);
-  // ttckn: Tăng trưởng cùng kỳ năm (YoY - svck), ttckq: Tăng trưởng quý liền trước (QoQ)
+  // ttckq: Tăng trưởng cùng kỳ quý năm trước (Quarterly YoY - svck)
+  // ttckn: Tăng trưởng lũy kế đầu năm (YTD YoY)
   const patYoYPercent =
-    typeof item.loinhuan_ttckn === 'number'
+    typeof item.loinhuan_ttckq === 'number'
+      ? Number(item.loinhuan_ttckq.toFixed(2))
+      : typeof item.loinhuan_ttckn === 'number'
       ? Number(item.loinhuan_ttckn.toFixed(2))
       : null;
-  const patQoQPercent =
-    typeof item.loinhuan_ttckq === 'number' ? Number(item.loinhuan_ttckq.toFixed(2)) : null;
+
+  // Tính tăng trưởng QoQ so với LNST quý liền trước (từ cache BCTC / Vietcap API)
+  const prevPatVnd = prevPatMap ? prevPatMap[ticker] : undefined;
+  const patQoQPercent = calculatePatQoQPercent(patCurrent, prevPatVnd);
+
   const patPrevious =
     patYoYPercent !== null && patYoYPercent !== -100
       ? Math.round(patCurrent / (1 + patYoYPercent / 100))
@@ -328,8 +337,12 @@ export async function syncWiDataEarnings(): Promise<{
     };
   }
 
-  // Chuyển đổi toàn bộ items sang EarningsRecord
-  const records = items.map((it) => convertWiDataItemToEarningsRecord(it, quy, nam));
+  // Tải map LNST quý trước (QoQ) cho toàn bộ danh sách mã
+  const tickers = items.map((it) => it.mack.trim().toUpperCase());
+  const prevPatMap = await getPreviousQuarterPatMap(tickers, quy, nam);
+
+  // Chuyển đổi toàn bộ items sang EarningsRecord kèm QoQ đã tính toán
+  const records = items.map((it) => convertWiDataItemToEarningsRecord(it, quy, nam, prevPatMap));
 
   // Trộn vào store với nguyên tắc ưu tiên nguồn SSC
   const mergeResult = mergeWiDataRecords(records);

@@ -675,9 +675,10 @@ export function LatestEarningsTable() {
                 <th
                   onClick={() => handleSort('revenueYoYPercent')}
                   className="py-3 px-2 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[9%]"
+                  title="Tăng trưởng Doanh thu thuần so với cùng kỳ năm trước (YoY %)"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    Tăng DT
+                    Tăng DT (YoY)
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
@@ -693,10 +694,10 @@ export function LatestEarningsTable() {
                 <th
                   onClick={() => handleSort('patYoYPercent')}
                   className="py-3 px-2 text-center cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none w-[9%]"
-                  title="Tăng trưởng Lợi nhuận sau thuế so với cùng kỳ năm trước (svck - YoY %)"
+                  title="Tăng trưởng Lợi nhuận sau thuế so với cùng kỳ năm trước (YoY %)"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    Tăng LNST (svck)
+                    Tăng LNST (YoY)
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
@@ -706,7 +707,7 @@ export function LatestEarningsTable() {
                   title="Tăng trưởng Lợi nhuận sau thuế so với quý liền trước (QoQ %)"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    Tăng LNST (Quý trước)
+                    Tăng LNST (QoQ)
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
@@ -855,7 +856,7 @@ export function LatestEarningsTable() {
                         </div>
                       </td>
 
-                      {/* Tăng trưởng LNST YoY (svck) */}
+                      {/* Tăng trưởng LNST YoY */}
                       <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         {r.patYoYPercent !== null ? (
                           <span
@@ -864,7 +865,7 @@ export function LatestEarningsTable() {
                                 ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
                                 : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
                             }`}
-                            title={`Tăng trưởng LNST so với cùng kỳ năm trước: ${isPatPos ? '+' : ''}${r.patYoYPercent}%`}
+                            title={`Tăng trưởng LNST so với cùng kỳ năm trước (YoY): ${isPatPos ? '+' : ''}${r.patYoYPercent}%`}
                           >
                             {isPatPos ? '+' : ''}
                             {r.patYoYPercent}%
@@ -885,7 +886,7 @@ export function LatestEarningsTable() {
                                 ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
                             }`}
-                            title={`Tăng trưởng LNST so với quý liền trước: ${r.patQoQPercent > 0 ? '+' : ''}${r.patQoQPercent}%`}
+                            title={`Tăng trưởng LNST so với quý liền trước (QoQ): ${r.patQoQPercent > 0 ? '+' : ''}${r.patQoQPercent}%`}
                           >
                             {r.patQoQPercent > 0 ? '+' : ''}
                             {r.patQoQPercent}%
