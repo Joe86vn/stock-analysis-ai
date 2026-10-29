@@ -161,31 +161,39 @@ async function main() {
           return;
         }
 
-        // Tải 1 nến mới nhất để nối vào đuôi
-        const recentBars = await fetchVietcapGapChart(cleanTicker, { countBack: 5, timeFrame: 'ONE_DAY' });
+        // Tải các nến gần nhất để nối vào đuôi (nếu chỉ thiếu 1-5 phiên gần đây)
+        const recentBars = await fetchVietcapGapChart(cleanTicker, { countBack: 7, timeFrame: 'ONE_DAY' });
         if (recentBars.length > 0) {
-          const newTodayBar = recentBars.find((b) => b.tradingDate === todayStr);
-          if (newTodayBar) {
-            const dt = new Date(newTodayBar.time * 1000);
-            const day = String(dt.getDate()).padStart(2, '0');
-            const month = String(dt.getMonth() + 1).padStart(2, '0');
+          const lastBarDate = lastBar ? lastBar.fullDate : '';
+          const missingBars = recentBars.filter((b) => b.tradingDate > lastBarDate);
 
-            existing.history.push({
-              date: `${day}/${month}`,
-              fullDate: newTodayBar.tradingDate,
-              openPrice: newTodayBar.openPrice,
-              highestPrice: newTodayBar.highestPrice,
-              lowestPrice: newTodayBar.lowestPrice,
-              closePrice: newTodayBar.closePrice,
-              range: [newTodayBar.lowestPrice, newTodayBar.highestPrice],
-              volume: newTodayBar.volume,
-            });
+          // Nếu recentBars có nến đầu tiên <= lastBarDate thì chuỗi nến liên tục, an toàn để nối đuôi
+          // Ngược lại nếu nến đầu tiên của recentBars > lastBarDate -> khoảng trống (gap) lớn -> Cần Full Rebuild (2000 nến)
+          const isContiguous = recentBars[0].tradingDate <= lastBarDate;
+
+          if (isContiguous && missingBars.length > 0) {
+            for (const bar of missingBars) {
+              const dt = new Date(bar.time * 1000);
+              const day = String(dt.getDate()).padStart(2, '0');
+              const month = String(dt.getMonth() + 1).padStart(2, '0');
+
+              existing.history.push({
+                date: `${day}/${month}`,
+                fullDate: bar.tradingDate,
+                openPrice: bar.openPrice,
+                highestPrice: bar.highestPrice,
+                lowestPrice: bar.lowestPrice,
+                closePrice: bar.closePrice,
+                range: [bar.lowestPrice, bar.highestPrice],
+                volume: bar.volume,
+              });
+            }
 
             existing.count = existing.history.length;
             existing.updatedAt = new Date().toISOString();
 
             await putPriceHistoryToR2(cleanTicker, existing);
-            incrementalCount++;
+            incrementalCount += missingBars.length;
             successCount++;
             return;
           }

@@ -58,39 +58,99 @@ async function getTodayExrightTickers(todayStr: string): Promise<Set<string>> {
 }
 
 /**
- * Kiểm tra xem dữ liệu trong R2 Cache có bị lỗi thời do sự kiện chia tách quyền chưa
+ * Xác định ngày giao dịch gần nhất dự kiến (dựa trên múi giờ Việt Nam UTC+7)
+ * - T7/CN -> Thứ 6 gần nhất
+ * - T2-T6 trước 09:15 -> Phiên hôm trước (hoặc T6 nếu là sáng T2)
+ * - T2-T6 từ 09:15 trở đi -> Phiên hôm nay
  */
-function isR2CacheStaleDueToCorporateAction(
+function getExpectedLatestTradingDate(now: Date = new Date()): string {
+  const vnTime = new Date(now.getTime() + (7 * 60 + now.getTimezoneOffset()) * 60 * 1000);
+  const dayOfWeek = vnTime.getDay(); // 0: CN, 1: T2, ..., 6: T7
+  const hour = vnTime.getHours();
+  const minute = vnTime.getMinutes();
+
+  const isBeforeTrading = hour < 9 || (hour === 9 && minute < 15);
+  const target = new Date(vnTime);
+
+  if (dayOfWeek === 0) {
+    target.setDate(target.getDate() - 2);
+  } else if (dayOfWeek === 6) {
+    target.setDate(target.getDate() - 1);
+  } else if (dayOfWeek === 1 && isBeforeTrading) {
+    target.setDate(target.getDate() - 3);
+  } else if (isBeforeTrading) {
+    target.setDate(target.getDate() - 1);
+  }
+
+  return target.toISOString().slice(0, 10);
+}
+
+/**
+ * Kiểm tra xem dữ liệu trong R2 Cache có bị lỗi thời không:
+ * 1. Do sự kiện chia tách quyền (GDKHQ / Cổ tức / Phát hành) làm thay đổi giá điều chỉnh trong quá khứ.
+ * 2. Do nến cuối trong cache bị tụt lại so với phiên giao dịch gần nhất của thị trường.
+ */
+function isPriceHistoryCacheStale(
   r2Data: any,
   todayStr: string,
   todayExrightSet: Set<string>,
   ticker: string
-): boolean {
+): { isStale: boolean; reason?: string } {
+  if (!r2Data || !Array.isArray(r2Data.history) || r2Data.history.length === 0) {
+    return { isStale: true, reason: 'Cache rỗng hoặc không có nến' };
+  }
+
   const cacheDateStr = r2Data.updatedAt ? r2Data.updatedAt.slice(0, 10) : '';
 
   // 1. Kiểm tra nếu mã này nằm trong danh sách GDKHQ của thị trường hôm nay
   // mà cache được tạo trước ngày hôm nay
   if (todayExrightSet.has(ticker) && cacheDateStr < todayStr) {
-    return true;
+    return { isStale: true, reason: 'Có sự kiện GDKHQ hôm nay' };
   }
+
+  const lastBar = r2Data.history[r2Data.history.length - 1];
+  const lastBarDate = lastBar?.fullDate || cacheDateStr;
 
   // 2. Kiểm tra nếu trong danh sách events của mã có ngày GDKHQ từ ngày nến cuối đến hôm nay
   if (Array.isArray(r2Data.events)) {
-    const lastBar = r2Data.history?.[r2Data.history.length - 1];
-    const lastBarDate = lastBar?.fullDate || cacheDateStr;
-
     for (const ev of r2Data.events) {
       if (!ev.date) continue;
       // Sự kiện diễn ra từ ngày nến cuối tới hôm nay
       if (ev.date >= lastBarDate && ev.date <= todayStr) {
         if (cacheDateStr < ev.date) {
-          return true;
+          return { isStale: true, reason: `Có sự kiện GDKHQ ngày ${ev.date}` };
         }
       }
     }
   }
 
-  return false;
+  // 3. Kiểm tra độ tụt nến: Nến cuối cùng trong cache có cũ hơn phiên giao dịch gần nhất không?
+  const expectedTradingDate = getExpectedLatestTradingDate();
+
+  if (cacheDateStr < todayStr) {
+    // Cache tạo từ các ngày trước: nến cuối bắt buộc phải >= expectedTradingDate
+    if (lastBarDate < expectedTradingDate) {
+      return {
+        isStale: true,
+        reason: `Nến cuối (${lastBarDate}) cũ hơn phiên giao dịch gần nhất (${expectedTradingDate})`,
+      };
+    }
+  } else {
+    // Cache tạo hôm nay: nếu hiện tại đã sau 15:15 (kết thúc phiên ATC) mà nến cuối vẫn chưa có ngày hôm nay
+    const vnTime = new Date(Date.now() + (7 * 60 + new Date().getTimezoneOffset()) * 60 * 1000);
+    const isAfterClose = vnTime.getHours() > 15 || (vnTime.getHours() === 15 && vnTime.getMinutes() >= 15);
+    const dayOfWeek = vnTime.getDay();
+    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+
+    if (isWeekday && isAfterClose && lastBarDate < todayStr) {
+      return {
+        isStale: true,
+        reason: `Sau giờ đóng cửa phiên hôm nay nhưng cache chưa có nến ${todayStr}`,
+      };
+    }
+  }
+
+  return { isStale: false };
 }
 
 export async function GET(
@@ -121,11 +181,11 @@ export async function GET(
   try {
     // 0. Kiểm tra kho nến Cloudflare R2 / SSD Local (Áp dụng cho nến Ngày ONE_DAY)
     if (timeFrame === 'ONE_DAY') {
-      const r2Data = await getPriceHistoryFromR2(cleanTicker, 720); // 30 ngày (nến lịch sử ổn định)
+      const r2Data = await getPriceHistoryFromR2(cleanTicker, 720); // Đọc từ disk/R2
       if (r2Data && Array.isArray(r2Data.history) && r2Data.history.length >= 10) {
-        // Kiểm tra chủ động: Mã này có sự kiện GDKHQ phát sinh mà cache chưa cập nhật không?
+        // Kiểm tra toàn diện tính hợp lệ của cache (sự kiện quyền + nến thiếu)
         const todayExrightSet = await getTodayExrightTickers(todayStr);
-        const isStale = isR2CacheStaleDueToCorporateAction(r2Data, todayStr, todayExrightSet, cleanTicker);
+        const { isStale, reason } = isPriceHistoryCacheStale(r2Data, todayStr, todayExrightSet, cleanTicker);
 
         if (!isStale) {
           // Cache hoàn toàn sạch và mới -> Trả về 15ms
@@ -142,7 +202,7 @@ export async function GET(
           });
         }
 
-        console.log(`[Price History API] 🔄 Phát hiện ${cleanTicker} có GDKHQ chưa điều chỉnh! Tiến hành tự động tải lại full nến điều chỉnh...`);
+        console.log(`[Price History API] 🔄 Phát hiện ${cleanTicker} cache đã cũ (${reason})! Tiến hành tự động tải lại full nến điều chỉnh từ Vietcap...`);
       }
     }
 
