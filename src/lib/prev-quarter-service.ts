@@ -63,17 +63,18 @@ function savePatCache(cache: Record<string, Record<string, number>>) {
 /**
  * Tải map LNST (đơn vị VNĐ) của quý liền trước cho danh sách mã cổ phiếu
  * Thứ tự ưu tiên:
- * 1. Đọc từ local cache files data/financials/[TICKER].json
+ * 1. Đọc từ local cache files data/financials/[TICKER].json (Ưu tiên isa22 - LNST Cổ đông công ty mẹ)
  * 2. Đọc từ file cache tổng data/earnings/prev_quarter_pat_cache.json
- * 3. Fallback: Gọi Vietcap IQ API BCTC (có timeout & batch)
+ * 3. Fallback: Gọi Vietcap IQ API BCTC (có timeout & batch, ưu tiên isa22)
  */
 export async function getPreviousQuarterPatMap(
   tickers: string[],
   quy: number,
-  nam: number
+  nam: number,
+  forceRefresh = false
 ): Promise<Record<string, number>> {
   const { prevQuy, prevNam, periodKey } = getPreviousQuarterInfo(quy, nam);
-  const cacheAll = readPatCache();
+  const cacheAll = forceRefresh ? {} : readPatCache();
   const periodCache: Record<string, number> = cacheAll[periodKey] || {};
   const resultMap: Record<string, number> = { ...periodCache };
 
@@ -82,7 +83,7 @@ export async function getPreviousQuarterPatMap(
   // Bước 1: Kiểm tra local data/financials/*.json
   for (const rawTicker of tickers) {
     const ticker = rawTicker.trim().toUpperCase();
-    if (resultMap[ticker] !== undefined) continue;
+    if (!forceRefresh && resultMap[ticker] !== undefined) continue;
 
     const filePath = path.join(FINANCIALS_DIR, `${ticker}.json`);
     if (fs.existsSync(filePath)) {
@@ -96,13 +97,16 @@ export async function getPreviousQuarterPatMap(
               item.period === `Q${prevQuy}/${prevNam}`
           );
           if (match) {
-            // netProfit trong file data/financials thường là Tỷ VNĐ
-            // isa20 trong rawIsItem là VNĐ
+            // QUAN TRỌNG: WiData & phân tích cổ phiếu luôn dùng LNST CỔ ĐÔNG CÔNG TY MẸ (isa22 / NPATMI)
+            // Không được dùng isa20 (Tổng LNST hợp nhất gồm cả cổ đông thiểu số) vì sẽ gây sai lệch lớn (như MSN, ACV, APH...)
             let patVnd: number | null = null;
-            if (match.rawIsItem?.isa20 != null && match.rawIsItem.isa20 !== 0) {
-              patVnd = Number(match.rawIsItem.isa20);
+            if (match.rawIsItem?.isa22 != null && match.rawIsItem.isa22 !== 0) {
+              patVnd = Number(match.rawIsItem.isa22);
             } else if (typeof match.netProfit === 'number') {
+              // Trong schema ValueX: netProfit là LNST cổ đông công ty mẹ (Tỷ VNĐ)
               patVnd = Math.round(match.netProfit * 1_000_000_000);
+            } else if (match.rawIsItem?.isa20 != null && match.rawIsItem.isa20 !== 0) {
+              patVnd = Number(match.rawIsItem.isa20);
             } else if (typeof match.consolidatedNetProfit === 'number') {
               patVnd = Math.round(match.consolidatedNetProfit * 1_000_000_000);
             }
@@ -152,8 +156,8 @@ export async function getPreviousQuarterPatMap(
                 (q: any) => q.yearReport === prevNam && q.lengthReport === prevQuy
               );
               if (match) {
-                // isa20: Lợi nhuận sau thuế của cổ đông công ty mẹ / LNST hợp nhất (đơn vị VNĐ)
-                const patVnd = match.isa20 ?? match.isa22;
+                // Ưu tiên isa22 (LNST cổ đông công ty mẹ), nếu không có mới fallback sang isa20 (LNST tổng)
+                const patVnd = match.isa22 ?? match.isa20;
                 if (typeof patVnd === 'number') {
                   resultMap[t] = patVnd;
                   periodCache[t] = patVnd;
@@ -187,3 +191,4 @@ export function calculatePatQoQPercent(
   const growth = ((patCurrentVnd - patPrevQVnd) / Math.abs(patPrevQVnd)) * 100;
   return Number(growth.toFixed(2));
 }
+

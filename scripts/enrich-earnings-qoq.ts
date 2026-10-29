@@ -42,10 +42,10 @@ async function main() {
     console.warn('[WiData] Lỗi fetch WiData:', err.message);
   }
 
-  // Tải map LNST quý trước (QoQ)
+  // Tải map LNST quý trước (QoQ) - forceRefresh = true để chuẩn hóa lại theo isa22 (cổ đông công ty mẹ)
   const tickers = store.records.map((r) => r.ticker.trim().toUpperCase());
-  console.log(`[PrevQuarter] Đang tra cứu số liệu quý trước cho ${tickers.length} mã...`);
-  const prevPatMap = await getPreviousQuarterPatMap(tickers, quy, nam);
+  console.log(`[PrevQuarter] Đang tra cứu số liệu quý trước cho ${tickers.length} mã (forceRefresh: true)...`);
+  const prevPatMap = await getPreviousQuarterPatMap(tickers, quy, nam, true);
   console.log(`[PrevQuarter] Đã tìm thấy số liệu quý trước cho ${Object.keys(prevPatMap).length} mã.`);
 
   let updatedYoyCount = 0;
@@ -101,6 +101,18 @@ async function main() {
     console.log('Tăng trưởng QoQ (quý trước):', dgw.patQoQPercent, '%');
     console.log('---------------------------');
   }
+
+  const msn = store.records.find((r) => r.ticker === 'MSN');
+  if (msn) {
+    console.log('--- Kiểm tra mã mẫu MSN ---');
+    console.log('Mã:', msn.ticker);
+    console.log('LNST hiện tại (Q3/26):', (msn.patCurrent / 1e9).toFixed(2), 'tỷ');
+    console.log('LNST cùng kỳ (Q3/25):', (msn.patPrevious / 1e9).toFixed(2), 'tỷ');
+    console.log('Tăng trưởng YoY (svck):', msn.patYoYPercent, '%');
+    console.log('Tăng trưởng QoQ (quý trước):', msn.patQoQPercent, '%');
+    console.log('---------------------------');
+  }
 }
 
 main().catch(console.error);
+
