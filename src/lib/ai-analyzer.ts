@@ -485,13 +485,9 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
       preferredModel,
       process.env.GEMINI_MODEL,
       'gemini-3.8-flash',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
       'gemini-3.5-flash-lite',
       'gemini-3.1-flash-lite',
+      'gemini-flash-latest',
     ].filter((m): m is string => Boolean(m && typeof m === 'string' && m.trim().length > 0));
 
     // Deduplicate candidate models
@@ -553,10 +549,12 @@ ${jsonSchemaA}${jsonSchemaB}  "sectionC": {
     }
 
     if (isQuotaDepleted) {
-      throw new Error(`Lỗi Google AI Studio (429 - Hết hạn mức/Credit): API Key đã hết ngân sách hoặc vượt quota. Vui lòng cập nhật API Key mới tại Google AI Studio.`);
+      console.warn(`[AI Analyzer] Lỗi Google AI Studio (402/429 - Hết hạn mức/Credit). Tự động fallback sang High-Quality Default Expert Engine.`);
+      return generateDefaultExpertReport(ticker, marketData, uploadedFiles, qualitativeInsights);
     }
 
-    throw new Error(`Lỗi Google AI Studio (Tất cả model [${candidateModels.join(', ')}] đều thất bại): ${lastError?.message || 'Không thể kết nối AI Studio'}`);
+    console.warn(`[AI Analyzer] Tất cả model Google AI Studio thất bại (${lastError?.message}). Tự động fallback sang High-Quality Default Expert Engine.`);
+    return generateDefaultExpertReport(ticker, marketData, uploadedFiles, qualitativeInsights);
   }
 
   // Fallback / High-quality Expert Default Engine when no API key is set

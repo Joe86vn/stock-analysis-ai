@@ -12,12 +12,13 @@ export async function GET(
     const { ticker } = await params;
     const searchParams = request.nextUrl.searchParams;
     const companyName = searchParams.get('companyName') || undefined;
+    const forceRefresh = searchParams.get('forceRefresh') === 'true';
 
     if (!ticker) {
       return NextResponse.json({ error: 'Ticker is required' }, { status: 400 });
     }
 
-    const insights = await fetchGoogleAIGroundedInsights(ticker, companyName);
+    const insights = await fetchGoogleAIGroundedInsights(ticker, companyName, forceRefresh);
     return NextResponse.json(insights);
   } catch (error) {
     console.error('Error in google-insights route:', error);

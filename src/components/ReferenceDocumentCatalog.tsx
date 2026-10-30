@@ -60,10 +60,11 @@ export function ReferenceDocumentCatalog({
     fetchGoogleInsights();
   }, [ticker]);
 
-  const fetchGoogleInsights = async () => {
+  const fetchGoogleInsights = async (force: boolean = false) => {
     setIsLoadingGoogle(true);
     try {
-      const res = await fetch(`/api/stocks/${ticker}/google-insights`);
+      const url = `/api/stocks/${ticker}/google-insights${force ? '?forceRefresh=true' : ''}`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setGoogleAiInsights(data);
@@ -558,7 +559,7 @@ export function ReferenceDocumentCatalog({
                       </div>
 
                       <button
-                        onClick={fetchGoogleInsights}
+                        onClick={() => fetchGoogleInsights(true)}
                         disabled={isLoadingGoogle}
                         className="flex items-center space-x-1 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-[11px] text-slate-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition self-start sm:self-auto cursor-pointer"
                       >
@@ -624,7 +625,7 @@ export function ReferenceDocumentCatalog({
                   <div className="py-6 text-center text-xs text-slate-500 dark:text-gray-400">
                     Chưa có thông tin tổng quan từ Google AI.{' '}
                     <button
-                      onClick={fetchGoogleInsights}
+                      onClick={() => fetchGoogleInsights(true)}
                       className="text-emerald-600 dark:text-emerald-400 underline font-semibold cursor-pointer"
                     >
                       Bấm để tìm kiếm ngay

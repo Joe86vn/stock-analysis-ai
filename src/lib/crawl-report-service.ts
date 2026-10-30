@@ -4,6 +4,7 @@ import {
   GoogleAiInsightData,
   GoogleAiCitation,
 } from '@/types/analysis';
+import { isUsingOpenAIProxy, callOpenAIChatCompletion } from '@/lib/llm-provider';
 
 const googleInsightsCache = new Map<string, { data: GoogleAiInsightData; expiresAt: number }>();
 
@@ -208,14 +209,12 @@ async function fetchNativeGoogleSearchGrounding(
   // Chỉ sử dụng các model thế hệ mới có hỗ trợ native Google Search Grounding trên Google API
   const candidateModels = [
     'gemini-3.8-flash',
-    'gemini-3.7-flash',
     'gemini-3.5-flash',
     'gemini-flash-latest',
     'gemini-3.1-flash-lite',
-    'gemini-2.5-flash-lite',
   ];
 
-  const prompt = `kết quả kinh doanh và triển vọng tăng trưởng ${ticker} ${companyName ? `(${companyName})` : ''} tháng ${currentMonth} năm ${currentYear}. Hãy tổng hợp chi tiết kết quả kinh doanh mới nhất (doanh thu, lợi nhuận, tăng trưởng %, từng mảng ngành hàng), triển vọng tăng trưởng các tháng tới (động lực, mùa cao điểm, sản phẩm mới, cổ tức) và dự báo định giá từ các công ty chứng khoán gần đây.`;
+  const prompt = `kết quả kinh doanh và triển vọng tăng trưởng ${ticker} ${companyName ? `(${companyName})` : ''} tháng ${currentMonth} năm ${currentYear}. Hãy tổng hợp chi tiết kết quả kinh doanh mới nhất (doanh thu, lợi nhuận, tăng trưởng %, từng mảng hoạt động), triển vọng tăng trưởng các tháng tới (động lực cốt lõi, dự án mới, cổ tức) và dự báo định giá từ các công ty chứng khoán gần đây.`;
   // BẮT BUỘC gọi trực tiếp Google Generative Language API vì Google Search Grounding là tính năng native của Google
   const googleBaseUrl = 'https://generativelanguage.googleapis.com';
 
@@ -238,6 +237,11 @@ async function fetchNativeGoogleSearchGrounding(
       if (!res.ok) {
         const errText = await res.text();
         console.warn(`[Native Google Search Grounding] ${model} failed (${res.status}):`, errText.substring(0, 120));
+        // Nếu lỗi 402 (prepayment credits depleted) hoặc 403 (invalid key), dừng ngay để chuyển sang pipeline RSS + CLIProxyAPI
+        if (res.status === 402 || res.status === 403) {
+          console.warn(`[Native Google Search Grounding] API Key hết ngân sách hoặc thiếu quyền (${res.status}), tự động chuyển sang pipeline RSS + CLIProxyAPI.`);
+          break;
+        }
         continue;
       }
 
@@ -285,11 +289,12 @@ async function fetchNativeGoogleSearchGrounding(
 /**
  * Thu thập thông tin tổng quan do Google AI tạo bằng luồng kép (Dual-Engine):
  * 1. Ưu tiên: Native Google Search Grounding trực tiếp qua Gemini API (sử dụng GEMINI_GROUNDING_API_KEY)
- * 2. Dự phòng: Google News RSS + Báo cáo CTCK Simplize + Gemini Flash (0 đồng)
+ * 2. Dự phòng: Google News RSS + Báo cáo CTCK Simplize + CLIProxyAPI (gemini-3.8-flash-high) / Google AI Studio
  */
 export async function fetchGoogleAIGroundedInsights(
   ticker: string,
-  companyName?: string
+  companyName?: string,
+  forceRefresh: boolean = false
 ): Promise<GoogleAiInsightData | null> {
   const upperTicker = ticker.toUpperCase();
   const now = new Date();
@@ -298,9 +303,11 @@ export async function fetchGoogleAIGroundedInsights(
   const query = `kết quả kinh doanh và triển vọng tăng trưởng ${upperTicker} tháng ${currentMonth} năm ${currentYear}`;
 
   const cacheKey = `${upperTicker}_${currentMonth}_${currentYear}`;
-  const cached = googleInsightsCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
+  if (!forceRefresh) {
+    const cached = googleInsightsCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
   }
 
   // 0. ƯU TIÊN 1: Thử Native Google Search Grounding với GEMINI_GROUNDING_API_KEY hoặc GEMINI_API_KEY
@@ -398,12 +405,7 @@ export async function fetchGoogleAIGroundedInsights(
     (item, idx, arr) => arr.findIndex((c) => c.url === item.url) === idx
   );
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return getFallbackGoogleAiInsights(upperTicker, query, companyName, uniqueCitations);
-  }
-
-  // 4. Tổng hợp bằng mô hình Gemini AI không phụ thuộc tool ngoài để không bao giờ bị lỗi quota 429
+  // 4. Tổng hợp bằng mô hình AI chuyên nghiệp về tài chính - chứng khoán
   const prompt = `Bạn là Google Search AI Overview chuyên nghiệp về tài chính - chứng khoán Việt Nam.
 Hãy sử dụng các tin tức báo chí thời sự từ Google News và báo cáo phân tích CTCK dưới đây để tạo một bản "Thông tin tổng quan do AI tạo" cho cổ phiếu ${upperTicker} (${companyName || ''}) giống hệt như trên Google AI:
 
@@ -416,65 +418,40 @@ ${brokerReports.length > 0 ? brokerReports.map((b, i) => `${i + 1}. CTCK ${b.sou
 HÃY VIẾT BẢN TỔNG HỢP THEO ĐÚNG CẤU TRÚC SAU (RẤT GIÀU SỐ LIỆU VÀ TRÍCH DẪN NGUỒN CỤ THỂ):
 
 **Đoạn tóm tắt mở đầu:**
-Một đoạn văn súc tích nêu bật doanh thu tháng/quý gần nhất, doanh thu lũy kế, mức tăng trưởng % so với cùng kỳ và tỷ lệ hoàn thành kế hoạch năm (có kèm nguồn như Fili.vn, VietnamBiz, CafeF, DNSE...).
+Một đoạn văn súc tích nêu bật kết quả kinh doanh tháng/quý gần nhất, doanh thu/lợi nhuận lũy kế, mức tăng trưởng % so với cùng kỳ và tiến độ hoàn thành kế hoạch năm (có kèm nguồn như CafeF, Vietstock, VietNamBiz, Fili, CTCK...).
 
 **Kết quả kinh doanh thực tế:**
-• **Doanh thu & Lợi nhuận mới nhất:** Các số liệu doanh thu cụ thể, tỷ lệ tăng trưởng % so với cùng kỳ.
-• **Động lực theo từng ngành hàng:** Bóc tách chi tiết mức tăng trưởng theo từng mảng sản phẩm cốt lõi (điện thoại di động, máy tính xách tay/laptop, thiết bị văn phòng, gia dụng, v.v.).
-• **Lũy kế các tháng/quý:** Doanh thu lũy kế, tiến độ hoàn thành kế hoạch cả năm.
+• **Doanh thu & Lợi nhuận mới nhất:** Các số liệu doanh thu, lợi nhuận gộp, LNST cụ thể, tỷ lệ tăng trưởng % so với cùng kỳ (YoY/QoQ).
+• **Động lực theo từng mảng kinh doanh:** Bóc tách chi tiết mức tăng trưởng theo từng mảng hoạt động kinh doanh cốt lõi của doanh nghiệp.
+• **Lũy kế & Tiến độ kế hoạch:** Doanh thu và lợi nhuận lũy kế các tháng/quý, tỷ lệ hoàn thành kế hoạch năm đã ĐHCĐ thông qua.
 
-**Triển vọng tăng trưởng tháng ${currentMonth} năm ${currentYear} và giai đoạn cuối năm:**
-• **Mùa cao điểm tiêu dùng:** Phân tích các mùa cao điểm (Back-to-School, lễ hội mua sắm cuối năm, kích cầu tiêu dùng).
-• **Động lực từ sản phẩm mới:** Xu hướng nâng cấp thiết bị, các dòng sản phẩm mới ra mắt (như iPhone mới, laptop AI, thiết bị văn phòng).
-• **Kế hoạch cổ tức và mở rộng:** Kế hoạch chi trả cổ tức tiền mặt, mở rộng danh mục phân phối độc quyền và các mảng mới.
+**Triển vọng tăng trưởng tháng ${currentMonth} năm ${currentYear} và các quý tới:**
+• **Yếu tố thúc đẩy tăng trưởng:** Phân tích các động lực tăng trưởng cốt lõi (nhà máy/dự án mới đưa vào vận hành, mở rộng thị phần, chu kỳ phục hồi của ngành).
+• **Cơ hội & Thách thức vĩ mô:** Tác động từ giá nguyên vật liệu đầu vào, lãi suất, tỷ giá, chính sách xuất nhập khẩu hoặc giải ngân đầu tư công.
+• **Kế hoạch mở rộng & Cổ tức:** Kế hoạch đầu tư mở rộng quy mô, sản phẩm mới, và kế hoạch chi trả cổ tức tiền mặt/cổ phiếu.
 
 **Định giá & Dự báo từ các Công ty Chứng khoán:**
-• Liệt kê ngắn gọn khuyến nghị và giá mục tiêu từ các CTCK lớn (như Shinhan, VDS, MAS, MBS, DSC, VNDS, SSI...).
+• Liệt kê ngắn gọn khuyến nghị (Mua/Khả quan/Nắm giữ) và giá mục tiêu từ các CTCK lớn (Shinhan, VDS, MAS, MBS, DSC, VNDS, SSI, ACBS...).
 
-Yêu cầu: Viết tự nhiên, súc tích, giữ nguyên các số liệu tỷ đồng, tỷ lệ % và trích dẫn rõ nguồn báo chí/CTCK.`;
+Yêu cầu: Viết tự nhiên, súc tích, trung thực với dữ liệu báo chí và CTCK, giữ nguyên các số liệu tỷ đồng, tỷ lệ % và trích dẫn rõ nguồn báo chí/CTCK.`;
 
-  const candidateModels = [
-    'gemini-3.8-flash',
-    'gemini-3.7-flash',
-    'gemini-3.5-flash',
-    'gemini-flash-latest',
-    'gemini-3.1-flash-lite',
-    'gemini-2.5-flash-lite',
-  ];
-  
-  // Nếu có Grounding Key chính thức của Google, ưu tiên gọi thẳng Google Endpoint để tránh Render proxy timeout
-  const directKey = process.env.GEMINI_GROUNDING_API_KEY || (apiKey?.startsWith('AIza') || apiKey?.startsWith('AQ') ? apiKey : undefined);
-  const activeBaseUrl = directKey
-    ? 'https://generativelanguage.googleapis.com'
-    : (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
-  const activeApiKey = directKey || apiKey;
-
-  for (const modelName of candidateModels) {
+  // 4.1 ƯU TIÊN 1: Gọi CLIProxyAPI (Oracle VPS) theo chuẩn OpenAI để tránh phụ thuộc hạn mức Google AI Studio
+  if (isUsingOpenAIProxy()) {
     try {
-      const res = await fetch(
-        `${activeBaseUrl}/v1beta/models/${modelName}:generateContent?key=${activeApiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          }),
-        }
-      );
+      const proxyModel = process.env.OPENAI_MODEL || 'gemini-3.8-flash-high';
+      console.log(`[Google AI Insights] Đang tổng hợp dữ liệu Google AI cho ${upperTicker} qua CLIProxyAPI (${proxyModel})...`);
+      const overviewText = await callOpenAIChatCompletion({
+        messages: [{ role: 'user', content: prompt }],
+        model: proxyModel,
+        temperature: 0.2,
+        timeoutMs: 60000,
+      });
 
-      if (!res.ok) {
-        continue;
-      }
-
-      const data = await res.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text && text.trim().length > 100) {
+      if (overviewText && overviewText.trim().length > 80) {
         const insightData: GoogleAiInsightData = {
           ticker: upperTicker,
           query,
-          overview: text,
+          overview: overviewText.trim(),
           generatedAt: now.toISOString(),
           citations: uniqueCitations.slice(0, 10),
         };
@@ -485,10 +462,75 @@ Yêu cầu: Viết tự nhiên, súc tích, giữ nguyên các số liệu tỷ 
           expiresAt: Date.now() + 24 * 60 * 60 * 1000,
         });
 
+        console.log(`[Google AI Insights] ✓ Tổng hợp thành công qua CLIProxyAPI (${proxyModel}) cho ${upperTicker}`);
         return insightData;
       }
-    } catch (err) {
-      console.warn(`[Google AI Grounding] Exception with ${modelName}:`, err);
+    } catch (proxyErr: any) {
+      console.warn(`[Google AI Insights] CLIProxyAPI gặp sự cố, fallback sang Google AI Studio trực tiếp:`, proxyErr?.message || proxyErr);
+    }
+  }
+
+  // 4.2 DỰ PHÒNG 2: Gọi Google Generative Language API trực tiếp nếu có GEMINI_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    const candidateModels = [
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-latest',
+      'gemini-3.1-flash-lite',
+    ];
+    
+    const directKey = process.env.GEMINI_GROUNDING_API_KEY || (apiKey?.startsWith('AIza') || apiKey?.startsWith('AQ') ? apiKey : undefined);
+    const activeBaseUrl = directKey
+      ? 'https://generativelanguage.googleapis.com'
+      : (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+    const activeApiKey = directKey || apiKey;
+
+    for (const modelName of candidateModels) {
+      try {
+        const res = await fetch(
+          `${activeBaseUrl}/v1beta/models/${modelName}:generateContent?key=${activeApiKey}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          if (res.status === 402 || res.status === 403) {
+            console.warn(`[Google AI Grounding] ${modelName} gặp lỗi ${res.status} (hết credits/sai key), dừng thử Google API trực tiếp.`);
+            break;
+          }
+          continue;
+        }
+
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text && text.trim().length > 100) {
+          const insightData: GoogleAiInsightData = {
+            ticker: upperTicker,
+            query,
+            overview: text.trim(),
+            generatedAt: now.toISOString(),
+            citations: uniqueCitations.slice(0, 10),
+          };
+
+          // Cache 24h
+          googleInsightsCache.set(cacheKey, {
+            data: insightData,
+            expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+          });
+
+          return insightData;
+        }
+      } catch (err) {
+        console.warn(`[Google AI Grounding] Exception with ${modelName}:`, err);
+      }
     }
   }
 
@@ -503,14 +545,22 @@ function getFallbackGoogleAiInsights(
 ): GoogleAiInsightData {
   const now = new Date();
   const name = companyName || `Doanh nghiệp ${ticker}`;
+  const hasCitations = citations && citations.length > 0;
+
+  let overview = `**Kết quả kinh doanh và triển vọng tăng trưởng của ${name} (${ticker}):**\n\n`;
+  if (hasCitations) {
+    overview += `• **Thông tin thời sự ghi nhận:** Hệ thống đã thu thập được ${citations.length} nguồn tin tức báo chí và báo cáo phân tích mới nhất liên quan đến ${ticker}.\n` +
+      `• **Khuyến nghị & Báo cáo:** Vui lòng tham khảo các trích dẫn tài liệu và báo cáo phân tích từ các CTCK bên dưới để theo dõi chi tiết khuyến nghị và giá mục tiêu.\n` +
+      `• **Lưu ý hệ thống AI:** Chức năng tổng hợp AI tự động đang hoạt động ở chế độ dự phòng. Quý nhà đầu tư có thể xem trực tiếp các bài báo và tài liệu đính kèm.`;
+  } else {
+    overview += `• **Dữ liệu đang được cập nhật:** Chưa ghi nhận tin tức hoặc báo cáo phân tích mới cho mã ${ticker}.\n` +
+      `• **Khuyến nghị:** Vui lòng tra cứu trực tiếp báo cáo phân tích hoặc BCTC tại trang dữ liệu doanh nghiệp.`;
+  }
+
   return {
     ticker,
     query,
-    overview: `**Kết quả kinh doanh và triển vọng tăng trưởng của ${name} (${ticker}):**\n\n` +
-      `• **Kết quả kinh doanh tăng trưởng tích cực:** Hoạt động kinh doanh cốt lõi duy trì đà tăng trưởng tốt, hoàn thành phần lớn kế hoạch năm.\n` +
-      `• **Động lực theo ngành hàng:** Các mảng kinh doanh chủ lực ghi nhận sức mua hồi phục mạnh mẽ trong các mùa cao điểm.\n` +
-      `• **Triển vọng cuối năm:** Hưởng lợi từ mùa mua sắm tựu trường và các dòng sản phẩm công nghệ thế hệ mới ra mắt.\n` +
-      `• **Dự báo từ các CTCK:** Các công ty chứng khoán đánh giá khả quan với tiềm năng tăng giá dựa trên tăng trưởng lợi nhuận các quý tới.`,
+    overview,
     generatedAt: now.toISOString(),
     citations: citations && citations.length > 0 ? citations : [
       {
