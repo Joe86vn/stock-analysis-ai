@@ -1,6 +1,3 @@
-import fs from 'fs';
-import path from 'path';
-
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
@@ -30,31 +27,10 @@ export function getOpenAIProxyConfig(): {
   let model = process.env.OPENAI_MODEL || 'gemini-3.8-flash-high';
   let enabled = process.env.USE_OPENAI_PROXY === 'true' || Boolean(baseUrl);
 
-  // Fallback đọc từ .env.local nếu chưa load vào process.env
-  if (isServer && (!baseUrl || !apiKey)) {
-    try {
-      const envPath = path.join(process.cwd(), '.env.local');
-      if (fs.existsSync(envPath)) {
-        const content = fs.readFileSync(envPath, 'utf-8');
-        const matchBase = content.match(/OPENAI_BASE_URL=["']?([^"'\r\n]+)["']?/);
-        const matchKey = content.match(/OPENAI_API_KEY=["']?([^"'\r\n]+)["']?/);
-        const matchModel = content.match(/OPENAI_MODEL=["']?([^"'\r\n]+)["']?/);
-        const matchEnabled = content.match(/USE_OPENAI_PROXY=["']?([^"'\r\n]+)["']?/);
-
-        if (matchBase && !baseUrl) baseUrl = matchBase[1];
-        if (matchKey && !apiKey) apiKey = matchKey[1];
-        if (matchModel && !process.env.OPENAI_MODEL) model = matchModel[1];
-        if (matchEnabled) enabled = matchEnabled[1] === 'true';
-      }
-    } catch {
-      // Ignore reading error
-    }
-  }
-
   // Mặc định fallback nếu rỗng nhưng USE_OPENAI_PROXY bật
   if (!baseUrl && enabled) {
     // Nếu chạy trên VPS Ubuntu thì dùng localhost 8317, nếu máy khác thì dùng domain valuex.duckdns.org
-    const isVpsLocal = process.platform === 'linux' && fs.existsSync('/home/ubuntu/cliproxyapi');
+    const isVpsLocal = typeof process !== 'undefined' && process.platform === 'linux';
     baseUrl = isVpsLocal ? 'http://127.0.0.1:8317/v1' : 'https://valuex.duckdns.org/v1';
   }
 
