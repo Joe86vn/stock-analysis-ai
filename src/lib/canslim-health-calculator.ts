@@ -100,21 +100,25 @@ export function analyzeFTD(days: DayData[], targetIndex: number): FtdAnalysis {
       if (rallyDayCount === 0) {
         if (pct > 0) {
           rallyDayCount = 1;
-          rallyStartLow = curr.low ?? curr.close;
+          rallyStartLow = Math.min(prev.low ?? prev.close, curr.low ?? curr.close);
         }
       } else {
         // Vi phạm đáy khi giá tạo đáy mới thấp hơn đáy rally
         if (curr.low < rallyStartLow || curr.close < rallyStartLow) {
           if (pct > 0) {
             rallyDayCount = 1;
-            rallyStartLow = curr.low ?? curr.close;
+            rallyStartLow = Math.min(prev.low ?? prev.close, curr.low ?? curr.close);
           } else {
             rallyDayCount = 0;
             rallyStartLow = Infinity;
           }
+        } else if (rallyDayCount > 10 && pct < 0) {
+          // Sau ngày 10 không có FTD và có phiên điều chỉnh -> Đợt nỗ lực phục hồi cũ kết thúc
+          rallyDayCount = 0;
+          rallyStartLow = Infinity;
         } else {
           rallyDayCount++;
-          if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
+          if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct >= 0.0125 && curr.volume > prev.volume) {
             lastFtdIdx = i;
             inConfirmedUptrend = true;
             ftdLow = curr.low ?? curr.close;
@@ -246,6 +250,7 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
   let baseScore = 10;
   let postFtdPenalty = 0;
   let activeDistribDays = totalDistDays;
+  let applyMa20Penalty = isBelowMa20 ? 1 : 0;
 
   if (ftdInfo.ftdDetected && ftdInfo.ftdIndex !== null && targetIndex >= ftdInfo.ftdIndex) {
     // Khi đợt nỗ lực phục hồi xuất hiện FTD thành công:
@@ -254,9 +259,13 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
 
     const sessionsSinceFtd = targetIndex - ftdInfo.ftdIndex;
     if (sessionsSinceFtd <= 5) {
-      // Trong 5 phiên đầu từ ngày FTD: Mặc định điểm gốc = 7 / 10 (Confirmed Uptrend)
+      // Trong 5 phiên đầu từ ngày FTD: Mặc định điểm gốc = 7 / 10 (Confirmed Uptrend).
+      // Khi mới có FTD và chưa xuất hiện phiên phân phối, xác nhận xu hướng tăng Confirmed Uptrend (không để MA20 làm tụt xuống Under Pressure)
       baseScore = 7;
       postFtdPenalty = ftdInfo.postFtdPenalty;
+      if (postFtdPenalty === 0 && activeDistribDays === 0) {
+        applyMa20Penalty = 0;
+      }
       if (ftdInfo.postFtdDistribDay !== null && activeDistribDays > 0) {
         activeDistribDays = Math.max(0, activeDistribDays - 1);
       }
@@ -276,7 +285,7 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
     }
   }
 
-  const rawScore = baseScore - postFtdPenalty - activeDistribDays - (isBelowMa20 ? 1 : 0);
+  const rawScore = baseScore - postFtdPenalty - activeDistribDays - applyMa20Penalty;
   const score = Math.max(0, Math.min(10, rawScore));
 
   let status: MarketStatus = 'uptrend_under_pressure';
@@ -329,6 +338,8 @@ export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
   let rallyDayCount = 0;
   let inConfirmedUptrend = false;
   let candidateRallyDay1Idx: number | null = null;
+  let ftdLow = Infinity;
+  let recentHigh = 0;
 
   for (let i = 1; i < days.length; i++) {
     const prev = days[i - 1];
@@ -348,33 +359,41 @@ export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
 
     // 2. FTD & Rally Day 1
     if (inConfirmedUptrend) {
-      if (curr.close < prev.close * 0.95) {
+      recentHigh = Math.max(recentHigh, curr.close);
+      const breakLow = Math.min(ftdLow, rallyStartLow);
+      if (curr.close < breakLow || (recentHigh > 0 && curr.close < recentHigh * 0.94)) {
         inConfirmedUptrend = false;
         rallyDayCount = 0;
         rallyStartLow = Infinity;
         candidateRallyDay1Idx = null;
+        ftdLow = Infinity;
+        recentHigh = 0;
       }
     } else {
       if (rallyDayCount === 0) {
         if (pct > 0) {
           rallyDayCount = 1;
-          rallyStartLow = prev.low ?? prev.close;
+          rallyStartLow = Math.min(prev.low ?? prev.close, curr.low ?? curr.close);
           candidateRallyDay1Idx = i;
         }
       } else {
         if (curr.low < rallyStartLow || curr.close < rallyStartLow) {
           if (pct > 0) {
             rallyDayCount = 1;
-            rallyStartLow = curr.low ?? curr.close;
+            rallyStartLow = Math.min(prev.low ?? prev.close, curr.low ?? curr.close);
             candidateRallyDay1Idx = i;
           } else {
             rallyDayCount = 0;
             rallyStartLow = Infinity;
             candidateRallyDay1Idx = null;
           }
+        } else if (rallyDayCount > 10 && pct < 0) {
+          rallyDayCount = 0;
+          rallyStartLow = Infinity;
+          candidateRallyDay1Idx = null;
         } else {
           rallyDayCount++;
-          if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
+          if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct >= 0.0125 && curr.volume > prev.volume) {
             // Đã xuất hiện FTD -> Thêm Đáy 1 phát động đợt FTD này (nếu chưa thêm) và thêm FTD
             if (candidateRallyDay1Idx !== null) {
               events.push({
@@ -389,6 +408,8 @@ export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
               type: 'ftd',
             });
             inConfirmedUptrend = true;
+            ftdLow = curr.low ?? curr.close;
+            recentHigh = curr.close;
           }
         }
       }

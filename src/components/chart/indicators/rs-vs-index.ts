@@ -43,9 +43,14 @@ export function registerRsVsIndexIndicator() {
         marketStatuses[i] = d.marketStatus || null;
 
         if (stockClose > 0 && vnClose > 0) {
-          const normalizedStockClose = stockClose < 5000 ? stockClose * 1000 : stockClose;
-          const ratio = (normalizedStockClose / vnClose) * 100;
-          rsValues[i] = Number(ratio.toFixed(2));
+          // Khi xem VNINDEX so với chính VNINDEX: tỷ lệ chuẩn là 100
+          if (Math.abs(stockClose - vnClose) < 0.05) {
+            rsValues[i] = 100;
+          } else {
+            const normalizedStockClose = stockClose < 5000 ? stockClose * 1000 : stockClose;
+            const ratio = (normalizedStockClose / vnClose) * 100;
+            rsValues[i] = Number(ratio.toFixed(2));
+          }
         } else {
           rsValues[i] = null;
         }
