@@ -4,7 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Sun, Moon, BarChart3, Trophy, Sparkles, CandlestickChart, Lock, Activity, TrendingUp, Newspaper } from 'lucide-react';
+import { FileText, Sun, Moon, BarChart3, Trophy, Sparkles, CandlestickChart, Lock, Activity, TrendingUp } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import { UserMenu } from '@/components/UserMenu';
 import { useSession } from 'next-auth/react';
@@ -24,7 +24,6 @@ export function Header() {
   const isChartActive = pathname === '/chart' || pathname?.startsWith('/chart');
   const isMarketActive = pathname === '/market' || pathname?.startsWith('/market');
   const isEarningsActive = pathname === '/earnings' || pathname?.startsWith('/earnings');
-  const isMorningBriefActive = pathname === '/morning-brief' || pathname?.startsWith('/morning-brief');
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200/80 dark:border-gray-800/80 bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md transition-colors duration-200 print:hidden shadow-xs">
@@ -116,17 +115,6 @@ export function Header() {
             </Link>
 
             <Link
-              href="/morning-brief"
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${isMorningBriefActive
-                  ? 'bg-white dark:bg-gray-900 text-teal-600 dark:text-teal-400 shadow-xs'
-                  : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
-                }`}
-            >
-              <Newspaper className="h-3.5 w-3.5 text-teal-500" />
-              <span>Bản Tin Sáng</span>
-            </Link>
-
-            <Link
               href="/reports"
               className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${pathname?.startsWith('/reports')
                   ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
@@ -192,17 +180,6 @@ export function Header() {
             >
               <TrendingUp className="h-4 w-4 text-emerald-500" />
             </Link>
-            <Link
-              href="/morning-brief"
-              className={`p-2 rounded-lg text-xs font-semibold ${isMorningBriefActive
-                  ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
-                  : 'text-gray-600 dark:text-gray-400'
-                }`}
-              title="Bản tin sáng"
-            >
-              <Newspaper className="h-4 w-4 text-teal-500" />
-            </Link>
-
             <Link
               href="/reports"
               className={`p-2 rounded-lg text-xs font-semibold ${pathname?.startsWith('/reports')
