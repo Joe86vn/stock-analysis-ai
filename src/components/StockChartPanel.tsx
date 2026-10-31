@@ -2439,11 +2439,12 @@ export function StockChartPanel({
     dividendOverlayIdsRef.current = createdIds;
   }, [showDividendMarkers, dividendEvents, allBars, resolution]);
 
-  // ─── Dọn dẹp Marker CANSLIM khỏi biểu đồ nến VN-Index ────────
+  // ─── Vẽ Marker CANSLIM (🔵 Đáy 1, 🟢 FTD, 🔴 Phân phối active) lên nến VN-Index ────────
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
 
+    // 1. Dọn dẹp CANSLIM overlay cũ
     if (canslimOverlayIdsRef.current.length > 0) {
       canslimOverlayIdsRef.current.forEach((id) => {
         try {
@@ -2452,6 +2453,56 @@ export function StockChartPanel({
       });
       canslimOverlayIdsRef.current = [];
     }
+
+    // 2. Chỉ vẽ khi ticker là VNINDEX và xem nến Ngày (D)
+    const cleanTicker = (ticker || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (cleanTicker !== 'VNINDEX' || allBars.length < 5 || resolution !== 'D') return;
+
+    // 3. Chuẩn bị dữ liệu DayData[] để tính toán CANSLIM events
+    const days: DayData[] = allBars.map((b) => ({
+      date: b.fullDate,
+      close: b.closePrice,
+      low: b.lowestPrice,
+      volume: b.volume,
+    }));
+
+    const events = getAllCanslimEvents(days);
+    const createdIds: string[] = [];
+
+    events.forEach((ev) => {
+      const bar = allBars[ev.index];
+      if (!bar) return;
+
+      const ts = new Date(bar.fullDate + 'T00:00:00Z').getTime();
+      // Phân phối -> đính tại highestPrice; FTD / Đáy 1 -> đính tại lowestPrice
+      const val = ev.type === 'distribution' ? bar.highestPrice : bar.lowestPrice;
+
+      // Với phiên phân phối: chỉ vẽ các phiên còn active để tránh làm rối biểu đồ
+      if (ev.type === 'distribution' && !ev.isDistribActive) return;
+
+      try {
+        const overlayId = chart.createOverlay(
+          {
+            name: CANSLIM_MARKER_OVERLAY_NAME,
+            lock: true,
+            points: [{ timestamp: ts, value: val }],
+            extendData: {
+              type: ev.type,
+              isDistribActive: ev.isDistribActive ?? true,
+            },
+          },
+          'candle_pane'
+        );
+
+        if (typeof overlayId === 'string') {
+          createdIds.push(overlayId);
+        }
+      } catch (err) {
+        console.warn('[StockChartPanel] Failed to create CANSLIM marker overlay:', err);
+      }
+    });
+
+    canslimOverlayIdsRef.current = createdIds;
   }, [ticker, allBars, resolution]);
 
   // ─── Quản lý nhãn giá hiện tại và % tăng giảm trên trục giá ──────────────

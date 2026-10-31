@@ -258,6 +258,16 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
     activeDistribDays = countDistributionDaysAfter(days, ftdInfo.ftdIndex, targetIndex);
 
     const sessionsSinceFtd = targetIndex - ftdInfo.ftdIndex;
+
+    // Kiểm tra tính hiệu lực của phiên phân phối sau FTD (hết hạn sau 25 phiên hoặc khi giá tăng >= 5%)
+    let earlyDistribActive = false;
+    if (ftdInfo.postFtdDistribDay !== null) {
+      const earlyDistIdx = ftdInfo.ftdIndex + ftdInfo.postFtdDistribDay;
+      const distClose = days[earlyDistIdx]?.close ?? 0;
+      const isExpired = (targetIndex - earlyDistIdx > 25) || (currentClose >= distClose * 1.05);
+      earlyDistribActive = !isExpired;
+    }
+
     if (sessionsSinceFtd <= 5) {
       // Trong 5 phiên đầu từ ngày FTD: Mặc định điểm gốc = 7 / 10 (Confirmed Uptrend).
       // Khi mới có FTD và chưa xuất hiện phiên phân phối, xác nhận xu hướng tăng Confirmed Uptrend (không để MA20 làm tụt xuống Under Pressure)
@@ -270,15 +280,15 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
         activeDistribDays = Math.max(0, activeDistribDays - 1);
       }
     } else {
-      if (ftdInfo.postFtdDistribDay !== null) {
-        // Nếu xuất hiện phân phối trong 1-5 phiên ngay sau FTD
+      if (earlyDistribActive) {
+        // Nếu phiên phân phối trong 1-5 phiên ngay sau FTD còn hiệu lực
         baseScore = 7;
         postFtdPenalty = ftdInfo.postFtdPenalty;
         if (activeDistribDays > 0) {
           activeDistribDays = Math.max(0, activeDistribDays - 1);
         }
       } else {
-        // Khôi phục 10 điểm nếu sau trên 5 phiên kể từ FTD không xuất hiện phiên phân phối nào
+        // Khôi phục 10 điểm nếu phiên phân phối sau FTD đã hết hiệu lực (hoặc không xuất hiện phiên phân phối nào)
         baseScore = 10;
         postFtdPenalty = 0;
       }
@@ -292,6 +302,14 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
   if (score >= 7) status = 'confirmed_uptrend';
   else if (score < 5) status = 'correction';
 
+  const sessionsSinceFtd = ftdInfo.ftdIndex !== null ? targetIndex - ftdInfo.ftdIndex : 999;
+  let isEarlyActive = false;
+  if (ftdInfo.postFtdDistribDay !== null && ftdInfo.ftdIndex !== null) {
+    const earlyDistIdx = ftdInfo.ftdIndex + ftdInfo.postFtdDistribDay;
+    const distClose = days[earlyDistIdx]?.close ?? 0;
+    isEarlyActive = (targetIndex - earlyDistIdx <= 25) && (currentClose < distClose * 1.05);
+  }
+
   return {
     score,
     status,
@@ -301,9 +319,9 @@ export function calculateHealthScoreForBar(days: DayData[], targetIndex: number)
     currentClose,
     vnindexVsMa20,
     ftdDetected: ftdInfo.ftdDetected,
-    postFtdPenalty: ftdInfo.postFtdPenalty,
-    ftdFailureProb: ftdInfo.ftdFailureProb,
-    postFtdDistribDay: ftdInfo.postFtdDistribDay,
+    postFtdPenalty: isEarlyActive || sessionsSinceFtd <= 5 ? ftdInfo.postFtdPenalty : 0,
+    ftdFailureProb: isEarlyActive || sessionsSinceFtd <= 5 ? ftdInfo.ftdFailureProb : null,
+    postFtdDistribDay: isEarlyActive || sessionsSinceFtd <= 5 ? ftdInfo.postFtdDistribDay : null,
   };
 }
 
@@ -424,6 +442,16 @@ export function getAllCanslimEvents(days: DayData[]): CanslimEvent[] {
       type: 'rallyDay1',
     });
   }
+
+  // Cập nhật tính hiệu lực (active) của các phiên phân phối
+  const latestIdx = days.length - 1;
+  const latestClose = days[latestIdx]?.close ?? 0;
+  events.forEach((ev) => {
+    if (ev.type === 'distribution') {
+      const age = latestIdx - ev.index;
+      ev.isDistribActive = age <= 25 && latestClose < days[ev.index].close * 1.05;
+    }
+  });
 
   // Sắp xếp các sự kiện theo index tăng dần
   return events.sort((a, b) => a.index - b.index);

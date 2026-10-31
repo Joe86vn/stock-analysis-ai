@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Zap } from 'lucide-react';
+import { getAllCanslimEvents, DayData } from '@/lib/canslim-health-calculator';
 
 interface RawHistoryItem {
   tradingDate?: string;
@@ -128,70 +129,24 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
         const ma20PriceArr = calcMA(closes, 20);
         const ma20VolArr = calcMA(vols, 20);
 
-        // CANSLIM FTD Rule: Day 4 to Day 10 of Rally Attempt ONLY.
-        // Identify Day 1 of Rally Attempt (Đáy 1 - chỉ giữ lại đáy sau cùng thành công)
-        let rallyStartLow = Infinity;
-        let rallyDayCount = 0;
-        let currentRallyDay1Idx: number | null = null;
-        let inConfirmedUptrend = false;
+        // Tính toán toàn bộ các sự kiện CANSLIM qua thư viện chuẩn dùng chung canslim-health-calculator
+        const daysData: DayData[] = sorted.map((d) => ({
+          date: d.date,
+          close: d.close,
+          low: d.low,
+          volume: d.volume,
+        }));
+
+        const canslimEvents = getAllCanslimEvents(daysData);
         const ftdSet = new Set<number>();
         const rallyDay1Set = new Set<number>();
+        const activeDistribSet = new Set<number>();
 
-        for (let i = 1; i < sorted.length; i++) {
-          const prev = sorted[i - 1];
-          const curr = sorted[i];
-          const pct = (curr.close - prev.close) / prev.close;
-
-          if (inConfirmedUptrend) {
-            if (curr.close < prev.close * 0.95) {
-              inConfirmedUptrend = false;
-              rallyDayCount = 0;
-              rallyStartLow = Infinity;
-              currentRallyDay1Idx = null;
-            }
-          } else {
-            if (rallyDayCount === 0) {
-              if (pct > 0) {
-                rallyDayCount = 1;
-                rallyStartLow = prev.low;
-                currentRallyDay1Idx = i; // Ghi nhận Đáy 1 tạm thời
-              }
-            } else {
-              if (curr.low < rallyStartLow) {
-                // Đợt phục hồi trước thất bại do gãy đáy cũ -> Reset Đáy 1
-                if (pct > 0) {
-                  rallyDayCount = 1;
-                  rallyStartLow = prev.low;
-                  currentRallyDay1Idx = i; // Đáy 1 mới của đợt nỗ lực mới
-                } else {
-                  rallyDayCount = 0;
-                  rallyStartLow = Infinity;
-                  currentRallyDay1Idx = null;
-                }
-              } else {
-                rallyDayCount++;
-                // FTD Rule: Phiên 4 đến phiên 10 của đợt phục hồi, tăng > 1.25%, vol > vol phiên trước
-                if (rallyDayCount >= 4 && rallyDayCount <= 10 && pct > 0.0125 && curr.volume > prev.volume) {
-                  ftdSet.add(i);
-                  if (currentRallyDay1Idx !== null) {
-                    rallyDay1Set.add(currentRallyDay1Idx); // Chỉ giữ lại Đáy 1 sau cùng thành công khởi đầu FTD
-                  }
-                  inConfirmedUptrend = true;
-                }
-              }
-            }
-          }
-        }
-
-        // Nếu đang trong đợt nỗ lực phục hồi tích cực (chưa gãy đáy và chưa FTD), giữ lại Đáy 1 hiện tại
-        if (!inConfirmedUptrend && currentRallyDay1Idx !== null) {
-          rallyDay1Set.add(currentRallyDay1Idx);
-        }
-
-        // Identify Distribution Days according to CANSLIM rules
-        const latestIdx = sorted.length - 1;
-        const latestClose = sorted[latestIdx].close;
-        const distribRecords: { idx: number; close: number }[] = [];
+        canslimEvents.forEach((ev) => {
+          if (ev.type === 'ftd') ftdSet.add(ev.index);
+          if (ev.type === 'rallyDay1') rallyDay1Set.add(ev.index);
+          if (ev.type === 'distribution' && ev.isDistribActive) activeDistribSet.add(ev.index);
+        });
 
         const points: CandleDataPoint[] = sorted.map((curr, i) => {
           let pctChange = 0;
@@ -202,7 +157,6 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
             pctChange = (curr.close - prev.close) / prev.close;
             if (pctChange <= -0.002 && curr.volume > prev.volume) {
               isDistribution = true;
-              distribRecords.push({ idx: i, close: curr.close });
             }
           }
 
@@ -210,7 +164,7 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
             ...curr,
             pctChange,
             isDistribution,
-            isDistribActive: false,
+            isDistribActive: activeDistribSet.has(i),
             isFTD: ftdSet.has(i),
             isRallyDay1: rallyDay1Set.has(i),
             ma20Price: ma20PriceArr[i],
@@ -218,18 +172,7 @@ export const VnindexCandleChart: React.FC<VnindexCandleChartProps> = ({ isDashbo
           };
         });
 
-        // Filter active distribution days
-        let activeCounter = 0;
-        distribRecords.forEach((rec) => {
-          const age = latestIdx - rec.idx;
-          const isWithin25 = age <= 25;
-          const isRallied5Pct = latestClose >= rec.close * 1.05;
-
-          if (isWithin25 && !isRallied5Pct) {
-            activeCounter++;
-            points[rec.idx].isDistribActive = true;
-          }
-        });
+        const activeCounter = activeDistribSet.size;
 
         // Take last sessions (130 for dashboard to fill frame, 55 for sidebar)
         const displayCandles = points.slice(isDashboard ? -130 : -55);
