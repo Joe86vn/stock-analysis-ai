@@ -136,16 +136,19 @@ function isPriceHistoryCacheStale(
       };
     }
   } else {
-    // Cache tạo hôm nay: nếu hiện tại đã sau 15:15 (kết thúc phiên ATC) mà nến cuối vẫn chưa có ngày hôm nay
+    // Cache tạo hôm nay: nếu hôm nay là ngày giao dịch (T2-T6) và hiện tại đã sau 09:15
+    // mà nến cuối chưa có ngày hôm nay -> cache thiếu nến ngày hôm nay!
     const vnTime = new Date(Date.now() + (7 * 60 + new Date().getTimezoneOffset()) * 60 * 1000);
-    const isAfterClose = vnTime.getHours() > 15 || (vnTime.getHours() === 15 && vnTime.getMinutes() >= 15);
+    const hour = vnTime.getHours();
+    const minute = vnTime.getMinutes();
+    const isTradingHoursOrLater = hour > 9 || (hour === 9 && minute >= 15);
     const dayOfWeek = vnTime.getDay();
     const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
 
-    if (isWeekday && isAfterClose && lastBarDate < todayStr) {
+    if (isWeekday && isTradingHoursOrLater && lastBarDate < todayStr) {
       return {
         isStale: true,
-        reason: `Sau giờ đóng cửa phiên hôm nay nhưng cache chưa có nến ${todayStr}`,
+        reason: `Phiên hôm nay (${todayStr}) đã mở cửa nhưng nến cuối chỉ dừng ở ${lastBarDate}`,
       };
     }
   }

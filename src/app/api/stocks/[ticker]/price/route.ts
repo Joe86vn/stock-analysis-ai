@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchVietcapGapChart } from '@/lib/vietcap-field-mapping';
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +8,46 @@ export async function GET(
   try {
     const { ticker: rawTicker } = await params;
     const ticker = rawTicker.toUpperCase();
+
+    // Hỗ trợ các chỉ số thị trường (VNINDEX, VN-INDEX, VN30, HNXINDEX) qua Vietcap Gap Chart
+    if (['VNINDEX', 'VN-INDEX', 'VN30', 'HNXINDEX'].includes(ticker)) {
+      const cleanIndex = ticker === 'VN-INDEX' ? 'VNINDEX' : ticker;
+      try {
+        const bars = await fetchVietcapGapChart(cleanIndex, { countBack: 2, timeFrame: 'ONE_DAY' });
+        if (bars && bars.length > 0) {
+          const lastBar = bars[bars.length - 1];
+          const prevBar = bars.length > 1 ? bars[bars.length - 2] : lastBar;
+          const price = lastBar.closePrice;
+          const refPrice = prevBar.closePrice;
+          const change = Math.round((price - refPrice) * 100) / 100;
+          const changePercent = refPrice > 0 ? Math.round(((price - refPrice) / refPrice) * 10000) / 100 : 0;
+
+          if (price > 0) {
+            return NextResponse.json(
+              {
+                symbol: ticker,
+                price,
+                change,
+                changePercent,
+                refPrice,
+                open: lastBar.openPrice,
+                high: lastBar.highestPrice,
+                low: lastBar.lowestPrice,
+                volume: lastBar.volume,
+                source: 'VietcapGapChart',
+              },
+              {
+                headers: {
+                  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+                },
+              }
+            );
+          }
+        }
+      } catch (idxErr) {
+        console.warn(`[Price API] Error fetching index ${cleanIndex} from Vietcap:`, idxErr);
+      }
+    }
 
     // Nguồn 1: Bảng giá MAS (Mirae Asset Vietnam) - siêu nhanh & không bị chặn Cloudflare
     try {

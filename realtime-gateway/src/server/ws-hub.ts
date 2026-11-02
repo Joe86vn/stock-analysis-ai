@@ -25,6 +25,11 @@ interface ClientState {
   subMarket: boolean;
 }
 
+function isMarketIndex(symbol: string): boolean {
+  const s = symbol.toUpperCase().trim();
+  return ['VNINDEX', 'VN-INDEX', 'VN30', 'HNXINDEX', 'HNX30', 'UPCOM'].includes(s);
+}
+
 export class WsHub {
   private wss: WebSocketServer;
   private clients = new Map<WebSocket, ClientState>();
@@ -169,6 +174,53 @@ export class WsHub {
 
   private async fetchAndBroadcastSnapshot(ticker: string, targetWs?: WebSocket): Promise<void> {
     try {
+      if (isMarketIndex(ticker)) {
+        const cleanId = ticker === 'VN-INDEX' ? 'VNINDEX' : ticker;
+        const nowSec = Math.floor(Date.now() / 1000);
+        const res = await fetch(
+          `https://api.vietcap.com.vn/ohlc-chart-service/v1/gap-chart?symbol=${cleanId}&to=${nowSec}&timeFrame=ONE_DAY&countBack=2`,
+          {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+              'Referer': 'https://iq.vietcap.com.vn/',
+              'Origin': 'https://iq.vietcap.com.vn',
+              'Accept': 'application/json',
+            },
+          }
+        );
+        if (res.ok) {
+          const json = await res.json();
+          const d = json?.data;
+          if (d && Array.isArray(d.t) && d.t.length > 0) {
+            const lastIdx = d.t.length - 1;
+            const price = Number(d.c?.[lastIdx] || 0);
+            const prevClose = lastIdx > 0 ? Number(d.c?.[lastIdx - 1] || price) : price;
+            const chg = Math.round((price - prevClose) * 100) / 100;
+            const chgPct = prevClose > 0 ? Math.round(((price - prevClose) / prevClose) * 10000) / 100 : 0;
+            const candle: LiveCandle = {
+              symbol: ticker,
+              open: Number(d.o?.[lastIdx] || price),
+              high: Number(d.h?.[lastIdx] || price),
+              low: Number(d.l?.[lastIdx] || price),
+              close: price,
+              volume: Number(d.v?.[lastIdx] || 0),
+              timestamp: d.t[lastIdx] * 1000,
+              refPrice: prevClose,
+              change: chg,
+              changePercent: chgPct,
+            };
+            this.candleAggregator.setCandle(candle);
+            if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+              this.sendJson(targetWs, { type: 'candle', data: candle });
+            } else {
+              this.broadcastCandle(ticker, candle);
+            }
+            return;
+          }
+        }
+        return;
+      }
+
       const res = await fetch(`https://masboard.masvn.com/api/v1/market/symbolLatest?symbolList=${ticker}`, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
@@ -299,11 +351,30 @@ export class WsHub {
         this.tickerUnsubTimers.delete(ticker);
       }
 
-      this.ssiClient.subscribeStock(ticker);
-
-      const cached = this.candleAggregator.getCandle(ticker);
-      if (cached) {
-        this.sendJson(ws, { type: 'candle', data: cached });
+      if (isMarketIndex(ticker)) {
+        const cleanIndex = ticker === 'VN-INDEX' ? 'VNINDEX' : ticker;
+        this.ssiClient.subscribeIndex(cleanIndex);
+        const mkt = this.marketAggregator.getIndex(cleanIndex);
+        if (mkt && mkt.indexValue > 0) {
+          const indexCandle: LiveCandle = {
+            symbol: ticker,
+            open: mkt.chartOpen || mkt.indexValue,
+            high: mkt.chartHigh || mkt.indexValue,
+            low: mkt.chartLow || mkt.indexValue,
+            close: mkt.indexValue,
+            volume: mkt.totalQtty,
+            timestamp: mkt.updatedAt || Date.now(),
+            change: mkt.change,
+            changePercent: mkt.changePercent,
+          };
+          this.sendJson(ws, { type: 'candle', data: indexCandle });
+        }
+      } else {
+        this.ssiClient.subscribeStock(ticker);
+        const cached = this.candleAggregator.getCandle(ticker);
+        if (cached) {
+          this.sendJson(ws, { type: 'candle', data: cached });
+        }
       }
 
       this.fetchAndBroadcastSnapshot(ticker, ws);
@@ -441,6 +512,27 @@ export class WsHub {
       for (const [ws, state] of this.clients.entries()) {
         if (state.subMarket && ws.readyState === WebSocket.OPEN) {
           ws.send(msg);
+        }
+      }
+
+      // Tạo LiveCandle cho chỉ số (VNINDEX, VN30, ...) để realtime cập nhật nến trên đồ thị kỹ thuật
+      const cleanId = indexId.toUpperCase().trim();
+      if (summary.indexValue > 0) {
+        const indexCandle: LiveCandle = {
+          symbol: cleanId,
+          open: summary.chartOpen || summary.indexValue,
+          high: summary.chartHigh || summary.indexValue,
+          low: summary.chartLow || summary.indexValue,
+          close: summary.indexValue,
+          volume: summary.totalQtty,
+          timestamp: summary.updatedAt,
+          change: summary.change,
+          changePercent: summary.changePercent,
+        };
+        this.candleAggregator.setCandle(indexCandle);
+        this.broadcastCandle(cleanId, indexCandle);
+        if (cleanId === 'VNINDEX') {
+          this.broadcastCandle('VN-INDEX', { ...indexCandle, symbol: 'VN-INDEX' });
         }
       }
     });

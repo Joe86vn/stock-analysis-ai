@@ -42,15 +42,20 @@ export function registerRsVsIndexIndicator() {
         healthScores[i] = typeof d.healthScore === 'number' ? d.healthScore : null;
         marketStatuses[i] = d.marketStatus || null;
 
-        if (stockClose > 0 && vnClose > 0) {
-          // Khi xem VNINDEX so với chính VNINDEX: tỷ lệ chuẩn là 100
-          if (Math.abs(stockClose - vnClose) < 0.05) {
-            rsValues[i] = 100;
-          } else {
-            const normalizedStockClose = stockClose < 5000 ? stockClose * 1000 : stockClose;
-            const ratio = (normalizedStockClose / vnClose) * 100;
-            rsValues[i] = Number(ratio.toFixed(2));
-          }
+        const isVnindex =
+          d.ticker === 'VNINDEX' ||
+          d.ticker === 'VN-INDEX' ||
+          d.symbol === 'VNINDEX' ||
+          d.symbol === 'VN-INDEX' ||
+          (stockClose > 0 && vnClose > 0 && Math.abs(stockClose - vnClose) < 0.05);
+
+        if (isVnindex) {
+          // Khi xem VNINDEX so với chính VNINDEX: tỷ lệ chuẩn tuyệt đối là 100
+          rsValues[i] = 100;
+        } else if (stockClose > 0 && vnClose > 0) {
+          const normalizedStockClose = stockClose < 5000 ? stockClose * 1000 : stockClose;
+          const ratio = (normalizedStockClose / vnClose) * 100;
+          rsValues[i] = Number(ratio.toFixed(2));
         } else {
           rsValues[i] = null;
         }

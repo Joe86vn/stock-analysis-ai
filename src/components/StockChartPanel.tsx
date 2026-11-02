@@ -142,6 +142,10 @@ const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes TTL
 function getCachedData(ticker: string): CachedChartData | null {
   const item = GLOBAL_CHART_CACHE.get(ticker);
   if (!item) return null;
+  if (Date.now() - item.timestamp > CACHE_TTL_MS) {
+    GLOBAL_CHART_CACHE.delete(ticker);
+    return null;
+  }
   return item;
 }
 
@@ -251,11 +255,14 @@ export function StockChartPanel({
       const bars = allBarsRef.current;
       if (bars && bars.length > 0) {
         const lastBar = bars[bars.length - 1];
-        const todayDateStr = new Date().toISOString().slice(0, 10);
+        const vnNow = new Date(Date.now() + (7 * 60 + new Date().getTimezoneOffset()) * 60 * 1000);
+        const todayDateStr = vnNow.toISOString().slice(0, 10);
         const lastBarDateStr = lastBar.fullDate ? lastBar.fullDate.slice(0, 10) : '';
 
         const close = liveCandle.close;
         const vol = liveCandle.volume > 0 ? liveCandle.volume : lastBar.volume;
+        const cleanTicker = (ticker || '').toUpperCase().trim();
+        const isVnindex = cleanTicker === 'VNINDEX' || cleanTicker === 'VN-INDEX';
 
         if (lastBarDateStr === todayDateStr) {
           // Nến cuối cùng trong danh sách là nến ngày hôm nay -> cập nhật in-place
@@ -271,7 +278,10 @@ export function StockChartPanel({
             low,
             close,
             volume: vol,
-          });
+            fullDate: lastBar.fullDate,
+            ticker: cleanTicker,
+            vnindexClose: isVnindex ? close : undefined,
+          } as any);
 
           lastBar.closePrice = close;
           lastBar.highestPrice = high;
@@ -309,7 +319,10 @@ export function StockChartPanel({
             low,
             close,
             volume: vol,
-          });
+            fullDate: todayDateStr,
+            ticker: cleanTicker,
+            vnindexClose: isVnindex ? close : undefined,
+          } as any);
         }
       }
     }
@@ -822,7 +835,10 @@ export function StockChartPanel({
     ) => {
       if (!chart || bars.length === 0) return;
 
-      let klineData: (KLineData & { fullDate?: string; vnindexClose?: number })[] = bars.map((b) => {
+      const cleanTicker = (ticker || '').toUpperCase().trim();
+      const isVnindex = cleanTicker === 'VNINDEX' || cleanTicker === 'VN-INDEX';
+
+      let klineData: (KLineData & { fullDate?: string; vnindexClose?: number; ticker?: string })[] = bars.map((b) => {
         const ts = new Date(b.fullDate + 'T00:00:00Z').getTime();
         return {
           timestamp: isNaN(ts) ? Date.now() : ts,
@@ -832,6 +848,8 @@ export function StockChartPanel({
           close: b.closePrice,
           volume: b.volume,
           fullDate: b.fullDate,
+          ticker: cleanTicker,
+          vnindexClose: isVnindex ? b.closePrice : undefined,
         };
       });
 
