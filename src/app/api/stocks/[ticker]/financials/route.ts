@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchFullVietcapData } from '@/lib/vietcap-field-mapping';
+import { compositeDataProvider, MarketDataSource } from '@/lib/data-providers';
 
 export async function GET(
   request: NextRequest,
@@ -15,20 +15,30 @@ export async function GET(
     const maxQuartersParam = searchParams.get('maxQuarters') || searchParams.get('size');
     const maxQuarters = maxQuartersParam ? parseInt(maxQuartersParam, 10) : undefined;
     const forceRefresh = searchParams.get('refresh') === 'true' || searchParams.get('force') === 'true';
+    
+    // Nguồn dữ liệu: 'auto' | 'vietcap' | 'mas'
+    const sourceParam = (searchParams.get('source') || 'auto').toLowerCase() as MarketDataSource;
 
     const cleanTicker = ticker.trim().toUpperCase();
-    const quarters = await fetchFullVietcapData(cleanTicker, { maxQuarters, forceRefresh });
+    const result = await compositeDataProvider.getFinancials(cleanTicker, {
+      maxQuarters,
+      forceRefresh,
+      source: sourceParam,
+    });
 
     return NextResponse.json({
       ticker: cleanTicker,
-      source: 'VIETCAP_IQ',
-      count: quarters.length,
-      quarters,
+      source: result.sourceUsed,
+      sourceUsed: result.sourceUsed,
+      isFallback: result.isFallback,
+      latencyMs: result.latencyMs,
+      count: result.data.length,
+      quarters: result.data,
     });
   } catch (error: any) {
-    console.error('Error fetching Vietcap financial data:', error);
+    console.error('Error fetching financial data:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch Vietcap financial data' },
+      { error: error.message || 'Failed to fetch financial data' },
       { status: 500 }
     );
   }

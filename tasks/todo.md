@@ -79,3 +79,41 @@
 - [x] Task 7.4: Gán liên kết trực tiếp trên Mã CP tới trang Phân tích AI & Biểu đồ kỹ thuật.
 - [x] Task 7.5: Bổ sung thanh phân trang (Pagination) chuyên nghiệp với mặc định **50 mã / trang**, hỗ trợ điều hướng trang đầu, trang trước, số trang, trang tiếp và trang cuối.
 - [x] Checkpoint: Kiểm thử `npx tsc --noEmit` và `npm run build` thành công, đã deploy và reload PM2 lên Oracle VPS `valuex.duckdns.org`.
+
+---
+
+# Task Checklist: Đa Nguồn Dữ Liệu Thị Trường & BCTC (Vietcap ⇄ MAS-MCP Dual-Source)
+*Chi tiết kiến trúc & phân tích tại: [tasks/plan.md](file:///d:/2%20ANTIGRAVITY/analysis-report/tasks/plan.md)*
+
+## Phase 1: Nền Tảng Client & Chuẩn Hóa Provider Layer
+- [x] Task 1.1: Xây dựng MAS-MCP Core Client (`src/lib/mas-mcp-client.ts`) quản lý session, Bearer token, auto retry & unwrap JSON
+- [x] Task 1.2: Định nghĩa Data Provider Interface & Adapter (`src/lib/data-providers/`) ánh xạ MASVN & Vietcap về chuẩn chung `ParsedQuarter` & `PriceHistoryItem`
+- [x] Task 1.3: Xây dựng Fallback Provider (Composite Provider) tự động đảo nguồn khi một bên lỗi (403/timeout/500)
+- [x] Checkpoint 1: Xác nhận kết nối MAS-MCP, ánh xạ thử 2 mã FPT & REE, giả lập fallback thành công (Passed 100%)
+
+## Phase 2: Nâng Cấp API Routes Hỗ Trợ Đa Nguồn (?source=)
+- [x] Task 2.1: Nâng cấp API BCTC (`/api/stocks/[ticker]/financials/route.ts`) hỗ trợ query `?source=auto|vietcap|mas`
+- [x] Task 2.2: Nâng cấp API Lịch sử giá EOD (`/api/stocks/[ticker]/price-history/route.ts`) hỗ trợ 26 năm lịch sử khi chọn `mas`
+- [x] Checkpoint 2: Kiểm thử `curl` các API routes với 3 chế độ nguồn khác nhau (Passed 100%)
+
+## Phase 3: Giao Diện Người Dùng (UI Switcher & Source Badge)
+- [x] Task 3.1: Xây dựng `DataSourceContext` & hook `useDataSource` lưu trạng thái người dùng trong `localStorage`
+- [x] Task 3.2: Thiết kế Component `DataSourceSelector` trên Navbar / Header (Tự động ⇄ Vietcap ⇄ MASVN)
+- [x] Task 3.3: Hiển thị `SourceBadge` trên biểu đồ giá & bảng BCTC minh bạch nguồn dữ liệu phục vụ
+- [x] Checkpoint 3: Kiểm thử chuyển đổi nguồn trên UI mượt mà, không gián đoạn giao diện (Passed 100%)
+
+## Phase 4: Khai Thác Tính Năng Chuyên Sâu Của MAS-MCP
+- [x] Task 4.1: Bổ sung API & UI Dòng tiền Tự doanh (`get_proprietary_flow`) trên Market Watch
+- [x] Task 4.2: Tích hợp Bảng Chỉ số chuyên sâu Ngân hàng (`get_banking_financial_indicator`, `get_bank_top_bad_debt`)
+- [x] Checkpoint 4: Xác nhận dữ liệu tự doanh và ngân hàng hiển thị chuẩn xác (Passed 100%)
+
+## Phase 5: Pipeline Cào Dữ Liệu Sâu (Deep Crawler) & Đồng Bộ Tự Động
+- [x] Task 5.1: Xây dựng Script cào sâu 26 năm EOD & 21 năm BCTC (`scripts/crawl-mas-universe-deep.ts`) theo cơ chế windowing an toàn
+- [x] Task 5.2: Tích hợp nguồn MAS-MCP vào Cronjob đồng bộ EOD hàng ngày 15:15 (`scripts/sync-eod-ohlc.ts`)
+- [x] Checkpoint 5: Chạy thử script cào sâu mẫu cho top cổ phiếu lâu năm và xác nhận dung lượng nhẹ (Passed 100%)
+
+## Phase 6: Kiểm Thử Toàn Diện, Build & Đồng Bộ VPS Oracle
+- [ ] Task 6.1: Typecheck `npx tsc --noEmit` & Production Build `npm run build`
+- [ ] Task 6.2: Git commit & push `origin/main`
+- [ ] Task 6.3: Đồng bộ lên Oracle Cloud VPS (`valuex.duckdns.org` qua MCP `oracle-vps:remote-ssh`): `git pull`, `npm run build`, `pm2 reload valuex`
+- [ ] Final Checkpoint: Kiểm tra trực tiếp trên `https://valuex.duckdns.org` hoạt động hoàn hảo cả 3 chế độ nguồn

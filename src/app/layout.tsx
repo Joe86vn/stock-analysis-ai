@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { AuthProvider } from '@/components/AuthProvider';
+import { DataSourceProvider } from '@/contexts/DataSourceContext';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin', 'vietnamese'],
@@ -51,7 +52,9 @@ export default function RootLayout({
       </head>
       <body className="bg-[#F8FAFC] dark:bg-[#0B0F19] text-slate-800 dark:text-gray-200 antialiased selection:bg-emerald-500 selection:text-white font-body transition-colors duration-200">
         <AuthProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            <DataSourceProvider>{children}</DataSourceProvider>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

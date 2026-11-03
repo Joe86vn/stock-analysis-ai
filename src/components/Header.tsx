@@ -10,6 +10,7 @@ import { UserMenu } from '@/components/UserMenu';
 import { useSession } from 'next-auth/react';
 import { UserRole } from '@/types/auth';
 import { hasPermission } from '@/lib/permissions';
+import { DataSourceSelector } from '@/components/common/DataSourceSelector';
 
 export function Header() {
   const { data: session } = useSession();
@@ -196,6 +197,9 @@ export function Header() {
             <Sparkles className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
             <span>ValueX Core Scoring</span>
           </div>
+
+          {/* Data Source Selector (Auto Fallback / Vietcap / MASVN) */}
+          <DataSourceSelector />
 
           {/* Theme Toggle Button (Light / Dark Mode) */}
           <button

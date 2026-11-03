@@ -48,6 +48,7 @@ next-env.d.ts
 data/ohlc/
 data/financials/
 data/rankings/
+data/deep-history/
 data/temp_ssc_pdfs/
 data/ssc-crawl/
 data/earnings/

@@ -23,6 +23,8 @@ import Link from 'next/link';
 import { ChartUtilitySidebar } from './chart/sidebar/ChartUtilitySidebar';
 import { StockRankingItem } from '@/lib/filter-rs-data';
 import { useTheme } from '@/components/ThemeProvider';
+import { useDataSource } from '@/contexts/DataSourceContext';
+import { SourceBadge } from '@/components/common/SourceBadge';
 import { DrawingToolType } from './chart/drawing-types';
 import { DrawingToolbar } from './chart/DrawingToolbar';
 import { registerSwingHighLowIndicator } from './chart/indicators/custom-swing-hl';
@@ -139,18 +141,20 @@ const GLOBAL_CHART_CACHE = new Map<string, CachedChartData>();
 const CACHE_MAX_ITEMS = 30;
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes TTL
 
-function getCachedData(ticker: string): CachedChartData | null {
-  const item = GLOBAL_CHART_CACHE.get(ticker);
+function getCachedData(ticker: string, source: string = 'auto'): CachedChartData | null {
+  const cacheKey = `${ticker}_${source}`;
+  const item = GLOBAL_CHART_CACHE.get(cacheKey);
   if (!item) return null;
   if (Date.now() - item.timestamp > CACHE_TTL_MS) {
-    GLOBAL_CHART_CACHE.delete(ticker);
+    GLOBAL_CHART_CACHE.delete(cacheKey);
     return null;
   }
   return item;
 }
 
-function setCachedData(ticker: string, update: Partial<CachedChartData>) {
-  let existing = GLOBAL_CHART_CACHE.get(ticker) || {
+function setCachedData(ticker: string, update: Partial<CachedChartData>, source: string = 'auto') {
+  const cacheKey = `${ticker}_${source}`;
+  let existing = GLOBAL_CHART_CACHE.get(cacheKey) || {
     timestamp: Date.now(),
     events: [],
     isFullHistory: {},
@@ -167,12 +171,12 @@ function setCachedData(ticker: string, update: Partial<CachedChartData>) {
     resolutions: nextResolutions,
   };
 
-  if (GLOBAL_CHART_CACHE.size >= CACHE_MAX_ITEMS && !GLOBAL_CHART_CACHE.has(ticker)) {
+  if (GLOBAL_CHART_CACHE.size >= CACHE_MAX_ITEMS && !GLOBAL_CHART_CACHE.has(cacheKey)) {
     const oldestKey = GLOBAL_CHART_CACHE.keys().next().value;
     if (oldestKey) GLOBAL_CHART_CACHE.delete(oldestKey);
   }
 
-  GLOBAL_CHART_CACHE.set(ticker, existing);
+  GLOBAL_CHART_CACHE.set(cacheKey, existing);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -645,6 +649,10 @@ export function StockChartPanel({
   const [activeTool, setActiveTool] = useState<DrawingToolType>('cursor');
   const [showDrawingToolbar, setShowDrawingToolbar] = useState(false);
 
+  const { currentSource, buildSourceUrl } = useDataSource();
+  const [activeDataSource, setActiveDataSource] = useState<string>('VIETCAP');
+  const [isFallbackSource, setIsFallbackSource] = useState<boolean>(false);
+
   // ─── Indicators State & Parameters ───────────────────────────────────────
   const [activeIndicators, setActiveIndicators] = useState<ActiveIndicatorsState>(() => loadSavedActiveIndicators());
   const [quarterlyFinancials, setQuarterlyFinancials] = useState<ParsedVietcapQuarter[]>([]);
@@ -886,9 +894,15 @@ export function StockChartPanel({
   const fetchPhase2Background = useCallback(async (t: string, currentRes: Resolution, reqId?: number) => {
     try {
       // Tải 2.000 nến Ngày đầy đủ (~8-9 năm lịch sử)
-      const res2 = await fetch(`/api/stocks/${t}/price-history?countBack=2000&timeFrame=ONE_DAY`);
+      const url2 = buildSourceUrl(`/api/stocks/${t}/price-history`, { countBack: 2000, timeFrame: 'ONE_DAY' });
+      const res2 = await fetch(url2);
       if (!res2.ok) return;
       const json2 = await res2.json();
+
+      if (json2.sourceUsed) {
+        setActiveDataSource(json2.sourceUsed);
+        setIsFallbackSource(Boolean(json2.isFallback));
+      }
 
       // Chặn race condition: Nếu user đã chuyển sang ticker khác hoặc request đã cũ -> Bỏ qua!
       if (currentTickerRef.current !== t) return;
@@ -911,7 +925,7 @@ export function StockChartPanel({
           resolutions: resolutionsFull,
           events: Array.isArray(json2.events) ? json2.events : [],
           isFullHistory: { D: true, W: true, M: true },
-        });
+        }, currentSource);
 
         // Kiểm tra lại lần nữa trước khi cập nhật state
         if (currentTickerRef.current === t && (reqId === undefined || fetchRequestIdRef.current === reqId)) {
@@ -944,7 +958,7 @@ export function StockChartPanel({
   const fetchPriceHistory = useCallback(
     async (t: string, res: Resolution = 'D', reqId?: number) => {
       const currentReqId = reqId ?? fetchRequestIdRef.current;
-      const cached = getCachedData(t);
+      const cached = getCachedData(t, currentSource);
 
       // 1. Kiểm tra RAM Cache (Trả về 0ms nếu đã có tối thiểu 5 nến)
       if (cached && cached.resolutions[res] && cached.resolutions[res]!.length >= 5) {
@@ -967,13 +981,18 @@ export function StockChartPanel({
       setIsLoadingChart(true);
 
       try {
-        const res1 = await fetch(`/api/stocks/${t}/price-history?countBack=260&timeFrame=ONE_DAY`);
+        const url1 = buildSourceUrl(`/api/stocks/${t}/price-history`, { countBack: 260, timeFrame: 'ONE_DAY' });
+        const res1 = await fetch(url1);
         if (!res1.ok) return;
 
         // Chặn race condition
         if (currentTickerRef.current !== t || fetchRequestIdRef.current !== currentReqId) return;
 
         const json1 = await res1.json();
+        if (json1.sourceUsed) {
+          setActiveDataSource(json1.sourceUsed);
+          setIsFallbackSource(Boolean(json1.isFallback));
+        }
         const dailyBars1: OhlcBar[] = json1.history || [];
 
         if (dailyBars1.length >= 5) {
@@ -1010,7 +1029,7 @@ export function StockChartPanel({
             resolutions: resolutions1,
             events: Array.isArray(json1.events) ? json1.events : [],
             isFullHistory: { D: false, W: false, M: false },
-          });
+          }, currentSource);
           if (Array.isArray(json1.events)) setDividendEvents(json1.events);
         }
 
@@ -1183,16 +1202,21 @@ export function StockChartPanel({
       })
       .catch(() => {});
 
-    fetch(`/api/stocks/${targetTicker}/financials`)
+    const finUrl = buildSourceUrl(`/api/stocks/${targetTicker}/financials`);
+    fetch(finUrl)
       .then((res) => res.json())
       .then((json) => {
         if (currentTickerRef.current !== targetTicker) return;
+        if (json.sourceUsed) {
+          setActiveDataSource(json.sourceUsed);
+          setIsFallbackSource(Boolean(json.isFallback));
+        }
         if (json.quarters && Array.isArray(json.quarters)) {
           setQuarterlyFinancials(json.quarters);
         }
       })
       .catch(() => {});
-  }, [ticker, fetchPriceHistory, pollLivePrice, syncBarsToChart, fetchPhase2Background]);
+  }, [ticker, currentSource, fetchPriceHistory, pollLivePrice, syncBarsToChart, fetchPhase2Background, buildSourceUrl]);
 
   // ─── Đồng bộ thông tin stockData ban đầu mà KHÔNG xóa biểu đồ ─────────────
   useEffect(() => {
@@ -2970,6 +2994,9 @@ export function StockChartPanel({
 
         {/* Block 2 (Phải): Chu kỳ D W M + Chỉ báo (fx), Cổ tức, Cài đặt ⚙️, Tiện ích */}
         <div className="flex items-center space-x-1.5 sm:space-x-2.5 ml-auto flex-shrink-0">
+          {/* Badge Nguồn Dữ Liệu Thị Trường */}
+          <SourceBadge source={activeDataSource} isFallback={isFallbackSource} className="hidden md:inline-flex" />
+
           {/* Chu kỳ nến D W M */}
           <div className="flex items-center bg-gray-100 dark:bg-gray-800/90 p-0.5 rounded-lg border border-gray-200 dark:border-gray-700/80 text-xs">
             {(['D', 'W', 'M'] as Resolution[]).map((res) => {

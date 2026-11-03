@@ -12,6 +12,7 @@ import { executeVietcapScreener } from '../src/lib/vietcap-screener-service';
 import { fetchVietcapGapChart, fetchVietcapEvents } from '../src/lib/vietcap-field-mapping';
 import { getPriceHistoryFromR2, putPriceHistoryToR2, PriceHistoryCacheItem } from '../src/lib/r2-storage';
 import { FILTER_75_TICKERS } from '../src/lib/filter-rs-data';
+import { masDataProvider } from '../src/lib/data-providers/mas-provider';
 
 // Helper delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -264,7 +265,43 @@ async function main() {
         fullRebuildCount++;
         successCount++;
       } else {
-        errorCount++;
+        // Fallback sang MASVN EOD nếu Vietcap GapChart không phản hồi
+        try {
+          const masBars = await masDataProvider.getPriceHistory(cleanTicker, { countBack: 2000 });
+          if (masBars && masBars.length >= 10) {
+            const sortedMas = [...masBars].reverse();
+            const history = sortedMas.map((b) => {
+              const dt = new Date(b.tradingDate);
+              const day = String(dt.getDate()).padStart(2, '0');
+              const month = String(dt.getMonth() + 1).padStart(2, '0');
+              return {
+                date: `${day}/${month}`,
+                fullDate: b.tradingDate,
+                openPrice: b.openPrice,
+                highestPrice: b.highestPrice,
+                lowestPrice: b.lowestPrice,
+                closePrice: b.closePrice,
+                range: [b.lowestPrice, b.highestPrice] as [number, number],
+                volume: b.totalVolume,
+              };
+            });
+            await putPriceHistoryToR2(cleanTicker, {
+              ticker: cleanTicker,
+              updatedAt: new Date().toISOString(),
+              isAdjusted: true,
+              source: 'mas-mcp-eod',
+              count: history.length,
+              history,
+              events: [],
+            });
+            fullRebuildCount++;
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch {
+          errorCount++;
+        }
       }
 
       if ((index + 1) % 25 === 0 || index + 1 === targetTickers.length) {

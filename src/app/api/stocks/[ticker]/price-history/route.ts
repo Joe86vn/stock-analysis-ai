@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchVietcapGapChart, fetchVietcapPriceHistory, fetchVietcapEvents } from '@/lib/vietcap-field-mapping';
 import { getPriceHistoryFromR2, putPriceHistoryToR2 } from '@/lib/r2-storage';
+import { compositeDataProvider, MarketDataSource } from '@/lib/data-providers';
 
 interface TodayExrightCache {
   date: string;
@@ -179,9 +180,60 @@ export async function GET(
     ? rawTimeFrame
     : 'ONE_DAY';
 
+  const sourceParam = (request.nextUrl.searchParams.get('source') || 'auto').toLowerCase() as MarketDataSource;
+  const fromDateParam = request.nextUrl.searchParams.get('fromDate');
+  const toDateParam = request.nextUrl.searchParams.get('toDate');
+
   const todayStr = new Date().toISOString().slice(0, 10);
 
   try {
+    // Nếu chỉ định rõ nguồn MASVN (hỗ trợ độ sâu tới 26 năm)
+    if (sourceParam === 'mas') {
+      const masResult = await compositeDataProvider.getPriceHistory(cleanTicker, {
+        source: 'mas',
+        fromDate: fromDateParam || undefined,
+        toDate: toDateParam || undefined,
+        countBack,
+      });
+
+      // Sắp xếp tăng dần theo thời gian (cũ -> mới) cho biểu đồ
+      const sortedMas = [...masResult.data].reverse();
+      const history = sortedMas.map(item => {
+        const dt = new Date(item.tradingDate);
+        const day = String(dt.getDate()).padStart(2, '0');
+        const month = String(dt.getMonth() + 1).padStart(2, '0');
+        const dateStr = `${day}/${month}`;
+        const closePrice = Number(item.closePrice || 0);
+        const openPrice = Number(item.openPrice || closePrice);
+        const highestPrice = Number(item.highestPrice || closePrice);
+        const lowestPrice = Number(item.lowestPrice || closePrice);
+
+        return {
+          date: dateStr,
+          fullDate: item.tradingDate,
+          openPrice,
+          highestPrice,
+          lowestPrice,
+          closePrice,
+          range: [lowestPrice, highestPrice] as [number, number],
+          volume: item.totalVolume,
+        };
+      });
+
+      return NextResponse.json({
+        ticker: cleanTicker,
+        isAdjusted: true,
+        source: 'MASVN',
+        sourceUsed: masResult.sourceUsed,
+        isFallback: masResult.isFallback,
+        latencyMs: masResult.latencyMs,
+        timeFrame,
+        count: history.length,
+        history,
+        events: [],
+      });
+    }
+
     // 0. Kiểm tra kho nến Cloudflare R2 / SSD Local (Áp dụng cho nến Ngày ONE_DAY)
     if (timeFrame === 'ONE_DAY') {
       const r2Data = await getPriceHistoryFromR2(cleanTicker, 720); // Đọc từ disk/R2
@@ -304,6 +356,52 @@ export async function GET(
     const rawList = await fetchVietcapPriceHistory(cleanTicker, { fromDate, toDate, size: 260 });
 
     if (!rawList || rawList.length === 0) {
+      // Fallback tự động sang MASVN nếu Vietcap không có dữ liệu
+      try {
+        const masFallback = await compositeDataProvider.getPriceHistory(cleanTicker, {
+          source: 'mas',
+          countBack,
+        });
+        if (masFallback.data && masFallback.data.length > 0) {
+          const sortedMas = [...masFallback.data].reverse();
+          const history = sortedMas.map((item) => {
+            const dt = new Date(item.tradingDate);
+            const day = String(dt.getDate()).padStart(2, '0');
+            const month = String(dt.getMonth() + 1).padStart(2, '0');
+            const dateStr = `${day}/${month}`;
+            const closePrice = Number(item.closePrice || 0);
+            const openPrice = Number(item.openPrice || closePrice);
+            const highestPrice = Number(item.highestPrice || closePrice);
+            const lowestPrice = Number(item.lowestPrice || closePrice);
+
+            return {
+              date: dateStr,
+              fullDate: item.tradingDate,
+              openPrice,
+              highestPrice,
+              lowestPrice,
+              closePrice,
+              range: [lowestPrice, highestPrice] as [number, number],
+              volume: item.totalVolume,
+            };
+          });
+
+          return NextResponse.json({
+            ticker: cleanTicker,
+            isAdjusted: true,
+            source: 'MASVN',
+            sourceUsed: 'MASVN',
+            isFallback: true,
+            timeFrame,
+            count: history.length,
+            history,
+            events: [],
+          });
+        }
+      } catch (err: any) {
+        console.warn(`[API /price-history] MASVN fallback also failed for ${cleanTicker}:`, err.message);
+      }
+
       return NextResponse.json({
         ticker: cleanTicker,
         isAdjusted: false,

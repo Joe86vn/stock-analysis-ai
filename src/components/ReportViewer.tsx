@@ -12,6 +12,8 @@ import { CatalystTracker } from './CatalystTracker';
 import { InvestmentDecisionHub } from './InvestmentDecisionHub';
 import { ExecutiveSummaryTab } from './ExecutiveSummaryTab';
 import { ErrorBoundary } from './ErrorBoundary';
+import { useDataSource } from '@/contexts/DataSourceContext';
+import { SourceBadge } from '@/components/common/SourceBadge';
 import { FileText, FileBadge, Building2, Factory, LineChart, Target, Edit3, Check, BarChart2, Cpu, RefreshCw, TrendingUp, Award, Layers, Sparkles, Compass } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -323,10 +325,13 @@ export function ReportViewer({
   const [activeTab, setActiveTab] = useState<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'>('A');
   const [isEditing, setIsEditing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const { currentSource, buildSourceUrl } = useDataSource();
+  const [financialSource, setFinancialSource] = useState<string>('');
+  const [isFinancialFallback, setIsFinancialFallback] = useState<boolean>(false);
   const [realQuarterlyFinancials, setRealQuarterlyFinancials] = useState<any[]>([]);
   const [priceHistory, setPriceHistory] = useState<any[]>([]);
 
-  // Fetch real BCTC quarterly data from Vietcap IQ API endpoint
+  // Fetch real BCTC quarterly data from multi-source provider endpoint
   useEffect(() => {
     if (!report?.ticker) return;
 
@@ -337,18 +342,24 @@ export function ReportViewer({
     setRealQuarterlyFinancials([]);
     setPriceHistory([]);
 
-    fetch(`/api/stocks/${currentTicker}/financials`)
+    const finUrl = buildSourceUrl(`/api/stocks/${currentTicker}/financials`);
+    fetch(finUrl)
       .then((res) => res.json())
       .then((data) => {
         if (!isCancelled && data && data.quarters && Array.isArray(data.quarters)) {
           if (!data.ticker || data.ticker.toUpperCase() === currentTicker) {
             setRealQuarterlyFinancials(data.quarters);
+            if (data.sourceUsed) {
+              setFinancialSource(data.sourceUsed);
+              setIsFinancialFallback(Boolean(data.isFallback));
+            }
           }
         }
       })
       .catch((err) => console.warn(`Failed to fetch real financials for ${currentTicker}:`, err));
 
-    fetch(`/api/stocks/${currentTicker}/price-history`)
+    const priceUrl = buildSourceUrl(`/api/stocks/${currentTicker}/price-history`);
+    fetch(priceUrl)
       .then((res) => res.json())
       .then((data) => {
         if (!isCancelled && data && Array.isArray(data.history)) {
@@ -360,7 +371,7 @@ export function ReportViewer({
     return () => {
       isCancelled = true;
     };
-  }, [report?.ticker]);
+  }, [report?.ticker, currentSource, buildSourceUrl]);
 
   // Editable states for all 6 tabs
   const [secA, setSecA] = useState<SectionA>(report.sectionA);
@@ -1119,6 +1130,10 @@ export function ReportViewer({
             <div className="flex items-center space-x-1.5 text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 px-3 py-1 rounded-lg">
               <span>✨ Phân tích mới</span>
             </div>
+          )}
+
+          {financialSource && (
+            <SourceBadge source={financialSource} isFallback={isFinancialFallback} />
           )}
         </div>
       </div>
