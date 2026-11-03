@@ -191,6 +191,25 @@ export async function GET(
   try {
     // Nếu chỉ định rõ nguồn MASVN (hỗ trợ độ sâu tới 26 năm)
     if (sourceParam === 'mas') {
+      // 0. Ưu tiên đọc từ kho Cloudflare R2 / SSD Local trước (< 15ms)
+      const r2Data = await getPriceHistoryFromR2(cleanTicker, 7200);
+      if (r2Data && Array.isArray(r2Data.history) && r2Data.history.length > 0) {
+        const sliced = countBack ? r2Data.history.slice(-countBack) : r2Data.history;
+        return NextResponse.json({
+          ticker: cleanTicker,
+          isAdjusted: r2Data.isAdjusted ?? true,
+          source: 'MASVN',
+          sourceUsed: 'MASVN',
+          isFallback: false,
+          latencyMs: 15,
+          timeFrame,
+          count: sliced.length,
+          history: sliced,
+          events: r2Data.events || [],
+          updatedAt: r2Data.updatedAt,
+        });
+      }
+
       const masResult = await compositeDataProvider.getPriceHistory(cleanTicker, {
         source: 'mas',
         fromDate: fromDateParam || undefined,

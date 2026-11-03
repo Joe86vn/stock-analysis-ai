@@ -9,9 +9,31 @@
 
 import fs from 'fs';
 import path from 'path';
+
+// Nạp biến môi trường từ .env.local
+function loadEnvLocal() {
+  const envPath = path.resolve(process.cwd(), '.env.local');
+  if (fs.existsSync(envPath)) {
+    const content = fs.readFileSync(envPath, 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.substring(0, eqIdx).trim();
+        const val = trimmed.substring(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+}
+loadEnvLocal();
+
 import { masDataProvider } from '../src/lib/data-providers/mas-provider';
 import { FILTER_75_TICKERS } from '../src/lib/filter-rs-data';
-import { putPriceHistoryToR2, putFinancialsToStorage } from '../src/lib/r2-storage';
+import { putPriceHistoryToR2, putFinancialsToStorage, getR2Config } from '../src/lib/r2-storage';
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -132,7 +154,7 @@ async function main() {
             volume: b.totalVolume,
           };
         });
-        await putPriceHistoryToR2(ticker, {
+        const pRes = await putPriceHistoryToR2(ticker, {
           ticker,
           updatedAt: new Date().toISOString(),
           isAdjusted: true,
@@ -141,12 +163,12 @@ async function main() {
           history,
           events: [],
         });
-        console.log(`   ☁️ Đã đẩy ${history.length} nến lên Cloudflare R2!`);
+        console.log(`   ☁️ Đã lưu ${history.length} nến (Đích: ${pRes.destination})!`);
       }
 
       if (financials.length > 0) {
-        await putFinancialsToStorage(ticker, financials);
-        console.log(`   ☁️ Đã đẩy ${financials.length} kỳ BCTC lên Cloudflare R2!`);
+        const fRes = await putFinancialsToStorage(ticker, financials);
+        console.log(`   ☁️ Đã lưu ${financials.length} kỳ BCTC (Đích: ${fRes.destination})!`);
       }
 
       // Đánh dấu hoàn thành

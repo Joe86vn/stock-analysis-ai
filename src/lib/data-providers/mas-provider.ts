@@ -11,6 +11,7 @@ import path from 'path';
 import { IDataProvider, FinancialFetchOptions, PriceFetchOptions } from './types';
 import { ParsedVietcapQuarter, VietcapPriceHistoryItem } from '@/lib/vietcap-field-mapping';
 import { masMcpClient } from '@/lib/mas-mcp-client';
+import { getPriceHistoryFromR2, getFinancialsFromStorage } from '@/lib/r2-storage';
 
 export class MasDataProvider implements IDataProvider {
   public readonly id = 'mas' as const;
@@ -74,6 +75,41 @@ export class MasDataProvider implements IDataProvider {
             ? parsed.priceHistory.slice(0, options.countBack)
             : parsed.priceHistory;
         }
+      }
+    } catch {}
+
+    // 0.1 Kiểm tra kho Cloudflare R2 (cho môi trường VPS)
+    try {
+      const r2Data = await getPriceHistoryFromR2(cleanTicker, 7200);
+      if (r2Data && Array.isArray(r2Data.history) && r2Data.history.length > 0) {
+        const reversed = [...r2Data.history].reverse();
+        const mapped: VietcapPriceHistoryItem[] = reversed.map(b => ({
+          id: `${cleanTicker}_${(b.fullDate || '').replace(/-/g, '')}`,
+          ticker: cleanTicker,
+          tradingDate: b.fullDate,
+          marketCap: 0,
+          totalShares: 0,
+          openPrice: b.openPrice,
+          closePrice: b.closePrice,
+          matchPrice: b.closePrice,
+          highestPrice: b.highestPrice,
+          lowestPrice: b.lowestPrice,
+          averagePrice: (b.openPrice + b.closePrice) / 2,
+          priceChange: 0,
+          percentPriceChange: 0,
+          totalMatchVolume: b.volume,
+          totalMatchValue: 0,
+          totalDealVolume: 0,
+          totalDealValue: 0,
+          totalVolume: b.volume,
+          totalValue: 0,
+          foreignBuyValueMatched: 0,
+          foreignSellValueMatched: 0,
+          foreignOwnedPercentage: 0,
+        }));
+        return options.countBack && options.countBack > 0
+          ? mapped.slice(0, options.countBack)
+          : mapped;
       }
     } catch {}
 
@@ -186,6 +222,16 @@ export class MasDataProvider implements IDataProvider {
             ? parsed.financials.slice(0, options.maxQuarters)
             : parsed.financials;
         }
+      }
+    } catch {}
+
+    // 0.1 Kiểm tra kho Cloudflare R2 (cho môi trường VPS)
+    try {
+      const r2Financials = await getFinancialsFromStorage(cleanTicker, 7200);
+      if (Array.isArray(r2Financials) && r2Financials.length > 0) {
+        return options.maxQuarters && options.maxQuarters > 0
+          ? r2Financials.slice(0, options.maxQuarters)
+          : r2Financials;
       }
     } catch {}
 
