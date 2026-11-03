@@ -61,3 +61,4 @@ export function SourceBadge({ source, isFallback, className = '' }: SourceBadgeP
     </span>
   );
 }
+

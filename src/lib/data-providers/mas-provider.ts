@@ -6,6 +6,8 @@
  * - VietcapPriceHistoryItem (Lịch sử giá EOD lên đến 26 năm)
  */
 
+import fs from 'fs';
+import path from 'path';
 import { IDataProvider, FinancialFetchOptions, PriceFetchOptions } from './types';
 import { ParsedVietcapQuarter, VietcapPriceHistoryItem } from '@/lib/vietcap-field-mapping';
 import { masMcpClient } from '@/lib/mas-mcp-client';
@@ -60,14 +62,30 @@ export class MasDataProvider implements IDataProvider {
     options: PriceFetchOptions = {}
   ): Promise<VietcapPriceHistoryItem[]> {
     const cleanTicker = ticker.trim().toUpperCase();
+
+    // 0. Kiểm tra kho nến sâu đã cào sẵn trên đĩa (trả về tức thì < 5ms)
+    try {
+      const localDeepFile = path.resolve(process.cwd(), 'data', 'deep-history', `${cleanTicker}.json`);
+      if (fs.existsSync(localDeepFile)) {
+        const raw = fs.readFileSync(localDeepFile, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.priceHistory) && parsed.priceHistory.length > 0) {
+          return options.countBack && options.countBack > 0
+            ? parsed.priceHistory.slice(0, options.countBack)
+            : parsed.priceHistory;
+        }
+      }
+    } catch {}
+
     const today = new Date();
     const todayStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
-    const startDateStr = this.formatDateForMas(options.fromDate) || '01/01/2015';
+    // Mặc định lấy từ 28/07/2000 (ngày mở sàn đầu tiên của TTCK VN)
+    const startDateStr = this.formatDateForMas(options.fromDate) || '28/07/2000';
     const endDateStr = this.formatDateForMas(options.toDate) || todayStr;
 
     // Phân tích năm bắt đầu và năm kết thúc
-    const startYear = parseInt(startDateStr.split('/')[2] || '2015', 10);
+    const startYear = parseInt(startDateStr.split('/')[2] || '2000', 10);
     const endYear = parseInt(endDateStr.split('/')[2] || String(today.getFullYear()), 10);
 
     // Nếu khoảng thời gian > 3 năm, chia thành các cửa sổ 3 năm
@@ -156,7 +174,23 @@ export class MasDataProvider implements IDataProvider {
     options: FinancialFetchOptions = {}
   ): Promise<ParsedVietcapQuarter[]> {
     const cleanTicker = ticker.trim().toUpperCase();
-    const quarterCount = options.maxQuarters || 12;
+
+    // 0. Kiểm tra kho BCTC sâu đã cào sẵn trên đĩa (trả về tức thì < 5ms)
+    try {
+      const localDeepFile = path.resolve(process.cwd(), 'data', 'deep-history', `${cleanTicker}.json`);
+      if (fs.existsSync(localDeepFile)) {
+        const raw = fs.readFileSync(localDeepFile, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.financials) && parsed.financials.length > 0) {
+          return options.maxQuarters && options.maxQuarters > 0
+            ? parsed.financials.slice(0, options.maxQuarters)
+            : parsed.financials;
+        }
+      }
+    } catch {}
+
+    // Mặc định lấy tối đa 84 quý (~21 năm BCTC từ 2005 đến nay)
+    const quarterCount = options.maxQuarters || 84;
     const periods = options.periods || this.generateQuarterPeriods(quarterCount);
 
     // Chia periods thành các chunk nhỏ (tối đa 8 kỳ / mẻ để không timeout)

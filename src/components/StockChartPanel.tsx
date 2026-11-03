@@ -893,8 +893,9 @@ export function StockChartPanel({
 
   const fetchPhase2Background = useCallback(async (t: string, currentRes: Resolution, reqId?: number) => {
     try {
-      // Tải 2.000 nến Ngày đầy đủ (~8-9 năm lịch sử)
-      const url2 = buildSourceUrl(`/api/stocks/${t}/price-history`, { countBack: 2000, timeFrame: 'ONE_DAY' });
+      // Tải nến Ngày đầy đủ (2.000 nến cho Vietcap ~ 8 năm; 8.000 nến cho MASVN ~ 26 năm)
+      const targetCount = currentSource === 'mas' ? 8000 : 2000;
+      const url2 = buildSourceUrl(`/api/stocks/${t}/price-history`, { countBack: targetCount, timeFrame: 'ONE_DAY' });
       const res2 = await fetch(url2);
       if (!res2.ok) return;
       const json2 = await res2.json();

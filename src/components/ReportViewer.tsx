@@ -342,7 +342,9 @@ export function ReportViewer({
     setRealQuarterlyFinancials([]);
     setPriceHistory([]);
 
-    const finUrl = buildSourceUrl(`/api/stocks/${currentTicker}/financials`);
+    const finUrl = buildSourceUrl(`/api/stocks/${currentTicker}/financials`, {
+      maxQuarters: currentSource === 'mas' ? 84 : 32,
+    });
     fetch(finUrl)
       .then((res) => res.json())
       .then((data) => {

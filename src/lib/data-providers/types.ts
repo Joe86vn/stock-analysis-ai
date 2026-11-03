@@ -32,3 +32,4 @@ export interface IDataProvider {
   getPriceHistory(ticker: string, options?: PriceFetchOptions): Promise<VietcapPriceHistoryItem[]>;
   getStockQuote?(ticker: string): Promise<any>;
 }
+

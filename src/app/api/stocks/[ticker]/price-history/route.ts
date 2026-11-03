@@ -168,21 +168,23 @@ export async function GET(
     return NextResponse.json({ error: 'Ticker is required' }, { status: 400 });
   }
 
-  // Hỗ trợ countBack query param (mặc định 260, tối đa 2000)
+  const sourceParam = (request.nextUrl.searchParams.get('source') || 'auto').toLowerCase() as MarketDataSource;
+  const fromDateParam = request.nextUrl.searchParams.get('fromDate');
+  const toDateParam = request.nextUrl.searchParams.get('toDate');
+
+  // Hỗ trợ countBack query param (mặc định 260; tối đa 8000 nến cho MASVN ~ 26 năm lịch sử)
+  const isMasSource = sourceParam === 'mas';
+  const maxLimit = isMasSource ? 8000 : 2000;
   const rawCountBack = request.nextUrl.searchParams.get('countBack');
   const countBack = rawCountBack
-    ? Math.min(Math.max(1, parseInt(rawCountBack, 10)), 2000)
-    : 260;
+    ? Math.min(Math.max(1, parseInt(rawCountBack, 10)), maxLimit)
+    : (isMasSource ? 8000 : 260);
 
   // Hỗ trợ timeFrame query param ('ONE_DAY' | 'ONE_WEEK' | 'ONE_MONTH')
   const rawTimeFrame = request.nextUrl.searchParams.get('timeFrame') || 'ONE_DAY';
   const timeFrame = ['ONE_DAY', 'ONE_WEEK', 'ONE_MONTH'].includes(rawTimeFrame)
     ? rawTimeFrame
     : 'ONE_DAY';
-
-  const sourceParam = (request.nextUrl.searchParams.get('source') || 'auto').toLowerCase() as MarketDataSource;
-  const fromDateParam = request.nextUrl.searchParams.get('fromDate');
-  const toDateParam = request.nextUrl.searchParams.get('toDate');
 
   const todayStr = new Date().toISOString().slice(0, 10);
 

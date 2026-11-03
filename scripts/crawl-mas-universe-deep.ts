@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { masDataProvider } from '../src/lib/data-providers/mas-provider';
 import { FILTER_75_TICKERS } from '../src/lib/filter-rs-data';
+import { putPriceHistoryToR2, putFinancialsToStorage } from '../src/lib/r2-storage';
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -112,6 +113,41 @@ async function main() {
 
       const filePath = path.join(DATA_DIR, `${ticker}.json`);
       fs.writeFileSync(filePath, JSON.stringify(record), 'utf8');
+
+      // 4. Đồng bộ trực tiếp lên Cloudflare R2 (Đồng bộ tức thì cho VPS & Web Production)
+      if (priceBars.length > 0) {
+        const sortedBars = [...priceBars].reverse();
+        const history = sortedBars.map((b) => {
+          const dt = new Date(b.tradingDate);
+          const day = String(dt.getDate()).padStart(2, '0');
+          const month = String(dt.getMonth() + 1).padStart(2, '0');
+          return {
+            date: `${day}/${month}`,
+            fullDate: b.tradingDate,
+            openPrice: b.openPrice,
+            highestPrice: b.highestPrice,
+            lowestPrice: b.lowestPrice,
+            closePrice: b.closePrice,
+            range: [b.lowestPrice, b.highestPrice] as [number, number],
+            volume: b.totalVolume,
+          };
+        });
+        await putPriceHistoryToR2(ticker, {
+          ticker,
+          updatedAt: new Date().toISOString(),
+          isAdjusted: true,
+          source: 'mas-mcp-deep',
+          count: history.length,
+          history,
+          events: [],
+        });
+        console.log(`   ☁️ Đã đẩy ${history.length} nến lên Cloudflare R2!`);
+      }
+
+      if (financials.length > 0) {
+        await putFinancialsToStorage(ticker, financials);
+        console.log(`   ☁️ Đã đẩy ${financials.length} kỳ BCTC lên Cloudflare R2!`);
+      }
 
       // Đánh dấu hoàn thành
       completedSet.add(ticker);
