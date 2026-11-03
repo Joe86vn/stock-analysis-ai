@@ -113,7 +113,7 @@
 - [x] Checkpoint 5: Chạy thử script cào sâu mẫu cho top cổ phiếu lâu năm và xác nhận dung lượng nhẹ (Passed 100%)
 
 ## Phase 6: Kiểm Thử Toàn Diện, Build & Đồng Bộ VPS Oracle
-- [ ] Task 6.1: Typecheck `npx tsc --noEmit` & Production Build `npm run build`
-- [ ] Task 6.2: Git commit & push `origin/main`
-- [ ] Task 6.3: Đồng bộ lên Oracle Cloud VPS (`valuex.duckdns.org` qua MCP `oracle-vps:remote-ssh`): `git pull`, `npm run build`, `pm2 reload valuex`
-- [ ] Final Checkpoint: Kiểm tra trực tiếp trên `https://valuex.duckdns.org` hoạt động hoàn hảo cả 3 chế độ nguồn
+- [x] Task 6.1: Typecheck `npx tsc --noEmit` & Production Build `npm run build` (Passed 100% 0 errors)
+- [x] Task 6.2: Git commit & push `origin/main` (Commit `1020311`)
+- [x] Task 6.3: Đồng bộ lên Oracle Cloud VPS (`valuex.duckdns.org` qua MCP `oracle-vps:remote-ssh`): `git pull`, `npm run build`, `pm2 reload valuex`
+- [x] Final Checkpoint: Kiểm tra trực tiếp trên `https://valuex.duckdns.org` hoạt động hoàn hảo cả 3 chế độ nguồn, auto-fallback bảo vệ hệ thống trước firewall ngoại cảnh.
